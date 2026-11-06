@@ -1,0 +1,27 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArcaneVault.Desktop", "ArcaneVault.Desktop\ArcaneVault.Desktop.csproj", "{BB41EA12-10B5-4A35-BEAD-89C536F8F7E1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArcaneVault.Tests", "ArcaneVault.Tests\ArcaneVault.Tests.csproj", "{A25E89B4-9FD3-4E7A-977B-4A8770D1F265}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BB41EA12-10B5-4A35-BEAD-89C536F8F7E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BB41EA12-10B5-4A35-BEAD-89C536F8F7E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BB41EA12-10B5-4A35-BEAD-89C536F8F7E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BB41EA12-10B5-4A35-BEAD-89C536F8F7E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A25E89B4-9FD3-4E7A-977B-4A8770D1F265}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A25E89B4-9FD3-4E7A-977B-4A8770D1F265}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A25E89B4-9FD3-4E7A-977B-4A8770D1F265}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A25E89B4-9FD3-4E7A-977B-4A8770D1F265}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ArcaneVault.Desktop</AssemblyName>
+    <RootNamespace>ArcaneVault.Desktop</RootNamespace>
+    <ApplicationTitle>Arcane Vault</ApplicationTitle>
+    <ApplicationIcon>Assets\ArcaneVault.ico</ApplicationIcon>
+    <Version>4.9.4</Version>
+    <!-- Publish settings: desktop window + embedded Scryfall service in ONE EXE. -->
+    <PublishSingleFile Condition="'$(PublishSingleFile)' == ''">true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(IncludeNativeLibrariesForSelfExtract)' == ''">true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+    <EmbeddedResource Include="Assets\ArcaneVault.ico" LogicalName="ArcaneVault.Desktop.WindowIcon.ico" />
+    <EmbeddedResource Include="Assets\Arcane_Vault_MTGA_Collection_v4_2.html" LogicalName="ArcaneVault.Desktop.App.html" />
+  </ItemGroup>
+  <!-- The WebView2 NuGet targets can reference the WPF control even in WinForms-only projects.
+       Remove that unused reference before assembly resolution to prevent MSB3277
+       WindowsBase version conflicts. Keep Core and WinForms WebView2 references. -->
+  <Target Name="RemoveUnusedWebView2WpfReference" BeforeTargets="ResolveAssemblyReferences"
+          Condition="'$(UseWindowsForms)' == 'true' and '$(UseWPF)' != 'true'">
+    <ItemGroup>
+      <Reference Remove="@(Reference->WithMetadataValue('FileName', 'Microsoft.Web.WebView2.Wpf'))" />
+    </ItemGroup>
+  </Target>
+</Project>
