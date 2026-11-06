@@ -247,7 +247,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
  <div class="notice">Physical copies are tracked separately from Arena ownership, wildcards, and automatic Arena log updates. This is a local inventory, not an Arena collection sync. Imported card versions are preserved by set code and collector number when available.</div>
  <div class="panel"><div class="studio-heading"><h2>Your paper cards</h2><span id="physicalSummary" class="note">No physical cards recorded yet.</span></div>
  <div class="studio-line"><label>Import a paper collection CSV <input id="physicalCsv" class="field" type="file" accept=".csv,text/csv"></label><label>Import behavior <select class="field" id="physicalImportMode"><option value="replace">Replace physical inventory</option><option value="merge">Add quantities to physical inventory</option></select></label></div>
- <p class="note">Auto-detects recognizable ManaBox, Moxfield, Archidekt, Deckbox, Delver Lens and TCGplayer-style CSV headers. Other CSVs use flexible column matching. Review detected source, mapped fields, skipped rows and totals before import. Your Arena cards are never modified.</p><p id="physicalStatus" class="note" role="status" aria-live="polite"></p><p class="note" id="physicalImportProfile" aria-live="polite">No CSV loaded.</p></div>
+ <p class="note">Auto-detects recognizable Mythic Tools, ManaBox, Moxfield, Archidekt, Deckbox, Delver Lens and TCGplayer-style CSV headers. Other CSVs use flexible column matching. Review detected source, mapped fields, skipped rows and totals before import. Your Arena cards are never modified.</p><p id="physicalStatus" class="note" role="status" aria-live="polite"></p><p class="note" id="physicalImportProfile" aria-live="polite">No CSV loaded.</p></div>
  <div class="panel"><h2>Manually add or edit a card</h2><div class="studio-line"><label>Card name<input id="physicalName" class="field" placeholder="e.g. Sol Ring"></label><label>Quantity<input id="physicalQty" class="field" type="number" min="0" max="99999" value="1"></label><label>Set / Edition<input id="physicalSet" class="field" placeholder="e.g. CMM (optional)"></label><label>Collector number<input id="physicalNumber" class="field" placeholder="Optional"></label><label>Finish<select id="physicalFinish" class="field"><option value="nonfoil">Nonfoil</option><option value="foil">Foil</option><option value="etched">Etched foil</option></select></label><button class="primary" id="physicalAdd" type="button">Add copies</button></div>
  <p class="note">Use the exact name, set, collector number and finish to increase an existing entry. To decrease or remove copies, edit the quantity in the table below.</p></div>
  <div class="panel"><div class="studio-heading"><h2>Paper inventory</h2><input class="field" id="physicalSearch" placeholder="Search cards, sets or collector numbers" aria-label="Search physical inventory"></div>
@@ -735,7 +735,8 @@ function physicalCsvRows(raw){
  const has=(...names)=>names.some(x=>headers.includes(x));
  let source='Generic CSV';
  // Positive header signatures only; ambiguous files stay generic instead of mislabeling a provider.
- if(has('manaboxid')||has('bindername')&&has('setcode'))source='ManaBox';
+ if(has('containertype')&&has('containername')&&has('scryfallid'))source='Mythic Tools';
+ else if(has('manaboxid')||has('bindername')&&has('setcode'))source='ManaBox';
  else if(has('tradelistcount')||has('count')&&has('edition')&&has('collectornumber'))source='Moxfield';
  else if(has('editioncode')&&has('scryfallid')&&has('dateadded'))source='Archidekt';
  else if(has('delverlensid')||has('scanid')&&has('cardname'))source='Delver Lens';
@@ -749,7 +750,7 @@ function physicalCsvRows(raw){
   finish:['finish','foil','foiling','printing','isfoil','foilstatus'],
   condition:['condition','cardcondition','quality'],
   language:['language','lang','cardlanguage'],
-  location:['bindername','folder','location','storage','binder','collectionname'],
+  location:['containername','bindername','folder','location','storage','binder','collectionname'],
   scryfallId:['scryfallid','scryfalluuid'],
   purchasePrice:['purchaseprice','pricepaid','costbasis']
  };
