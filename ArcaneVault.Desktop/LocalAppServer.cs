@@ -239,6 +239,27 @@ internal sealed class LocalAppServer : IDisposable
                 await JsonAsync(ctx.Response, started ? 202 : 409, new { started, status = catalog.Status() });
                 return;
             }
+            else if (ctx.Request.HttpMethod == "POST" && path is "/api/catalog/sets/physical" or "/api/catalog/set-cards/physical")
+            {
+                if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local application only" }); return; }
+                if (ctx.Request.ContentLength64 is < 2 or > 3_000_000) { await JsonAsync(ctx.Response, 413, new { error = "Invalid physical ownership payload size" }); return; }
+                try
+                {
+                    using var body = await JsonDocument.ParseAsync(ctx.Request.InputStream);
+                    var inventory = body.RootElement.GetProperty("cards");
+                    string Param(string key) => ctx.Request.QueryString[key] ?? "";
+                    if (path == "/api/catalog/sets/physical")
+                        await JsonAsync(ctx.Response, 200, catalog.SetProgress(Param("arena"), Param("q"), inventory));
+                    else
+                    {
+                        int.TryParse(Param("page"), out int pg); int.TryParse(Param("size"), out int sz);
+                        await JsonAsync(ctx.Response, 200, catalog.SetCards(Param("set"), Param("arena"), Param("ownership"), pg, sz == 0 ? 40 : sz, inventory));
+                    }
+                }
+                catch (Exception ex) when (ex is JsonException or ArgumentException or KeyNotFoundException or InvalidOperationException)
+                { await JsonAsync(ctx.Response, 400, new { error = ex.Message }); }
+                return;
+            }
             else if (ctx.Request.HttpMethod == "POST" && path == "/api/catalog/ownership")
             {
                 if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local application only" }); return; }
