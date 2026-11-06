@@ -247,7 +247,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
  <div class="notice">Physical copies are tracked separately from Arena ownership, wildcards, and automatic Arena log updates. This is a local inventory, not an Arena collection sync. Imported card versions are preserved by set code and collector number when available.</div>
  <div class="panel"><div class="studio-heading"><h2>Your paper cards</h2><span id="physicalSummary" class="note">No physical cards recorded yet.</span></div>
  <div class="studio-line"><label>Import a paper collection CSV <input id="physicalCsv" class="field" type="file" accept=".csv,text/csv"></label><label>Import behavior <select class="field" id="physicalImportMode"><option value="replace">Replace physical inventory</option><option value="merge">Add quantities to physical inventory</option></select></label></div>
- <p class="note">Supports ManaBox/Moxfield-style exports using Name or Card Name, Quantity/Count, Set/Edition/Set Code, Collector Number and Foil/Finish where supplied. Review totals before importing. Your Arena cards are never modified.</p><p id="physicalStatus" class="note" role="status" aria-live="polite"></p></div>
+ <p class="note">Auto-detects recognizable ManaBox, Moxfield, Archidekt, Deckbox, Delver Lens and TCGplayer-style CSV headers. Other CSVs use flexible column matching. Review detected source, mapped fields, skipped rows and totals before import. Your Arena cards are never modified.</p><p id="physicalStatus" class="note" role="status" aria-live="polite"></p><p class="note" id="physicalImportProfile" aria-live="polite">No CSV loaded.</p></div>
  <div class="panel"><h2>Manually add or edit a card</h2><div class="studio-line"><label>Card name<input id="physicalName" class="field" placeholder="e.g. Sol Ring"></label><label>Quantity<input id="physicalQty" class="field" type="number" min="0" max="99999" value="1"></label><label>Set / Edition<input id="physicalSet" class="field" placeholder="e.g. CMM (optional)"></label><label>Collector number<input id="physicalNumber" class="field" placeholder="Optional"></label><label>Finish<select id="physicalFinish" class="field"><option value="nonfoil">Nonfoil</option><option value="foil">Foil</option><option value="etched">Etched foil</option></select></label><button class="primary" id="physicalAdd" type="button">Add copies</button></div>
  <p class="note">Use the exact name, set, collector number and finish to increase an existing entry. To decrease or remove copies, edit the quantity in the table below.</p></div>
  <div class="panel"><div class="studio-heading"><h2>Paper inventory</h2><input class="field" id="physicalSearch" placeholder="Search cards, sets or collector numbers" aria-label="Search physical inventory"></div>
@@ -689,15 +689,24 @@ for(const id of ['query','colors','types','rarity','sort'])$(id).addEventListene
 
 // Physical collection is a separate local inventory. Never merge it into Arena 'cards'.
 const PHYSICAL_KEY='physicalCollectionV1';
-const physicalKey=c=>[String(c.name||'').trim().toLowerCase(),String(c.set||'').trim().toLowerCase(),String(c.number||'').trim().toLowerCase(),String(c.finish||'nonfoil').trim().toLowerCase()].join('|');
+const physicalKey=c=>[
+ String(c.name||'').trim().toLowerCase(),String(c.set||'').trim().toLowerCase(),
+ String(c.number||'').trim().toLowerCase(),String(c.finish||'nonfoil').trim().toLowerCase(),
+ String(c.language||'').trim().toLowerCase(),String(c.condition||'').trim().toLowerCase(),
+ String(c.location||'').trim().toLowerCase(),String(c.scryfallId||'').trim().toLowerCase()
+].join('|');
 function physicalNormalize(rows){
  const map=new Map();
  for(const row of Array.isArray(rows)?rows:[]){
   if(!row||typeof row.name!=='string')continue;
-  const name=row.name.trim().slice(0,200);
-  const qty=Math.floor(Number(row.qty));
-  if(!name||!Number.isFinite(qty)||qty<=0||qty>99999)continue;
-  const item={name,qty,set:String(row.set||'').trim().slice(0,100),number:String(row.number||'').trim().slice(0,50),finish:['foil','etched','nonfoil'].includes(row.finish)?row.finish:'nonfoil'};
+  const name=row.name.trim().slice(0,200),qty=Number(row.qty);
+  if(!name||!Number.isInteger(qty)||qty<=0||qty>99999)continue;
+  const set=String(row.set||'').trim().slice(0,100),number=String(row.number||'').trim().slice(0,50);
+  const finish=['foil','etched','nonfoil'].includes(row.finish)?row.finish:'nonfoil';
+  const item={name,qty,set,number,finish,language:String(row.language||'').trim().slice(0,40),
+    condition:String(row.condition||'').trim().slice(0,50),location:String(row.location||'').trim().slice(0,100),
+    scryfallId:String(row.scryfallId||'').trim().slice(0,80),
+    purchasePrice:String(row.purchasePrice||'').trim().slice(0,30)};
   const key=physicalKey(item),existing=map.get(key);
   if(existing)existing.qty=Math.min(99999,existing.qty+qty);else map.set(key,item);
  }
@@ -722,34 +731,66 @@ function physicalRender(){
 function physicalCsvRows(raw){
  const rows=parseCsv(raw.replace(/^\uFEFF/,'')).filter(row=>row.some(v=>String(v||'').trim()));
  if(!rows.length)throw Error('The CSV is empty.');
- const headers=rows.shift().map(x=>String(x||'').replace(/^\uFEFF/,'').trim().toLowerCase().replace(/[ _-]/g,''));
- const column=(...names)=>headers.findIndex(h=>names.includes(h));
- const nameCol=column('name','cardname','card','cardtitle');
- const qtyCol=column('quantity','count','qty','copies','amount');
- const setCol=column('set','setcode','edition','editioncode','setname');
- const numberCol=column('collectornumber','collectorno','number','cardnumber');
- const finishCol=column('finish','foil','foiling','printing');
- if(nameCol<0)throw Error('CSV requires a Name or Card Name column.');
- const entries=[];let skipped=0;
- for(const row of rows){
-  const name=String(row[nameCol]||'').trim();
-  const qty=qtyCol<0?1:Number(String(row[qtyCol]||'').trim());
-  if(!name||!Number.isInteger(qty)||qty<1||qty>99999){skipped++;continue}
-  const rawFinish=finishCol<0?'':String(row[finishCol]||'').trim().toLowerCase();
-  const finish=/etched/.test(rawFinish)?'etched':/^(true|yes|1|foil|foiled|premium)$/.test(rawFinish)?'foil':'nonfoil';
-  entries.push({name,qty,set:setCol<0?'':row[setCol]||'',number:numberCol<0?'':row[numberCol]||'',finish});
+ const headers=rows.shift().map(x=>String(x||'').replace(/^\uFEFF/,'').trim().toLowerCase().replace(/[^a-z0-9]/g,''));
+ const has=(...names)=>names.some(x=>headers.includes(x));
+ let source='Generic CSV';
+ // Positive header signatures only; ambiguous files stay generic instead of mislabeling a provider.
+ if(has('manaboxid')||has('bindername')&&has('setcode'))source='ManaBox';
+ else if(has('tradelistcount')||has('count')&&has('edition')&&has('collectornumber'))source='Moxfield';
+ else if(has('editioncode')&&has('scryfallid')&&has('dateadded'))source='Archidekt';
+ else if(has('delverlensid')||has('scanid')&&has('cardname'))source='Delver Lens';
+ else if(has('tcgplayerid')||has('productid')&&has('marketprice'))source='TCGplayer-style';
+ else if(has('deckboxid')||has('inventoryid')&&has('edition'))source='Deckbox-style';
+ const aliases={
+  name:['name','cardname','card','cardtitle','productname','cardnameenglish'],
+  qty:['quantity','count','qty','copies','amount','owned','tradelistcount','totalquantity'],
+  set:['setcode','editioncode','edition','set','setname','expansion','expansionname'],
+  number:['collectornumber','collectorno','number','cardnumber','collectornum'],
+  finish:['finish','foil','foiling','printing','isfoil','foilstatus'],
+  condition:['condition','cardcondition','quality'],
+  language:['language','lang','cardlanguage'],
+  location:['bindername','folder','location','storage','binder','collectionname'],
+  scryfallId:['scryfallid','scryfalluuid'],
+  purchasePrice:['purchaseprice','pricepaid','costbasis']
+ };
+ const mapped={};
+ for(const [key,names] of Object.entries(aliases))mapped[key]=names.map(name=>headers.indexOf(name)).find(i=>i>=0)??-1;
+ if(mapped.name<0)throw Error('No card-name column recognized. Available headers: '+headers.join(', ')+'.');
+ if(mapped.qty<0)throw Error('No quantity/count column recognized. A collection export must include quantities to prevent accidental ownership inflation.');
+ const get=(row,key)=>mapped[key]<0?'':String(row[mapped[key]]??'').trim();
+ const entries=[],issues=[],skippedReasons={};
+ function skip(reason,line){skippedReasons[reason]=(skippedReasons[reason]||0)+1;if(issues.length<8)issues.push('Line '+line+': '+reason);}
+ for(let i=0;i<rows.length;i++){
+  const row=rows[i],name=get(row,'name'),count=get(row,'qty'),qty=Number(count);
+  if(!name){skip('blank card name',i+2);continue}
+  if(!Number.isInteger(qty)||qty<0||qty>99999){skip('invalid quantity '+count,i+2);continue}
+  if(qty===0){skip('zero copies',i+2);continue}
+  // ManaBox can export wishlists as lists; those are not owned cards.
+  const typeIndex=headers.indexOf('bindertype');
+  const binderType=typeIndex<0?'':String(row[typeIndex]||'').trim().toLowerCase();
+  if(source==='ManaBox'&&binderType&&binderType.includes('list')){skip('wishlist/list row (not owned)',i+2);continue}
+  const rawFinish=get(row,'finish').toLowerCase();
+  const finish=/etch/.test(rawFinish)?'etched':/^(true|yes|1|foil|foiled|premium|f)$/.test(rawFinish)?'foil':'nonfoil';
+  entries.push({name,qty,set:get(row,'set'),number:get(row,'number'),finish,
+    language:get(row,'language'),condition:get(row,'condition'),location:get(row,'location'),
+    scryfallId:get(row,'scryfallId'),purchasePrice:get(row,'purchasePrice')});
  }
- if(!entries.length)throw Error('No valid positive-quantity card rows found.');
- return {entries:physicalNormalize(entries),skipped};
+ if(!entries.length)throw Error('No positive-quantity cards found. '+issues.join(' '));
+ return {entries:physicalNormalize(entries),source,headers,mapped,
+  skipped:Object.values(skippedReasons).reduce((sum,n)=>sum+n,0),skippedReasons,issues,rawRows:rows.length};
 }
 function physicalInit(){
  $('physicalCsv').onchange=async e=>{
   const file=e.target.files?.[0];if(!file)return;
   try{
-   const {entries,skipped}=physicalCsvRows(await file.text());
+   const {entries,skipped,source,skippedReasons,issues,mapped,rawRows}=physicalCsvRows(await file.text());
    const mode=$('physicalImportMode').value,merged=mode==='merge'?physicalNormalize([...physicalCards,...entries]):entries;
    const total=merged.reduce((n,c)=>n+c.qty,0);
-   if(!confirm((mode==='merge'?'Merge into':'Replace')+' physical collection with '+entries.length+' imported printings?\nResult: '+merged.length+' printings / '+total+' copies.\n'+skipped+' invalid rows skipped.\nArena ownership will remain unchanged.'))return;
+   const fields=Object.entries(mapped).filter(([,index])=>index>=0).map(([key])=>key).join(', ');
+   const summary=source+' detected · '+rawRows+' data rows · '+entries.length+' unique printings · '+skipped+' skipped';
+   $('physicalImportProfile').textContent=summary+' · Mapped fields: '+fields+(issues.length?' · First issues: '+issues.join('; '):'');
+   const skippedSummary=Object.entries(skippedReasons).map(([name,count])=>count+' '+name).join(', ');
+   if(!confirm('Detected: '+source+'\\nMapped: '+fields+'\\n'+(mode==='merge'?'Add quantities to':'Replace')+' physical inventory with '+entries.length+' imported printings?\\nResult: '+merged.length+' printings / '+total+' copies.\\n'+skipped+' excluded rows'+(skippedSummary?' ('+skippedSummary+')':'')+'.\\nArena ownership will remain unchanged.'))return;
    physicalCards=merged;physicalSave();physicalPage=0;physicalRender();
    $('physicalStatus').textContent='Physical collection '+(mode==='merge'?'merged':'replaced')+': '+physicalCards.length+' printings, '+total+' copies. Arena unchanged.';
   }catch(err){$('physicalStatus').textContent='Import failed: '+(err.message||String(err))}
@@ -778,7 +819,7 @@ function physicalInit(){
  $('physicalNext').onclick=()=>{physicalPage++;physicalRender()};
  $('physicalExport').onclick=()=>{
   const quote=v=>'"'+String(v??'').replaceAll('"','""')+'"';
-  const data=[['Name','Count','Edition','Collector Number','Finish'].join(','),...physicalCards.map(c=>[c.name,c.qty,c.set,c.number,c.finish].map(quote).join(','))].join('\r\n');
+  const data=[['Name','Count','Edition','Collector Number','Finish','Language','Condition','Binder Name','Scryfall ID','Purchase Price'].join(','),...physicalCards.map(c=>[c.name,c.qty,c.set,c.number,c.finish,c.language,c.condition,c.location,c.scryfallId,c.purchasePrice].map(quote).join(','))].join('\r\n');
   download('arcane-vault-physical-collection.csv',data,'text/csv;charset=utf-8');
  };
  physicalRender();
