@@ -200,3 +200,11 @@ for(const marker of ['const active=activeDeckId?deckLibrary.find','let existing=
 assert.doesNotMatch(saveCode,/if\(existing&&existing\.name!==name\)existing=null/);
 assert.match(html,/studio=\{name:'New Brawl Deck',commander:'',entries:\[\]\};activeDeckId=null/);
 console.log('PASS: Deck Studio direct save, rename continuity and new-draft unlinking');
+
+// v5.9.1: technical match-result provenance is displayed as plain language.
+assert.match(html,/function perfResultSourceLabel\(source\)/);
+assert.match(html,/arena_match_result:'Arena verified'/);
+assert.match(html,/manual:'Manually entered'/);
+assert.match(html,/unverified:'Unverified'/);
+assert.match(html,/escapeHtml\(perfResultSourceLabel\(m\.resultSource\)\)/);
+console.log('PASS: human-readable match result provenance labels');
