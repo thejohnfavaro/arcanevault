@@ -247,3 +247,25 @@ const matchesBackend=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/MatchHi
 assert.match(matchesBackend,/r\.deckName\.Trim\(\)\.ToUpperInvariant\(\)/);
 assert.match(matchesBackend,/WHEN \$name IS NOT NULL THEN 'Deck assignment: manual'/);
 console.log('PASS: canonical saved-deck assignments, manual provenance and case-insensitive grouping');
+
+// v5.12: conservative minimum ownership evidence from an exact played Arena deck.
+for(const id of ['arenaPlayedDeckRecover','arenaPlayedDeckAuto','arenaPlayedDeckStatus'])assert.ok(html.includes('id="'+id+'"'));
+for(const marker of ['function arenaPlayedDeckCandidates(matches,decks)','function arenaPlayedDeckMissing(draft)','async function arenaRecoverPlayedDeckCards()','Inferred from played Arena deck (minimum 1 copy)','if(arenaPlayedDeckAuto&&d.enabled)arenaRecoverPlayedDeckCards()'])assert.ok(html.includes(marker),marker);
+const playedStart=html.indexOf('function arenaPlayedDeckCandidates(matches,decks)');
+const playedEnd=html.indexOf('async function arenaRecoverPlayedDeckCards()',playedStart);
+assert.ok(playedStart>0&&playedEnd>playedStart);
+const playableCtx={
+ arenaBrawlCandidate:d=>d.commander?.length===1&&d.main?.length===1&&(d.commander[0].qty+d.main[0].qty===100),
+ index:new Map([['owned',{qty:2}],['missing',{qty:0}]])
+};
+vm.createContext(playableCtx);
+vm.runInContext(html.slice(playedStart,playedEnd)+';globalThis.match=arenaPlayedDeckCandidates;globalThis.missing=arenaPlayedDeckMissing;',playableCtx);
+const payload={deckId:'arena123',name:'My Brawl',commander:[{card:'11',qty:1}],main:[{card:'22',qty:99}]};
+assert.equal(playableCtx.match([{deckId:'arena123',result:'win'}],[payload]).length,1);
+assert.equal(playableCtx.match([{deckId:'arena123',result:'unknown'}],[payload]).length,0);
+assert.equal(playableCtx.match([{deckId:'other',result:'win'}],[payload]).length,0);
+assert.equal(playableCtx.match([{deckId:'',deckName:'My Brawl',result:'win'}],[payload]).length,0);
+assert.equal(playableCtx.missing({commander:'Owned',entries:[{name:'Missing',qty:4},{name:'Missing',qty:1},{name:'Fresh',qty:99}]}).length,2);
+assert.match(html,/if\(Number\(index\.get\(key\)\?\.qty\)>0\)continue/);
+assert.match(html,/card\.qty=1/);
+console.log('PASS: exact played-deck ID evidence, minimum one-copy inference and no duplicates');
