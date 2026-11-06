@@ -183,7 +183,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
 <section id="builder" class="hidden">
 <div class="top"><div><h1 class="h1">Deck Studio</h1><div class="subtitle">Build with your collection. Color-identity validation, ownership, card roles, mana curve, recommendations, and Arena export.</div></div><div class="actions"><button id="studioGwenom">Load Gwenom list</button><button id="studioNew">New deck</button><button id="studioValidate" class="primary" type="button" title="Refresh cards in this deck and recheck Brawl rules">✓ Validate Deck</button><button id="auditDownload">Download validation report</button><button class="primary" id="studioCopy">Copy Arena export</button></div></div>
 <div class="notice" id="studioMetadataNotice">Commander validation and recommendations use Scryfall metadata. Sync card details in Import & Data for reliable color identity, rarity, roles, and legality.</div>
-<div class="panel"><div class="studio-line"><label for="studioName">Deck name</label><input class="field" id="studioName" placeholder="My new Brawl deck"><label for="studioCommander">Commander</label><input class="field" id="studioCommander" list="studioCommanderOptions" placeholder="Select a legendary creature / planeswalker"><datalist id="studioCommanderOptions"></datalist></div>
+<div class="panel"><div class="studio-line"><label for="studioName">Deck name</label><input class="field" id="studioName" placeholder="My new Brawl deck"><label for="studioCommander">Commander</label><input class="field" id="studioCommander" list="studioCommanderOptions" placeholder="Select a legendary creature / planeswalker"><datalist id="studioCommanderOptions"></datalist></div><div class="studio-line"><button type="button" class="primary" id="studioSaveLibrary">Save to Deck Library</button><span class="note" id="studioLibrarySaveStatus" role="status" aria-live="polite">Changes autosave as a working draft. Save here to update your library deck.</span></div>
 <div class="studio-line"><label for="studioRole">Search by role</label><select class="field" id="studioRole"></select><label><input type="checkbox" id="studioOwnedOnly" checked> Owned only</label><label><input type="checkbox" id="studioLegalOnly" checked> Color identity match</label><label><input type="checkbox" id="studioSkipDeck" checked> Hide cards in deck</label></div>
 <div class="studio-metrics"><div class="studio-metric"><strong id="studioCount">0 / 100</strong><span>Deck size, commander included</span></div><div class="studio-metric"><strong id="studioOwned">0</strong><span>Owned main-deck copies</span></div><div class="studio-metric"><strong id="studioMissing">0</strong><span>Missing copies</span></div><div class="studio-metric"><strong id="studioColors">?</strong><span>Commander color identity</span></div></div>
 <p id="studioValidateStatus" class="note" role="status" aria-live="polite">Validate Deck rechecks your deck using fresh Scryfall metadata. Arena remains the final judge of card availability.</p><p class="studio-warn" id="studioValidation"></p><div class="av-validation-help"><strong>How to resolve warnings:</strong> Select <strong>Validate Deck</strong> to refresh the current deck and recalculate warnings. Outdated notices will disappear when the data resolves them; genuine violations remain.  Under <strong>Import &amp; Data</strong>, use <strong>Load official card details</strong> to refresh missing commander/card metadata, or <strong>Sync catalog + variants</strong> for the full database. Check card names, Brawl legality, color identity, and Arena availability; replace cards that truly fail validation. After refreshing, validation updates automatically. Warnings about information the app cannot verify may remain even for a playable deck.</div><div id="validationDetails" class="v3grid"></div></div>
@@ -692,16 +692,33 @@ function librarySnapshot(d,label='Before update'){
  d.revisions=d.revisions.slice(-20);
 }
 function libraryStore(){
- const name=String(studio.name||'Untitled deck').trim(),cmd=String(studio.commander||'').trim();
- if(!cmd){alert('Select a commander in Deck Studio first.');return}
- let existing=activeDeckId?deckLibrary.find(d=>d.id===activeDeckId):null;
- if(existing&&existing.name!==name)existing=null;
- if(!existing)existing=deckLibrary.find(d=>d.name.toLowerCase()===name.toLowerCase());
- if(existing&&!confirm('Update the saved deck named "'+name+'"? Cancel to create a separate copy.'))existing=null;
+ // Commit any currently focused input before taking a library snapshot.
+ const name=String($('studioName')?.value??studio.name??'').trim()||'Untitled deck';
+ const cmd=String($('studioCommander')?.value??studio.commander??'').trim();
+ const status=$('studioLibrarySaveStatus');
+ if(!cmd){alert('Select a commander in Deck Studio first.');if(status)status.textContent='Choose a commander before saving.';return false}
+ const active=activeDeckId?deckLibrary.find(d=>d.id===activeDeckId):null;
+ let existing=active||deckLibrary.find(d=>d.name.toLowerCase()===name.toLowerCase());
+ const renamed=!!active&&active.name!==name;
+ if(existing){
+  const message=renamed
+   ?'Save changes to "'+active.name+'" and rename it to "'+name+'"? The existing library deck and revision history will be retained. Cancel leaves the library unchanged.'
+   :'Update the saved deck "'+existing.name+'"? The previous version will be kept in revisions. Cancel leaves the library unchanged.';
+  if(!confirm(message)){if(status)status.textContent='Library save canceled; working draft is still autosaved.';return false}
+ }else if(!confirm('Add "'+name+'" as a new Deck Library entry?')){if(status)status.textContent='Library save canceled; working draft is still autosaved.';return false}
+ studio.name=name;studio.commander=cmd;studioSave();
  const now=new Date().toISOString();
- if(existing){librarySnapshot(existing);Object.assign(existing,clonedDeck(studio),{updated:now});activeDeckId=existing.id}
- else{const d={id:makeDeckId(),...clonedDeck(studio),updated:now,...normalizeLibraryExtras({})};deckLibrary.push(d);activeDeckId=d.id}
+ if(existing){
+  librarySnapshot(existing,renamed?'Before rename and Studio update':'Before Studio update');
+  Object.assign(existing,clonedDeck(studio),{updated:now});
+  activeDeckId=existing.id;
+ }else{
+  const d={id:makeDeckId(),...clonedDeck(studio),updated:now,...normalizeLibraryExtras({})};
+  deckLibrary.push(d);activeDeckId=d.id;
+ }
  saveLibrary();renderLibrary();renderPlanner();
+ if(status)status.textContent=(existing?'Updated':'Saved')+' "'+name+'" in Deck Library at '+new Date().toLocaleTimeString()+'.';
+ return true;
 }
 function libraryLoad(id){const d=deckLibrary.find(x=>x.id===id);if(!d)return;if(studio.entries.length&&!confirm('Load "'+d.name+'" into Deck Studio? Your current unsaved changes will be replaced.'))return;studio=clonedDeck(d);activeDeckId=id;studioFocus='';studioSave();renderStudio();tabs('builder')}
 function libraryDuplicate(id){const d=deckLibrary.find(x=>x.id===id);if(!d)return;const copy={id:makeDeckId(),...clonedDeck(d),...normalizeLibraryExtras({...d,arenaDeckId:'',arenaSyncedAt:''}),revisions:[],name:d.name+' — Copy',updated:new Date().toISOString()};deckLibrary.push(copy);saveLibrary();renderLibrary()}
@@ -764,7 +781,7 @@ function libraryUpdateMeta(id,change){const d=deckLibrary.find(x=>x.id===id);if(
 function libraryRestore(id,index){const d=deckLibrary.find(x=>x.id===id),v=d?.revisions?.[index];if(!d||!v)return;if(!confirm(`Restore snapshot from ${v.savedAt||'previously'}? The current version will be snapshotted first.`))return;const restored={...clonedDeck(v),coverCard:v.coverCard||'',folder:v.folder||'Unfiled',tags:Array.isArray(v.tags)?[...v.tags]:[]};librarySnapshot(d,'Before restore');Object.assign(d,restored,{updated:new Date().toISOString()});saveLibrary();renderLibrary();renderPlanner();}
 function libraryInit(){
  ensureLibrary();$('librarySearch')?.addEventListener('input',renderLibrary);$('librarySort')?.addEventListener('change',renderLibrary);$('libraryFolderFilter')?.addEventListener('change',renderLibrary);$('libraryFavoritesOnly')?.addEventListener('change',renderLibrary);
- $('librarySave').onclick=libraryStore;$('librarySyncArena').onclick=()=>{tabs('arena');arenaFetch()};$('libraryImport').onclick=()=>{$('libraryPasteText').closest('details').open=true;$('libraryPasteText').focus()};$('libraryPasteSave').onclick=libraryImportText;
+ $('librarySave').onclick=libraryStore;$('studioSaveLibrary').onclick=libraryStore;$('librarySyncArena').onclick=()=>{tabs('arena');arenaFetch()};$('libraryImport').onclick=()=>{$('libraryPasteText').closest('details').open=true;$('libraryPasteText').focus()};$('libraryPasteSave').onclick=libraryImportText;
  $('libraryBackup').onclick=()=>download('Arcane_Vault_Deck_Library.json',JSON.stringify({schema:2,exported:new Date().toISOString(),deckLibrary},null,2),'application/json');
  $('libraryRestore').onclick=()=>$('libraryJson').click();$('libraryJson').onchange=e=>{if(e.target.files?.[0])libraryImportJSON(e.target.files[0]);e.target.value=''};
  $('libraryCards').addEventListener('click',e=>{
