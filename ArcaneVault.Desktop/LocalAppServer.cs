@@ -22,6 +22,8 @@ internal sealed class LocalAppServer : IDisposable
     public event Action? UpdateRestartRequested;
     private readonly ArenaLogConnector arena = new();
     private readonly ScryfallCatalog catalog;
+    private readonly Dictionary<int,string> arenaCardNames = new();
+    private readonly SemaphoreSlim arenaNameGate = new(1,1);
     private readonly ArenaMatchTracker tracker = new();
     private readonly PeriodicTimer matchTimer = new(TimeSpan.FromSeconds(4));
     private Task? matchLoop;
@@ -148,6 +150,44 @@ internal sealed class LocalAppServer : IDisposable
                 {
                     await JsonAsync(ctx.Response, 200, tracker.Snapshot());
                     return;
+                }
+                if (path == "/api/arena/resolve")
+                {
+                    if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response,403,new {error="Local only"});return; }
+                    var raw = ctx.Request.QueryString["ids"] ?? "";
+                    var tokens = raw.Split(',',StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if(tokens.Length is < 1 or > 25 || tokens.Any(t=>!int.TryParse(t,out var n)||n<=0 || n>int.MaxValue))
+                    { await JsonAsync(ctx.Response,400,new {error="Specify 1–25 positive Arena card IDs."});return; }
+                    var resolved = new Dictionary<int,string>();
+                    var unresolved = new List<int>();
+                    await arenaNameGate.WaitAsync(stopped.Token);
+                    try
+                    {
+                        foreach(var token in tokens.Distinct())
+                        {
+                            int id = int.Parse(token,System.Globalization.CultureInfo.InvariantCulture);
+                            if(arenaCardNames.TryGetValue(id,out var cached)){resolved[id]=cached;continue;}
+                            try
+                            {
+                                using var response=await upstream.GetAsync("https://api.scryfall.com/cards/arena/"+id,stopped.Token);
+                                if(!response.IsSuccessStatusCode){unresolved.Add(id);continue;}
+                                using var card=JsonDocument.Parse(await response.Content.ReadAsStringAsync(stopped.Token));
+                                if(card.RootElement.TryGetProperty("name",out var name) && name.ValueKind==JsonValueKind.String)
+                                {
+                                    var value=name.GetString() ?? "";
+                                    if(value.Length is > 0 and <=200){arenaCardNames[id]=value;resolved[id]=value;}
+                                    else unresolved.Add(id);
+                                }
+                                else unresolved.Add(id);
+                                await Task.Delay(110,stopped.Token);
+                            }
+                            catch(HttpRequestException){unresolved.Add(id);}
+                            catch(TaskCanceledException) when (!stopped.IsCancellationRequested){unresolved.Add(id);}
+                            catch(JsonException){unresolved.Add(id);}
+                        }
+                    }
+                    finally{arenaNameGate.Release();}
+                    await JsonAsync(ctx.Response,200,new {resolved,unresolved});return;
                 }
                 if (path == "/api/arena/status")
                 {
