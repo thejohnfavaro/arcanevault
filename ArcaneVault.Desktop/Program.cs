@@ -6,8 +6,13 @@ namespace ArcaneVault.Desktop;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "--apply-update")
+        {
+            UpdateManager.ApplyUpdate(args);
+            return;
+        }
         // Prevent accidentally starting two desktop windows/embedded servers on port 8765.
         using var singleInstance = new Mutex(initiallyOwned: true,
             name: @"Local\ArcaneVault_Desktop_SingleInstance", createdNew: out bool firstInstance);
