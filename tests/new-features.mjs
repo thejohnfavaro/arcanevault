@@ -306,6 +306,10 @@ const csvParserBegin=html.indexOf('function parseCsv('),csvParserEnd=html.indexO
 const importsContext={};vm.createContext(importsContext);
 vm.runInContext(html.slice(csvParserBegin,csvParserEnd)+html.slice(mapStart,mapEnd)+html.slice(csvBegin,csvFinish)+';globalThis.read=physicalCsvRows;',importsContext);
 const manabox=importsContext.read('Binder Name,Binder Type,Name,Set code,Collector number,Foil,Quantity,Scryfall ID,Condition,Language\nMain,Binder,Sol Ring,cmm,1,etched,2,uuid,NM,English\nWishlist,List,Black Lotus,lea,1,normal,1,uuid,NM,English');
+const mythic=importsContext.read('Card Name,Set Code,Set Name,Collector Number,Rarity,Language,Quantity,Condition,Finish,Scryfall ID,Container Type,Container Name\\nSol Ring,cmm,Commander Masters,1,uncommon,en,2,NM,nonfoil,abc,box,bulk');
+assert.equal(mythic.source,'Mythic Tools');
+assert.equal(mythic.entries[0].location,'bulk');
+assert.equal(mythic.entries[0].scryfallId,'abc');
 assert.equal(manabox.source,'ManaBox');
 assert.equal(manabox.entries.length,1);
 assert.equal(manabox.entries[0].qty,2);
