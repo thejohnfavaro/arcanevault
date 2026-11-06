@@ -59,7 +59,7 @@ jobs:
         run: |
           [xml]$project = Get-Content "ArcaneVault.Desktop/ArcaneVault.Desktop.csproj"
           $version = [string]$project.Project.PropertyGroup.Version
-          if ($version -notmatch '^\\d+\\.\\d+\\.\\d+) {
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
             throw "Invalid Windows version '$version'. Expected major.minor.patch in the .csproj."
           }
           $tag = "windows-v$version"
