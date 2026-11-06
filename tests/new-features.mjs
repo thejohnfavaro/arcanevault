@@ -28,7 +28,7 @@ console.log('PASS: update controls, safe release filtering, type filters, and Li
 
 // v5.1: recommendations must remain owned-only, color-verified, and explain their scoring.
 assert.match(html,/id="studioRecommendStyle"/);
-assert.match(html,/function studioSuggestions\(\)/);
+assert.match(html,/function studioSuggestions\(candidatePool=null,resultLimit=12\)/);
 assert.match(html,/studioIdentityOK\(c\)===true&&studioLegalOK\(c\)!==false/);
 assert.match(html,/Fills .*gap/);
 assert.match(html,/Known .*kind/);
