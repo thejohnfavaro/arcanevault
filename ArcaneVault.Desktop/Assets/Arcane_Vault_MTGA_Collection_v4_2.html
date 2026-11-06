@@ -240,7 +240,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
  <div class="studio-line"><label>Saved deck <select class="field" id="perfDeckSelect"></select></label><label>Version <input class="field" id="perfDeckVersion" placeholder="e.g. v2, November 5"></label><button id="perfUseDeck" class="primary">Use for upcoming matches</button><button id="perfClearDeck">Clear active deck</button><button id="perfExport">Export CSV</button></div></div>
  <div class="panel"><h2>Import a matched Arena deck</h2><p class="note">Use Import beside a match below to copy its complete observed Brawl decklist into Deck Library. An identified deck name alone is not a decklist; import is offered only when a matching complete Arena payload is available. Existing Arena-linked decks retain revisions.</p><p id="perfImportStatus" class="note" role="status" aria-live="polite">No deck selected for import.</p></div>
  <div class="panel"><h2>Performance by deck and version</h2><div class="v3table-wrap"><table class="v3table"><thead><tr><th>Deck</th><th>Version</th><th>Format / Queue</th><th>Wins</th><th>Losses</th><th>Win rate</th><th>Games W–L</th><th>Deck Library</th></tr></thead><tbody id="perfGroups"></tbody></table></div></div>
- <div class="panel"><div class="studio-heading"><h2>Recent matches</h2><span class="note" id="perfStatus"></span></div><div class="v3table-wrap"><table class="v3table"><thead><tr><th>Played (local)</th><th>Deck / Version</th><th>Queue</th><th>Match</th><th>Games</th><th>Review / Import</th></tr></thead><tbody id="perfMatches"></tbody></table></div></div>
+ <div class="panel"><div class="studio-heading"><h2>Recent matches</h2><span class="note" id="perfStatus"></span></div><div class="v3table-wrap"><table class="v3table"><thead><tr><th>Played (local)</th><th>Deck / Version</th><th>Queue</th><th>Match</th><th>Games</th><th>Assign saved deck</th><th>Review / Import</th></tr></thead><tbody id="perfMatches"></tbody></table></div></div>
 </section>
 <section id="settings" class="hidden"><h1 class="h1">Options, Collection & Metadata</h1><div class="panel av-update-panel"><h2>Application updates</h2><p class="note">Installed version: <strong id="avInstalledVersion">Loading…</strong> · Latest available: <strong id="avLatestVersion">Not checked</strong></p><p class="note">Optionally check GitHub Releases for newer versions. Nothing is downloaded or installed without your action. Update checks use compiled Windows GitHub Releases. Download and install requires a Windows release with a matching SHA-256 checksum and restarts Arcane Vault after verification.</p><div class="av-update-controls"><label>GitHub repository (owner/repo)<input id="avUpdateRepo" class="field" placeholder="e.g. RNGesus/ArcaneVault" autocomplete="off" spellcheck="false"></label><label class="v3check"><input type="checkbox" id="avAutoUpdateCheck"> Check once per week on launch</label><button type="button" id="avCheckUpdates">Check for updates</button></div><p id="avUpdateStatus" class="note" role="status" aria-live="polite">Set a release repository to enable update checks.</p><div id="avUpdateResult" class="av-update-result" hidden></div></div><div class="panel"><h2>Getting started</h2><p class="note">Explore the main features of Arcane Vault again at any time. The guide appears automatically only once per installation/browser profile.</p><button id="avReplayGuide" type="button">✦ View getting-started guide</button></div>
 <div class="panel"><h2>Appearance</h2><p class="note">Choose a classic theme or one of all 32 Magic color identities. Your selection is saved locally.</p>
@@ -1327,6 +1327,47 @@ async function perfImportMatch(matchId){
  }catch(err){status.textContent='Deck import failed: '+(err.message||String(err))}
  finally{perfImportBusy=false}
 }
+// Only saved library decks are assignable. Avoid creating multiple spellings of the same deck.
+function perfSavedDeckOptions(){
+ const options=[],seen=new Set();
+ for(const d of deckLibrary){
+  const name=String(d.name||'').trim(),key=name.toLocaleLowerCase();
+  if(!name||seen.has(key))continue;
+  seen.add(key);options.push({id:d.id,name,arenaDeckId:String(d.arenaDeckId||'')});
+ }
+ return options.sort((a,b)=>a.name.localeCompare(b.name));
+}
+function perfMatchedSavedDeck(match,options=perfSavedDeckOptions()){
+ const arenaId=String(match?.deckId||'').trim();
+ if(arenaId){
+  const idMatch=options.find(d=>d.arenaDeckId&&d.arenaDeckId.toLowerCase()===arenaId.toLowerCase());
+  if(idMatch)return idMatch;
+ }
+ const current=String(match?.deckName||'').trim().toLocaleLowerCase();
+ return current?options.find(d=>d.name.toLocaleLowerCase()===current)||null:null;
+}
+function perfDeckDropdown(match,options){
+ const selected=perfMatchedSavedDeck(match,options);
+ const raw=String(match.deckName||'').trim();
+ const unmatched=raw&&!selected;
+ const choices='<option value="">— Unassigned —</option>'+
+  (unmatched?'<option value="legacy" selected disabled>Recorded: '+escapeHtml(raw)+' (not saved)</option>':'')+
+  options.map(d=>'<option value="'+escapeHtml(d.id)+'" '+(selected?.id===d.id?'selected':'')+'>'+escapeHtml(d.name)+'</option>').join('');
+ return '<div class="studio-line"><select class="field" aria-label="Deck used for this match" data-match-deck="'+escapeHtml(match.matchId)+'">'+choices+'</select><button type="button" class="small" data-match-assign="'+escapeHtml(match.matchId)+'">Save</button></div>';
+}
+async function perfSaveAssignedDeck(matchId){
+ const match=(performanceSnapshot?.history?.matches||[]).find(m=>m.matchId===matchId);
+ const select=[...$('perfMatches').querySelectorAll('[data-match-deck]')].find(el=>el.dataset.matchDeck===matchId);
+ if(!match||!select||select.value==='legacy')return;
+ const saved=perfSavedDeckOptions().find(d=>d.id===select.value);
+ if(select.value&&!saved){alert('The selected deck is no longer in Deck Library. Refresh the page.');return}
+ const next=saved?.name||'';
+ if(next===String(match.deckName||''))return;
+ try{
+  await perfApi('/api/matches/correct',{id:match.matchId,deck:next});
+  await loadPerformance();
+ }catch(err){alert('Could not save match deck: '+err.message)}
+}
 function perfResultSourceLabel(source){
  const labels={arena_match_result:'Arena verified',manual:'Manually entered',unverified:'Unverified'};
  return labels[String(source||'').toLowerCase()]||'Source not specified';
@@ -1334,24 +1375,23 @@ function perfResultSourceLabel(source){
 async function loadPerformance(){
  refreshPerformanceDecks();
  try{const r=await fetch('/api/matches',{cache:'no-store'});const s=await r.json();if(!r.ok)throw Error(s.error||'Match tracker unavailable');performanceSnapshot=s;
- const h=s.history||{}, rows=h.matches||[];
+ const h=s.history||{}, rows=h.matches||[], savedDeckOptions=perfSavedDeckOptions();
  $('perfTotal').textContent=(h.total||0).toLocaleString();$('perfWins').textContent=h.wins||0;$('perfLosses').textContent=h.losses||0;
  const played=(h.wins||0)+(h.losses||0);$('perfRate').textContent=played?((h.wins/played)*100).toFixed(1)+'%':'—';
  $('perfActive').textContent=s.currentDeckName?'Active: '+s.currentDeckName+(s.currentDeckVersion?' ('+s.currentDeckVersion+')':''):'No active deck selected';
  $('perfStatus').textContent=(s.enabled?'Monitoring enabled':'Monitoring disabled')+(s.error?' · '+s.error:'')+' · '+(h.awaitingReview||0)+' need review';
  $('perfGroups').innerHTML=(h.groups||[]).map(g=>{const n=g.wins+g.losses;return `<tr><td>${escapeHtml(g.deck||'Unassigned')}</td><td>${escapeHtml(g.version||'—')}</td><td>${escapeHtml(g.format||'Unknown')}</td><td>${g.wins}</td><td>${g.losses}</td><td>${n?(100*g.wins/n).toFixed(1)+'%':'—'}</td><td>${g.gamesWon}–${g.gamesLost}</td><td>${perfImportButton((rows||[]).find(m=>String(m.deckName||"").toLowerCase()===String(g.deck||"").toLowerCase()&&String(m.deckVersion||"")===String(g.version||"")&&String(m.format||"")===String(g.format||"")))}</td></tr>`}).join('')||'<tr><td colspan="8" class="muted">No confirmed matches captured yet.</td></tr>';
- $('perfMatches').innerHTML=rows.slice(0,150).map((m,i)=>`<tr><td>${escapeHtml(new Date(m.playedUtc).toLocaleString())}</td><td>${escapeHtml(m.deckName||'Unassigned')}<div class="note">${escapeHtml(m.deckVersion||'')}</div><div class="note">${escapeHtml((m.note||'').startsWith('Deck assignment:')?(m.note||'').replace('Deck assignment: arena_deck_id','Auto · exact Arena deck ID').replace('Deck assignment: recent_arena_selection','Auto · recent Arena selection').replace('Deck assignment: match_deck_name','Auto · match deck name').replace('Deck assignment: manual_active_deck','Manually selected'): (m.deckName?'':'Needs deck assignment'))}</div></td><td>${escapeHtml(m.format||'Unknown')}</td><td>${m.result==='unknown'?'<span class="warning">Needs review</span>':escapeHtml(m.result)}<div class="note">${escapeHtml(perfResultSourceLabel(m.resultSource))}</div></td><td>${m.gameWins}–${m.gameLosses}</td><td><button class="small" data-match-edit="${i}">Review</button> ${perfImportButton(m)}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">No matches recorded. Enable monitoring in Arena Connection and play a match.</td></tr>';
+ $('perfMatches').innerHTML=rows.slice(0,150).map((m,i)=>`<tr><td>${escapeHtml(new Date(m.playedUtc).toLocaleString())}</td><td>${escapeHtml(m.deckName||'Unassigned')}<div class="note">${escapeHtml(m.deckVersion||'')}</div><div class="note">${escapeHtml((m.note||'').startsWith('Deck assignment:')?(m.note||'').replace('Deck assignment: arena_deck_id','Auto · exact Arena deck ID').replace('Deck assignment: recent_arena_selection','Auto · recent Arena selection').replace('Deck assignment: match_deck_name','Auto · match deck name').replace('Deck assignment: manual_active_deck','Manually selected'): (m.deckName?'':'Needs deck assignment'))}</div></td><td>${escapeHtml(m.format||'Unknown')}</td><td>${m.result==='unknown'?'<span class="warning">Needs review</span>':escapeHtml(m.result)}<div class="note">${escapeHtml(perfResultSourceLabel(m.resultSource))}</div></td><td>${m.gameWins}–${m.gameLosses}</td><td>${perfDeckDropdown(m,savedDeckOptions)}</td><td><button class="small" data-match-edit="${i}">Review</button> ${perfImportButton(m)}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No matches recorded. Enable monitoring in Arena Connection and play a match.</td></tr>';
  }catch(e){$('perfStatus').textContent=e.message+' · This screen requires the Visual Studio desktop host.'}
 }
 $('perfRefresh').onclick=loadPerformance;
 $('perfUseDeck').onclick=async()=>{try{const opts=refreshPerformanceDecks(),d=opts[Number($('perfDeckSelect').value)];if(!d)return;await perfApi('/api/matches/active-deck',{name:d.name,version:$('perfDeckVersion').value.trim()||d.version});await loadPerformance()}catch(e){alert(e.message)}};
 $('perfClearDeck').onclick=async()=>{try{await perfApi('/api/matches/active-deck',{name:'',version:''});await loadPerformance()}catch(e){alert(e.message)}};
-$('perfMatches').onclick=async(e)=>{const importButton=e.target.closest('[data-perf-import]');if(importButton){await perfImportMatch(importButton.dataset.perfImport);return}const b=e.target.closest('[data-match-edit]');if(!b||!performanceSnapshot)return;const m=performanceSnapshot.history.matches[Number(b.dataset.matchEdit)];if(!m)return;
+$('perfMatches').onclick=async(e)=>{const importButton=e.target.closest('[data-perf-import]');if(importButton){await perfImportMatch(importButton.dataset.perfImport);return}const assign=e.target.closest('[data-match-assign]');if(assign){await perfSaveAssignedDeck(assign.dataset.matchAssign);return}const b=e.target.closest('[data-match-edit]');if(!b||!performanceSnapshot)return;const m=performanceSnapshot.history.matches[Number(b.dataset.matchEdit)];if(!m)return;
  const result=prompt('Match result: win, loss, draw, or unknown',m.result);if(result===null)return;
  if(!['win','loss','draw','unknown'].includes(result.trim().toLowerCase())){alert('Invalid result');return}
- const deck=prompt('Deck name (empty means unassigned)',m.deckName);if(deck===null)return;
  const version=prompt('Deck version',m.deckVersion);if(version===null)return;
- try{await perfApi('/api/matches/correct',{id:m.matchId,result:result.trim().toLowerCase(),deck,version});await loadPerformance()}catch(ex){alert(ex.message)}
+ try{await perfApi('/api/matches/correct',{id:m.matchId,result:result.trim().toLowerCase(),version});await loadPerformance()}catch(ex){alert(ex.message)}
 };
 $('perfGroups').onclick=async(e)=>{const b=e.target.closest('[data-perf-import]');if(b)await perfImportMatch(b.dataset.perfImport)};
 $('perfExport').onclick=()=>{const rows=performanceSnapshot?.history?.matches||[];
