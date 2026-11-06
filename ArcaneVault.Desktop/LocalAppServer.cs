@@ -18,6 +18,8 @@ internal sealed class LocalAppServer : IDisposable
     private readonly HttpListener listener = new();
     private readonly HttpClient upstream;
     private readonly ArtworkCache artwork;
+    private readonly UpdateManager updater = new();
+    public event Action? UpdateRestartRequested;
     private readonly ArenaLogConnector arena = new();
     private readonly ScryfallCatalog catalog;
     private readonly ArenaMatchTracker tracker = new();
@@ -85,6 +87,11 @@ internal sealed class LocalAppServer : IDisposable
                     await SendAsync(ctx.Response, 200, "text/html; charset=utf-8", pageBytes);
                     return;
                 }
+                if (path == "/api/app/update/status")
+                {
+                    if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local only" }); return; }
+                    await JsonAsync(ctx.Response, 200, updater.Status()); return;
+                }
                 if (path == "/api/art/status") { await JsonAsync(ctx.Response, 200, artwork.Status()); return; }
                 if (path == "/api/art")
                 {
@@ -146,6 +153,33 @@ internal sealed class LocalAppServer : IDisposable
                     await JsonAsync(ctx.Response, 200, new { ok = true, service = "Arcane Vault", version = "4.7-vs" });
                     return;
                 }
+            }
+            else if (ctx.Request.HttpMethod == "POST" && path == "/api/app/update/prepare")
+            {
+                if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local only" }); return; }
+                if (ctx.Request.ContentLength64 is < 2 or > 256) { await JsonAsync(ctx.Response, 413, new { error = "Invalid update request." }); return; }
+                try
+                {
+                    using var body = await JsonDocument.ParseAsync(ctx.Request.InputStream);
+                    var version = body.RootElement.GetProperty("version").GetString() ?? "";
+                    await JsonAsync(ctx.Response, 200, await updater.PrepareAsync(version, stopped.Token));
+                }
+                catch (Exception ex) when (ex is HttpRequestException or JsonException or ArgumentException or InvalidOperationException or IOException or System.IO.Compression.InvalidDataException)
+                { await JsonAsync(ctx.Response, 400, new { error = ex.Message }); }
+                return;
+            }
+            else if (ctx.Request.HttpMethod == "POST" && path == "/api/app/update/install")
+            {
+                if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local only" }); return; }
+                try
+                {
+                    updater.LaunchAndRestart();
+                    await JsonAsync(ctx.Response, 202, new { restarting = true });
+                    _ = Task.Run(async () => { await Task.Delay(450); UpdateRestartRequested?.Invoke(); });
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+                { await JsonAsync(ctx.Response, 400, new { error = ex.Message }); }
+                return;
             }
             else if (ctx.Request.HttpMethod == "POST" && path == "/api/art/clear")
             {
