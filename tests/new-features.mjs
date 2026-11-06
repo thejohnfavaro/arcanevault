@@ -296,3 +296,30 @@ assert.equal(read.entries.length,2);
 assert.equal(read.entries.find(c=>c.finish==='foil').qty,2);
 assert.equal(read.entries.find(c=>c.finish==='nonfoil').qty,3);
 console.log('PASS: physical inventory isolated from Arena, printings, CSV parsing, edits and backups');
+
+// v5.14: auto-detect common physical collection CSV exports, reject malformed quantities,
+// and preserve original printing and inventory attributes.
+for(const marker of ["source='ManaBox'","source='Moxfield'","source='Archidekt'","source='Delver Lens'","source='TCGplayer-style'","source='Deckbox-style'","id=\"physicalImportProfile\"","skippedReasons","scryfallId","purchasePrice"])assert.ok(html.includes(marker),marker);
+const mapStart=html.indexOf('const physicalKey='),mapEnd=html.indexOf('let physicalCards=physicalNormalize(',mapStart);
+const csvBegin=html.indexOf('function physicalCsvRows(raw)'),csvFinish=html.indexOf('function physicalInit()',csvBegin);
+const csvParserBegin=html.indexOf('function parseCsv('),csvParserEnd=html.indexOf('async function importCsv(',csvParserBegin);
+const importsContext={};vm.createContext(importsContext);
+vm.runInContext(html.slice(csvParserBegin,csvParserEnd)+html.slice(mapStart,mapEnd)+html.slice(csvBegin,csvFinish)+';globalThis.read=physicalCsvRows;',importsContext);
+const manabox=importsContext.read('Binder Name,Binder Type,Name,Set code,Collector number,Foil,Quantity,Scryfall ID,Condition,Language\nMain,Binder,Sol Ring,cmm,1,etched,2,uuid,NM,English\nWishlist,List,Black Lotus,lea,1,normal,1,uuid,NM,English');
+assert.equal(manabox.source,'ManaBox');
+assert.equal(manabox.entries.length,1);
+assert.equal(manabox.entries[0].qty,2);
+assert.equal(manabox.entries[0].finish,'etched');
+assert.equal(manabox.entries[0].location,'Main');
+assert.equal(manabox.skipped,1);
+const moxfield=importsContext.read('Count,Name,Edition,Collector Number,Foil\n1,Sol Ring,CMM,1,foil');
+assert.equal(moxfield.source,'Moxfield');
+assert.equal(moxfield.entries[0].finish,'foil');
+const archidekt=importsContext.read('Quantity,Name,Finish,Condition,Date Added,Language,Purchase Price,Edition Name,Edition Code,Scryfall ID,Collector Number\n4,Sol Ring,Foil,NM,2026-01-01,English,2,Commander Masters,CMM,abc,7');
+assert.equal(archidekt.source,'Archidekt');
+assert.equal(archidekt.entries[0].set,'CMM');
+assert.equal(archidekt.entries[0].scryfallId,'abc');
+assert.equal(archidekt.entries[0].condition,'NM');
+assert.throws(()=>importsContext.read('Name,Quantity\nSol Ring,-1'),/No positive-quantity/);
+assert.throws(()=>importsContext.read('Name\nSol Ring'),/No quantity/);
+console.log('PASS: physical CSV format recognition, printing attributes, wishlist exclusion and invalid quantity safety');
