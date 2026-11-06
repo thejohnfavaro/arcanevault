@@ -6,11 +6,15 @@ See your Magic cards across digital and paper collections, filter the Card Brows
 
 ## Added
 
+- **Streamlined sidebar navigation.** All 14 existing pages are organized under collapsible Collection, Decks, Strategy, Play & Analytics, and Application groups. Use **Ctrl+K** to find a page, pin up to five favorite destinations, or switch to a compact icon-only sidebar. Navigation preferences persist between launches.
+
 - **Separate Arena and physical ownership counts.** Each Card Browser card and the Card Details window displays both **Arena owned** and **Physical owned**, including zero counts. Physical quantities are aggregated across recorded printings without modifying Arena ownership.
 - **Physical-owned cards in the Card Browser.** Cards found exclusively in your physical inventory now appear when viewing owned cards, even if they are not in your Arena collection.
 - **Full-sized Magic card artwork in Goldfishing.** Opening hands and drawn cards display the complete card image. Names and card types remain accessible beneath each image, with text fallback when artwork cannot be loaded.
 
 ## Changed
+
+- **Sidebar presentation only.** Page destinations remain intact; selecting a page highlights it and expands its section automatically. No deck, collection, or match-tracking data is changed by the navigation refactor.
 
 - **Availability filter.** Renamed **Arena availability** to **Availability**, with **All Magic Cards**, **Arena Only**, and **Physical Only** choices. Arena Only uses Arena-listed catalog results; Physical Only displays the cards recorded in your paper inventory.
 - **Ownership summary.** The Card Browser shows separate Arena and physical copy totals, and list view presents the two quantities side by side.
