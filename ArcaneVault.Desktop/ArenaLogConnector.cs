@@ -278,7 +278,7 @@ internal sealed class ArenaLogConnector
                 !Find(change, out var granted, "GrantedCards", "grantedCards")) continue;
             var cards = ReadGrantCards(granted);
             if (cards.Length == 0) continue;
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(change.GetRawText()))).ToLowerInvariant();
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(info.GetRawText() + "\n" + change.GetRawText()))).ToLowerInvariant();
             if (cardGrants.ContainsKey(hash)) continue;
             cardGrants[hash] = new CardGrantEvent(hash, DateTimeOffset.UtcNow.ToString("O"), cards);
             added = true;
