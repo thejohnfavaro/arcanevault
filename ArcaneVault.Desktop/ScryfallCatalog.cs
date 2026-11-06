@@ -358,7 +358,7 @@ internal sealed class ScryfallCatalog
           WHERE 1=1 {filter}
           ORDER BY sc.name COLLATE NOCASE LIMIT $limit OFFSET $offset
           """;
-        cmd.Parameters.AddWithValue("$set",setcode.ToLowerInvariant());cmd.Parameters.AddWithValue("$arena",arenaFilter=="arena"?"arena":"any");
+        cmd.Parameters.AddWithValue("$set",setcode!.ToLowerInvariant());cmd.Parameters.AddWithValue("$arena",arenaFilter=="arena"?"arena":"any");
         cmd.Parameters.AddWithValue("$limit",size);cmd.Parameters.AddWithValue("$offset",page*size);
         var rows=new List<object>();using var reader=cmd.ExecuteReader();
         while(reader.Read())rows.Add(new {name=reader.GetString(0),qty=reader.GetInt32(1),image=reader.GetString(2),type=reader.GetString(3),rarity=reader.GetString(4),url=reader.GetString(5)});
