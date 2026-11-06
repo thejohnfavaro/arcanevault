@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.vs/
+publish/
+*.user
+*.suo
+*.sqlite*
+*.db
+*.log
+*mtga_collection*.csv
+*ManaBox*.csv
