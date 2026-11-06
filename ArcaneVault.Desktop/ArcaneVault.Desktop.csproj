@@ -9,7 +9,7 @@
     <RootNamespace>ArcaneVault.Desktop</RootNamespace>
     <ApplicationTitle>Arcane Vault</ApplicationTitle>
     <ApplicationIcon>Assets\ArcaneVault.ico</ApplicationIcon>
-    <Version>5.1.0</Version>
+    <Version>5.2.0</Version>
     <!-- Publish settings: desktop window + embedded Scryfall service in ONE EXE. -->
     <PublishSingleFile Condition="'$(PublishSingleFile)' == ''">true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract Condition="'$(IncludeNativeLibrariesForSelfExtract)' == ''">true</IncludeNativeLibrariesForSelfExtract>
