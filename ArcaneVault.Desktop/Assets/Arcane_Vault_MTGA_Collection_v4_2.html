@@ -677,7 +677,7 @@ function makeDeckId(){return 'deck_'+Date.now()+'_'+Math.floor(Math.random()*100
 function normalizeLibraryExtras(d){
  return {favorite:!!d.favorite,folder:String(d.folder||'Unfiled').trim().slice(0,60)||'Unfiled',
   tags:[...new Set((Array.isArray(d.tags)?d.tags:[]).map(x=>String(x).trim().slice(0,36)).filter(Boolean))].slice(0,16),
-  coverCard:String(d.coverCard||'').trim(),revisions:(Array.isArray(d.revisions)?d.revisions:[]).slice(-20).filter(x=>x&&Array.isArray(x.entries)&&x.commander).map(x=>({
+  coverCard:String(d.coverCard||'').trim(),arenaDeckId:String(d.arenaDeckId||'').slice(0,180),arenaSyncedAt:String(d.arenaSyncedAt||''),revisions:(Array.isArray(d.revisions)?d.revisions:[]).slice(-20).filter(x=>x&&Array.isArray(x.entries)&&x.commander).map(x=>({
    name:String(x.name||'Untitled'),commander:String(x.commander),entries:x.entries.map(e=>({name:String(e.name),qty:Math.max(1,Number(e.qty)||1)})),
    savedAt:String(x.savedAt||''),label:String(x.label||'Saved version'),coverCard:String(x.coverCard||''),folder:String(x.folder||'Unfiled'),tags:Array.isArray(x.tags)?x.tags.map(String).slice(0,16):[]
   }))};
@@ -703,7 +703,7 @@ function libraryStore(){
  saveLibrary();renderLibrary();renderPlanner();
 }
 function libraryLoad(id){const d=deckLibrary.find(x=>x.id===id);if(!d)return;if(studio.entries.length&&!confirm('Load "'+d.name+'" into Deck Studio? Your current unsaved changes will be replaced.'))return;studio=clonedDeck(d);activeDeckId=id;studioFocus='';studioSave();renderStudio();tabs('builder')}
-function libraryDuplicate(id){const d=deckLibrary.find(x=>x.id===id);if(!d)return;const copy={id:makeDeckId(),...clonedDeck(d),...normalizeLibraryExtras(d),revisions:[],name:d.name+' — Copy',updated:new Date().toISOString()};deckLibrary.push(copy);saveLibrary();renderLibrary()}
+function libraryDuplicate(id){const d=deckLibrary.find(x=>x.id===id);if(!d)return;const copy={id:makeDeckId(),...clonedDeck(d),...normalizeLibraryExtras({...d,arenaDeckId:'',arenaSyncedAt:''}),revisions:[],name:d.name+' — Copy',updated:new Date().toISOString()};deckLibrary.push(copy);saveLibrary();renderLibrary()}
 function libraryDelete(id){const d=deckLibrary.find(x=>x.id===id);if(!d||!confirm('Delete saved deck "'+d.name+'" and its revision history?'))return;deckLibrary=deckLibrary.filter(x=>x.id!==id);plannerSelection.delete(id);save('plannerSelectionV3',[...plannerSelection]);saveLibrary();renderLibrary();renderPlanner()}
 function libraryArtUrl(card){
  const c=index.get(String(card||'').toLowerCase());
