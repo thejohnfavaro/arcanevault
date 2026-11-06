@@ -341,3 +341,21 @@ assert.doesNotMatch(html,/found\.release\.body[^;\n]*slice\(0,900\)/);
 assert.match(html,/document\.createTextNode\(part\)/);
 assert.match(html,/if\(updateAvailable&&repo==='thejohnfavaro\/arcanevault'\)result\.append\(install\)/);
 console.log('PASS: curated full changelogs published and safely rendered without truncation');
+
+// v5.16: two distinct ownership pools and full artwork in Goldfishing.
+assert.match(html,/<label>Availability <select id="arenaScope"/);
+for(const name of ['All Magic Cards','Arena Only','Physical Only'])assert.ok(html.includes('>'+name+'</option>'),name);
+for(const marker of ['function physicalOwnedCount(name)','function ownershipBySource(name)','function ownedCollectionCards(physicalOnly=false)','function ownershipCountsHtml(name)','Arena owned:','Physical owned:','Arena owned ×','Physical owned ×'])assert.ok(html.includes(marker),marker);
+assert.match(html,/if\(arenaScope==='physical'\|\|\(arenaScope==='any'&&catalogScope==='owned'\)\)/);
+assert.match(html,/arena:arenaScope==='arena'\?'arena':'any'/);
+assert.match(html,/if\(tab==='physical'\)physicalRender\(\)/);
+assert.match(html,/class="av-hand-card"><img loading="lazy" decoding="async"/);
+assert.match(html,/class="av-hand-fallback"/);
+assert.match(html,/function collectionCard\(name\)\{return index\.get\(.+\)\|\|catalogIndex\.get/);
+assert.doesNotMatch(html,/class="av-hand-card"><b>\$\{esc\(x\)\}<\/b>/);
+assert.match(html,/arenaOwnedCount|ownershipBySource\(c\.name\)\.arena/);
+const notes516=fs.readFileSync(path.join(root,'releases/windows-v5.16.0.md'),'utf8');
+for(const section of ['Added','Changed','Fixed','Removed'])assert.ok(notes516.includes('## '+section));
+assert.match(notes516,/Goldfishing/);
+assert.match(notes516,/Physical Only/);
+console.log('PASS: Card Browser dual ownership, availability options and Goldfishing artwork');
