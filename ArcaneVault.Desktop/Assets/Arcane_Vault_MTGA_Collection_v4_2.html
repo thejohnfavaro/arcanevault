@@ -556,7 +556,7 @@ function avCraftBudget(){return Object.fromEntries(rarityIds.map(r=>[r,Math.max(
 function avCraftCost(card){const rarity=String(card?.meta?.rarity||'').toLowerCase();return rarityIds.includes(rarity)?rarity:null}
 function avCraftSpent(){const used={common:0,uncommon:0,rare:0,mythic:0};for(const name of avCraftChosen){const item=avCraftCandidates.find(x=>x.c.name.toLowerCase()===name);const rarity=item&&avCraftCost(item.c);if(rarity)used[rarity]++}return used}
 function avCraftWithinBudget(name){const item=avCraftCandidates.find(x=>x.c.name.toLowerCase()===name);if(!item)return false;const rarity=avCraftCost(item.c);if(!rarity)return false;const budget=avCraftBudget(),spent=avCraftSpent();return spent[rarity]<budget[rarity]}
-function avCraftPlanOptimize(){const budget=avCraftBudget(),spent={common:0,uncommon:0,rare:0,mythic:0},chosen=new Set();for(const item of avCraftCandidates){const rarity=avCraftCost(item.c);if(!rarity||spent[rarity]>=budget[rarity])continue;chosen.add(item.c.name.toLowerCase());spent[rarity]++}avCraftChosen=chosen;avCraftRender()}
+function avCraftPlanOptimize(){const budget=avCraftBudget(),spent={common:0,uncommon:0,rare:0,mythic:0},chosen=new Set();for(const item of avCraftCandidates.filter(x=>!studioHas(x.c.name)).slice(0,50)){const rarity=avCraftCost(item.c);if(!rarity||spent[rarity]>=budget[rarity])continue;chosen.add(item.c.name.toLowerCase());spent[rarity]++}avCraftChosen=chosen;avCraftRender()}
 function avCraftRender(){
  const budget=avCraftBudget(),spent=avCraftSpent(),summary=$('avCraftBudget'),root=$('avCraftResults');
  if(summary)summary.textContent='Estimated wildcard plan: '+rarityIds.map(r=>r+' '+spent[r]+'/'+budget[r]).join(' · ')+' · '+avCraftChosen.size+' selected. No wildcards are spent.';
@@ -571,6 +571,7 @@ async function avCraftSearch(){
  if(avCraftBusy)return;
  const status=$('avCraftStatus'),button=$('avFindCrafts');
  if(!studio.commander||!studioIdentity()){status.textContent='Select a commander with verified color identity first.';return}
+ if(studioFocus)status.textContent='Finding candidates for the currently selected replacement role.';
  avCraftBusy=true;button.disabled=true;avCraftCandidates=[];avCraftChosen.clear();avCraftRender();
  const context=studio.commander+'|'+($('studioRecommendStyle')?.value||'auto');avCraftContext=context;
  try{
