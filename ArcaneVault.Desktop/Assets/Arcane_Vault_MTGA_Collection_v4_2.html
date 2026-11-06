@@ -241,7 +241,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
  <div class="panel"><h2>Performance by deck and version</h2><div class="v3table-wrap"><table class="v3table"><thead><tr><th>Deck</th><th>Version</th><th>Format / Queue</th><th>Wins</th><th>Losses</th><th>Win rate</th><th>Games W–L</th></tr></thead><tbody id="perfGroups"></tbody></table></div></div>
  <div class="panel"><div class="studio-heading"><h2>Recent matches</h2><span class="note" id="perfStatus"></span></div><div class="v3table-wrap"><table class="v3table"><thead><tr><th>Played (local)</th><th>Deck / Version</th><th>Queue</th><th>Match</th><th>Games</th><th>Review / Edit</th></tr></thead><tbody id="perfMatches"></tbody></table></div></div>
 </section>
-<section id="settings" class="hidden"><h1 class="h1">Options, Collection & Metadata</h1><div class="panel av-update-panel"><h2>Application updates</h2><p class="note">Optionally check GitHub Releases for newer versions. Nothing is downloaded or installed without your action. This does not update from source ZIPs; publish compiled releases for users to install.</p><div class="av-update-controls"><label>GitHub repository (owner/repo)<input id="avUpdateRepo" class="field" placeholder="e.g. RNGesus/ArcaneVault" autocomplete="off" spellcheck="false"></label><label class="v3check"><input type="checkbox" id="avAutoUpdateCheck"> Check once per week on launch</label><button type="button" id="avCheckUpdates">Check for updates</button></div><p id="avUpdateStatus" class="note" role="status" aria-live="polite">Set a release repository to enable update checks.</p><div id="avUpdateResult" class="av-update-result" hidden></div></div><div class="panel"><h2>Getting started</h2><p class="note">Explore the main features of Arcane Vault again at any time. The guide appears automatically only once per installation/browser profile.</p><button id="avReplayGuide" type="button">✦ View getting-started guide</button></div>
+<section id="settings" class="hidden"><h1 class="h1">Options, Collection & Metadata</h1><div class="panel av-update-panel"><h2>Application updates</h2><p class="note">Optionally check GitHub Releases for newer versions. Nothing is downloaded or installed without your action. Update checks use compiled Windows GitHub Releases. Download and install requires a Windows release with a matching SHA-256 checksum and restarts Arcane Vault after verification.</p><div class="av-update-controls"><label>GitHub repository (owner/repo)<input id="avUpdateRepo" class="field" placeholder="e.g. RNGesus/ArcaneVault" autocomplete="off" spellcheck="false"></label><label class="v3check"><input type="checkbox" id="avAutoUpdateCheck"> Check once per week on launch</label><button type="button" id="avCheckUpdates">Check for updates</button></div><p id="avUpdateStatus" class="note" role="status" aria-live="polite">Set a release repository to enable update checks.</p><div id="avUpdateResult" class="av-update-result" hidden></div></div><div class="panel"><h2>Getting started</h2><p class="note">Explore the main features of Arcane Vault again at any time. The guide appears automatically only once per installation/browser profile.</p><button id="avReplayGuide" type="button">✦ View getting-started guide</button></div>
 <div class="panel"><h2>Appearance</h2><p class="note">Choose a classic theme or one of all 32 Magic color identities. Your selection is saved locally.</p>
 <label for="themeChoice">Color theme</label>
 <select id="themeChoice" class="field" style="max-width:310px;margin:8px 0 10px">
@@ -1205,7 +1205,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 <script>
 /* Arcane Vault: opt-in release checks and type-aware card tags. */
 (function(){'use strict';
-const PLATFORM='windows', INSTALLED='4.9.4';
+const PLATFORM='windows', INSTALLED='4.9.5';
 const key=n=>'arcaneVault.update.'+PLATFORM+'.'+n;
 const loadPref=(n,fallback='')=>{try{return localStorage.getItem(key(n))??fallback}catch{return fallback}};
 const savePref=(n,value)=>{try{localStorage.setItem(key(n),value)}catch{}};
@@ -1284,6 +1284,27 @@ async function checkUpdates(silent=false){
   if(result){result.hidden=false;result.replaceChildren();const title=document.createElement('strong');title.textContent='New Arcane Vault '+PLATFORM+' release '+found.version;result.append(title);
    const notes=document.createElement('p');notes.textContent=String(found.release.body||'No release notes provided.').slice(0,900);result.append(notes);
    const url=String(found.release.html_url||'');if(/^https:\/\/github\.com\//.test(url)){const link=document.createElement('a');link.href=url;link.textContent='View release and download update';link.target='_blank';link.rel='noopener noreferrer';result.append(link)}
+   const install=document.createElement('button');install.type='button';install.className='primary';install.textContent='Download and install update';
+   install.onclick=async()=>{
+     if(!confirm('Download Arcane Vault '+found.version+' and restart to install it? Save any unsaved Deck Studio changes first.'))return;
+     install.disabled=true;
+     const post=async(path,data)=>{
+       const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+       const payload=await response.json().catch(()=>({}));
+       if(!response.ok)throw Error(payload.error||'Updater returned HTTP '+response.status);
+       return payload;
+     };
+     try{
+       if(status)status.textContent='Downloading and verifying Windows '+found.version+'…';
+       await post('/api/app/update/prepare',{version:found.version});
+       if(status)status.textContent='Verified. Closing Arcane Vault to install the update…';
+       await post('/api/app/update/install',{});
+     }catch(e){
+       if(status)status.textContent='Automatic installation unavailable: '+(e?.message||'Unknown error')+'. You can use the GitHub release link instead.';
+       install.disabled=false;
+     }
+   };
+   result.append(install);
    const later=document.createElement('button');later.type='button';later.textContent='Remind me later';later.style.marginLeft='10px';later.onclick=()=>{result.hidden=true;status.textContent='Update '+found.version+' available. Check again when ready.'};result.append(later);
   }
  }catch(e){if(status)status.textContent='Could not check for updates: '+(e?.message||'Network error')+'. Existing app data was not changed.'}
@@ -1291,7 +1312,7 @@ async function checkUpdates(silent=false){
 }
 function init(){
  const repo=$av('avUpdateRepo'),auto=$av('avAutoUpdateCheck');
- if(repo){repo.value=loadPref('repo');repo.addEventListener('change',()=>savePref('repo',repo.value.trim()))}
+ if(repo){repo.value=loadPref('repo','thejohnfavaro/arcanevault');repo.addEventListener('change',()=>savePref('repo',repo.value.trim()))}
  if(auto){auto.checked=loadPref('auto','false')==='true';auto.addEventListener('change',()=>savePref('auto',String(auto.checked)))}
  $av('avCheckUpdates')?.addEventListener('click',()=>checkUpdates());
  const last=Date.parse(loadPref('lastChecked'));
