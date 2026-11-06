@@ -179,3 +179,11 @@ assert.equal(bctx.exports.arenaBrawlCandidate({...bulkFixtureDeck,commander:[{ca
 assert.equal(bctx.exports.arenaDeckSame({name:'X',commander:'One',entries:[{name:'Swamp',qty:90},{name:'Bolt',qty:9}]},{name:'X',commander:'One',entries:[{name:'Bolt',qty:9},{name:'Swamp',qty:90}]}),true);
 assert.equal(bctx.exports.arenaDeckSame({name:'X',commander:'One',entries:[{name:'Swamp',qty:99}]},{name:'X',commander:'One',entries:[{name:'Swamp',qty:98}]}),false);
 console.log('PASS: batch Arena Brawl eligibility and unchanged deck comparisons');
+
+// v5.8: matched decks can use the existing reviewed Arena deck import route.
+for(const id of ['perfImportStatus','data-perf-import'])assert.ok(html.includes(id));
+for(const fn of ['function perfImportPayload(match)','async function perfImportMatch(matchId)','function perfImportButton(match)'])assert.ok(html.includes(fn));
+assert.match(html,/const draft=await arenaResolveDraft\(payload,serial\)/);
+assert.match(html,/const outcome=arenaApplyDraft\(draft\)/);
+assert.match(html,/candidates.length===1\?candidates\[0\]:null/);
+console.log('PASS: Match Performance reuses review, ID matching, and revision-safe deck import');
