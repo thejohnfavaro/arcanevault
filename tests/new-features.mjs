@@ -269,3 +269,30 @@ assert.equal(playableCtx.missing({commander:'Owned',entries:[{name:'Missing',qty
 assert.match(html,/if\(Number\(index\.get\(key\)\?\.qty\)>0\)continue/);
 assert.match(html,/card\.qty=1/);
 console.log('PASS: exact played-deck ID evidence, minimum one-copy inference and no duplicates');
+
+// v5.13: independent physical collection with CSV import and manual quantity tracking.
+for(const id of ['physical','physicalCsv','physicalImportMode','physicalAdd','physicalRows','physicalExport','physicalSummary'])assert.ok(html.includes('id="'+id+'"'),id);
+for(const token of ['const PHYSICAL_KEY=','function physicalNormalize(rows)','function physicalCsvRows(raw)','function physicalRender()','function physicalInit()','physicalCards,wildcards:wc','physicalCards=physicalNormalize(data.physicalCards)'])assert.ok(html.includes(token),token);
+assert.match(html,/if\(tab==='physical'\)physicalRender\(\)/);
+assert.match(html,/studioInit\(\);libraryInit\(\);physicalInit\(\);plannerInit\(\)/);
+const physicalStart=html.indexOf('const PHYSICAL_KEY='),physicalEnd=html.indexOf('// Arcane Vault v4: deck library',physicalStart);
+assert.ok(physicalStart>0&&physicalEnd>physicalStart);
+const physicalSnippet=html.slice(physicalStart,physicalEnd);
+assert.doesNotMatch(physicalSnippet,/cards\s*=\s*physicalCards|save\('cards',physicalCards\)/);
+const normalizeStart=html.indexOf('const physicalKey='),normalizeEnd=html.indexOf('function physicalSave()',normalizeStart);
+const normalizedContext={};vm.createContext(normalizedContext);
+vm.runInContext(html.slice(normalizeStart,normalizeEnd)+';globalThis.normalize=physicalNormalize;',normalizedContext);
+const physicalInput=[{name:'Sol Ring',qty:1,set:'CMM',number:'1',finish:'foil'},{name:'sol ring',qty:2,set:'CMM',number:'1',finish:'foil'},{name:'Sol Ring',qty:4,set:'CMM',number:'1',finish:'nonfoil'},{name:'Invalid',qty:-1}];
+const normalized=normalizedContext.normalize(physicalInput);
+assert.equal(normalized.length,2);
+assert.equal(normalized.find(c=>c.finish==='foil').qty,3);
+assert.equal(normalized.find(c=>c.finish==='nonfoil').qty,4);
+const parseStart=html.indexOf('function parseCsv('),parseEnd=html.indexOf('async function importCsv(',parseStart);
+const physicalCsvStart=html.indexOf('function physicalCsvRows(raw)'),physicalCsvEnd=html.indexOf('function physicalInit()',physicalCsvStart);
+const csvContext={};vm.createContext(csvContext);
+vm.runInContext(html.slice(parseStart,parseEnd)+html.slice(normalizeStart,normalizeEnd)+html.slice(physicalCsvStart,physicalCsvEnd)+';globalThis.read=physicalCsvRows;',csvContext);
+const read=csvContext.read('Card Name,Quantity,Edition,Collector Number,Foil\nSol Ring,2,CMM,1,true\nSol Ring,3,CMM,1,false');
+assert.equal(read.entries.length,2);
+assert.equal(read.entries.find(c=>c.finish==='foil').qty,2);
+assert.equal(read.entries.find(c=>c.finish==='nonfoil').qty,3);
+console.log('PASS: physical inventory isolated from Arena, printings, CSV parsing, edits and backups');
