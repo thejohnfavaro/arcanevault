@@ -229,7 +229,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
 <div class="two"><div class="panel"><h2>Connection settings</h2><label class="v3check"><input type="checkbox" id="arenaEnabled"> Monitor Arena logs (opt-in)</label><p class="help">Enable Detailed Logs in Arena: Options → View Account → Detailed Logs, then restart Arena. The log is read locally by Arcane Vault's built-in C# service.</p><label>Log path <input class="field" id="arenaLogPath" placeholder="Default: detected Windows Player.log" style="width:100%"></label><div class="actions" style="margin-top:12px"><button class="primary" id="arenaSave">Save connection</button><button id="arenaDisable">Stop monitoring</button></div><p id="arenaStatus" class="note">Checking local Arena connection…</p></div>
 <div class="panel"><h2>Inventory from latest logged snapshot</h2><div class="summary" id="arenaInventory">Not observed</div><p class="note" id="arenaInvStamp">Currency and wildcard balances only; these values may be stale until a new Arena startup event.</p><button id="arenaUseWildcards">Copy detected wildcards into planner</button></div></div>
 <div class="two"><div class="panel"><h2>Rank</h2><div id="arenaRank" class="summary">Not observed</div><h2 style="margin-top:18px">Log details</h2><p class="note" id="arenaLogDetails">—</p></div><div class="panel"><h2>Arena deck summaries</h2><p class="note">Deck names are observed in startup logs; a full cardlist is available only when Arena logs explicit main deck and command-zone entries. Preview resolves logged numeric card IDs through Scryfall, which requires internet access. Import is always opt-in.</p><div id="arenaDecks" class="deck-list">Not observed</div><div id="arenaDeckImports" class="deck-list" aria-live="polite"></div><div id="arenaBulkReview" class="deck-list" aria-live="polite"></div><div id="arenaDeckPreview" class="panel" aria-live="polite">Select Preview to resolve an observed Arena decklist. Only complete 60- or 100-card Brawl lists can be imported.</div></div></div>
-<div class="panel"><h2>Collection freshness</h2><p>Your existing collection was imported from a CSV file, not from the Arena client. Cards acquired after that export will not automatically appear unless a trustworthy source confirms quantities. Continue using <strong>Import &amp; Data</strong> for complete ownership updates.</p></div>
+<div class="panel"><h2>Owned-card collection</h2><p class="note">Arena log monitoring does not synchronize card ownership. Owned counts come from the most recent imported CSV; observed decklists and matches are not evidence of owned quantities.</p><p class="note" id="arenaCollectionFreshness" role="status" aria-live="polite">Checking local collection snapshot…</p><div class="actions"><button type="button" class="primary" id="arenaRefreshCollection">Import updated collection CSV</button><button type="button" id="arenaCollectionSettings">Open Import &amp; Data</button><input type="file" id="arenaCollectionCsv" class="hidden" accept=".csv,text/csv"></div></div>
 </section>
 <section id="performance" class="hidden">
  <div class="top"><div><h1 class="h1">Match Performance</h1><p class="subtitle">Local win/loss history · Deck-specific records · Match vs. game results</p></div><button id="perfRefresh" class="primary">↻ Refresh matches</button></div>
@@ -465,7 +465,7 @@ async function importCsv(file){let str=await file.text(),rows=parseCsv(str.repla
  const incoming=[...dict.values()],current=new Map(cards.map(c=>[c.name.toLowerCase(),c])),added=incoming.filter(c=>!current.has(c.name.toLowerCase())),lost=cards.filter(c=>!dict.has(c.name.toLowerCase())),changed=incoming.filter(c=>current.has(c.name.toLowerCase())&&current.get(c.name.toLowerCase()).qty!==c.qty);
  const priorCount=cards.reduce((a,c)=>a+c.qty,0),nextCount=incoming.reduce((a,c)=>a+c.qty,0);
  if(!confirm(`Preview collection update:\n${incoming.length} unique cards / ${nextCount} copies\nNew names: ${added.length}\nNames absent from new export: ${lost.length}\nChanged quantities: ${changed.length}\nPrevious: ${cards.length} unique / ${priorCount} copies\n\nReplace the collection with this export? Your decks, favorites and tags will be preserved. A rollback snapshot is created.`)){$('importStatus').textContent='Import canceled; no collection changes made.';return}
- save('previousCollection',cards.map(({meta,...rest})=>rest));cards=incoming;for(const c of cards){let old=index.get(c.name.toLowerCase());if(old){c.tags=old.tags;c.uses=old.uses;c.typeHint=old.typeHint;if(old.meta)c.meta=old.meta}}rebuildIndex();await hydrateCache();save('cards',cards.map(({meta,...rest})=>rest));postOwnership();renderPlanner();$('importStatus').textContent=`Imported ${cards.length.toLocaleString()} card names and ${cards.reduce((s,c)=>s+c.qty,0).toLocaleString()} copies. ${added.length} new names, ${lost.length} names absent, ${changed.length} quantity changes. Previous collection preserved for rollback.`;page=0;render();renderFavorites();renderStudio()}
+ save('previousCollection',cards.map(({meta,...rest})=>rest));cards=incoming;for(const c of cards){let old=index.get(c.name.toLowerCase());if(old){c.tags=old.tags;c.uses=old.uses;c.typeHint=old.typeHint;if(old.meta)c.meta=old.meta}}rebuildIndex();await hydrateCache();save('cards',cards.map(({meta,...rest})=>rest));postOwnership();save(AV_OWNERSHIP_IMPORT_KEY,{at:new Date().toISOString(),name:file.name});arenaCollectionFreshness();renderPlanner();$('importStatus').textContent=`Imported ${cards.length.toLocaleString()} card names and ${cards.reduce((s,c)=>s+c.qty,0).toLocaleString()} copies. ${added.length} new names, ${lost.length} names absent, ${changed.length} quantity changes. Previous collection preserved for rollback.`;page=0;render();renderFavorites();renderStudio()}
 function jsonMeta(raw){const oracle=raw.oracle_text||raw.card_faces?.map(f=>f.oracle_text||'').join('\n//\n')||'';const image=raw.image_uris?.normal||raw.card_faces?.find(f=>f.image_uris)?.image_uris?.normal||null;return {type:raw.type_line||'',oracle,rarity:raw.rarity||'',colors:raw.color_identity||[],mv:raw.cmc,image,url:raw.scryfall_uri||'',set:raw.set||'',legalities:raw.legalities||{},syncedAt:new Date().toISOString(),layout:raw.layout||'',arenaId:raw.arena_id??null,allNames:[raw.name,...(raw.card_faces||[]).map(f=>f.name)],isLegendary:/\bLegendary\b/.test(raw.type_line||''),isCommander:/(?:Legendary.*Creature|Legendary.*Planeswalker)/.test(raw.type_line||'')}}
 async function hydrateCache(){let hits=0;for(let i=0;i<cards.length;i+=100){const subset=cards.slice(i,i+100).filter(c=>!c.meta);await Promise.all(subset.map(async c=>{const m=await dbget(c.name.toLowerCase());if(m){c.meta=m;hits++}}))}render();return hits}
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
@@ -1126,6 +1126,24 @@ $('arenaDeckImports').addEventListener('click',event=>{
  if(button)arenaPreviewDeck(Number(button.dataset.arenaPreview));
 });
 
+const AV_OWNERSHIP_IMPORT_KEY='avOwnershipImportedAtV1';
+function arenaCollectionFreshness(){
+ const record=load(AV_OWNERSHIP_IMPORT_KEY,null);
+ const count=cards.reduce((n,c)=>n+(Number(c.qty)||0),0);
+ const label=record?.at?'Last successful CSV refresh: '+new Date(record.at).toLocaleString():'No recent CSV refresh timestamp recorded (the existing snapshot may be older).';
+ const status=$('arenaCollectionFreshness');
+ if(status)status.textContent=label+' · '+cards.length.toLocaleString()+' unique card names · '+count.toLocaleString()+' copies. Refresh requires a new export.';
+}
+$('arenaRefreshCollection').onclick=()=>$('arenaCollectionCsv').click();
+$('arenaCollectionSettings').onclick=()=>tabs('settings');
+$('arenaCollectionCsv').onchange=async e=>{
+ const file=e.target.files?.[0];
+ if(!file)return;
+ try{await importCsv(file)}catch(err){$('importStatus').textContent='Collection import failed: '+(err.message||String(err))}
+ arenaCollectionFreshness();
+ e.target.value='';
+};
+arenaCollectionFreshness();
 let arenaLastSnapshot=null,arenaBusy=false;
 async function arenaFetch(){
  if(arenaBusy)return;arenaBusy=true;
