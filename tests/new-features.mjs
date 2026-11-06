@@ -157,3 +157,25 @@ assert.match(html,/function arenaImportResolved\(\)/);
 assert.match(html,/arenaDeckId:String\(d\.arenaDeckId/);
 assert.match(html,/total===60\|\|total===100/);
 assert.match(html,/!unknown\.length/);
+
+// v5.7: one-click library route and explicit batch review, no speculative imports.
+for(const id of ['librarySyncArena','arenaBulkReview'])assert.ok(html.includes('id="'+id+'"'));
+assert.match(html,/function arenaBulkStart\(\)/);
+assert.match(html,/function arenaBulkCommit\(\)/);
+assert.match(html,/function arenaBrawlCandidate\(d\)/);
+assert.match(html,/function arenaApplyDraft\(draft\)/);
+assert.match(html,/Previous versions will be kept/);
+assert.match(html,/arenaDeckId===draft.source.deckId/);
+const batchStart=html.indexOf('function arenaBrawlCandidate(d){');
+const batchEnd=html.indexOf('async function arenaResolveDraft(',batchStart);
+assert.ok(batchStart>0&&batchEnd>batchStart);
+const bctx={};vm.createContext(bctx);
+vm.runInContext(html.slice(batchStart,batchEnd)+';globalThis.exports={arenaBrawlCandidate,arenaDeckSame};',bctx);
+const bulkFixtureDeck={name:'Test Brawl',commander:[{card:'123',qty:1}],main:[{card:'456',qty:99}]};
+assert.equal(bctx.exports.arenaBrawlCandidate(bulkFixtureDeck),true);
+assert.equal(bctx.exports.arenaBrawlCandidate({...bulkFixtureDeck,main:[{card:'456',qty:40}]}),false);
+assert.equal(bctx.exports.arenaBrawlCandidate({...bulkFixtureDeck,commander:[]}),false);
+assert.equal(bctx.exports.arenaBrawlCandidate({...bulkFixtureDeck,commander:[{card:'123',qty:2}]}),false);
+assert.equal(bctx.exports.arenaDeckSame({name:'X',commander:'One',entries:[{name:'Swamp',qty:90},{name:'Bolt',qty:9}]},{name:'X',commander:'One',entries:[{name:'Bolt',qty:9},{name:'Swamp',qty:90}]}),true);
+assert.equal(bctx.exports.arenaDeckSame({name:'X',commander:'One',entries:[{name:'Swamp',qty:99}]},{name:'X',commander:'One',entries:[{name:'Swamp',qty:98}]}),false);
+console.log('PASS: batch Arena Brawl eligibility and unchanged deck comparisons');
