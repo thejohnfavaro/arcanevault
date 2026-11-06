@@ -122,3 +122,30 @@ assert.equal(results.banned.length,1);
 assert.equal(results.checks[0].pass,false);
 assert.equal(results.checks[2].pass,false);
 console.log('PASS: competitive assessment flags structure, ownership, singleton, identity and banned cards');
+
+// v5.5: recorded match evidence is separate from heuristic deck analysis.
+for(const id of ['avMatchInsightVersion','avMatchInsightFormat','avMatchInsightRefresh','avMatchInsightResults'])assert.ok(html.includes('id="'+id+'"'));
+const evidenceStart=html.indexOf('function avMatchEvidence(');
+const evidenceEnd=html.indexOf('let avInsightRequest=',evidenceStart);
+assert.ok(evidenceStart>0&&evidenceEnd>evidenceStart);
+const evidenceContext={};
+vm.createContext(evidenceContext);
+vm.runInContext(html.slice(evidenceStart,evidenceEnd)+';globalThis.analyze=avMatchEvidence;',evidenceContext);
+const analyze=evidenceContext.analyze;
+const matches=[
+ {deckName:'My Deck',deckVersion:'v1',format:'Brawl',result:'win',playedUtc:'2026-01-02T00:00:00Z'},
+ {deckName:'my deck',deckVersion:'v1',format:'Brawl',result:'loss',playedUtc:'2026-01-03T00:00:00Z'},
+ {deckName:'My Deck',deckVersion:'v2',format:'Brawl',result:'win',playedUtc:'2026-01-04T00:00:00Z'},
+ {deckName:'My Deck',deckVersion:'v1',format:'Standard',result:'loss',playedUtc:'2026-01-05T00:00:00Z'},
+ {deckName:'My Deck',deckVersion:'v1',format:'Brawl',result:'draw',playedUtc:'2026-01-06T00:00:00Z'},
+ {deckName:'My Deck',deckVersion:'v1',format:'Brawl',result:'unknown',playedUtc:'2026-01-07T00:00:00Z'},
+ {deckName:'Other Deck',deckVersion:'v1',format:'Brawl',result:'loss',playedUtc:'2026-01-08T00:00:00Z'},
+ {deckName:'',deckVersion:'',format:'Brawl',result:'loss',playedUtc:'2026-01-09T00:00:00Z'}];
+const all=analyze(matches,'MY DECK');
+assert.equal(all.total,4);assert.equal(all.wins,2);assert.equal(all.losses,2);assert.equal(all.draws,1);assert.equal(all.unknown,1);
+assert.equal(all.unmatched,1);assert.equal(all.rate,0.5);assert.equal(all.recentTrend,null);
+const selected=analyze(matches,'My Deck','v1','Brawl');
+assert.equal(selected.total,2);assert.equal(selected.wins,1);assert.equal(selected.losses,1);
+assert.equal(selected.draws,1);assert.equal(selected.unknown,1);
+assert.equal(analyze(matches,'Nonexistent').total,0);
+console.log('PASS: match evidence filters deck, version, queue and excludes draws/unknown results');
