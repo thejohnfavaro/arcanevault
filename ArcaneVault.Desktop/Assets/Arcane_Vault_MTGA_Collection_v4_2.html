@@ -2166,7 +2166,7 @@ const releaseMatch=(release)=>{
 function semverCompare(a,b){const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if(x[i]!==y[i])return x[i]-y[i]}return 0}
 // Render versioned Markdown release notes as text nodes; never inject untrusted GitHub HTML.
 function releaseInline(element,value){
- const parts=String(value||'').split(/(\\*\\*[^*]+\\*\\*|`[^`]+`)/g);
+ const parts=String(value||'').split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
  for(const part of parts){
   if(!part)continue;
   if(part.startsWith('**')&&part.endsWith('**')){
@@ -2182,7 +2182,7 @@ function renderReleaseNotes(parent,markdown){
  const body=String(markdown||'').trim();
  if(!body){const p=document.createElement('p');p.className='av-notes-empty';p.textContent='No detailed release notes were published for this version.';root.append(p);parent.append(root);return}
  let list=null;
- for(const raw of body.split(/\\r?\\n/)){
+ for(const raw of body.split(/\r?\n/)){
   const line=raw.trim();if(!line){list=null;continue}
   const heading=line.match(/^(#{1,3})\\s+(.+)$/);
   if(heading){
