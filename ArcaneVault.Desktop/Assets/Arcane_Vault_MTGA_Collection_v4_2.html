@@ -252,6 +252,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
 <div class="panel"><h2>Select a deck to analyze</h2><div class="av-workbench-controls"><select id="avWorkbenchDeck" aria-label="Deck to analyze"><option value="studio">Current Deck Studio draft</option></select><button id="avAnalyzeMana" class="primary" type="button">Analyze deck</button></div><p class="muted">Data comes from your saved library and synced card metadata. The selected deck is never modified by these tools.</p></div>
 <div class="av-strategy-tools">
 <div class="panel"><h2>Competitive readiness</h2><p class="muted">Collection-aware Brawl checklist for the selected draft or saved deck. Reference role ranges and pressure scenarios are design heuristics, not tournament performance data or matchup win rates. Nothing is changed automatically.</p><div class="av-workbench-controls"><label>Strategy <select id="avCompetitiveStyle"><option value="auto">Auto-detect</option><option value="aggro">Aggro / Tempo</option><option value="midrange">Midrange</option><option value="control">Control</option><option value="combo">Combo</option></select></label><button type="button" class="primary" id="avCompetitiveRun">Analyze readiness</button></div><div id="avCompetitiveResults" role="status" aria-live="polite">Choose a saved deck or the working draft to analyze.</div></div>
+<div class="panel"><h2>Recorded match insights</h2><p class="muted">Uses confirmed win/loss results from the local Arena tracker, matched by the exact saved deck name. Select a version and queue before comparing results. No opponent archetypes or card-level causes are inferred from logs.</p><div class="av-workbench-controls"><label>Deck version <select id="avMatchInsightVersion"><option value="">All recorded versions</option></select></label><label>Format / queue <select id="avMatchInsightFormat"><option value="">All recorded queues</option></select></label><button type="button" id="avMatchInsightRefresh">Refresh recorded matches</button></div><div id="avMatchInsightResults" role="status" aria-live="polite">Loading local matches…</div></div>
 <div class="panel"><h2>Mana-base analyzer</h2><div id="avManaResult" aria-live="polite"></div></div>
 <div class="panel"><h2>Sample hands / goldfishing</h2><div class="av-workbench-controls"><button id="avNewHand" type="button" class="primary">Shuffle & draw 7</button><button id="avMulligan" type="button">Reshuffle (new 7)</button><button id="avDrawCard" type="button">Draw a card</button></div><div class="av-workbench-controls" style="margin-top:10px"><label>Starting player <select id="avPlayDraw"><option value="play">On the play</option><option value="draw">On the draw</option></select></label><button id="avNextTurn" type="button">Next turn</button><button id="avAutoLand" type="button">Play a land</button><button id="avUndoLand" type="button">Undo land play</button></div><div class="av-workbench-controls" style="margin-top:10px"><label>Choose land <select id="avLandChoice" aria-label="Land from hand"></select></label><label>Choose spell <select id="avSpellChoice" aria-label="Spell from hand"></select></label><button id="avCastSpell" type="button">Cast (mana-value estimate)</button></div><div class="av-workbench-controls"><label>Mulligan bottom <select id="avBottomChoice" aria-label="Card to put on bottom"></select></label><button id="avBottomCard" type="button">Put on bottom</button><span class="note" id="avBottomStatus"></span></div><div id="avHandResult" aria-live="polite"></div></div>
 <div class="panel"><h2>Verification details</h2><p class="muted">Separates confirmed deck issues from incomplete card metadata. This report does not submit a deck to MTG Arena.</p><div class="av-workbench-controls"><button id="avRunVerify" type="button">Review Deck Studio validation</button><button id="avCopyVerify" type="button">Copy verification report</button></div><div id="avVerificationResult" role="status" aria-live="polite"></div></div><div class="panel"><h2>Deck comparison</h2><div class="av-workbench-controls"><select id="avCompareDeck" aria-label="Second deck"><option value="">Choose saved deck</option></select><button id="avCompareRun" type="button">Compare</button></div><div id="avCompareResult" aria-live="polite">Select two decks to see cards added and removed.</div></div>
@@ -1367,17 +1368,77 @@ function avCompetitiveRender(){
   +'<h3>Matchup pressure checkpoints</h3><p class="note">General play-pattern exposures inferred from roles, not measured matchups or opponent-specific predictions.</p><div class="v3grid">'+list(report.pressure)+'</div>'
   +'<h3>Potential owned additions</h3><p class="note">Suggestions are role/synergy matches, not proven upgrades or legalities. No deck changes made.</p><div class="v3grid">'+upgrades+'</div>';
 }
+
+function avMatchEvidence(rows,deckName,version='',format=''){
+ const key=String(deckName||'').trim().toLowerCase();
+ const assigned=(Array.isArray(rows)?rows:[]).filter(m=>key&&String(m.deckName||'').trim().toLowerCase()===key);
+ const versions=[...new Set(assigned.map(m=>String(m.deckVersion||'').trim()))].sort((a,b)=>a.localeCompare(b));
+ const formats=[...new Set(assigned.map(m=>String(m.format||'').trim()))].sort((a,b)=>a.localeCompare(b));
+ const filtered=assigned.filter(m=>(!version||String(m.deckVersion||'').trim()===version)&&(!format||String(m.format||'').trim()===format));
+ const confirmed=filtered.filter(m=>m.result==='win'||m.result==='loss').slice().sort((a,b)=>String(b.playedUtc||'').localeCompare(String(a.playedUtc||'')));
+ const wins=confirmed.filter(m=>m.result==='win').length,losses=confirmed.length-wins;
+ const unknown=filtered.filter(m=>m.result==='unknown').length,draws=filtered.filter(m=>m.result==='draw').length;
+ const recent=confirmed.slice(0,10),previous=confirmed.slice(10,20);
+ const recentWins=recent.filter(m=>m.result==='win').length,previousWins=previous.filter(m=>m.result==='win').length;
+ const rate=confirmed.length?wins/confirmed.length:null;
+ const confidence=confirmed.length>=20?'Useful descriptive sample':confirmed.length>=10?'Small sample':'Insufficient sample';
+ return {versions,formats,wins,losses,draws,unknown,total:confirmed.length,rate,confidence,
+  recent:{wins:recentWins,losses:recent.length-recentWins,n:recent.length},
+  previous:{wins:previousWins,losses:previous.length-previousWins,n:previous.length},
+  recentTrend:recent.length===10&&previous.length===10?(recentWins-previousWins)/10:null,
+  unmatched:(Array.isArray(rows)?rows:[]).filter(m=>!String(m.deckName||'').trim()).length};
+}
+let avInsightRequest=0,avInsightDeck='';
+async function avMatchInsightRender(refreshOptions=false){
+ const root=id('avMatchInsightResults'),versionSelect=id('avMatchInsightVersion'),formatSelect=id('avMatchInsightFormat');
+ if(!root||!versionSelect||!formatSelect)return;
+ const deck=sourceDeck(),deckName=String(deck.name||'').trim(),serial=++avInsightRequest;
+ if(!deckName){root.textContent='Name the selected deck to compare it with recorded matches.';return}
+ if(avInsightDeck!==deckName){avInsightDeck=deckName;refreshOptions=true}
+ root.textContent='Reading locally recorded matches…';
+ try{
+  const response=await fetch('/api/matches',{cache:'no-store'});
+  if(!response.ok)throw Error('Local match history service is unavailable');
+  const payload=await response.json();
+  if(serial!==avInsightRequest)return;
+  const rows=payload?.history?.matches||[];
+  const evidence=avMatchEvidence(rows,deckName);
+  if(refreshOptions){
+   const opts=(list,label)=>'<option value="">All recorded '+label+'</option>'+list.map(v=>'<option value="'+esc(v)+'">'+esc(v||'Unlabeled')+'</option>').join('');
+   versionSelect.innerHTML=opts(evidence.versions,'versions');
+   formatSelect.innerHTML=opts(evidence.formats,'queues');
+  }
+  const filtered=avMatchEvidence(rows,deckName,versionSelect.value,formatSelect.value);
+  const pct=n=>(n*100).toFixed(1)+'%';
+  const summary=filtered.total?filtered.wins+' wins · '+filtered.losses+' losses · '+pct(filtered.rate)+' observed match win rate':'No confirmed win/loss results for this selection';
+  const trend=filtered.recentTrend===null?'Trend comparison requires 20 confirmed matches in this exact selection.':'Latest 10: '+filtered.recent.wins+'–'+filtered.recent.losses+'; previous 10: '+filtered.previous.wins+'–'+filtered.previous.losses+' ('+(filtered.recentTrend>0?'+':'')+(filtered.recentTrend*100).toFixed(0)+' percentage-point difference).';
+  const scope=(versionSelect.value||'all versions')+' · '+(formatSelect.value||'all queues');
+  let guidance='';
+  if(filtered.total<10)guidance='Record at least 10 confirmed matches for a useful initial baseline. Inspect unknown and unassigned matches in Match Performance.';
+  else if(filtered.total<20)guidance='Review the v5.4 role gaps alongside these results, but do not attribute losses to individual cards or matchups.';
+  else guidance='Compare the same queue and deck version across sessions. If results are consistently weak, prioritize testing the largest v5.4 role gap, then record matches with the revised deck version.';
+  root.innerHTML='<p><strong>'+esc(deckName)+'</strong> · '+esc(scope)+'</p><p><strong>'+esc(summary)+'</strong> · '+esc(filtered.confidence)+'</p>'
+   +'<p class="note">'+filtered.draws+' draws and '+filtered.unknown+' unknown results excluded · '+filtered.unmatched+' unassigned records elsewhere in the tracker.</p>'
+   +'<p class="note">'+esc(trend)+'</p>'
+   +'<div class="v3item"><strong>Suggested next experiment</strong><p>'+esc(guidance)+'</p></div>'
+   +'<p class="note">Observed results describe only the captured matches. Results across versions or queues are not controlled comparisons; tracking does not identify opponent archetypes, mulligan quality, or which individual card caused an outcome. No automatic deck changes.</p>';
+ }catch(err){if(serial===avInsightRequest)root.textContent='Unable to load recorded match evidence: '+(err.message||String(err))}
+}
+
 function init(){
  const sel=id('avWorkbenchDeck');if(!sel)return;
- sel.addEventListener('change',()=>{audit();newHand();avCompetitiveRender()});
+ sel.addEventListener('change',()=>{audit();newHand();avCompetitiveRender();avMatchInsightRender(true)});
  id('avCompetitiveRun').onclick=avCompetitiveRender;
  id('avCompetitiveStyle').addEventListener('change',avCompetitiveRender);
+ id('avMatchInsightRefresh').onclick=()=>avMatchInsightRender(true);
+ id('avMatchInsightVersion').onchange=()=>avMatchInsightRender(false);
+ id('avMatchInsightFormat').onchange=()=>avMatchInsightRender(false);
  id('avAnalyzeMana').onclick=audit;id('avNewHand').onclick=newHand;id('avMulligan').onclick=mulliganHand;id('avDrawCard').onclick=drawCard;id('avNextTurn').onclick=nextTurn;id('avAutoLand').onclick=playLand;id('avUndoLand').onclick=undoLand;id('avBottomCard').onclick=bottomCard;id('avCastSpell').onclick=castSpell;id('avRunVerify').onclick=showVerification;id('avCopyVerify').onclick=copyVerification;
  id('avCompareRun').onclick=compare;id('avRoleRun').onclick=roleSearch;id('avDiscoverRun').onclick=discovery;
  id('avHistoryRefresh').onclick=historyShow;
  id('avBackupShortcut').onclick=()=>{const b=id('saveBackup');if(b)b.click();else {id('avBackupHint').textContent='Open Import & Data and use Full Backup (JSON).';document.querySelector('[data-tab="settings"]')?.click();}};
- window.avWorkbenchRefresh=()=>{updateDeckOptions();audit();historyShow();avCompetitiveRender()};
- updateDeckOptions();audit();newHand();historyShow();avCompetitiveRender();
+ window.avWorkbenchRefresh=()=>{updateDeckOptions();audit();historyShow();avCompetitiveRender();avMatchInsightRender(false)};
+ updateDeckOptions();audit();newHand();historyShow();avCompetitiveRender();avMatchInsightRender(true);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
