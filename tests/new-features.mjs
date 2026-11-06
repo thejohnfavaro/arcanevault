@@ -230,3 +230,20 @@ const grantBackend=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/ArenaLogC
 for(const marker of ['CaptureCardGrants(inv)','ReadGrantCards(JsonElement cards)','"GrantedCards", "grantedCards"','SHA256.HashData','arena-card-grants.json','cardGrants = cardGrants.Values'])assert.ok(grantBackend.includes(marker),marker);
 assert.doesNotMatch(grantBackend,/Process\.GetProcessesByName|ReadProcessMemory|refresh_token/);
 console.log('PASS: explicit grant capture, local replay ledger, opt-in and baseline protections');
+
+// v5.11: match deck correction uses only canonical names from saved Deck Library.
+for(const marker of ['function perfSavedDeckOptions(){','function perfMatchedSavedDeck(match,options=perfSavedDeckOptions())','function perfDeckDropdown(match,options)','async function perfSaveAssignedDeck(matchId)','data-match-deck','data-match-assign'])assert.ok(html.includes(marker),marker);
+assert.doesNotMatch(html,/prompt\('Deck name \(empty means unassigned\)'/);
+assert.match(html,/await perfApi\('\/api\/matches\/correct',\{id:match\.matchId,deck:next\}\)/);
+const optionsBegin=html.indexOf('function perfSavedDeckOptions(){');
+const optionsEnd=html.indexOf('async function perfSaveAssignedDeck(',optionsBegin);
+assert.ok(optionsBegin>0 && optionsEnd>optionsBegin);
+const dropdownSource=html.slice(optionsBegin,optionsEnd);
+assert.match(dropdownSource,/const options=\[\],seen=new Set\(\)/);
+assert.match(dropdownSource,/if\(!name\|\|seen\.has\(key\)\)continue/);
+assert.match(dropdownSource,/arenaDeckId\.toLowerCase\(\)===arenaId\.toLowerCase\(\)/);
+assert.match(dropdownSource,/Recorded: /);
+const matchesBackend=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/MatchHistory.cs'),'utf8');
+assert.match(matchesBackend,/r\.deckName\.Trim\(\)\.ToUpperInvariant\(\)/);
+assert.match(matchesBackend,/WHEN \$name IS NOT NULL THEN 'Deck assignment: manual'/);
+console.log('PASS: canonical saved-deck assignments, manual provenance and case-insensitive grouping');
