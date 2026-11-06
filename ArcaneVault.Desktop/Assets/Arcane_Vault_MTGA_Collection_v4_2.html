@@ -1212,7 +1212,7 @@ async function readInstalledVersion(){
  const response=await fetch('/api/app/version',{cache:'no-store'});
  if(!response.ok)throw Error('Could not read installed application version');
  const data=await response.json();
- if(!/^\\d+\\.\\d+\\.\\d+$/.test(data.version||''))throw Error('Invalid installed application version');
+ if(!/^[0-9]+[.][0-9]+[.][0-9]+$/.test(data.version||''))throw Error('Invalid installed application version');
  INSTALLED=data.version;
  const label=document.getElementById('avInstalledVersion');if(label)label.textContent=INSTALLED;
  return INSTALLED;
