@@ -164,7 +164,7 @@ internal sealed class LocalAppServer : IDisposable
                     var version = body.RootElement.GetProperty("version").GetString() ?? "";
                     await JsonAsync(ctx.Response, 200, await updater.PrepareAsync(version, stopped.Token));
                 }
-                catch (Exception ex) when (ex is HttpRequestException or JsonException or ArgumentException or InvalidOperationException or IOException or System.IO.Compression.InvalidDataException)
+                catch (Exception ex) when (ex is HttpRequestException or JsonException or ArgumentException or InvalidOperationException or IOException or InvalidDataException)
                 { await JsonAsync(ctx.Response, 400, new { error = ex.Message }); }
                 return;
             }
