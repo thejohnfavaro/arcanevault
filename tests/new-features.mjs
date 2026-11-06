@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import fs from 'node:fs';
 import path from 'node:path';
 const root=path.resolve(import.meta.dirname, '..');
@@ -41,3 +42,24 @@ assert.match(html,/function avCraftWithinBudget/);
 assert.match(html,/scope:'unowned',arena:'arena'/);
 assert.match(html,/card.meta\?\.arena!==true/);
 assert.match(html,/Actual Arena craftability and wildcard rarity remain unverified/);
+
+const craftSource=html.slice(html.indexOf('function avCraftBudget(){'),html.indexOf('function avCraftRender(){'));
+assert.ok(craftSource.startsWith('function avCraftBudget(){') && craftSource.includes('function avCraftPlanOptimize(){'));
+const craftContext={rarityIds:['common','uncommon','rare','mythic'],wc:{common:1,uncommon:0,rare:1,mythic:0},
+ avCraftChosen:new Set(),avCraftCandidates:[
+  {c:{name:'Owned-name clone A',meta:{rarity:'rare'}},score:20},
+  {c:{name:'Owned-name clone B',meta:{rarity:'rare'}},score:18},
+  {c:{name:'Common candidate',meta:{rarity:'common'}},score:9},
+  {c:{name:'Mythic candidate',meta:{rarity:'mythic'}},score:5}],
+ studioHas:()=>false,avCraftRender:()=>{}};
+vm.createContext(craftContext);
+vm.runInContext(craftSource,craftContext);
+assert.equal(craftContext.avCraftCost({meta:{rarity:'rare'}}),'rare');
+assert.equal(craftContext.avCraftCost({meta:{rarity:'special'}}),null);
+craftContext.avCraftPlanOptimize();
+assert.equal(craftContext.avCraftChosen.size,2,'Plan should not exceed the saved rarity budgets');
+assert.equal(craftContext.avCraftChosen.has('owned-name clone a'),true);
+assert.equal(craftContext.avCraftChosen.has('owned-name clone b'),false);
+assert.equal(craftContext.avCraftChosen.has('common candidate'),true);
+assert.equal(craftContext.avCraftWithinBudget('owned-name clone b'),false);
+console.log('PASS: deterministic rarity budgeting and catalog recommendation contract');
