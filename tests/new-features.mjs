@@ -327,3 +327,17 @@ assert.equal(archidekt.entries[0].condition,'NM');
 assert.throws(()=>importsContext.read('Name,Quantity\nSol Ring,-1'),/No positive-quantity/);
 assert.throws(()=>importsContext.read('Name\nSol Ring'),/No quantity/);
 console.log('PASS: physical CSV format recognition, printing attributes, wishlist exclusion and invalid quantity safety');
+
+// v5.15: curated release notes in GitHub Releases and complete, safe in-app presentation.
+const releaseWorkflow=fs.readFileSync(path.join(root,'.github/workflows/windows.yml'),'utf8');
+const releaseNotes=fs.readFileSync(path.join(root,'releases/windows-v5.15.0.md'),'utf8');
+assert.match(releaseWorkflow,/gh release create .* --notes-file \$notes/);
+assert.doesNotMatch(releaseWorkflow,/--generate-notes/);
+assert.match(releaseWorkflow,/Test-Path \$notes/);
+for(const section of ['Added','Changed','Fixed','Removed'])assert.ok(releaseNotes.includes('## '+section),section);
+assert.ok(releaseNotes.length>900,'Release notes should exceed the previous truncation length');
+for(const marker of ['function renderReleaseNotes(parent,markdown)','function releaseInline(element,value)','renderReleaseNotes(result,found.release.body)','const updateAvailable=semverCompare(found.version,INSTALLED)>0','av-release-notes'])assert.ok(html.includes(marker),marker);
+assert.doesNotMatch(html,/found\.release\.body[^;\n]*slice\(0,900\)/);
+assert.match(html,/document\.createTextNode\(part\)/);
+assert.match(html,/if\(updateAvailable&&repo==='thejohnfavaro\/arcanevault'\)result\.append\(install\)/);
+console.log('PASS: curated full changelogs published and safely rendered without truncation');
