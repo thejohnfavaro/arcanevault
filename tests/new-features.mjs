@@ -91,3 +91,34 @@ deltaContext.deckLibrary=[deck];
 const changes=delta.avCollectionImpact(before,after);
 assert.equal(changes.length,0);
 console.log('PASS: collection deltas and saved-deck coverage');
+
+// v5.4: explainable readiness analysis for any saved deck, no win-rate claims.
+for(const id of ['avCompetitiveStyle','avCompetitiveRun','avCompetitiveResults'])assert.ok(html.includes('id="'+id+'"'));
+assert.match(html,/function avCompetitiveAssess\(/);
+assert.match(html,/function avCompetitiveUpgrades\(/);
+assert.match(html,/Matchup pressure checkpoints/);
+assert.match(html,/not a deck strength score/);
+const competitionStart=html.indexOf('function avCompetitiveAssess(');
+const competitionEnd=html.indexOf('function avCompetitiveStyle(',competitionStart);
+assert.ok(competitionStart>0&&competitionEnd>competitionStart);
+const competitionCtx={};
+vm.createContext(competitionCtx);
+vm.runInContext(html.slice(competitionStart,competitionEnd)+';globalThis.assess=avCompetitiveAssess;',competitionCtx);
+const sampleCards=new Map([
+ ['commander',{qty:1,meta:{colors:['B'],type:'Legendary Creature',mv:3,legalities:{historicbrawl:'legal'}}}],
+ ['swamp',{qty:20,meta:{colors:[],type:'Basic Land',mv:0}}],
+ ['answer',{qty:1,meta:{colors:['B'],type:'Instant',mv:2,legalities:{historicbrawl:'legal'}}}],
+ ['forbidden',{qty:0,meta:{colors:['W'],type:'Sorcery',mv:3,legalities:{historicbrawl:'banned'}}}]
+]);
+const testDeck={name:'Sample',commander:'Commander',entries:[{name:'Swamp',qty:36},{name:'Answer',qty:2},{name:'Forbidden',qty:1}]};
+const targets={midrange:{Ramp:[8,11],Removal:[8,14],'Card Draw':[8,14]}};
+const results=competitionCtx.assess(testDeck,name=>sampleCards.get(String(name).toLowerCase()),c=>c.meta.type==='Instant'?['Removal']:[],targets,'midrange',new Set(['swamp']));
+assert.equal(results.total,40);
+assert.equal(results.lands,36);
+assert.equal(results.missing.length,2);
+assert.equal(results.duplicate.length,1);
+assert.equal(results.offIdentity.length,1);
+assert.equal(results.banned.length,1);
+assert.equal(results.checks[0].pass,false);
+assert.equal(results.checks[2].pass,false);
+console.log('PASS: competitive assessment flags structure, ownership, singleton, identity and banned cards');
