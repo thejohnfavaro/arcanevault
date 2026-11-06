@@ -1,0 +1,58 @@
+name: Windows build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ["windows-v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript regression checks
+        shell: pwsh
+        run: |
+          node --check tests/regression.mjs
+          node tests/regression.mjs
+          node tests/new-features.mjs
+      - name: Restore packages
+        run: dotnet restore ArcaneVault.sln
+      - name: Build solution
+        run: dotnet build ArcaneVault.sln -c Release --no-restore
+      - name: Execute C# checks
+        run: dotnet run --project ArcaneVault.Tests/ArcaneVault.Tests.csproj -c Release --no-build
+      - name: Publish Windows x64 executable
+        shell: pwsh
+        run: |
+          dotnet publish ArcaneVault.Desktop/ArcaneVault.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/windows-x64
+          Compress-Archive -Path publish/windows-x64/* -DestinationPath ArcaneVault-Windows-x64.zip -Force
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArcaneVault-Windows-x64
+          path: ArcaneVault-Windows-x64.zip
+          if-no-files-found: error
+      - name: Publish GitHub release for Windows version tag
+        if: startsWith(github.ref, 'refs/tags/windows-v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          gh release create $env:GITHUB_REF_NAME ArcaneVault-Windows-x64.zip --title "Arcane Vault $env:GITHUB_REF_NAME" --generate-notes --verify-tag
