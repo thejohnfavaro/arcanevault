@@ -279,7 +279,7 @@ const physicalStart=html.indexOf('const PHYSICAL_KEY='),physicalEnd=html.indexOf
 assert.ok(physicalStart>0&&physicalEnd>physicalStart);
 const physicalSnippet=html.slice(physicalStart,physicalEnd);
 assert.doesNotMatch(physicalSnippet,/cards\s*=\s*physicalCards|save\('cards',physicalCards\)/);
-const normalizeStart=html.indexOf('const physicalKey='),normalizeEnd=html.indexOf('function physicalSave()',normalizeStart);
+const normalizeStart=html.indexOf('const physicalKey='),normalizeEnd=html.indexOf('let physicalCards=physicalNormalize(',normalizeStart);
 const normalizedContext={};vm.createContext(normalizedContext);
 vm.runInContext(html.slice(normalizeStart,normalizeEnd)+';globalThis.normalize=physicalNormalize;',normalizedContext);
 const physicalInput=[{name:'Sol Ring',qty:1,set:'CMM',number:'1',finish:'foil'},{name:'sol ring',qty:2,set:'CMM',number:'1',finish:'foil'},{name:'Sol Ring',qty:4,set:'CMM',number:'1',finish:'nonfoil'},{name:'Invalid',qty:-1}];
