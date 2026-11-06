@@ -228,7 +228,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
 <div class="notice">Arena's current Player.log does not reliably contain your full owned-card collection. Your CSV remains the authoritative collection snapshot; this connector never overwrites it. Information below appears only when the log provides a recognizable event.</div>
 <div class="two"><div class="panel"><h2>Connection settings</h2><label class="v3check"><input type="checkbox" id="arenaEnabled"> Monitor Arena logs (opt-in)</label><p class="help">Enable Detailed Logs in Arena: Options → View Account → Detailed Logs, then restart Arena. The log is read locally by Arcane Vault's built-in C# service.</p><label>Log path <input class="field" id="arenaLogPath" placeholder="Default: detected Windows Player.log" style="width:100%"></label><div class="actions" style="margin-top:12px"><button class="primary" id="arenaSave">Save connection</button><button id="arenaDisable">Stop monitoring</button></div><p id="arenaStatus" class="note">Checking local Arena connection…</p></div>
 <div class="panel"><h2>Inventory from latest logged snapshot</h2><div class="summary" id="arenaInventory">Not observed</div><p class="note" id="arenaInvStamp">Currency and wildcard balances only; these values may be stale until a new Arena startup event.</p><button id="arenaUseWildcards">Copy detected wildcards into planner</button></div></div>
-<div class="two"><div class="panel"><h2>Rank</h2><div id="arenaRank" class="summary">Not observed</div><h2 style="margin-top:18px">Log details</h2><p class="note" id="arenaLogDetails">—</p></div><div class="panel"><h2>Arena deck summaries</h2><p class="note">These are deck <em>names</em> observed in startup logs, not verified owned cards or complete decklists. Nothing is automatically imported.</p><div id="arenaDecks" class="deck-list">Not observed</div></div></div>
+<div class="two"><div class="panel"><h2>Rank</h2><div id="arenaRank" class="summary">Not observed</div><h2 style="margin-top:18px">Log details</h2><p class="note" id="arenaLogDetails">—</p></div><div class="panel"><h2>Arena deck summaries</h2><p class="note">Deck names are observed in startup logs; a full cardlist is available only when Arena logs explicit main deck and command-zone entries. Preview resolves logged numeric card IDs through Scryfall, which requires internet access. Import is always opt-in.</p><div id="arenaDecks" class="deck-list">Not observed</div><div id="arenaDeckImports" class="deck-list" aria-live="polite"></div><div id="arenaDeckPreview" class="panel" aria-live="polite">Select Preview to resolve an observed Arena decklist. Only complete 60- or 100-card Brawl lists can be imported.</div></div></div>
 <div class="panel"><h2>Collection freshness</h2><p>Your existing collection was imported from a CSV file, not from the Arena client. Cards acquired after that export will not automatically appear unless a trustworthy source confirms quantities. Continue using <strong>Import &amp; Data</strong> for complete ownership updates.</p></div>
 </section>
 <section id="performance" class="hidden">
@@ -958,6 +958,71 @@ function archetypeInit(){for(const id of ['archColors','archLimit'])$(id).onchan
 start().catch(e=>{console.error(e);alert('App failed to start: '+e.message)});
 
 // Arena log connector: optional local-only reading. Does not change card ownership.
+
+let arenaDeckPayloads=[],arenaDeckResolved=null,arenaPreviewSerial=0;
+function arenaRenderImportable(decks){
+ arenaDeckPayloads=Array.isArray(decks)?decks:[];
+ const root=$('arenaDeckImports');
+ root.innerHTML=arenaDeckPayloads.length?'<h3>Observed lists with card entries</h3>'+arenaDeckPayloads.map((d,i)=>{
+  const main=(d.main||[]).reduce((n,c)=>n+(Number(c.qty)||0),0),command=(d.commander||[]).reduce((n,c)=>n+(Number(c.qty)||0),0);
+  return '<div class="studio-line"><strong>'+escapeHtml(d.name)+'</strong> · '+main+' main · '+command+' command zone <button type="button" class="small" data-arena-preview="'+i+'">Preview decklist</button></div>';
+ }).join(''):'<p class="note">No complete card-entry payloads observed. Arena may expose only names for this session. Open the Decks screen in Arena with Detailed Logs enabled, then refresh.</p>';
+}
+async function arenaResolveRows(rows,serial){
+ const numeric=[...new Set(rows.map(c=>String(c.card)).filter(x=>/^[0-9]+$/.test(x)))];
+ const names=new Map(),missing=[];
+ for(let i=0;i<numeric.length;i+=25){
+  if(serial!==arenaPreviewSerial)throw Error('Preview replaced');
+  const response=await fetch('/api/arena/resolve?'+new URLSearchParams({ids:numeric.slice(i,i+25).join(',')}),{cache:'no-store'});
+  if(!response.ok)throw Error('Arena card ID resolver unavailable');
+  const result=await response.json();
+  for(const [id,name] of Object.entries(result.resolved||{}))names.set(id,name);
+  missing.push(...(result.unresolved||[]).map(String));
+ }
+ return rows.map(c=>({name:/^[0-9]+$/.test(String(c.card))?(names.get(String(c.card))||''):String(c.card),cardId:String(c.card),qty:Number(c.qty)||0}))
+  .map(c=>({...c,unresolved:!c.name||missing.includes(c.cardId)}));
+}
+async function arenaPreviewDeck(index){
+ const d=arenaDeckPayloads[index],root=$('arenaDeckPreview'),serial=++arenaPreviewSerial;
+ if(!d)return;arenaDeckResolved=null;
+ root.textContent='Resolving '+d.name+' from logged card IDs… This may require online Scryfall lookups.';
+ try{
+  const cmd=await arenaResolveRows(d.commander||[],serial);
+  const main=await arenaResolveRows(d.main||[],serial);
+  if(serial!==arenaPreviewSerial)return;
+  const total=cmd.reduce((n,e)=>n+e.qty,0)+main.reduce((n,e)=>n+e.qty,0);
+  const unknown=[...cmd,...main].filter(e=>e.unresolved),ready=cmd.length===1&&cmd[0].qty===1&&!unknown.length&&(total===60||total===100);
+  arenaDeckResolved=ready?{source:d,commander:cmd[0].name,entries:main.map(e=>({name:e.name,qty:e.qty}))}:null;
+  root.innerHTML='<h3>'+escapeHtml(d.name)+'</h3><p class="note">Arena ID: '+escapeHtml(d.deckId)+' · '+total+' cards including command zone · '+unknown.length+' unresolved IDs · '+(ready?'Import eligible':'Import blocked')+'</p>'+
+    '<p><strong>Commander</strong>: '+escapeHtml(cmd.map(x=>x.qty+' × '+(x.name||'Unresolved ID '+x.cardId)).join(', ')||'Not logged')+'</p>'+
+    '<details open><summary>Main deck ('+main.reduce((n,x)=>n+x.qty,0)+' cards)</summary><div class="deck-list">'+main.map(x=>'<div>'+x.qty+' × '+escapeHtml(x.name||'Unresolved Arena ID '+x.cardId)+'</div>').join('')+'</div></details>'+
+    '<p class="note">'+(ready?'Import creates or updates a saved Brawl deck only after confirmation.':'A complete 60- or 100-card Brawl list with one resolved commander is required. Incomplete log payloads cannot be imported.')+'</p>'+
+    (ready?'<button class="primary" type="button" id="arenaConfirmDeckImport">Import into Deck Library</button>':'');
+  if(ready)$('arenaConfirmDeckImport').onclick=arenaImportResolved;
+ }catch(e){if(serial===arenaPreviewSerial)root.textContent='Could not resolve decklist: '+(e.message||String(e))}
+}
+function arenaImportResolved(){
+ const draft=arenaDeckResolved;if(!draft)return;
+ const existing=deckLibrary.find(x=>x.arenaDeckId===draft.source.deckId);
+ const promptText=existing?'Update the saved deck "'+existing.name+'" from this Arena deck ID? Its prior version will be retained in revisions.':'Add "'+draft.source.name+'" as a new saved deck? Your current working draft is unchanged.';
+ if(!confirm(promptText))return;
+ const now=new Date().toISOString();
+ if(existing){
+  librarySnapshot(existing,'Before Arena sync');
+  Object.assign(existing,{name:draft.source.name,commander:draft.commander,entries:draft.entries,updated:now,arenaSyncedAt:now});
+ }else{
+  deckLibrary.push({id:makeDeckId(),name:draft.source.name,commander:draft.commander,entries:draft.entries,arenaDeckId:draft.source.deckId,arenaSyncedAt:now,updated:now,...normalizeLibraryExtras({})});
+ }
+ saveLibrary();renderLibrary();renderPlanner();
+ $('arenaDeckPreview').insertAdjacentHTML('beforeend','<p class="note">Saved to Deck Library. Match tracking continues identifying games from Arena deck IDs when logged.</p>');
+ arenaDeckResolved=null;
+ const button=$('arenaConfirmDeckImport');if(button)button.disabled=true;
+}
+$('arenaDeckImports').addEventListener('click',event=>{
+ const button=event.target.closest('[data-arena-preview]');
+ if(button)arenaPreviewDeck(Number(button.dataset.arenaPreview));
+});
+
 let arenaLastSnapshot=null,arenaBusy=false;
 async function arenaFetch(){
  if(arenaBusy)return;arenaBusy=true;
@@ -976,6 +1041,7 @@ async function arenaFetch(){
   $('arenaRank').textContent=d.constructedRank||'No constructed rank snapshot detected';
   $('arenaLogDetails').textContent='Recognized events: '+(d.eventsSeen||0)+' · '+(d.detected?'File found':'File not found')+' · Read-only local connector';
   $('arenaDecks').innerHTML=(d.deckSummaries||[]).length?d.deckSummaries.map(n=>'<div class="studio-line">'+escapeHtml(n)+'</div>').join(''):'<span class="muted">No deck-summary names observed.</span>';
+  arenaRenderImportable(d.deckLists||[]);
   $('arenaUseWildcards').disabled=!['wcCommon','wcUncommon','wcRare','wcMythic'].every(x=>Number.isInteger(d.inventory?.[x]));
  }catch(e){$('arenaStatus').textContent='Connector unavailable: '+e.message+' · Use the Visual Studio desktop host, not the raw HTML file.'}
  finally{arenaBusy=false}
