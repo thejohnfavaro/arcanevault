@@ -42,6 +42,11 @@ public sealed class MainForm : Form
         try
         {
             server = new LocalAppServer();
+            server.UpdateRestartRequested += () =>
+            {
+                if (!IsDisposed && IsHandleCreated)
+                    BeginInvoke(new Action(Close));
+            };
             server.Start();
 
             var cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
