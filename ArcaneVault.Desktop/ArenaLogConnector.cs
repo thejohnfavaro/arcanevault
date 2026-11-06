@@ -15,6 +15,10 @@ internal sealed class ArenaLogConnector
     private bool enabled;
     private long offset;
     private string remainder = "";
+    private readonly StringBuilder pendingDeckEvent = new();
+    private int eventBalance;
+    private bool eventQuoted, eventEscaped;
+    private const int MaxDeckEventBytes = 2_000_000;
     private DateTimeOffset? lastRead;
     private string? error;
     private int eventsSeen;
@@ -52,6 +56,7 @@ internal sealed class ArenaLogConnector
             enabled = monitor;
             offset = 0;
             remainder = "";
+            pendingDeckEvent.Clear(); eventBalance=0; eventQuoted=false; eventEscaped=false;
             error = null;
         }
     }
@@ -104,12 +109,12 @@ internal sealed class ArenaLogConnector
             offset += read;
             var chunk = remainder + Encoding.UTF8.GetString(bytes, 0, read);
             var lines = chunk.Split('\n');
-            remainder = lines[^1].Length > 8192 ? "" : lines[^1];
+            remainder = lines[^1].Length > MaxDeckEventBytes ? "" : lines[^1];
             for (int i = 0; i < lines.Length - 1; i++)
             {
                 var line = lines[i].Trim();
                 // Very large events may include multiline JSON, which is not currently parsed.
-                if (line.Length is > 5 and < 2_000_000) ExamineLine(line);
+                if (line.Length is > 5 and < MaxDeckEventBytes) ExamineLine(line);
             }
             lastRead = DateTimeOffset.UtcNow;
             error = null;
@@ -120,24 +125,39 @@ internal sealed class ArenaLogConnector
 
     private void ExamineLine(string line)
     {
-        if (!(line.Contains("StartHook", StringComparison.OrdinalIgnoreCase) ||
-              line.Contains("InventoryInfo", StringComparison.OrdinalIgnoreCase) ||
-              line.Contains("wcCommon", StringComparison.OrdinalIgnoreCase) ||
-              line.Contains("constructedClass", StringComparison.OrdinalIgnoreCase) ||
-              line.Contains("DeckSummariesV2", StringComparison.OrdinalIgnoreCase) ||
-              line.Contains("EventSetDeckV2", StringComparison.OrdinalIgnoreCase) ||
-              line.Contains("DecksV3", StringComparison.OrdinalIgnoreCase))) return;
-        var first = line.IndexOf('{');
-        if (first < 0) return;
+        if(pendingDeckEvent.Length==0)
+        {
+            if (!(line.Contains("StartHook", StringComparison.OrdinalIgnoreCase) ||
+                  line.Contains("InventoryInfo", StringComparison.OrdinalIgnoreCase) ||
+                  line.Contains("wcCommon", StringComparison.OrdinalIgnoreCase) ||
+                  line.Contains("constructedClass", StringComparison.OrdinalIgnoreCase) ||
+                  line.Contains("DeckSummariesV2", StringComparison.OrdinalIgnoreCase) ||
+                  line.Contains("EventSetDeckV2", StringComparison.OrdinalIgnoreCase) ||
+                  line.Contains("DecksV3", StringComparison.OrdinalIgnoreCase))) return;
+            var first=line.IndexOf('{');
+            if(first<0)return;
+            line=line[first..];
+        }
+        if (pendingDeckEvent.Length + line.Length > MaxDeckEventBytes)
+        { pendingDeckEvent.Clear(); eventBalance=0; eventQuoted=false; eventEscaped=false; return; }
+        pendingDeckEvent.AppendLine(line);
+        foreach (var ch in line)
+        {
+            if(eventEscaped){eventEscaped=false;continue;}
+            if(eventQuoted && ch=='\\'){eventEscaped=true;continue;}
+            if(ch=='"')eventQuoted=!eventQuoted;
+            if(!eventQuoted){if(ch=='{')eventBalance++;else if(ch=='}')eventBalance--;}
+        }
+        if(eventBalance>0)return;
         try
         {
-            using var doc = JsonDocument.Parse(line[first..]);
+            using var doc=JsonDocument.Parse(pendingDeckEvent.ToString());
             eventsSeen++;
-            Visit(doc.RootElement, 0);
+            Visit(doc.RootElement,0);
         }
-        catch (JsonException) { /* Some logs split the header and payload; ignore uncertain entries. */ }
+        catch (JsonException) { /* Missing or malformed log JSON is never imported. */ }
+        finally{pendingDeckEvent.Clear();eventBalance=0;eventQuoted=false;eventEscaped=false;}
     }
-
 
     // Reads only explicit deck objects; never interprets in-game battlefield or
     // other player card arrays as a saved deck. Numeric IDs stay unresolved.
@@ -170,7 +190,7 @@ internal sealed class ArenaLogConnector
             {
                 var tuple = item.EnumerateArray().Take(2).ToArray();
                 if (tuple.Length > 0) card=Text(tuple[0]);
-                if (tuple.Length > 1 && tuple[1].TryGetInt32(out var count)) qty=count;
+                if (tuple.Length > 1 && tuple[1].ValueKind==JsonValueKind.Number && tuple[1].TryGetInt32(out var count)) qty=count;
             }
             else if (item.ValueKind == JsonValueKind.Object)
             {
@@ -188,7 +208,7 @@ internal sealed class ArenaLogConnector
         var deckKey=Text(deckId);
         var name=Text(nameValue);
         if(deckKey.Length is < 1 or > 180 || name.Length is < 1 or > 150) return;
-        var main=ReadCards(obj,"MainDeck","mainDeck","Cards","cards");
+        var main=ReadCards(obj,"MainDeck","mainDeck","mainboard","Mainboard","Cards","cards");
         if(main.Length==0)return; // A summary without card entries is not importable.
         var command=ReadCards(obj,"CommandZone","commandZone","Commander","commander");
         // Non-Brawl lists can be observed, but require a commander for our Brawl library.
