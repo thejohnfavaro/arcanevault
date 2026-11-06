@@ -208,3 +208,12 @@ assert.match(html,/manual:'Manually entered'/);
 assert.match(html,/unverified:'Unverified'/);
 assert.match(html,/escapeHtml\(perfResultSourceLabel\(m\.resultSource\)\)/);
 console.log('PASS: human-readable match result provenance labels');
+
+// v5.9.2: ownership status is explicitly CSV-based; importing from Arena Connection uses the same reviewed collection replacement.
+for(const id of ['arenaRefreshCollection','arenaCollectionCsv','arenaCollectionFreshness'])assert.ok(html.includes('id="'+id+'"'));
+assert.match(html,/Arena log monitoring does not synchronize card ownership/);
+assert.match(html,/function arenaCollectionFreshness\(\)/);
+assert.match(html,/await importCsv\(file\)/);
+assert.match(html,/save\(AV_OWNERSHIP_IMPORT_KEY,\{at:new Date\(\)\.toISOString\(\),name:file.name\}\)/);
+assert.match(html,/Last successful CSV refresh:/);
+console.log('PASS: collection freshness and explicit reviewed CSV refresh pathway');
