@@ -193,7 +193,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
 </section>
 
 <section id="library" class="hidden">
- <div class="top"><div><h1 class="h1">Deck Library</h1><div class="subtitle">Save multiple Arena decks and return to any version without losing your current build.</div></div><div class="v3tools"><button class="primary" id="librarySave">Save Studio deck</button><button id="libraryImport">Import decklist</button><button id="libraryBackup">Export library JSON</button><button id="libraryRestore">Import library JSON</button><input id="libraryJson" accept=".json,application/json" type="file" class="hidden"></div></div>
+ <div class="top"><div><h1 class="h1">Deck Library</h1><div class="subtitle">Save multiple Arena decks and return to any version without losing your current build.</div></div><div class="v3tools"><button class="primary" id="librarySave">Save Studio deck</button><button id="libraryImport">Import decklist</button><button id="librarySyncArena">Sync from Arena logs</button><button id="libraryBackup">Export library JSON</button><button id="libraryRestore">Import library JSON</button><input id="libraryJson" accept=".json,application/json" type="file" class="hidden"></div></div>
  <div class="panel"><div id="avLibraryCoverage" class="note" aria-live="polite"></div><p class="note">Your current Deck Studio is an autosaved working draft. Use <strong>Save Studio deck</strong> to create or update a named library entry. Importing a deck into the library does not replace your current draft until you load it.</p><div id="libraryStats" class="summary"></div></div>
  <details class="panel"><summary style="cursor:pointer">Paste an Arena decklist into the library</summary><p class="note">Paste the complete export (including Commander and Deck headings). This saves a separate deck; your working draft stays unchanged.</p><textarea id="libraryPasteText" spellcheck="false" placeholder="Commander&#10;1 Gwenom, Remorseless&#10;&#10;Deck&#10;..."></textarea><div class="actions" style="margin-top:10px"><button class="primary" id="libraryPasteSave">Save pasted deck</button></div></details><div class="av-library-controls"><input id="librarySearch" class="field" type="search" placeholder="Search decks or commanders" aria-label="Search deck library"><select id="librarySort" class="field" aria-label="Sort saved decks"><option value="updated">Recently updated</option><option value="name">Deck name A–Z</option><option value="commander">Commander A–Z</option></select><select id="libraryFolderFilter" class="field" aria-label="Filter by folder"><option value="">All folders</option></select><label class="av-favorites-filter"><input type="checkbox" id="libraryFavoritesOnly"> Favorites only</label></div><div id="libraryCards" class="av-deckbox-grid"></div>
 </section>
@@ -228,7 +228,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
 <div class="notice">Arena's current Player.log does not reliably contain your full owned-card collection. Your CSV remains the authoritative collection snapshot; this connector never overwrites it. Information below appears only when the log provides a recognizable event.</div>
 <div class="two"><div class="panel"><h2>Connection settings</h2><label class="v3check"><input type="checkbox" id="arenaEnabled"> Monitor Arena logs (opt-in)</label><p class="help">Enable Detailed Logs in Arena: Options → View Account → Detailed Logs, then restart Arena. The log is read locally by Arcane Vault's built-in C# service.</p><label>Log path <input class="field" id="arenaLogPath" placeholder="Default: detected Windows Player.log" style="width:100%"></label><div class="actions" style="margin-top:12px"><button class="primary" id="arenaSave">Save connection</button><button id="arenaDisable">Stop monitoring</button></div><p id="arenaStatus" class="note">Checking local Arena connection…</p></div>
 <div class="panel"><h2>Inventory from latest logged snapshot</h2><div class="summary" id="arenaInventory">Not observed</div><p class="note" id="arenaInvStamp">Currency and wildcard balances only; these values may be stale until a new Arena startup event.</p><button id="arenaUseWildcards">Copy detected wildcards into planner</button></div></div>
-<div class="two"><div class="panel"><h2>Rank</h2><div id="arenaRank" class="summary">Not observed</div><h2 style="margin-top:18px">Log details</h2><p class="note" id="arenaLogDetails">—</p></div><div class="panel"><h2>Arena deck summaries</h2><p class="note">Deck names are observed in startup logs; a full cardlist is available only when Arena logs explicit main deck and command-zone entries. Preview resolves logged numeric card IDs through Scryfall, which requires internet access. Import is always opt-in.</p><div id="arenaDecks" class="deck-list">Not observed</div><div id="arenaDeckImports" class="deck-list" aria-live="polite"></div><div id="arenaDeckPreview" class="panel" aria-live="polite">Select Preview to resolve an observed Arena decklist. Only complete 60- or 100-card Brawl lists can be imported.</div></div></div>
+<div class="two"><div class="panel"><h2>Rank</h2><div id="arenaRank" class="summary">Not observed</div><h2 style="margin-top:18px">Log details</h2><p class="note" id="arenaLogDetails">—</p></div><div class="panel"><h2>Arena deck summaries</h2><p class="note">Deck names are observed in startup logs; a full cardlist is available only when Arena logs explicit main deck and command-zone entries. Preview resolves logged numeric card IDs through Scryfall, which requires internet access. Import is always opt-in.</p><div id="arenaDecks" class="deck-list">Not observed</div><div id="arenaDeckImports" class="deck-list" aria-live="polite"></div><div id="arenaBulkReview" class="deck-list" aria-live="polite"></div><div id="arenaDeckPreview" class="panel" aria-live="polite">Select Preview to resolve an observed Arena decklist. Only complete 60- or 100-card Brawl lists can be imported.</div></div></div>
 <div class="panel"><h2>Collection freshness</h2><p>Your existing collection was imported from a CSV file, not from the Arena client. Cards acquired after that export will not automatically appear unless a trustworthy source confirms quantities. Continue using <strong>Import &amp; Data</strong> for complete ownership updates.</p></div>
 </section>
 <section id="performance" class="hidden">
@@ -763,7 +763,7 @@ function libraryUpdateMeta(id,change){const d=deckLibrary.find(x=>x.id===id);if(
 function libraryRestore(id,index){const d=deckLibrary.find(x=>x.id===id),v=d?.revisions?.[index];if(!d||!v)return;if(!confirm(`Restore snapshot from ${v.savedAt||'previously'}? The current version will be snapshotted first.`))return;const restored={...clonedDeck(v),coverCard:v.coverCard||'',folder:v.folder||'Unfiled',tags:Array.isArray(v.tags)?[...v.tags]:[]};librarySnapshot(d,'Before restore');Object.assign(d,restored,{updated:new Date().toISOString()});saveLibrary();renderLibrary();renderPlanner();}
 function libraryInit(){
  ensureLibrary();$('librarySearch')?.addEventListener('input',renderLibrary);$('librarySort')?.addEventListener('change',renderLibrary);$('libraryFolderFilter')?.addEventListener('change',renderLibrary);$('libraryFavoritesOnly')?.addEventListener('change',renderLibrary);
- $('librarySave').onclick=libraryStore;$('libraryImport').onclick=()=>{$('libraryPasteText').closest('details').open=true;$('libraryPasteText').focus()};$('libraryPasteSave').onclick=libraryImportText;
+ $('librarySave').onclick=libraryStore;$('librarySyncArena').onclick=()=>{tabs('arena');arenaFetch()};$('libraryImport').onclick=()=>{$('libraryPasteText').closest('details').open=true;$('libraryPasteText').focus()};$('libraryPasteSave').onclick=libraryImportText;
  $('libraryBackup').onclick=()=>download('Arcane_Vault_Deck_Library.json',JSON.stringify({schema:2,exported:new Date().toISOString(),deckLibrary},null,2),'application/json');
  $('libraryRestore').onclick=()=>$('libraryJson').click();$('libraryJson').onchange=e=>{if(e.target.files?.[0])libraryImportJSON(e.target.files[0]);e.target.value=''};
  $('libraryCards').addEventListener('click',e=>{
@@ -959,29 +959,114 @@ start().catch(e=>{console.error(e);alert('App failed to start: '+e.message)});
 
 // Arena log connector: optional local-only reading. Does not change card ownership.
 
-let arenaDeckPayloads=[],arenaDeckResolved=null,arenaPreviewSerial=0;
+let arenaDeckPayloads=[],arenaDeckResolved=null,arenaPreviewSerial=0,arenaBulkReview=[],arenaBulkBusy=false;
+const arenaCardNameCache=new Map();
 function arenaRenderImportable(decks){
  arenaDeckPayloads=Array.isArray(decks)?decks:[];
  const root=$('arenaDeckImports');
- root.innerHTML=arenaDeckPayloads.length?'<h3>Observed lists with card entries</h3>'+arenaDeckPayloads.map((d,i)=>{
+ arenaBulkReview=[];
+ $('arenaBulkReview').textContent='';
+ root.innerHTML=arenaDeckPayloads.length?'<h3>Observed lists with card entries</h3><p class="note">Complete Brawl logs only. Sync review never changes your deck library until you approve it.</p><button type="button" class="primary" id="arenaBulkStart">Review all observed Brawl decks</button>'+arenaDeckPayloads.map((d,i)=>{
   const main=(d.main||[]).reduce((n,c)=>n+(Number(c.qty)||0),0),command=(d.commander||[]).reduce((n,c)=>n+(Number(c.qty)||0),0);
   return '<div class="studio-line"><strong>'+escapeHtml(d.name)+'</strong> · '+main+' main · '+command+' command zone <button type="button" class="small" data-arena-preview="'+i+'">Preview decklist</button></div>';
  }).join(''):'<p class="note">No complete card-entry payloads observed. Arena may expose only names for this session. Open the Decks screen in Arena with Detailed Logs enabled, then refresh.</p>';
+ const batch=$('arenaBulkStart');if(batch)batch.onclick=arenaBulkStart;
 }
 async function arenaResolveRows(rows,serial){
  const numeric=[...new Set(rows.map(c=>String(c.card)).filter(x=>/^[0-9]+$/.test(x)))];
  const names=new Map(),missing=[];
- for(let i=0;i<numeric.length;i+=25){
+ for(const num of numeric)if(arenaCardNameCache.has(num))names.set(num,arenaCardNameCache.get(num));
+ const remaining=numeric.filter(x=>!names.has(x));
+ for(let i=0;i<remaining.length;i+=25){
   if(serial!==arenaPreviewSerial)throw Error('Preview replaced');
-  const response=await fetch('/api/arena/resolve?'+new URLSearchParams({ids:numeric.slice(i,i+25).join(',')}),{cache:'no-store'});
+  const response=await fetch('/api/arena/resolve?'+new URLSearchParams({ids:remaining.slice(i,i+25).join(',')}),{cache:'no-store'});
   if(!response.ok)throw Error('Arena card ID resolver unavailable');
   const result=await response.json();
-  for(const [id,name] of Object.entries(result.resolved||{}))names.set(id,name);
+  for(const [id,name] of Object.entries(result.resolved||{})){names.set(id,name);arenaCardNameCache.set(id,name)}
   missing.push(...(result.unresolved||[]).map(String));
  }
  return rows.map(c=>({name:/^[0-9]+$/.test(String(c.card))?(names.get(String(c.card))||''):String(c.card),cardId:String(c.card),qty:Number(c.qty)||0}))
   .map(c=>({...c,unresolved:!c.name||missing.includes(c.cardId)}));
 }
+// v5.7: deterministic, explicit Brawl eligibility; observed names alone never create decks.
+function arenaBrawlCandidate(d){
+ const commander=d?.commander||[],main=d?.main||[];
+ const count=rows=>rows.reduce((n,c)=>n+(Number(c.qty)||0),0);
+ const total=count(commander)+count(main);
+ return commander.length===1&&Number(commander[0].qty)===1&&main.length>0&&(total===60||total===100);
+}
+function arenaDeckSame(a,b){
+ if(String(a.commander).toLowerCase()!==String(b.commander).toLowerCase())return false;
+ const entries=d=>(d.entries||[]).map(e=>[String(e.name).toLowerCase(),Number(e.qty)||0]).sort((x,y)=>x[0].localeCompare(y[0]));
+ return JSON.stringify(entries(a))===JSON.stringify(entries(b))&&a.name===b.name;
+}
+async function arenaResolveDraft(d,serial){
+ if(!arenaBrawlCandidate(d))return {ready:false,source:d,reason:'Not a complete 60/100-card Brawl list with one commander'};
+ try{
+  const commander=await arenaResolveRows(d.commander,serial);
+  const main=await arenaResolveRows(d.main,serial);
+  if(serial!==arenaPreviewSerial)throw Error('Review replaced');
+  const unresolved=[...commander,...main].filter(x=>x.unresolved);
+  if(unresolved.length)return {ready:false,source:d,reason:unresolved.length+' unresolved card IDs'};
+  return {ready:true,source:d,commander:commander[0].name,entries:main.map(c=>({name:c.name,qty:c.qty}))};
+ }catch(err){if(serial!==arenaPreviewSerial)throw err;return {ready:false,source:d,reason:err.message||String(err)}}
+}
+function arenaApplyDraft(draft){
+ if(!draft?.ready)return 'skipped';
+ const old=deckLibrary.find(d=>d.arenaDeckId===draft.source.deckId);
+ const data={name:draft.source.name,commander:draft.commander,entries:draft.entries};
+ if(old&&arenaDeckSame(old,data))return 'unchanged';
+ const now=new Date().toISOString();
+ if(old){
+  librarySnapshot(old,'Before Arena batch sync');
+  Object.assign(old,data,{updated:now,arenaSyncedAt:now});
+  return 'updated';
+ }
+ deckLibrary.push({id:makeDeckId(),...data,arenaDeckId:draft.source.deckId,arenaSyncedAt:now,updated:now,...normalizeLibraryExtras({})});
+ return 'added';
+}
+async function arenaBulkStart(){
+ if(arenaBulkBusy)return;
+ arenaBulkBusy=true;
+ const serial=++arenaPreviewSerial,root=$('arenaBulkReview'),button=$('arenaBulkStart');
+ if(button)button.disabled=true;
+ arenaBulkReview=[];
+ const candidate=arenaDeckPayloads.filter(arenaBrawlCandidate);
+ const rejected=arenaDeckPayloads.length-candidate.length;
+ root.textContent='Reviewing '+candidate.length+' complete Brawl payload(s). '+rejected+' name-only or non-Brawl/incomplete list(s) excluded. Resolving IDs as needed…';
+ try{
+  for(const d of candidate){
+   if(serial!==arenaPreviewSerial)return;
+   const result=await arenaResolveDraft(d,serial);
+   if(serial!==arenaPreviewSerial)return;
+   arenaBulkReview.push(result);
+   root.textContent='Reviewed '+arenaBulkReview.length+'/'+candidate.length+' deck(s)…';
+  }
+  if(serial!==arenaPreviewSerial)return;
+  const eligible=arenaBulkReview.filter(d=>d.ready),blocked=arenaBulkReview.filter(d=>!d.ready);
+  root.innerHTML='<h3>Review Arena → Deck Library changes</h3><p class="note">'+eligible.length+' resolved Brawl deck(s), '+blocked.length+' blocked, '+rejected+' missing complete Brawl data. Select the decks you want. Saved decks are matched only by Arena deck ID.</p>'+
+   eligible.map((d,i)=>{const old=deckLibrary.find(x=>x.arenaDeckId===d.source.deckId),action=old?(arenaDeckSame(old,d)?'Already up to date':'Update saved deck'):'Add new saved deck';
+    return '<label class="studio-line"><input type="checkbox" data-arena-bulk-id="'+escapeHtml(d.source.deckId)+'" checked> <strong>'+escapeHtml(d.source.name)+'</strong> · '+escapeHtml(d.commander)+' · '+(d.entries.reduce((n,e)=>n+e.qty,0)+1)+' cards · '+action+'</label>';
+   }).join('')+(blocked.length?'<details><summary>Could not import ('+blocked.length+')</summary>'+blocked.map(x=>'<p class="note">'+escapeHtml(x.source.name)+': '+escapeHtml(x.reason)+'</p>').join('')+'</details>':'')+
+   (eligible.length?'<button type="button" class="primary" id="arenaBulkConfirm">Import selected decks</button>':'<p class="note">No importable decks found in the current log data.</p>');
+  const confirmButton=$('arenaBulkConfirm');if(confirmButton)confirmButton.onclick=arenaBulkCommit;
+ }catch(err){if(serial===arenaPreviewSerial)root.textContent='Batch preview stopped: '+(err.message||String(err))}
+ finally{arenaBulkBusy=false;if(button)button.disabled=false}
+}
+function arenaBulkCommit(){
+ const selected=[...$('arenaBulkReview').querySelectorAll('[data-arena-bulk-id]:checked')].map(x=>x.dataset.arenaBulkId);
+ const drafts=arenaBulkReview.filter(d=>d.ready&&selected.includes(d.source.deckId));
+ if(!drafts.length){alert('Select at least one resolved deck.');return}
+ const newCount=drafts.filter(d=>!deckLibrary.some(x=>x.arenaDeckId===d.source.deckId)).length;
+ const updateCount=drafts.filter(d=>{const old=deckLibrary.find(x=>x.arenaDeckId===d.source.deckId);return old&&!arenaDeckSame(old,d)}).length;
+ if(!confirm('Sync '+drafts.length+' selected Arena decks? '+newCount+' new, '+updateCount+' existing to update. Previous versions will be kept; your working draft and collection are unchanged.'))return;
+ const outcome={added:0,updated:0,unchanged:0,skipped:0};
+ for(const d of drafts)outcome[arenaApplyDraft(d)]++;
+ saveLibrary();renderLibrary();renderPlanner();
+ $('arenaBulkReview').innerHTML='<p class="note">Arena sync finished: '+outcome.added+' added, '+outcome.updated+' updated, '+outcome.unchanged+' already current, '+outcome.skipped+' skipped. Deck Studio and collection were not changed.</p>';
+ arenaBulkReview=[];
+}
+
 async function arenaPreviewDeck(index){
  const d=arenaDeckPayloads[index],root=$('arenaDeckPreview'),serial=++arenaPreviewSerial;
  if(!d)return;arenaDeckResolved=null;
