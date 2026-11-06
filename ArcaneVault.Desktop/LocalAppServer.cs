@@ -87,6 +87,12 @@ internal sealed class LocalAppServer : IDisposable
                     await SendAsync(ctx.Response, 200, "text/html; charset=utf-8", pageBytes);
                     return;
                 }
+                if (path == "/api/app/version")
+                {
+                    if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local only" }); return; }
+                    var version = typeof(LocalAppServer).Assembly.GetName().Version ?? new Version(0, 0, 0);
+                    await JsonAsync(ctx.Response, 200, new { version = $"{version.Major}.{version.Minor}.{Math.Max(0, version.Build)}" }); return;
+                }
                 if (path == "/api/app/update/status")
                 {
                     if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local only" }); return; }
