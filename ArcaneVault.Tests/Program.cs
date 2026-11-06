@@ -48,6 +48,30 @@ try
     output=JsonSerializer.Serialize(tracker.Snapshot());
     if(!output.Contains("Tinybones Discard") || !output.Contains("arena_deck_id") || !output.Contains("\"total\":3"))
         throw new Exception("Automatic deck assignment fixture failed: " + output);
+
+    // Full deck lists should be captured only from explicit Arena deck payloads.
+    var connector = new ArenaLogConnector();
+    connector.Configure(true,file);
+    File.AppendAllText(file,"""
+[UnityCrossThreadLogger]11/05/2026 12:30:00 PM
+{"StartHook":{"DeckSummariesV2":[{"DeckId":"arena-known-list","Name":"Example Brawl","CommandZone":[{"cardId":1001,"quantity":1}],"MainDeck":[[1002,37],[1003,62]]},{"DeckId":"name-only","Name":"No Cards"}]}}
+""" + "\n");
+    var arenaSnapshot=JsonSerializer.Serialize(connector.Snapshot());
+    if(!arenaSnapshot.Contains("arena-known-list") || !arenaSnapshot.Contains("\"card\":\"1001\"") || !arenaSnapshot.Contains("\"qty\":62"))
+        throw new Exception("Arena decklist extraction failed: "+arenaSnapshot);
+    if(arenaSnapshot.Contains("\"deckId\":\"name-only\""))
+        throw new Exception("Incomplete name-only deck was incorrectly marked importable.");
+    File.AppendAllText(file,"""
+[UnityCrossThreadLogger]11/05/2026 12:31:00 PM
+{"EventSetDeckV2":{"DeckId":"multiline-list","Name":"Multiline Brawl",
+"CommandZone":[{"name":"Commander Example","qty":1}],
+"MainDeck":[{"name":"Swamp","qty":99}]}}
+""" + "\n");
+    arenaSnapshot=JsonSerializer.Serialize(connector.Snapshot());
+    if(!arenaSnapshot.Contains("multiline-list") || !arenaSnapshot.Contains("Commander Example"))
+        throw new Exception("Multiline decklist event not captured: "+arenaSnapshot);
+    Console.WriteLine("PASS: complete and multiline deck payload capture; name-only excluded.");
+
     Console.WriteLine("PASS: deck ID matching auto-assigns match.");
     Console.WriteLine("PASS: win, game/match separation, duplicate IDs, unknown result.");
 }

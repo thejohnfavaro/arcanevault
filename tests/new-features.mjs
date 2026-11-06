@@ -149,3 +149,11 @@ assert.equal(selected.total,2);assert.equal(selected.wins,1);assert.equal(select
 assert.equal(selected.draws,1);assert.equal(selected.unknown,1);
 assert.equal(analyze(matches,'Nonexistent').total,0);
 console.log('PASS: match evidence filters deck, version, queue and excludes draws/unknown results');
+
+// v5.6 safe opt-in import and release contract.
+for(const id of ['arenaDeckImports','arenaDeckPreview'])assert.ok(html.includes('id="'+id+'"'));
+assert.match(html,/function arenaPreviewDeck\(index\)/);
+assert.match(html,/function arenaImportResolved\(\)/);
+assert.match(html,/arenaDeckId:String\(d\.arenaDeckId/);
+assert.match(html,/total===60\|\|total===100/);
+assert.match(html,/!unknown\.length/);
