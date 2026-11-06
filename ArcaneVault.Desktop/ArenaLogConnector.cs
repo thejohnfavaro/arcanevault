@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography;
 
 namespace ArcaneVault.Desktop;
 
@@ -23,6 +24,11 @@ internal sealed class ArenaLogConnector
     private string? error;
     private int eventsSeen;
     private readonly Dictionary<string, int> inventory = new();
+    private readonly Dictionary<string, CardGrantEvent> cardGrants = new(StringComparer.Ordinal);
+    private readonly string grantLedgerPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArcaneVault", "arena-card-grants.json");
+    internal record CardGrantCard(string cardId, int qty);
+    internal record CardGrantEvent(string id, string observedAt, CardGrantCard[] cards);
     private DateTimeOffset? inventoryAt;
     private string? constructedRank;
     private DateTimeOffset? rankAt;
@@ -35,7 +41,17 @@ internal sealed class ArenaLogConnector
     private const int MaxReadBytes = 4 * 1024 * 1024;
     private static readonly string[] Stats = ["gold", "gems", "wcCommon", "wcUncommon", "wcRare", "wcMythic", "draftTokens", "sealedTokens"];
 
-    public ArenaLogConnector() => logPath = DefaultLogPath();
+    public ArenaLogConnector()
+    {
+        logPath = DefaultLogPath();
+        try
+        {
+            if (File.Exists(grantLedgerPath))
+                foreach (var item in JsonSerializer.Deserialize<CardGrantEvent[]>(File.ReadAllText(grantLedgerPath)) ?? [])
+                    if (item.id.Length == 64 && item.cards.Length > 0) cardGrants[item.id] = item;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { }
+    }
 
     public static string DefaultLogPath() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -82,7 +98,8 @@ internal sealed class ArenaLogConnector
                 deckSummaries = deckSummaries.ToArray(),
                 deckLists = deckLists.Values.OrderBy(d => d.name, StringComparer.OrdinalIgnoreCase).Take(250).ToArray(),
                 decksAt,
-                collectionOwnership = "CSV snapshot only — full owned-card collection is not available reliably from Player.log",
+                collectionOwnership = "CSV baseline plus optional verified grants — no full ownership snapshot in Player.log",
+                cardGrants = cardGrants.Values.OrderBy(x => x.observedAt).TakeLast(500).ToArray(),
                 readOnly = true
             };
         }
@@ -217,6 +234,68 @@ internal sealed class ArenaLogConnector
         decksAt=DateTimeOffset.UtcNow;
     }
 
+    // Only explicit card grants in InventoryInfo. Never treat deck contents or battlefields as ownership.
+    private static CardGrantCard[] ReadGrantCards(JsonElement cards)
+    {
+        var result = new Dictionary<string, int>(StringComparer.Ordinal);
+        void Add(string id, int qty)
+        {
+            if (!int.TryParse(id, out var parsed) || parsed <= 0 || qty is < 1 or > 250) return;
+            result[id] = Math.Min(250, result.GetValueOrDefault(id) + qty);
+        }
+        if (cards.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var item in cards.EnumerateObject())
+                if (item.Value.ValueKind == JsonValueKind.Number && item.Value.TryGetInt32(out var qty)) Add(item.Name, qty);
+        }
+        else if (cards.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in cards.EnumerateArray().Take(250))
+            {
+                if (item.ValueKind == JsonValueKind.Array)
+                {
+                    var pair = item.EnumerateArray().Take(2).ToArray();
+                    if (pair.Length == 2 && pair[1].ValueKind == JsonValueKind.Number && pair[1].TryGetInt32(out var qty))
+                        Add(Text(pair[0]), qty);
+                }
+                else if (item.ValueKind == JsonValueKind.Object &&
+                         Find(item, out var id, "CardId", "cardId", "GrpId", "grpId") &&
+                         Find(item, out var quantity, "Quantity", "quantity", "Count", "count") &&
+                         quantity.ValueKind == JsonValueKind.Number && quantity.TryGetInt32(out var qty))
+                    Add(Text(id), qty);
+            }
+        }
+        return result.Select(p => new CardGrantCard(p.Key, p.Value)).ToArray();
+    }
+
+    private void CaptureCardGrants(JsonElement info)
+    {
+        if (!Find(info, out var changes, "Changes", "changes") || changes.ValueKind != JsonValueKind.Array) return;
+        var added = false;
+        foreach (var change in changes.EnumerateArray().Take(100))
+        {
+            if (change.ValueKind != JsonValueKind.Object ||
+                !Find(change, out var granted, "GrantedCards", "grantedCards")) continue;
+            var cards = ReadGrantCards(granted);
+            if (cards.Length == 0) continue;
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(change.GetRawText()))).ToLowerInvariant();
+            if (cardGrants.ContainsKey(hash)) continue;
+            cardGrants[hash] = new CardGrantEvent(hash, DateTimeOffset.UtcNow.ToString("O"), cards);
+            added = true;
+        }
+        if (!added) return;
+        foreach (var excess in cardGrants.Values.OrderBy(x => x.observedAt).Take(Math.Max(0, cardGrants.Count - 500)).ToArray())
+            cardGrants.Remove(excess.id);
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(grantLedgerPath)!);
+            var tmp = grantLedgerPath + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(cardGrants.Values.ToArray()));
+            File.Move(tmp, grantLedgerPath, true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
     private void Visit(JsonElement element, int depth)
     {
         if (depth > 12) return;
@@ -249,6 +328,8 @@ internal sealed class ArenaLogConnector
                 }
             }
             TryCaptureDeck(element);
+            if (element.TryGetProperty("InventoryInfo", out var inv) && inv.ValueKind == JsonValueKind.Object)
+                CaptureCardGrants(inv);
             if (element.TryGetProperty("DeckSummariesV2", out var decks) && decks.ValueKind == JsonValueKind.Array)
             {
                 var names = new List<string>();
