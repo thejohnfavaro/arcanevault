@@ -359,3 +359,25 @@ for(const section of ['Added','Changed','Fixed','Removed'])assert.ok(notes516.in
 assert.match(notes516,/Goldfishing/);
 assert.match(notes516,/Physical Only/);
 console.log('PASS: Card Browser dual ownership, availability options and Goldfishing artwork');
+
+
+// Set Progress ownership sources must remain independent while retaining the same set/catalog filters.
+for(const marker of ['data-set-source="arena"','data-set-source="physical"',"setCollectionSourceV1",'function setPhysicalInventory()','/api/catalog/sets/physical?','/api/catalog/set-cards/physical?'])
+  assert.ok(html.includes(marker),'Missing Set Progress source integration: '+marker);
+assert.match(html,/setCollectionSource==='physical'\?'Physical':'Arena'/);
+assert.match(html,/setCardRequest\+\+/);
+const sourceStart=html.indexOf('function setPhysicalInventory()');
+const sourceEnd=html.indexOf('function setSourceUI()',sourceStart);
+const physicalScope={physicalCards:[{name:'Sol Ring',qty:2,set:'CMM'},{name:'sol ring',qty:3,set:'C21'},{name:'Opt',qty:1,set:'XLN'},{name:'Invalid',qty:0}]};
+vm.createContext(physicalScope);
+vm.runInContext(html.slice(sourceStart,sourceEnd)+';globalThis.inventory=setPhysicalInventory;',physicalScope);
+const physicalOutput=physicalScope.inventory();
+assert.equal(physicalOutput.length,2);
+assert.equal(physicalOutput.find(c=>c.name==='Sol Ring').qty,5);
+assert.equal(physicalOutput.find(c=>c.name==='Opt').qty,1);
+const serverSource=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/LocalAppServer.cs'),'utf8');
+const catalogSource=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/ScryfallCatalog.cs'),'utf8');
+for(const marker of ['/api/catalog/sets/physical','/api/catalog/set-cards/physical','PreparePhysicalOwnership(db, physicalCards)','physical_ownership','CREATE TEMP TABLE physical_ownership'])
+  assert.ok((serverSource+catalogSource).includes(marker),'Missing physical catalog implementation: '+marker);
+assert.match(catalogSource,/physicalCards\.HasValue \? "physical_ownership" : "ownership"/);
+console.log('PASS: Arena/Physical Set Progress toggle, physical quantity grouping, isolated catalog query and card paging');
