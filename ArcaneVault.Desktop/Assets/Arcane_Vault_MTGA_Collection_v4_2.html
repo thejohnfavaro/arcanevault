@@ -1205,7 +1205,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 <script>
 /* Arcane Vault: opt-in release checks and type-aware card tags. */
 (function(){'use strict';
-const PLATFORM='windows', INSTALLED='4.9.5';
+const PLATFORM='windows', INSTALLED='4.9.6';
 const key=n=>'arcaneVault.update.'+PLATFORM+'.'+n;
 const loadPref=(n,fallback='')=>{try{return localStorage.getItem(key(n))??fallback}catch{return fallback}};
 const savePref=(n,value)=>{try{localStorage.setItem(key(n),value)}catch{}};
