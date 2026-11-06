@@ -301,13 +301,42 @@ internal sealed class ScryfallCatalog
         return new {name,scope,count=rows.Count,variants=rows,source="Scryfall printings (not a complete list of MTG Arena cosmetic card styles)"};
     }
 
+    // Use request-local temporary ownership for paper inventories. Never alter Arena ownership.
+    private static void PreparePhysicalOwnership(SqliteConnection db, JsonElement? physicalCards)
+    {
+        if (!physicalCards.HasValue) return;
+        var array = physicalCards.Value;
+        if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() > 150_000)
+            throw new ArgumentException("Expected an array of physical cards.");
+        using var create = db.CreateCommand();
+        create.CommandText = "CREATE TEMP TABLE physical_ownership(name TEXT PRIMARY KEY COLLATE NOCASE, qty INTEGER NOT NULL)";
+        create.ExecuteNonQuery();
+        using var insert = db.CreateCommand();
+        insert.CommandText = "INSERT INTO physical_ownership(name,qty) VALUES($name,$qty) ON CONFLICT(name) DO UPDATE SET qty=qty+excluded.qty";
+        insert.Parameters.Add("$name", SqliteType.Text);
+        insert.Parameters.Add("$qty", SqliteType.Integer);
+        foreach (var item in array.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty("name", out var name) ||
+                name.ValueKind != JsonValueKind.String || !item.TryGetProperty("qty", out var count) ||
+                !count.TryGetInt32(out int qty) || qty <= 0 || qty > 99999) continue;
+            var cardName = (name.GetString() ?? "").Trim();
+            if (cardName.Length is < 1 or > 300) continue;
+            insert.Parameters["$name"].Value = cardName;
+            insert.Parameters["$qty"].Value = qty;
+            insert.ExecuteNonQuery();
+        }
+    }
+
     // Set completion counts distinct card names, not printing count. The CSV tracks owned cards by name,
     // so it cannot prove ownership of a specific set printing or MTGA cosmetic treatment.
-    public object SetProgress(string arenaFilter = "any", string query = "")
+    public object SetProgress(string arenaFilter = "any", string query = "", JsonElement? physicalCards = null)
     {
         using var db = Connect();
+        PreparePhysicalOwnership(db, physicalCards);
+        string ownershipTable = physicalCards.HasValue ? "physical_ownership" : "ownership";
         using var cmd = db.CreateCommand();
-        cmd.CommandText = """
+        cmd.CommandText = $"""
             WITH distinct_cards AS (
               SELECT DISTINCT v.setcode, v.name
               FROM variants v
@@ -315,7 +344,7 @@ internal sealed class ScryfallCatalog
             ), per_set AS (
               SELECT d.setcode, COUNT(*) AS total,
                 SUM(CASE WHEN COALESCE(o.qty,0)>0 THEN 1 ELSE 0 END) AS owned
-              FROM distinct_cards d LEFT JOIN ownership o ON o.name=d.name
+              FROM distinct_cards d LEFT JOIN {ownershipTable} o ON o.name=d.name
               GROUP BY d.setcode
             ), names AS (
               SELECT setcode, MAX(setname) AS setname FROM variants GROUP BY setcode
@@ -337,22 +366,24 @@ internal sealed class ScryfallCatalog
             totalCards+=count;ownedCards+=owned;
             result.Add(new { code=reader.GetString(0), name=reader.GetString(1), total=count,owned,missing=count-owned,percentage=count==0?0:Math.Round(100.0*owned/count,1) });
         }
-        return new { sets=result,count=result.Count, totalCards,ownedCards,source="Scryfall card-name completion; ownership from imported Arena CSV",note="Owned means you own the card name, not necessarily its printing in this set. Tokens, promo sets and supplemental sets may appear. Arena-listed means a Scryfall printing is marked as played on Arena." };
+        return new { sets=result,count=result.Count, totalCards,ownedCards,source=physicalCards.HasValue ? "Scryfall card-name completion; physical collection" : "Scryfall card-name completion; ownership from imported Arena CSV",note="Owned means you own the card name, not necessarily its printing in this set. Tokens, promo sets and supplemental sets may appear. Arena-listed means a Scryfall printing is marked as played on Arena." };
     }
 
-    public object SetCards(string setcode, string arenaFilter, string ownershipFilter, int page, int size)
+    public object SetCards(string setcode, string arenaFilter, string ownershipFilter, int page, int size, JsonElement? physicalCards = null)
     {
         if (!System.Text.RegularExpressions.Regex.IsMatch(setcode??"", "^[a-zA-Z0-9]{2,8}$")) throw new ArgumentException("Invalid set code");
         page=Math.Clamp(page,0,10000);size=Math.Clamp(size,1,100);
         if (ownershipFilter is not ("owned" or "missing" or "all")) ownershipFilter="all";
-        using var db=Connect();using var cmd=db.CreateCommand();
+        using var db=Connect();PreparePhysicalOwnership(db, physicalCards);
+        string ownershipTable=physicalCards.HasValue?"physical_ownership":"ownership";
+        using var cmd=db.CreateCommand();
         var filter=ownershipFilter=="owned"?" AND COALESCE(o.qty,0)>0":ownershipFilter=="missing"?" AND COALESCE(o.qty,0)=0":"";
         string distinctSql="SELECT DISTINCT name FROM variants WHERE setcode=$set AND ($arena!='arena' OR arena=1)";
         cmd.CommandText=$"""
           WITH setcards AS ({distinctSql})
           SELECT sc.name,COALESCE(o.qty,0),COALESCE(v.image,c.image,''),COALESCE(c.type,''),COALESCE(c.rarity,''),COALESCE(c.uri,'')
           FROM setcards sc
-          LEFT JOIN ownership o ON o.name=sc.name
+          LEFT JOIN {ownershipTable} o ON o.name=sc.name
           LEFT JOIN cards c ON c.name=sc.name
           LEFT JOIN variants v ON v.print_id=(SELECT print_id FROM variants WHERE setcode=$set AND name=sc.name AND ($arena!='arena' OR arena=1) ORDER BY release DESC LIMIT 1)
           WHERE 1=1 {filter}
