@@ -135,7 +135,7 @@ internal sealed class UpdateManager
         var args = new[] { "--apply-update", Environment.ProcessId.ToString(), target, stage };
         var info = new ProcessStartInfo(newExe) { UseShellExecute = true };
         foreach (var arg in args) info.ArgumentList.Add(arg);
-        Process.Start(info) ?? throw new InvalidOperationException("The updater could not start.");
+        _ = Process.Start(info) ?? throw new InvalidOperationException("The updater could not start.");
     }
 
     /// <summary>Run by the verified new executable outside the old application's folder.</summary>
