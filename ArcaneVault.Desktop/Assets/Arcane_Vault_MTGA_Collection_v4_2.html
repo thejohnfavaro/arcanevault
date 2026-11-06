@@ -229,7 +229,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
 <div class="two"><div class="panel"><h2>Connection settings</h2><label class="v3check"><input type="checkbox" id="arenaEnabled"> Monitor Arena logs (opt-in)</label><p class="help">Enable Detailed Logs in Arena: Options → View Account → Detailed Logs, then restart Arena. The log is read locally by Arcane Vault's built-in C# service.</p><label>Log path <input class="field" id="arenaLogPath" placeholder="Default: detected Windows Player.log" style="width:100%"></label><div class="actions" style="margin-top:12px"><button class="primary" id="arenaSave">Save connection</button><button id="arenaDisable">Stop monitoring</button></div><p id="arenaStatus" class="note">Checking local Arena connection…</p></div>
 <div class="panel"><h2>Inventory from latest logged snapshot</h2><div class="summary" id="arenaInventory">Not observed</div><p class="note" id="arenaInvStamp">Currency and wildcard balances only; these values may be stale until a new Arena startup event.</p><button id="arenaUseWildcards">Copy detected wildcards into planner</button></div></div>
 <div class="two"><div class="panel"><h2>Rank</h2><div id="arenaRank" class="summary">Not observed</div><h2 style="margin-top:18px">Log details</h2><p class="note" id="arenaLogDetails">—</p></div><div class="panel"><h2>Arena deck summaries</h2><p class="note">Deck names are observed in startup logs; a full cardlist is available only when Arena logs explicit main deck and command-zone entries. Preview resolves logged numeric card IDs through Scryfall, which requires internet access. Import is always opt-in.</p><div id="arenaDecks" class="deck-list">Not observed</div><div id="arenaDeckImports" class="deck-list" aria-live="polite"></div><div id="arenaBulkReview" class="deck-list" aria-live="polite"></div><div id="arenaDeckPreview" class="panel" aria-live="polite">Select Preview to resolve an observed Arena decklist. Only complete 60- or 100-card Brawl lists can be imported.</div></div></div>
-<div class="panel"><h2>Owned-card collection</h2><p class="note">Arena log monitoring does not synchronize card ownership. Owned counts come from the most recent imported CSV; observed decklists and matches are not evidence of owned quantities.</p><p class="note" id="arenaCollectionFreshness" role="status" aria-live="polite">Checking local collection snapshot…</p><div class="actions"><button type="button" class="primary" id="arenaRefreshCollection">Import updated collection CSV</button><button type="button" id="arenaCollectionSettings">Open Import &amp; Data</button><label class="v3check"><input type="checkbox" id="arenaGrantAuto"> Auto-apply newly logged card grants</label><input type="file" id="arenaCollectionCsv" class="hidden" accept=".csv,text/csv"></div><p class="note" id="arenaGrantStatus" aria-live="polite">Grant tracking is off. First enablement uses existing logged grants as a baseline, not as new acquisitions.</p></div>
+<div class="panel"><h2>Owned-card collection</h2><p class="note">Arena log monitoring does not synchronize card ownership. Owned counts come from the most recent imported CSV; observed decklists and matches are not evidence of owned quantities.</p><p class="note" id="arenaCollectionFreshness" role="status" aria-live="polite">Checking local collection snapshot…</p><div class="actions"><button type="button" class="primary" id="arenaRefreshCollection">Import updated collection CSV</button><button type="button" id="arenaCollectionSettings">Open Import &amp; Data</button><label class="v3check"><input type="checkbox" id="arenaGrantAuto"> Auto-apply newly logged card grants</label><input type="file" id="arenaCollectionCsv" class="hidden" accept=".csv,text/csv"></div><p class="note" id="arenaGrantStatus" aria-live="polite">Grant tracking is off. First enablement uses existing logged grants as a baseline, not as new acquisitions.</p><div class="actions"><button type="button" id="arenaPlayedDeckRecover">Find missing cards in played decks</button><label class="v3check"><input type="checkbox" id="arenaPlayedDeckAuto"> Check played decks automatically</label></div><p class="note" id="arenaPlayedDeckStatus" role="status" aria-live="polite">Only complete decklists with an exact Arena deck ID matching a recorded match are eligible. This adds a minimum of one inferred copy per missing card, never an exact ownership count.</p></div>
 </section>
 <section id="performance" class="hidden">
  <div class="top"><div><h1 class="h1">Match Performance</h1><p class="subtitle">Local win/loss history · Deck-specific records · Match vs. game results</p></div><button id="perfRefresh" class="primary">↻ Refresh matches</button></div>
@@ -1217,6 +1217,80 @@ async function arenaApplyLoggedGrants(snapshot){
  }catch(err){arenaGrantStatus('Grant sync paused without marking unresolved events as applied: '+(err.message||String(err)))}
  finally{arenaGrantBusy=false}
 }
+// Conservative ownership fallback: require both a captured match and a complete Arena decklist
+// linked by exact Arena deck ID. A saved deck, manually typed name, or opponent card is not proof.
+const AV_PLAYED_DECK_AUTO_KEY='arenaPlayedDeckOwnershipAutoV1';
+let arenaPlayedDeckAuto=!!load(AV_PLAYED_DECK_AUTO_KEY,false);
+let arenaPlayedDeckBusy=false;
+const arenaPlayedDeckChecked=new Set();
+$('arenaPlayedDeckAuto').checked=arenaPlayedDeckAuto;
+$('arenaPlayedDeckAuto').onchange=e=>{
+ const enabled=e.target.checked;
+ if(enabled&&!confirm('Infer one owned copy only for missing cards in complete Arena decklists tied to your recorded matches by exact Arena deck ID? This will not update existing quantities or reconstruct your full collection.')){
+  e.target.checked=false;return;
+ }
+ arenaPlayedDeckAuto=enabled;save(AV_PLAYED_DECK_AUTO_KEY,enabled);
+ $('arenaPlayedDeckStatus').textContent=enabled?'Automatic played-deck checks enabled. Only missing cards can be inferred.':'Automatic played-deck checks disabled.';
+ if(enabled)arenaRecoverPlayedDeckCards();
+};
+function arenaPlayedDeckCandidates(matches,decks){
+ const matchedIds=new Set((matches||[]).filter(m=>String(m.deckId||'').trim()&&
+  ['win','loss','draw'].includes(m.result)&&String(m.deckName||'').trim())
+  .map(m=>String(m.deckId).trim().toLowerCase()));
+ return (decks||[]).filter(d=>matchedIds.has(String(d.deckId||'').trim().toLowerCase())&&arenaBrawlCandidate(d));
+}
+function arenaPlayedDeckMissing(draft){
+ const unique=new Map();
+ for(const name of [draft.commander,...draft.entries.map(e=>e.name)]){
+  const key=String(name||'').trim().toLowerCase();
+  if(key&&!unique.has(key)&&!(Number(index.get(key)?.qty)>0))unique.set(key,String(name).trim());
+ }
+ return [...unique.values()];
+}
+async function arenaRecoverPlayedDeckCards(){
+ if(arenaPlayedDeckBusy)return;
+ arenaPlayedDeckBusy=true;
+ const button=$('arenaPlayedDeckRecover'),status=$('arenaPlayedDeckStatus');
+ button.disabled=true;
+ status.textContent='Checking logged matches against complete Arena decklists…';
+ try{
+  const [matchResponse,deckResponse]=await Promise.all([
+   fetch('/api/matches',{cache:'no-store'}),fetch('/api/arena/status',{cache:'no-store'})]);
+  if(!matchResponse.ok||!deckResponse.ok)throw Error('Arena match or deck data unavailable');
+  const [matchData,deckData]=await Promise.all([matchResponse.json(),deckResponse.json()]);
+  const candidates=arenaPlayedDeckCandidates(matchData.history?.matches,deckData.deckLists);
+  let missing=0,blocked=0,checked=0;
+  const discovered=new Map();
+  const serial=++arenaPreviewSerial;
+  for(const payload of candidates){
+   const id=String(payload.deckId);
+   if(arenaPlayedDeckChecked.has(id))continue;
+   const draft=await arenaResolveDraft(payload,serial);
+   if(!draft.ready){blocked++;continue}
+   checked++;
+   for(const name of arenaPlayedDeckMissing(draft))discovered.set(name.toLowerCase(),name);
+   arenaPlayedDeckChecked.add(id);
+  }
+  for(const [key,name] of discovered){
+   if(Number(index.get(key)?.qty)>0)continue;
+   const card=index.get(key);
+   if(card){card.qty=1;card.annotation='Inferred from played Arena deck (minimum 1 copy)';}
+   else{
+    cards.push({name,qty:1,sets:[],rows:0,tags:[],uses:[],annotation:'Inferred from played Arena deck (minimum 1 copy)'});
+   }
+   missing++;
+  }
+  if(missing){
+   rebuildIndex();
+   save('cards',cards.map(({meta,...rest})=>rest));
+   postOwnership();render();renderFavorites();renderStudio();renderLibrary();renderPlanner();
+   arenaCollectionFreshness();
+  }
+  status.textContent=missing+' missing card(s) added as one inferred copy each from '+checked+' complete played deck(s). '+blocked+' deck(s) blocked by unresolved card IDs. Existing owned quantities were not increased.';
+ }catch(err){status.textContent='Played deck check unavailable: '+(err.message||String(err));}
+ finally{button.disabled=false;arenaPlayedDeckBusy=false;}
+}
+$('arenaPlayedDeckRecover').onclick=arenaRecoverPlayedDeckCards;
 let arenaLastSnapshot=null,arenaBusy=false;
 async function arenaFetch(){
  if(arenaBusy)return;arenaBusy=true;
