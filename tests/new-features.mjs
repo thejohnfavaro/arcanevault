@@ -217,3 +217,16 @@ assert.match(html,/await importCsv\(file\)/);
 assert.match(html,/save\(AV_OWNERSHIP_IMPORT_KEY,\{at:new Date\(\)\.toISOString\(\),name:file.name\}\)/);
 assert.match(html,/Last successful CSV refresh:/);
 console.log('PASS: collection freshness and explicit reviewed CSV refresh pathway');
+
+// v5.10: explicit Arena-grant deltas only; no guesses from match or deck events.
+for(const id of ['arenaGrantAuto','arenaGrantStatus'])assert.ok(html.includes('id="'+id+'"'));
+assert.match(html,/async function arenaApplyLoggedGrants\(snapshot\)/);
+assert.match(html,/arenaGrantState\.enabled/);
+assert.match(html,/arenaGrantRecord\(event\.id\)/);
+assert.match(html,/await fetch\('\/api\/arena\/resolve\?'/);
+assert.match(html,/save\('cards',cards\.map/);
+assert.match(html,/for\(const grant of arenaLastSnapshot\?\.cardGrants\|\|\[\]\)arenaGrantRecord\(grant\.id\)/);
+const grantBackend=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/ArenaLogConnector.cs'),'utf8');
+for(const marker of ['CaptureCardGrants(inv)','ReadGrantCards(JsonElement cards)','"GrantedCards", "grantedCards"','SHA256.HashData','arena-card-grants.json','cardGrants = cardGrants.Values'])assert.ok(grantBackend.includes(marker),marker);
+assert.doesNotMatch(grantBackend,/Process\.GetProcessesByName|ReadProcessMemory|refresh_token/);
+console.log('PASS: explicit grant capture, local replay ledger, opt-in and baseline protections');
