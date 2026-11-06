@@ -466,6 +466,7 @@ async function importCsv(file){let str=await file.text(),rows=parseCsv(str.repla
  const priorCount=cards.reduce((a,c)=>a+c.qty,0),nextCount=incoming.reduce((a,c)=>a+c.qty,0);
  if(!confirm(`Preview collection update:\n${incoming.length} unique cards / ${nextCount} copies\nNew names: ${added.length}\nNames absent from new export: ${lost.length}\nChanged quantities: ${changed.length}\nPrevious: ${cards.length} unique / ${priorCount} copies\n\nReplace the collection with this export? Your decks, favorites and tags will be preserved. A rollback snapshot is created.`)){$('importStatus').textContent='Import canceled; no collection changes made.';return}
  save('previousCollection',cards.map(({meta,...rest})=>rest));cards=incoming;for(const c of cards){let old=index.get(c.name.toLowerCase());if(old){c.tags=old.tags;c.uses=old.uses;c.typeHint=old.typeHint;if(old.meta)c.meta=old.meta}}rebuildIndex();await hydrateCache();save('cards',cards.map(({meta,...rest})=>rest));postOwnership();save(AV_OWNERSHIP_IMPORT_KEY,{at:new Date().toISOString(),name:file.name});arenaCollectionFreshness();
+  if(typeof arenaPlayedDeckChecked!=='undefined')arenaPlayedDeckChecked.clear();
   // A fresh whole-collection CSV already includes earlier grants; never add them twice.
   if(typeof arenaGrantState!=='undefined'){
    for(const grant of arenaLastSnapshot?.cardGrants||[])arenaGrantRecord(grant.id);
@@ -1235,7 +1236,7 @@ $('arenaPlayedDeckAuto').onchange=e=>{
 };
 function arenaPlayedDeckCandidates(matches,decks){
  const matchedIds=new Set((matches||[]).filter(m=>String(m.deckId||'').trim()&&
-  ['win','loss','draw'].includes(m.result)&&String(m.deckName||'').trim())
+  ['win','loss','draw'].includes(m.result))
   .map(m=>String(m.deckId).trim().toLowerCase()));
  return (decks||[]).filter(d=>matchedIds.has(String(d.deckId||'').trim().toLowerCase())&&arenaBrawlCandidate(d));
 }
@@ -1311,6 +1312,7 @@ async function arenaFetch(){
   $('arenaLogDetails').textContent='Recognized events: '+(d.eventsSeen||0)+' · '+(d.detected?'File found':'File not found')+' · Read-only local connector';
   $('arenaDecks').innerHTML=(d.deckSummaries||[]).length?d.deckSummaries.map(n=>'<div class="studio-line">'+escapeHtml(n)+'</div>').join(''):'<span class="muted">No deck-summary names observed.</span>';
   arenaRenderImportable(d.deckLists||[]);
+  if(arenaPlayedDeckAuto&&d.enabled)arenaRecoverPlayedDeckCards();
   $('arenaUseWildcards').disabled=!['wcCommon','wcUncommon','wcRare','wcMythic'].every(x=>Number.isInteger(d.inventory?.[x]));
  }catch(e){$('arenaStatus').textContent='Connector unavailable: '+e.message+' · Use the Visual Studio desktop host, not the raw HTML file.'}
  finally{arenaBusy=false}
