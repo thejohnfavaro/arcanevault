@@ -34,3 +34,10 @@ assert.match(html,/Known .*kind/);
 assert.match(html,/0 wildcards/);
 assert.match(html,/id="studioRecommendSummary"/);
 assert.match(html,/data-open="\$\{escapeHtml\(c.name\)\}">Details/);
+
+// v5.2: catalog-backed, budget constrained nonowned suggestions.
+for(const id of ['avFindCrafts','avAutoCraftPlan','avClearCraftPlan','avCraftBudget','avCraftResults'])assert.ok(html.includes('id="'+id+'"'));
+assert.match(html,/function avCraftWithinBudget/);
+assert.match(html,/scope:'unowned',arena:'arena'/);
+assert.match(html,/card.meta\?\.arena!==true/);
+assert.match(html,/Actual Arena craftability and wildcard rarity remain unverified/);
