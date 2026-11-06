@@ -72,8 +72,13 @@ internal sealed class MatchHistory : IDisposable
             using var rd = cmd.ExecuteReader();
             while (rd.Read()) rows.Add(new MatchRow(rd.GetString(0),rd.GetString(1),rd.GetString(2),rd.GetString(3),rd.GetString(4),rd.GetString(5),rd.GetString(6),rd.GetString(7),rd.GetString(8),rd.GetString(9),rd.GetInt32(10),rd.GetInt32(11)));
             var confirmed = rows.Where(r => r.result is "win" or "loss").ToList();
-            var groups = confirmed.GroupBy(r => (r.deckName, r.deckVersion, r.format))
-                .Select(g => new { deck = g.Key.deckName, version = g.Key.deckVersion, format = g.Key.format,
+            // Treat case/outer-whitespace variants as the same displayed deck.
+            // Version and queue remain distinct for accurate statistics.
+            var groups = confirmed.GroupBy(r => (
+                    name: r.deckName.Trim().ToUpperInvariant(),
+                    version: r.deckVersion.Trim(),
+                    format: r.format.Trim()))
+                .Select(g => new { deck = g.First().deckName.Trim(), version = g.Key.version, format = g.Key.format,
                     wins = g.Count(r => r.result == "win"), losses = g.Count(r => r.result == "loss"),
                     gamesWon = g.Sum(r => r.gameWins), gamesLost = g.Sum(r => r.gameLosses) })
                 .OrderByDescending(g => g.wins + g.losses).ToArray();
@@ -116,7 +121,9 @@ internal sealed class MatchHistory : IDisposable
               result = COALESCE($result,result),
               result_source = CASE WHEN $result IS NULL THEN result_source ELSE 'manual' END,
               deck_name = COALESCE($name,deck_name), deck_version = COALESCE($version,deck_version),
-              note = COALESCE($note,note) WHERE match_id=$id";
+              note = CASE WHEN $note IS NOT NULL THEN $note
+                          WHEN $name IS NOT NULL THEN 'Deck assignment: manual'
+                          ELSE note END WHERE match_id=$id";
             cmd.Parameters.AddWithValue("$id", id);
             cmd.Parameters.AddWithValue("$result", (object?)result ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$name", (object?)deckName ?? DBNull.Value);
