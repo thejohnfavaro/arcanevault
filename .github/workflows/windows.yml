@@ -78,7 +78,7 @@ jobs:
           }
           $content = Get-Content $notes -Raw
           foreach ($section in @('Added', 'Changed', 'Fixed', 'Removed')) {
-            if ($content -notmatch "(?m)^## $section\\s*$") {
+            if ($content -notmatch "(?m)^## $section\s*$") {
               throw "Release notes $notes must include a '$section' section."
             }
           }
