@@ -251,6 +251,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
 <button id="themeReset" type="button">Restore default</button></div><p class="subtitle">Import a fresh Arena/Moxfield CSV, enrich card records, or back up your customizations.</p><div class="two"><div class="panel"><h2>Import your latest collection</h2><p class="help muted">Supports CSV columns <code>Count, Name, Edition</code> like your export. Imports replace the active collection, and you can restore the bundled snapshot at any time.</p><div class="import"><input id="csvfile" type="file" accept=".csv,text/csv" class="field"></div><div class="actions" style="margin-top:12px"><button id="rollbackCollection">Undo last CSV import</button><button id="restoreSeed">Restore bundled collection</button><button id="saveBackup">Save full backup</button><label class="small" style="cursor:pointer">Restore backup <input id="restoreBackupFile" type="file" accept=".json,application/json" style="display:none"></label></div><p id="importStatus" class="note"></p><div id="avImportDelta" aria-live="polite"></div></div><div class="panel"><h2>Official card data & art</h2><p class="help muted">Scryfall supplies card art, color identity, rarity, type lines, Oracle rules text, and all reported format legalities. Run START_ARCANE_VAULT.bat and be online when syncing. The local companion service requests Scryfall data and caches results in your browser. All Scryfall format statuses appear on each card detail view. Refresh format legalities periodically because bans and rotations change. The full printing catalog is downloaded here using “Sync catalog + variants”; it never alters ownership quantities. Arena filtering is based on Scryfall game availability, not on Arena cosmetics ownership. The app is unofficial and not affiliated with Wizards of the Coast or Scryfall.</p><div class="actions" style="margin:12px 0;flex-wrap:wrap"><button id="enrich" class="primary">↻ Load official card details</button><button id="catalogSync" class="primary">↓ Sync catalog + variants</button></div><p id="catalogStatus" class="note" aria-live="polite">Checking local catalog…</p><div class="av-sync-history" style="margin:10px 0 14px;padding:12px 14px;border:1px solid var(--line,rgba(160,160,160,.25));border-radius:10px" aria-label="Card data synchronization history"><strong style="display:block;margin-bottom:8px">Last card data sync</strong><p id="metadataLastSync" class="note" aria-live="polite" style="margin:4px 0">Official card details: Never synced on this device</p><p id="catalogLastSync" class="note" aria-live="polite" style="margin:4px 0">Full catalog + variants: Checking…</p><p class="smalltxt muted" style="margin:8px 0 0">Dates update after a successful sync. Failed or canceled syncs do not reset them.</p><label class="v3check" style="margin-top:9px"><input type="checkbox" id="syncReminderEnabled" checked> Remind me when card data is over 30 days old</label></div><button id="enrichSettings" class="primary">Sync official card database</button><button id="refreshLegalities" type="button">↻ Refresh all format legalities</button><label class="v3check" style="margin-left:8px"><input type="checkbox" id="retryUnmatched"> Retry previously unmatched names</label><div class="progress" style="margin-top:16px"><div id="progressFill"></div></div><div id="progressText" class="note" style="margin-top:9px">Ready to sync. Start through the included launcher, not by double-clicking the HTML file.</div><button id="stopSync" class="small" style="margin-top:10px" disabled>Stop after current batch</button></div></div><div class="panel"><h2>Offline artwork cache</h2><p class="help muted">Card images and mana/set symbols are saved on demand in app-local storage (up to 200 MB, oldest images evicted automatically). Previously viewed images remain available offline; uncached images require a connection. Card artwork remains the property of its rights holders.</p><label class="v3check"><input id="avArtCacheEnable" type="checkbox" checked> Cache artwork while browsing</label><p class="note" id="avArtCacheStatus">Checking artwork storage…</p><div class="actions"><button id="avArtCacheRefresh" type="button">Refresh storage usage</button><button id="avArtCacheClear" type="button">Clear downloaded artwork</button></div></div><div class="panel"><h2>Export card data</h2><p class="help muted">Exports the current Card Browser results using its active search, ownership, Arena-availability, color, type, and rarity filters. Set your filters in Card Browser, then return here to export.</p><div class="actions"><button id="exportCsv">↓ Export filtered CSV</button></div></div><div class="panel"><h2>How to search</h2><p class="help">Use the role chips for Ramp, Removal, Discard, Stax, Lifegain, Tutors, Haste, Protection, and other deckbuilding functions. These are assigned from official Oracle text using broad heuristics, so they're powerful browsing aids but not definitive rules judgments. Search also matches the full Oracle text after enrichment. Filtering on rarity, mana value, color identity, or types works best once card data is synced.</p><p class="note">For split cards, double-faced cards, and specialized digital-only Arena variants, the name matching may occasionally select the wrong printing or miss a card. Check the displayed card face, set, and Scryfall link before crafting. Card ratings are not claimed.</p></div><div class="panel" id="aboutArcaneVault"><h2>About Arcane Vault</h2><p class="note">Desktop Edition</p><p class="help">Arcane Vault is a local MTG Arena collection and deckbuilding application. Card information and artwork are provided through Scryfall synchronization.</p><p class="note" style="margin-top:12px">By <strong>RNGesus</strong> · Copyright © 2026 (original Arcane Vault software and interface)</p><div class="av-legal-attribution" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line,rgba(160,160,160,.25));font-size:.9em;line-height:1.5"><h3 style="margin:0 0 8px">Third-Party Rights &amp; Attribution</h3><p class="help"><strong>Magic: The Gathering &amp; Wizards of the Coast.</strong> Arcane Vault is unofficial fan content and is not approved or endorsed by Wizards of the Coast. Portions of the materials used are property of Wizards of the Coast. &copy; Wizards of the Coast LLC.</p><p class="help">Magic: The Gathering, Magic: The Gathering Arena, and associated names, card text, symbols, and artwork are trademarks or copyrighted materials of Wizards of the Coast LLC and/or their respective rights holders. Card artwork remains the property of its rights holders and credited artists.</p><p class="help"><strong>Scryfall.</strong> Card information, set details, and artwork links are supplied through Scryfall. Arcane Vault is independent and is not affiliated with, approved by, or endorsed by Scryfall. Artwork and Magic-related data displayed via Scryfall retain their respective owners' rights.</p><p class="smalltxt"><a href="https://company.wizards.com/en/legal/fancontentpolicy" target="_blank" rel="noopener noreferrer">Wizards of the Coast Fan Content Policy</a> · <a href="https://scryfall.com/docs/api" target="_blank" rel="noopener noreferrer">Scryfall API documentation</a></p></div></div></section><section id="workbench" class="hidden"><div class="top"><div><h1 class="h1">Strategy Workbench</h1><p class="subtitle">Local, collection-aware analysis, opening hands, comparison, discovery, and collection history. No win-rate guesses.</p></div></div>
 <div class="panel"><h2>Select a deck to analyze</h2><div class="av-workbench-controls"><select id="avWorkbenchDeck" aria-label="Deck to analyze"><option value="studio">Current Deck Studio draft</option></select><button id="avAnalyzeMana" class="primary" type="button">Analyze deck</button></div><p class="muted">Data comes from your saved library and synced card metadata. The selected deck is never modified by these tools.</p></div>
 <div class="av-strategy-tools">
+<div class="panel"><h2>Competitive readiness</h2><p class="muted">Collection-aware Brawl checklist for the selected draft or saved deck. Reference role ranges and pressure scenarios are design heuristics, not tournament performance data or matchup win rates. Nothing is changed automatically.</p><div class="av-workbench-controls"><label>Strategy <select id="avCompetitiveStyle"><option value="auto">Auto-detect</option><option value="aggro">Aggro / Tempo</option><option value="midrange">Midrange</option><option value="control">Control</option><option value="combo">Combo</option></select></label><button type="button" class="primary" id="avCompetitiveRun">Analyze readiness</button></div><div id="avCompetitiveResults" role="status" aria-live="polite">Choose a saved deck or the working draft to analyze.</div></div>
 <div class="panel"><h2>Mana-base analyzer</h2><div id="avManaResult" aria-live="polite"></div></div>
 <div class="panel"><h2>Sample hands / goldfishing</h2><div class="av-workbench-controls"><button id="avNewHand" type="button" class="primary">Shuffle & draw 7</button><button id="avMulligan" type="button">Reshuffle (new 7)</button><button id="avDrawCard" type="button">Draw a card</button></div><div class="av-workbench-controls" style="margin-top:10px"><label>Starting player <select id="avPlayDraw"><option value="play">On the play</option><option value="draw">On the draw</option></select></label><button id="avNextTurn" type="button">Next turn</button><button id="avAutoLand" type="button">Play a land</button><button id="avUndoLand" type="button">Undo land play</button></div><div class="av-workbench-controls" style="margin-top:10px"><label>Choose land <select id="avLandChoice" aria-label="Land from hand"></select></label><label>Choose spell <select id="avSpellChoice" aria-label="Spell from hand"></select></label><button id="avCastSpell" type="button">Cast (mana-value estimate)</button></div><div class="av-workbench-controls"><label>Mulligan bottom <select id="avBottomChoice" aria-label="Card to put on bottom"></select></label><button id="avBottomCard" type="button">Put on bottom</button><span class="note" id="avBottomStatus"></span></div><div id="avHandResult" aria-live="polite"></div></div>
 <div class="panel"><h2>Verification details</h2><p class="muted">Separates confirmed deck issues from incomplete card metadata. This report does not submit a deck to MTG Arena.</p><div class="av-workbench-controls"><button id="avRunVerify" type="button">Review Deck Studio validation</button><button id="avCopyVerify" type="button">Copy verification report</button></div><div id="avVerificationResult" role="status" aria-live="polite"></div></div><div class="panel"><h2>Deck comparison</h2><div class="av-workbench-controls"><select id="avCompareDeck" aria-label="Second deck"><option value="">Choose saved deck</option></select><button id="avCompareRun" type="button">Compare</button></div><div id="avCompareResult" aria-live="polite">Select two decks to see cards added and removed.</div></div>
@@ -1290,15 +1291,93 @@ function checkCollectionImport(before){
 }
 // importCsv is a top-level function in the original app; wrap after initialization without altering its data format.
 try{const oldImport=importCsv;importCsv=async function(file){const before=collectDigest();const outcome=await oldImport(file);checkCollectionImport(before);return outcome;};}catch(e){console.warn('Collection history hook unavailable',e)}
+function avCompetitiveAssess(deck,lookup,roleFn,targets,style,basicNames){
+ const entries=[{name:deck.commander||'',qty:1,commander:true},...(deck.entries||[])].filter(e=>e.name&&Number(e.qty)>0);
+ const commander=lookup(deck.commander||''),identity=commander?.meta?.colors||null;
+ const counts=new Map(),unknown=[],banned=[],offIdentity=[],duplicate=[],missing=[];
+ let lands=0,cheap=0,total=0,nonland=0,totalMv=0,known=0;
+ for(const e of entries){
+  const qty=Math.max(0,Number(e.qty)||0),name=String(e.name),card=lookup(name),meta=card?.meta;
+  const basic=basicNames.has(name.toLowerCase()),land=basic||/\bLand\b/i.test(meta?.type||'');
+  total+=qty;
+  if(!basic&&qty>1)duplicate.push(name);
+  if(!basic&&qty>(Number(card?.qty)||0))missing.push({name,qty:qty-(Number(card?.qty)||0)});
+  if(!meta){if(!basic)unknown.push(name);if(land)lands+=qty;continue}
+  if(identity&&Array.isArray(meta.colors)&&!meta.colors.every(color=>identity.includes(color)))offIdentity.push(name);
+  if([meta.legalities?.historicbrawl,meta.legalities?.brawl].includes('banned'))banned.push(name);
+  if(land){lands+=qty;continue}
+  nonland+=qty;const mv=Number(meta.mv);
+  if(Number.isFinite(mv)){totalMv+=mv*qty;known+=qty;if(mv<=2)cheap+=qty}
+  else unknown.push(name);
+  for(const role of roleFn(card))counts.set(role,(counts.get(role)||0)+qty);
+ }
+ if(!identity)unknown.unshift('Commander identity not verified');
+ const target=targets[style]||targets.midrange;
+ const gaps=Object.entries(target).map(([role,range])=>({role,have:counts.get(role)||0,min:range[0],max:range[1]}))
+  .filter(x=>x.have<x.min).sort((a,b)=>(b.min-b.have)-(a.min-a.have)||a.role.localeCompare(b.role));
+ const ramp=counts.get('Ramp')||0,removal=counts.get('Removal')||0,draw=(counts.get('Card Draw')||0)+(counts.get('Card Selection')||0);
+ const checks=[
+  {name:'100-card Brawl structure',pass:total===100,reason:'Current count '+total+'/100 including commander'},
+  {name:'Available collection copies',pass:missing.length===0,reason:missing.reduce((n,e)=>n+e.qty,0)+' unowned copies'},
+  {name:'Identity / duplicates / cached bans',pass:!!identity&&!offIdentity.length&&!duplicate.length&&!banned.length,reason:offIdentity.length+' identity issues · '+duplicate.length+' duplicates · '+banned.length+' cached bans'},
+  {name:'Reference land count',pass:lands>=34&&lands<=40,reason:lands+' known lands; MDFCs and alternative mana bases may differ'},
+  {name:'Early-game access',pass:cheap>=14,reason:cheap+' cards with known mana value 0–2 (guide: 14+)'},
+  {name:'Core role coverage',pass:ramp>=(target.Ramp?.[0]||6)&&removal>=(target.Removal?.[0]||7)&&draw>=7,reason:'Ramp '+ramp+' · Removal '+removal+' · Draw/selection '+draw}
+ ];
+ const pressure=[
+  {name:'Fast creature pressure',warning:cheap<14||removal<7,reason:'Early plays '+cheap+' · spot removal '+removal},
+  {name:'Long control games',warning:draw<8&&(counts.get('Recursion')||0)<3,reason:'Draw/selection '+draw+' · recursion '+(counts.get('Recursion')||0)},
+  {name:'Combo and spell-based strategies',warning:(counts.get('Counterspell')||0)+(counts.get('Discard')||0)+(counts.get('Stax')||0)<5,reason:'Counterspell, discard and tax effects '+((counts.get('Counterspell')||0)+(counts.get('Discard')||0)+(counts.get('Stax')||0))}
+ ];
+ return {style,total,lands,cheap,average:known?totalMv/known:null,known,nonland,unknown,missing,banned,offIdentity,duplicate,identity,roles:counts,gaps,checks,pressure,passed:checks.filter(x=>x.pass).length};
+}
+function avCompetitiveStyle(deck){
+ const roles=new Map(),mv=[];
+ for(const item of deck.entries||[]){const card=index.get(String(item.name).toLowerCase());if(!card?.meta)continue;for(const r of deriveRoles(card))roles.set(r,(roles.get(r)||0)+(Number(item.qty)||1));if(!/\bLand\b/.test(card.meta.type||''))mv.push(Number(card.meta.mv)||0)}
+ if((roles.get('Counterspell')||0)>=7)return 'control';
+ if((roles.get('Sacrifice')||0)+(roles.get('Recursion')||0)>=9)return 'combo';
+ if((roles.get('Haste')||0)>=3||(mv.length&&mv.reduce((a,b)=>a+b,0)/mv.length<2.7))return 'aggro';
+ return 'midrange';
+}
+function avCompetitiveUpgrades(deck,report){
+ const selected=new Set([deck.commander,...(deck.entries||[]).map(x=>x.name)].map(x=>String(x).toLowerCase()));
+ if(!report.identity)return [];
+ return cards.filter(card=>card.qty>0&&card.meta&&!selected.has(card.name.toLowerCase())&&!/\bLand\b/i.test(card.meta.type||'')
+  &&Array.isArray(card.meta.colors)&&card.meta.colors.every(x=>report.identity.includes(x))
+  &&![card.meta.legalities?.historicbrawl,card.meta.legalities?.brawl].includes('banned'))
+  .map(card=>{
+   const roles=deriveRoles(card),matched=report.gaps.filter(g=>roles.includes(g.role));
+   const interactions=curatedInteractions.filter(p=>(p.a.toLowerCase()===card.name.toLowerCase()&&selected.has(p.b.toLowerCase()))||(p.b.toLowerCase()===card.name.toLowerCase()&&selected.has(p.a.toLowerCase())));
+   const mv=Number(card.meta.mv)||0,score=matched.reduce((n,g)=>n+6+Math.min(5,g.min-g.have),0)+interactions.length*10+(mv<=2?3:0);
+   const reasons=[...matched.slice(0,2).map(g=>g.role+' coverage '+g.have+'/'+g.min),...interactions.slice(0,1).map(p=>p.kind+' with '+(p.a.toLowerCase()===card.name.toLowerCase()?p.b:p.a))];
+   return {card,score,reasons};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.card.name.localeCompare(b.card.name)).slice(0,10);
+}
+function avCompetitiveRender(){
+ const deck=sourceDeck(),selection=id('avCompetitiveStyle').value,style=selection==='auto'?avCompetitiveStyle(deck):selection;
+ const report=avCompetitiveAssess(deck,collectionCard,deriveRoles,UPGRADE_TARGETS,style,basic);
+ const root=id('avCompetitiveResults'),pct=report.checks.length;
+ const list=rows=>rows.map(x=>'<div class="v3item"><strong>'+esc(x.name)+'</strong> · '+esc(x.pass?'Check met':x.warning?'Potential exposure':'Some coverage')+'<div class="v3muted">'+esc(x.reason)+'</div></div>').join('');
+ const gaps=report.gaps.slice(0,8).map(g=>'<div class="v3item"><strong>'+esc(g.role)+'</strong> · '+g.have+'/'+g.min+' guide minimum · gap '+(g.min-g.have)+'</div>').join('')||'<p class="note">All tracked strategy role minima met.</p>';
+ const upgrades=avCompetitiveUpgrades(deck,report).map(x=>'<div class="v3item"><strong>'+esc(x.card.name)+'</strong> · Owned ×'+x.card.qty+' · role fit '+x.score+'<div class="v3muted">'+esc(x.reasons.join(' · ')||'Cheap early play')+'</div><button type="button" class="small" data-open="'+esc(x.card.name)+'">Card details</button></div>').join('')||'<p class="note">No additional owned candidates match current deficit or known-synergy rules.</p>';
+ root.innerHTML='<p><strong>'+esc(deck.name||deck.commander||'Working draft')+'</strong> · '+esc(style)+' · <strong>'+report.passed+'/'+pct+' checklist items met</strong> (not a deck strength score)</p>'
+  +'<p class="note">Known lands: '+report.lands+' · MV 0–2: '+report.cheap+' · Avg known spell MV: '+(report.average===null?'unknown':report.average.toFixed(2))+' · Unverified: '+report.unknown.length+' · Missing copies: '+report.missing.reduce((n,e)=>n+e.qty,0)+'</p>'
+  +'<h3>Readiness checks</h3><div class="v3grid">'+list(report.checks)+'</div>'
+  +'<h3>Strategy gaps</h3><div class="v3grid">'+gaps+'</div>'
+  +'<h3>Matchup pressure checkpoints</h3><p class="note">General play-pattern exposures inferred from roles, not measured matchups or opponent-specific predictions.</p><div class="v3grid">'+list(report.pressure)+'</div>'
+  +'<h3>Potential owned additions</h3><p class="note">Suggestions are role/synergy matches, not proven upgrades or legalities. No deck changes made.</p><div class="v3grid">'+upgrades+'</div>';
+}
 function init(){
  const sel=id('avWorkbenchDeck');if(!sel)return;
- sel.addEventListener('change',()=>{audit();newHand()});
+ sel.addEventListener('change',()=>{audit();newHand();avCompetitiveRender()});
+ id('avCompetitiveRun').onclick=avCompetitiveRender;
+ id('avCompetitiveStyle').addEventListener('change',avCompetitiveRender);
  id('avAnalyzeMana').onclick=audit;id('avNewHand').onclick=newHand;id('avMulligan').onclick=mulliganHand;id('avDrawCard').onclick=drawCard;id('avNextTurn').onclick=nextTurn;id('avAutoLand').onclick=playLand;id('avUndoLand').onclick=undoLand;id('avBottomCard').onclick=bottomCard;id('avCastSpell').onclick=castSpell;id('avRunVerify').onclick=showVerification;id('avCopyVerify').onclick=copyVerification;
  id('avCompareRun').onclick=compare;id('avRoleRun').onclick=roleSearch;id('avDiscoverRun').onclick=discovery;
  id('avHistoryRefresh').onclick=historyShow;
  id('avBackupShortcut').onclick=()=>{const b=id('saveBackup');if(b)b.click();else {id('avBackupHint').textContent='Open Import & Data and use Full Backup (JSON).';document.querySelector('[data-tab="settings"]')?.click();}};
- window.avWorkbenchRefresh=()=>{updateDeckOptions();audit();historyShow()};
- updateDeckOptions();audit();newHand();historyShow();
+ window.avWorkbenchRefresh=()=>{updateDeckOptions();audit();historyShow();avCompetitiveRender()};
+ updateDeckOptions();audit();newHand();historyShow();avCompetitiveRender();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
