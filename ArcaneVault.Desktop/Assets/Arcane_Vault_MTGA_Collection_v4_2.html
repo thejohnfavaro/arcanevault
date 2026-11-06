@@ -1304,7 +1304,7 @@ async function checkUpdates(silent=false){
        install.disabled=false;
      }
    };
-   result.append(install);
+   if(repo==='thejohnfavaro/arcanevault')result.append(install);
    const later=document.createElement('button');later.type='button';later.textContent='Remind me later';later.style.marginLeft='10px';later.onclick=()=>{result.hidden=true;status.textContent='Update '+found.version+' available. Check again when ready.'};result.append(later);
   }
  }catch(e){if(status)status.textContent='Could not check for updates: '+(e?.message||'Network error')+'. Existing app data was not changed.'}
