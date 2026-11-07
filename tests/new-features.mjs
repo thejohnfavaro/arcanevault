@@ -493,4 +493,11 @@ assert.ok(lanSyncSrc.includes('bool endOfHeaders = false'),'QR transfer must ful
 assert.ok(lanSyncSrc.includes('if (!endOfHeaders) return;'),'QR transfer must reject partial HTTP request headers');
 assert.ok(lanSyncSrc.includes('await stream.FlushAsync(cancel);'),'QR transfer must flush JSON response');
 assert.ok(lanSyncSrc.includes('SocketShutdown.Send'),'QR transfer must cleanly finish the response');
+assert.ok(html.includes('id="avSyncAllData"'),'Missing single card data sync button');
+assert.ok(html.includes('id="setHideZero"'),'Missing hide zero-progress sets option');
+assert.ok(html.includes("setRows.filter(r=>Number(r.owned)>0)"),'Zero-progress sets must be filtered');
+assert.ok(html.includes("save('setHideZeroV1'"),'Zero-progress preference must persist');
+assert.ok(html.includes('async function avSyncAllCardData()'),'Missing unified synchronization pipeline');
+assert.ok(html.includes('const result=await syncAll(true)'),'Sync all must refresh owned-card legalities');
+
 console.log('PASS: collector-number set sorting, saved printing art, portable sync rollback, and single-use LAN QR transfer');
