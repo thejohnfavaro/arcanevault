@@ -516,7 +516,7 @@ internal sealed class LocalAppServer : IDisposable
                         await JsonAsync(ctx.Response, 429, new { error = "Scryfall rate limit reached. Further lookups are paused to protect your access. Try again after the cooldown.", retryAfterSeconds = seconds });
                         return;
                     }
-                    if (response.StatusCode is HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable && attempt < 2)
+                    if ((response.StatusCode is HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable) && attempt < 2)
                     {
                         var wait = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(2 * (attempt + 1));
                         await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(wait.TotalSeconds, 1, 20)), stopped.Token);
