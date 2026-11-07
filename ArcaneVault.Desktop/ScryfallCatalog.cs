@@ -373,9 +373,9 @@ internal sealed class ScryfallCatalog
               FROM distinct_cards d LEFT JOIN {ownershipTable} o ON o.name=d.name
               GROUP BY d.setcode
             ), names AS (
-              SELECT setcode, MAX(setname) AS setname FROM variants GROUP BY setcode
+              SELECT setcode, MAX(setname) AS setname, MIN(CASE WHEN length(release)=10 AND release GLOB '????-??-??' THEN release END) AS released FROM variants GROUP BY setcode
             )
-            SELECT p.setcode,n.setname,p.total,p.owned
+            SELECT p.setcode,n.setname,p.total,p.owned,n.released
             FROM per_set p JOIN names n ON n.setcode=p.setcode
             WHERE ($q = '' OR p.setcode LIKE $search OR n.setname LIKE $search)
             ORDER BY n.setname COLLATE NOCASE
@@ -390,7 +390,7 @@ internal sealed class ScryfallCatalog
         {
             int count=reader.GetInt32(2), owned=reader.GetInt32(3);
             totalCards+=count;ownedCards+=owned;
-            result.Add(new { code=reader.GetString(0), name=reader.GetString(1), total=count,owned,missing=count-owned,percentage=count==0?0:Math.Round(100.0*owned/count,1) });
+            result.Add(new { code=reader.GetString(0), name=reader.GetString(1), total=count,owned,missing=count-owned,percentage=count==0?0:Math.Round(100.0*owned/count,1),releaseDate=reader.IsDBNull(4)?"":reader.GetString(4) });
         }
         return new { sets=result,count=result.Count, totalCards,ownedCards,source=physicalCards.HasValue ? "Scryfall card-name completion; physical collection" : "Scryfall card-name completion; ownership from imported Arena CSV",note="Owned means you own the card name, not necessarily its printing in this set. Tokens, promo sets and supplemental sets may appear. Arena-listed means a Scryfall printing is marked as played on Arena." };
     }
