@@ -635,3 +635,9 @@ for(const [raw,expected] of [['common','Common'],['uncommon','Uncommon'],['rare'
  assert.equal(avRarityLabelUnderTest(raw),expected);
 assert.equal(avRarityLabelUnderTest('other'),'Unverified');
 console.log('PASS: exact mixed Boros/mono-color identities and normalized rarity labels');
+
+ // Rarity badges must have a stable, shared size in all card views.
+ assert.match(html,/\.av-rarity\{box-sizing:border-box;display:inline-flex/);
+ assert.match(html,/min-width:116px;height:26px;min-height:26px;max-height:26px/);
+ assert.match(html,/#cards \.cardbody \.meta\{flex-wrap:wrap/);
+ assert.match(html,/#cards \.cardbody \.meta>\.av-rarity\{margin-left:auto\}/);
