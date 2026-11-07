@@ -399,27 +399,40 @@ internal sealed class LocalAppServer : IDisposable
         }
         var payload = new byte[(int)length];
         await ctx.Request.InputStream.ReadExactlyAsync(payload.AsMemory(), stopped.Token);
-        List<string> names = new();
+        // Scryfall supports a name, a stable printing UUID, or exact set/collector-number lookup.
+        // Only send allowlisted identifier fields upstream; never relay arbitrary URLs.
+        var identifiers = new List<Dictionary<string, string>>();
         try
         {
             using var doc = JsonDocument.Parse(payload);
-            var ids = doc.RootElement.GetProperty("identifiers");
-            if (ids.ValueKind != JsonValueKind.Array) throw new JsonException();
-            foreach (var item in ids.EnumerateArray())
+            var items = doc.RootElement.GetProperty("identifiers");
+            if (items.ValueKind != JsonValueKind.Array || items.GetArrayLength() is < 1 or > 75)
+                throw new JsonException();
+            foreach (var item in items.EnumerateArray())
             {
-                string? name = item.GetProperty("name").GetString();
-                if (string.IsNullOrWhiteSpace(name) || name.Length > 200) throw new JsonException();
-                names.Add(name);
+                if (item.ValueKind != JsonValueKind.Object) throw new JsonException();
+                string Get(string property) => item.TryGetProperty(property, out var val) && val.ValueKind == JsonValueKind.String ? val.GetString()?.Trim() ?? "" : "";
+                var id = Get("id");
+                var set = Get("set");
+                var number = Get("collector_number");
+                var name = Get("name");
+                if (Guid.TryParse(id, out var uuid))
+                    identifiers.Add(new() { ["id"] = uuid.ToString() });
+                else if (set.Length is >= 2 and <= 8 && System.Text.RegularExpressions.Regex.IsMatch(set, "^[a-zA-Z0-9]+$") &&
+                         number.Length is >= 1 and <= 30 && System.Text.RegularExpressions.Regex.IsMatch(number, "^[a-zA-Z0-9★*+-]+$"))
+                    identifiers.Add(new() { ["set"] = set.ToLowerInvariant(), ["collector_number"] = number });
+                else if (name.Length is > 0 and <= 200)
+                    identifiers.Add(new() { ["name"] = name });
+                else throw new JsonException();
             }
-            if (names.Count is < 1 or > 75) throw new JsonException();
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException)
         {
-            await JsonAsync(ctx.Response, 400, new { error = "Expected 1–75 card identifiers containing valid names." });
+            await JsonAsync(ctx.Response, 400, new { error = "Expected 1–75 identifiers with names, UUIDs, or set and collector number." });
             return;
         }
 
-        var requestBody = JsonSerializer.Serialize(new { identifiers = names.Select(name => new { name }) });
+        var requestBody = JsonSerializer.Serialize(new { identifiers });
         await upstreamGate.WaitAsync(stopped.Token);
         try
         {
