@@ -7,10 +7,16 @@
 - Physical inventory sorts by total estimated value or per-copy price (ascending/descending), using existing exact-printing price quotes.
 - Visual Set Progress tiles with prominent percentage and readable progress bars.
 
-## Improved
+## Changed
 - Unified focus rings, spacing, rounded panels, accessible status messages and responsive card-detail layout.
 - Clearer progress and empty state text, with unknown prices always last in either price sort direction.
 - Sort preference persists; catalog synchronization is not triggered simply by choosing a price sort.
+
+## Fixed
+- Better fallback labels for unpriced physical printings and offline catalog statuses.
+
+## Removed
+- No working Windows features removed.
 
 ## Data safety
 - No inventory, selected printing, match record or deck storage format changes.
