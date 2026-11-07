@@ -591,3 +591,10 @@ assert.match(html,/role="progressbar" aria-label="Set completion"/);
 assert.match(html,/aria-valuenow/);
 assert.match(html,/setSymbol\(r\.code\)/);
 assert.match(html,/#sets \.set-tile:focus-visible/);
+
+// Card detail panels are moved before the tab bar is inserted. The anchor must
+// still be attached to info, or insertBefore throws NotFoundError on every card click.
+assert.match(html,/info\.insertBefore\(nav,info\.querySelector\('\.actions'\)\|\|null\)/);
+assert.match(html,/let panelAnchor=nav;/);
+assert.match(html,/panelAnchor\.after\(p\);panelAnchor=p/);
+assert.doesNotMatch(html,/info\.insertBefore\(nav,first\|\|null\)/);
