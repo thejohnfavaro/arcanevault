@@ -489,4 +489,8 @@ assert.ok(lanSyncSrc.includes('RandomNumberGenerator.GetBytes(24)'));
 assert.ok(lanSyncSrc.includes('DateTimeOffset.UtcNow.AddMinutes(5)'));
 assert.ok(lanSyncSrc.includes('token = null;'));
 assert.ok(lanSyncSrc.includes('ExpireAsync(listener, cancellation.Token)'));
+assert.ok(lanSyncSrc.includes('bool endOfHeaders = false'),'QR transfer must fully read HTTP request headers before writing');
+assert.ok(lanSyncSrc.includes('if (!endOfHeaders) return;'),'QR transfer must reject partial HTTP request headers');
+assert.ok(lanSyncSrc.includes('await stream.FlushAsync(cancel);'),'QR transfer must flush JSON response');
+assert.ok(lanSyncSrc.includes('SocketShutdown.Send'),'QR transfer must cleanly finish the response');
 console.log('PASS: collector-number set sorting, saved printing art, portable sync rollback, and single-use LAN QR transfer');
