@@ -19,6 +19,7 @@ internal sealed class LocalAppServer : IDisposable
     private readonly HttpClient upstream;
     private readonly ArtworkCache artwork;
     private readonly UpdateManager updater = new();
+    private readonly LanCollectionTransfer lanSync = new();
     public event Action? UpdateRestartRequested;
     private readonly ArenaLogConnector arena = new();
     private readonly ScryfallCatalog catalog;
@@ -343,6 +344,29 @@ internal sealed class LocalAppServer : IDisposable
                 { await JsonAsync(ctx.Response, 400, new { error = ex.Message }); }
                 return;
             }
+            else if (ctx.Request.HttpMethod == "POST" && path == "/api/sync/qr/start")
+            {
+                if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Requests must originate from the local Arcane Vault app." }); return; }
+                long bytes = ctx.Request.ContentLength64;
+                if (bytes is < 20 or > (8 * 1024 * 1024))
+                { await JsonAsync(ctx.Response, 413, new { error = "Collection transfer must be under 8 MB." }); return; }
+                try
+                {
+                    byte[] snapshot = new byte[(int)bytes];
+                    await ctx.Request.InputStream.ReadExactlyAsync(snapshot.AsMemory(), stopped.Token);
+                    using var json = JsonDocument.Parse(snapshot);
+                    var root = json.RootElement;
+                    if (root.GetProperty("format").GetString() != "arcane-vault-collection-sync" ||
+                        root.GetProperty("schema").GetInt32() != 1 ||
+                        root.GetProperty("arenaCards").ValueKind != JsonValueKind.Array ||
+                        root.GetProperty("physicalCards").ValueKind != JsonValueKind.Array)
+                        throw new JsonException("Not a valid Arcane Vault collection sync snapshot.");
+                    await JsonAsync(ctx.Response, 200, lanSync.Start(snapshot));
+                }
+                catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or KeyNotFoundException)
+                { await JsonAsync(ctx.Response, 400, new { error = ex.Message }); }
+                return;
+            }
             else if (ctx.Request.HttpMethod == "POST" && path == "/api/scryfall/collection")
             {
                 await ProxyCollectionAsync(ctx);
@@ -504,6 +528,7 @@ internal sealed class LocalAppServer : IDisposable
     {
         stopped.Cancel();
         listener.Close();
+        lanSync.Dispose();
         upstream.Dispose();
         matchTimer.Dispose();
         tracker.Dispose();
