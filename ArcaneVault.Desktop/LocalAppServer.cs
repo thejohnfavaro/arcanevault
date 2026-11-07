@@ -522,6 +522,18 @@ internal sealed class LocalAppServer : IDisposable
                         await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(wait.TotalSeconds, 1, 20)), stopped.Token);
                         continue;
                     }
+                    if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest)
+                    {
+                        // Scryfall documents these as possible access-filter warnings.
+                        // Do not turn them into generic 502s that the UI retries.
+                        scryfallCooldownUntil = DateTimeOffset.UtcNow + TimeSpan.FromMinutes(5);
+                        ctx.Response.Headers["Retry-After"] = "300";
+                        await JsonAsync(ctx.Response, (int)response.StatusCode, new {
+                            error = "Scryfall rejected the request (" + (int)response.StatusCode + "). Live lookups are paused for five minutes. Check the API notice or use the bulk catalog.",
+                            retryAfterSeconds = 300
+                        });
+                        return;
+                    }
                     await JsonAsync(ctx.Response, 502, new { error = $"Scryfall returned {(int)response.StatusCode}: {responseText[..Math.Min(responseText.Length, 350)]}" });
                     return;
                 }
