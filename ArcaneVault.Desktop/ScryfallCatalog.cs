@@ -395,7 +395,7 @@ internal sealed class ScryfallCatalog
         return new { sets=result,count=result.Count, totalCards,ownedCards,source=physicalCards.HasValue ? "Scryfall card-name completion; physical collection" : "Scryfall card-name completion; ownership from imported Arena CSV",note="Owned means you own the card name, not necessarily its printing in this set. Tokens, promo sets and supplemental sets may appear. Arena-listed means a Scryfall printing is marked as played on Arena." };
     }
 
-    public object SetCards(string setcode, string arenaFilter, string ownershipFilter, int page, int size, JsonElement? physicalCards = null)
+    public object SetCards(string setcode, string arenaFilter, string ownershipFilter, int page, int size, JsonElement? physicalCards = null, string sort = "name")
     {
         if (!System.Text.RegularExpressions.Regex.IsMatch(setcode??"", "^[a-zA-Z0-9]{2,8}$")) throw new ArgumentException("Invalid set code");
         page=Math.Clamp(page,0,10000);size=Math.Clamp(size,1,100);
@@ -404,21 +404,25 @@ internal sealed class ScryfallCatalog
         string ownershipTable=physicalCards.HasValue?"physical_ownership":"ownership";
         using var cmd=db.CreateCommand();
         var filter=ownershipFilter=="owned"?" AND COALESCE(o.qty,0)>0":ownershipFilter=="missing"?" AND COALESCE(o.qty,0)=0":"";
+        // Choose a consistent printing for duplicate card names within a set.
+        // Sorting happens in SQL before LIMIT/OFFSET, so all pages remain in collector order.
         string distinctSql="SELECT DISTINCT name FROM variants WHERE setcode=$set AND ($arena!='arena' OR arena=1)";
+        string numberOrder="CASE WHEN v.collector GLOB '[0-9]*' THEN 0 ELSE 1 END, CAST(v.collector AS INTEGER), v.collector COLLATE NOCASE, sc.name COLLATE NOCASE";
+        string order=sort=="collector" ? numberOrder : "sc.name COLLATE NOCASE";
         cmd.CommandText=$"""
           WITH setcards AS ({distinctSql})
-          SELECT sc.name,COALESCE(o.qty,0),COALESCE(v.image,c.image,''),COALESCE(c.type,''),COALESCE(c.rarity,''),COALESCE(c.uri,'')
+          SELECT sc.name,COALESCE(o.qty,0),COALESCE(v.image,c.image,''),COALESCE(c.type,''),COALESCE(c.rarity,''),COALESCE(c.uri,''),COALESCE(v.collector,'')
           FROM setcards sc
           LEFT JOIN {ownershipTable} o ON o.name=sc.name
           LEFT JOIN cards c ON c.name=sc.name
-          LEFT JOIN variants v ON v.print_id=(SELECT print_id FROM variants WHERE setcode=$set AND name=sc.name AND ($arena!='arena' OR arena=1) ORDER BY release DESC LIMIT 1)
+          LEFT JOIN variants v ON v.print_id=(SELECT print_id FROM variants WHERE setcode=$set AND name=sc.name AND ($arena!='arena' OR arena=1) ORDER BY CASE WHEN collector GLOB '[0-9]*' THEN 0 ELSE 1 END, CAST(collector AS INTEGER), collector COLLATE NOCASE, print_id LIMIT 1)
           WHERE 1=1 {filter}
-          ORDER BY sc.name COLLATE NOCASE LIMIT $limit OFFSET $offset
+          ORDER BY {order} LIMIT $limit OFFSET $offset
           """;
         cmd.Parameters.AddWithValue("$set",setcode!.ToLowerInvariant());cmd.Parameters.AddWithValue("$arena",arenaFilter=="arena"?"arena":"any");
         cmd.Parameters.AddWithValue("$limit",size);cmd.Parameters.AddWithValue("$offset",page*size);
         var rows=new List<object>();using var reader=cmd.ExecuteReader();
-        while(reader.Read())rows.Add(new {name=reader.GetString(0),qty=reader.GetInt32(1),image=reader.GetString(2),type=reader.GetString(3),rarity=reader.GetString(4),url=reader.GetString(5)});
+        while(reader.Read())rows.Add(new {name=reader.GetString(0),qty=reader.GetInt32(1),image=reader.GetString(2),type=reader.GetString(3),rarity=reader.GetString(4),url=reader.GetString(5),collectorNumber=reader.GetString(6)});
         return new { set=setcode, page,size,cards=rows,hasMore=rows.Count==size };
     }
 
