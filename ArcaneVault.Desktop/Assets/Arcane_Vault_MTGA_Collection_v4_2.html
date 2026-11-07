@@ -1104,7 +1104,7 @@ async function physicalRefreshValues(){
   identifiers.set(physicalPrintingRef(c),id);
  }
  const list=[...identifiers.entries()];
- let processed=0,failures=[],priced=0;
+ let processed=0,failures=[],priced=0,rateLimited=false,cooldownSeconds=0;
  const checkpoint=()=>{
   // Durable partial progress; never discard already confirmed prices.
   const current=physicalValues?.quotes||{};
@@ -1126,19 +1126,33 @@ async function physicalRefreshValues(){
      try{response=await fetch('/api/scryfall/collection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifiers:batch.map(x=>x[1])}),signal:ctrl.signal})}
      finally{clearTimeout(timer)}
      const payload=await response.json().catch(()=>({}));
-     if(!response.ok)throw Error(payload.error||'Scryfall lookup returned HTTP '+response.status);
+     if(response.status===429||response.status===403){
+      const wait=Number(payload.retryAfterSeconds||response.headers.get('Retry-After')||120);
+      cooldownSeconds=Number.isFinite(wait)?Math.max(60,Math.min(1800,Math.ceil(wait))):120;
+      rateLimited=true;
+      throw Error((payload.error||'Scryfall rate limiting or access restriction')+' · pause at least '+cooldownSeconds+' seconds before retrying.');
+     }
+     if(!response.ok){
+      const error=Error(payload.error||'Scryfall lookup returned HTTP '+response.status);
+      // Only retry temporary server failures, not invalid requests/access denial.
+      error.permanent=response.status<500;
+      throw error;
+     }
      if(!Array.isArray(payload.data))throw Error('Scryfall returned no card-data array');
      responseBody=payload;break;
     }catch(error){
      lastFailure=error?.name==='AbortError'?'Request timed out':error.message||String(error);
-     if(attempt<4)await pause(Math.min(10000,1000*2**(attempt-1)));
+     if(rateLimited||error.permanent)break;
+     if(attempt<4)await pause(Math.min(12000,2000*2**(attempt-1)));
     }
    }
    if(!responseBody){
     failures.push('Printings '+start+'–'+end+': '+lastFailure);
-    processed+=batch.length;checkpoint();
-    // Skip a failed group and continue the remaining printings. The next
-    // refresh automatically retries unresolved entries.
+    checkpoint();
+    // Respect upstream 429/403 immediately: stop sending requests.
+    if(rateLimited)break;
+    processed+=batch.length;
+    // Other failures are skipped, so later groups may still succeed.
     continue;
    }
    resolved.clear();
@@ -1162,7 +1176,8 @@ async function physicalRefreshValues(){
   physicalValueBusy=false;button.disabled=false;
   checkpoint();physicalValueRender();
   const status=$('physicalValueStatus');
-  if(failures.length)status.textContent='Partial refresh: '+processed+'/'+list.length+' printings checked, '+failures.length+' batch(es) failed. Saved completed prices. Press Refresh Values again to retry missing prices. '+failures[0];
+  if(rateLimited)status.textContent='Scryfall has temporarily limited pricing requests. Paused safely after '+processed+' of '+list.length+' printings; completed quotes are saved. Wait at least '+cooldownSeconds+' seconds before resuming. '+failures[0];
+  else if(failures.length)status.textContent='Partial refresh: '+processed+'/'+list.length+' printings checked, '+failures.length+' batch(es) failed. Saved completed prices. Press Refresh Values again to retry missing prices. '+failures[0];
   else status.textContent='Refresh complete: '+processed+' printings checked, '+reused+' recent quotes reused, '+priced+' new quotes priced.'+(unidentifiable?' '+unidentifiable+' copies lack a printing identifier.':'');
  }
 }
