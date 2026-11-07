@@ -344,7 +344,7 @@ internal sealed class LocalAppServer : IDisposable
                 { await JsonAsync(ctx.Response, 400, new { error = ex.Message }); }
                 return;
             }
-            else if (ctx.Request.HttpMethod == "POST" && path == "/api/sync/qr/start")
+            else if (ctx.Request.HttpMethod == "POST" && (path == "/api/sync/qr/start" || path == "/api/sync/usb/start"))
             {
                 if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Requests must originate from the local Arcane Vault app." }); return; }
                 long bytes = ctx.Request.ContentLength64;
@@ -361,7 +361,14 @@ internal sealed class LocalAppServer : IDisposable
                         root.GetProperty("arenaCards").ValueKind != JsonValueKind.Array ||
                         root.GetProperty("physicalCards").ValueKind != JsonValueKind.Array)
                         throw new JsonException("Not a valid Arcane Vault collection sync snapshot.");
-                    await JsonAsync(ctx.Response, 200, lanSync.Start(snapshot));
+                    var isUsb = path == "/api/sync/usb/start";
+                    var offer = lanSync.Start(snapshot, viaUsb: isUsb);
+                    if (isUsb)
+                    {
+                        try { await UsbAdbTransfer.ConnectAsync(offer.port, stopped.Token); }
+                        catch { lanSync.Cancel(); throw; }
+                    }
+                    await JsonAsync(ctx.Response, 200, new { offer.url, offer.expiresSeconds, offer.sizeBytes, offer.network, usb = isUsb });
                 }
                 catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or KeyNotFoundException)
                 { await JsonAsync(ctx.Response, 400, new { error = ex.Message }); }
