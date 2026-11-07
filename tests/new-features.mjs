@@ -526,3 +526,15 @@ assert.match(html,/save\('setSortV1',\$\('setSort'\)\.value\)/);
 assert.match(html,/Released \$\{escapeHtml\(r\.releaseDate\)\}/);
 assert.match(catalogSyncSrc,/releaseDate=reader\.IsDBNull\(4\)\?"":reader\.GetString\(4\)/);
 console.log('PASS: Set Progress release-date sort and catalog date plumbing');
+
+
+// Set progress must not credit all reprints of a shared name.
+assert.match(catalogSyncSrc,/physical_printings/);
+assert.match(catalogSyncSrc,/v\.print_id=p\.print_id/);
+assert.match(catalogSyncSrc,/v\.setcode=p\.setcode AND v\.collector=p\.collector/);
+assert.match(catalogSyncSrc,/confirmed o ON o\.name=d\.name AND o\.setcode=d\.setcode/);
+assert.match(catalogSyncSrc,/confirmed o ON o\.name=sc\.name AND o\.setcode=\$set/);
+assert.match(html,/function setPhysicalInventory\(\)/);
+assert.match(html,/scryfallId:c\.scryfallId/);
+assert.doesNotMatch(html,/Aggregate printings into name quantities, without modifying Arena ownership/);
+console.log('PASS: printing-specific Set Progress contract');
