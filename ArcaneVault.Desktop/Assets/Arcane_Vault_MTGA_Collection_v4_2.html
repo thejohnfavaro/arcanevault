@@ -1183,7 +1183,8 @@ async function portableSyncImport(file){
    $('portableSyncStatus').textContent='Imported '+scope+' inventory successfully. Artwork and collection totals have refreshed.';
  }catch(e){$('portableSyncStatus').textContent='Sync import failed: '+(e.message||String(e))}
 }
-async function portableSyncShowQr(viaUsb=false){
+async function portableSyncShowQr(){return portableSyncShowTransfer(false)}
+async function portableSyncShowTransfer(viaUsb=false){
  const button=$(viaUsb?'portableSyncUsb':'portableSyncQr'),status=$('portableSyncStatus'),panel=$('portableSyncQrPanel');
  button.disabled=true;status.textContent=viaUsb?'Connecting to Android over USB debugging…':'Preparing a one-time local transfer link…';
  try{
@@ -1202,8 +1203,8 @@ async function portableSyncShowQr(viaUsb=false){
 }
 function portableSyncInit(){
  $('portableSyncExport').onclick=portableSyncExport;
- $('portableSyncQr').onclick=()=>portableSyncShowQr(false);
- $('portableSyncUsb').onclick=()=>portableSyncShowQr(true);
+ $('portableSyncQr').onclick=portableSyncShowQr;
+ $('portableSyncUsb').onclick=()=>portableSyncShowTransfer(true);
  $('portableSyncFile').onchange=async e=>{if(e.target.files?.[0])await portableSyncImport(e.target.files[0]);e.target.value=''};
  $('portableSyncUndo').onclick=()=>{
   const data=load(PORTABLE_SYNC_ROLLBACK,null);
