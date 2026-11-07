@@ -433,7 +433,7 @@ const sortEnd=html.indexOf('async function physicalLoadSetDates()',sortStart);
 const sortCtx={load:()=> 'name',physicalSetDates:{}};
 vm.createContext(sortCtx);
 vm.runInContext(html.slice(sortStart,sortEnd)+';globalThis.sortCards=physicalSortCards;',sortCtx);
-sortCtx.physicalSetDates={new:'2026-11-01',old:'2025-01-12'};
+vm.runInContext("physicalSetDates={new:'2026-11-01',old:'2025-01-12'};",sortCtx);
 const a=[{name:'Alpha',set:'old',number:'1',finish:'nonfoil'},
  {name:'Beta',set:'new',number:'1',finish:'nonfoil'},
  {name:'Unknown',set:'unk',number:'1',finish:'nonfoil'}];
