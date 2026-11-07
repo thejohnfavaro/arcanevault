@@ -451,3 +451,34 @@ assert.ok(html.slice(commitStart,commitEnd).includes('physicalNormalize(rows)'))
 assert.ok(html.slice(commitStart,commitEnd).includes("else rows.push(candidate)"));
 assert.match(html,/physicalPrintingOptions=.*filter\(p=>!p\.digital&&p\.games\?\.includes\('paper'\)\)/);
 console.log('PASS: physical collection set release sorting, unknown date handling, and printing selection/assignment contract');
+
+
+// v5.20: owned-printing image preference, portable sync snapshots, QR LAN pairing,
+// and collection-number set drilldown sorting.
+for (const item of ['id="physicalArtworkSave"','function setPreferredArt(','function getPreferredArt(',
+ 'id="portableSyncPanel"','id="portableSyncQr"','id="portableSyncExport"',
+ 'id="portableSyncFile"','id="portableSyncScope"','id="portableSyncUndo"',
+ 'function portableSyncSnapshot()','function portableSyncApply(','function portableSyncShowQr()',
+ 'arcane-vault-collection-sync','window','id="setCardSort"','value="collector"'])
+ assert.ok(html.includes(item),'Missing physical art or collection sync feature: '+item);
+assert.match(html,/getPreferredArt\(c\.name\)\|\|c\.image/);
+assert.match(html,/getPreferredArt\(c\.name\);if\(chosen\)return chosen/);
+assert.match(html,/physicalArtworkSave'\)\.onclick/);
+assert.match(html,/const rollback=\{format:'arcane-vault-collection-sync'/);
+assert.match(html,/save\(PORTABLE_SYNC_ROLLBACK,rollback\)/);
+assert.match(html,/QR transfer/);
+assert.match(html,/new QRCode\(host,/);
+assert.match(html,/setPage=0;loadSetCards\(\)/);
+const catalogSyncSrc=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/ScryfallCatalog.cs'),'utf8');
+const localSyncSrc=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/LocalAppServer.cs'),'utf8');
+const lanSyncSrc=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/LanCollectionTransfer.cs'),'utf8');
+assert.ok(catalogSyncSrc.includes('sort=="collector" ? numberOrder'));
+assert.ok(catalogSyncSrc.includes('ORDER BY {order} LIMIT $limit OFFSET $offset'));
+assert.ok(catalogSyncSrc.includes('collectorNumber=reader.GetString(6)'));
+assert.ok(localSyncSrc.includes('/api/sync/qr/start'));
+assert.ok(localSyncSrc.includes('lanSync.Start(snapshot)'));
+assert.ok(lanSyncSrc.includes('RandomNumberGenerator.GetBytes(24)'));
+assert.ok(lanSyncSrc.includes('DateTimeOffset.UtcNow.AddMinutes(5)'));
+assert.ok(lanSyncSrc.includes('token = null;'));
+assert.ok(lanSyncSrc.includes('ExpireAsync(listener, cancellation.Token)'));
+console.log('PASS: collector-number set sorting, saved printing art, portable sync rollback, and single-use LAN QR transfer');
