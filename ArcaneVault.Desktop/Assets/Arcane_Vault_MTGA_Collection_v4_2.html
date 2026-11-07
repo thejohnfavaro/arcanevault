@@ -2645,11 +2645,21 @@ function setSymbol(code){
 let setArtworkEnabled=load('setShowArtworkV1',true)!==false;
 $('setShowArt').checked=setArtworkEnabled;
 $('setShowArt').onchange=()=>{setArtworkEnabled=$('setShowArt').checked;save('setShowArtworkV1',setArtworkEnabled);drawSets()};
+// Curated direct image URLs from Wizards of the Coast promotional pages.
+// Add only verified art assets here; WPN posters/PDFs are not directly usable as image URLs.
+// URLs are loaded on demand, not redistributed with the application.
+const setPromotionalArtwork=Object.freeze({
+ blb:'https://images.ctfassets.net/s5n2t79q9icq/4If0bVcGTVw1FmdmcPLX0l/b270559331bd98f10afe9afff3e9c1dc/B73H34Ddder_1920x1080.jpg?q=80',
+ blc:'https://images.ctfassets.net/s5n2t79q9icq/4If0bVcGTVw1FmdmcPLX0l/b270559331bd98f10afe9afff3e9c1dc/B73H34Ddder_1920x1080.jpg?q=80'
+});
 function setArtMarkup(code){
  if(!setArtworkEnabled)return '';
  const safe=String(code||'').toLowerCase().replace(/[^a-z0-9]/g,'');
  if(!safe)return '';
- return '<img class="av-set-art" loading="lazy" decoding="async" alt="" aria-hidden="true" src="https://api.scryfall.com/cards/'+safe+'/1?format=image&amp;version=art_crop" onerror="this.remove()">';
+ const fallback='https://api.scryfall.com/cards/'+safe+'/1?format=image&amp;version=art_crop';
+ const promo=setPromotionalArtwork[safe];
+ if(!promo)return '<img class="av-set-art" loading="lazy" decoding="async" alt="" aria-hidden="true" src="'+fallback+'" onerror="this.remove()">';
+ return '<img class="av-set-art" loading="lazy" decoding="async" alt="" aria-hidden="true" src="'+escapeHtml(promo)+'" data-fallback="'+fallback+'" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.dataset.fallback=\'\'}else{this.remove()}">';
 }
 function drawSets(){
  const sort=$('setSort').value;const rows=$('setHideZero').checked?setRows.filter(r=>Number(r.owned)>0):[...setRows];
