@@ -598,3 +598,18 @@ assert.match(html,/info\.insertBefore\(nav,info\.querySelector\('\.actions'\)\|\
 assert.match(html,/let panelAnchor=nav;/);
 assert.match(html,/panelAnchor\.after\(p\);panelAnchor=p/);
 assert.doesNotMatch(html,/info\.insertBefore\(nav,first\|\|null\)/);
+
+ // Exact multi-select color identity UX + rarity display regression coverage.
+ assert.match(html,/id="avIdentityPicker"/);
+ assert.match(html,/id="avIdentityChoices"/);
+ assert.match(html,/data-identity-preset="boros"/);
+ assert.match(html,/colors:selectedColorIdentities\.join\(','\)/);
+ assert.match(html,/selectedColorIdentities\.includes\(avIdentityKey\(m\.colors\)\)/);
+ assert.match(html,/selectedColorIdentitiesV1/);
+ assert.match(html,/avRarityLabel\(value,fallback='Unverified'\)/);
+ assert.match(html,/mythic:'Mythic Rare'/);
+ assert.match(html,/av-rarity-common/);
+ assert.match(html,/av-rarity-uncommon/);
+ assert.match(html,/av-rarity-rare/);
+ assert.match(html,/av-rarity-mythic/);
+ assert.doesNotMatch(html,/<select id="colors">/);
