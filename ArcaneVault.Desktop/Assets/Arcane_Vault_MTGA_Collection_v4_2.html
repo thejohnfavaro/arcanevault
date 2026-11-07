@@ -1116,9 +1116,15 @@ let physicalSort=['name','release-desc','release-asc'].includes(load(PHYSICAL_SO
 let physicalSetDates={},physicalSetDatesLoaded=false,physicalSetDatesLoading=false,physicalSetDatesError='';
 const physicalReleaseDate=c=>physicalSetDates[String(c.set||'').toLowerCase()]||'';
 function physicalSortCards(a,b,mode=physicalSort){
- if(mode!=='name'){
+ if(mode.startsWith('price-')||mode.startsWith('unit-')){
+  const unit=mode.startsWith('unit-');
+  const quote=c=>{const raw=physicalValues?.quotes?.[physicalKey(c)]?.usd;return priceNumber(raw)};
+  const aUnit=quote(a),bUnit=quote(b);
+  if((aUnit===null)!==(bUnit===null))return aUnit===null?1:-1;
+  const av=aUnit===null?null:aUnit*(unit?1:a.qty),bv=bUnit===null?null:bUnit*(unit?1:b.qty);
+  if(av!==bv)return mode.endsWith('desc')?bv-av:av-bv;
+ }else if(mode.startsWith('release-')){
   const aDate=physicalReleaseDate(a),bDate=physicalReleaseDate(b);
-  // Unknown dates come last for either direction; never infer from a set code.
   if(!!aDate!==!!bDate)return aDate?-1:1;
   if(aDate!==bDate)return mode==='release-desc'?(aDate>bDate?-1:1):(aDate<bDate?-1:1);
  }
