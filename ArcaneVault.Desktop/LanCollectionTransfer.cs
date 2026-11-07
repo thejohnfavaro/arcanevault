@@ -34,8 +34,23 @@ internal sealed class LanCollectionTransfer : IDisposable
             var port = ((IPEndPoint)listener.LocalEndpoint).Port;
             var url = $"http://{address}:{port}/arcane-vault-sync/{token}";
             _ = ListenAsync(listener, cancellation.Token);
+            _ = ExpireAsync(listener, cancellation.Token);
             return new { url, expiresSeconds = 300, sizeBytes = payload.Length, network = address.ToString() };
         }
+    }
+
+    private async Task ExpireAsync(TcpListener active, CancellationToken cancel)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMinutes(5), cancel);
+            lock (guard)
+            {
+                if (ReferenceEquals(listener, active)) StopLocked();
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
     }
 
     private async Task ListenAsync(TcpListener active, CancellationToken cancel)
@@ -108,7 +123,9 @@ internal sealed class LanCollectionTransfer : IDisposable
         foreach (var network in NetworkInterface.GetAllNetworkInterfaces())
         {
             if (network.OperationalStatus != OperationalStatus.Up ||
-                network.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel)
+                network.NetworkInterfaceType is not (NetworkInterfaceType.Wireless80211 or
+                    NetworkInterfaceType.Ethernet or NetworkInterfaceType.GigabitEthernet or
+                    NetworkInterfaceType.FastEthernetFx or NetworkInterfaceType.FastEthernetT))
                 continue;
             foreach (var address in network.GetIPProperties().UnicastAddresses)
             {
