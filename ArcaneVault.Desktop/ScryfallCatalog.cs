@@ -328,6 +328,31 @@ internal sealed class ScryfallCatalog
         }
     }
 
+    // The full local Scryfall printings catalog includes the release date of each printing.
+    // Use the earliest known printing release for each set; this is independent of user ownership.
+    public object SetReleaseDates()
+    {
+        using var db = Connect();
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = """
+            SELECT setcode, MIN(release) AS released
+            FROM variants
+            WHERE length(release)=10 AND release GLOB '????-??-??'
+            GROUP BY setcode
+            """;
+        var dates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            var code = reader.GetString(0);
+            var date = reader.GetString(1);
+            if (DateOnly.TryParseExact(date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                 System.Globalization.DateTimeStyles.None, out _))
+                dates[code] = date;
+        }
+        return new { dates, count = dates.Count, source = "Local Scryfall printing catalog; earliest known release per set" };
+    }
+
     // Set completion counts distinct card names, not printing count. The CSV tracks owned cards by name,
     // so it cannot prove ownership of a specific set printing or MTGA cosmetic treatment.
     public object SetProgress(string arenaFilter = "any", string query = "", JsonElement? physicalCards = null)
