@@ -309,7 +309,7 @@ internal sealed class ScryfallCatalog
         if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() > 150_000)
             throw new ArgumentException("Expected an array of physical cards.");
         using var create = db.CreateCommand();
-        create.CommandText = "CREATE TEMP TABLE physical_ownership(name TEXT PRIMARY KEY COLLATE NOCASE, qty INTEGER NOT NULL)";
+        create.CommandText = "DROP TABLE IF EXISTS temp.physical_ownership; CREATE TEMP TABLE physical_ownership(name TEXT PRIMARY KEY COLLATE NOCASE, qty INTEGER NOT NULL)";
         create.ExecuteNonQuery();
         using var insert = db.CreateCommand();
         insert.CommandText = "INSERT INTO physical_ownership(name,qty) VALUES($name,$qty) ON CONFLICT(name) DO UPDATE SET qty=qty+excluded.qty";
