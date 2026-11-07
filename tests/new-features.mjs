@@ -561,3 +561,24 @@ assert.equal(nameCtx.avTest.avCardMatchesName('Fire // Water',split),false);
 assert.equal(nameCtx.avTest.avCardMatchesName('Brazen Borrower // Petty Theft',adventure),true);
 assert.equal(nameCtx.avTest.avCardMatchesName('Fire // Ice',{name:'Fire'}),false);
 console.log('PASS: verified multi-face name resolution');
+
+
+// UX refresh contract: existing data models, printing IDs and collection routines stay intact.
+for(const id of ['uxDataDashboard','uxSyncInventory','uxSyncMetadata','uxSyncCatalog','uxSyncPhysical','uxSyncState','avSyncAllData','avFetchAllDetails','setGrid','detailInner']){
+ assert.ok(html.includes('id="'+id+'"'),'Missing UX control '+id);
+}
+assert.match(html,/function avCardDetailsLayout\(/);
+assert.match(html,/function avRefreshSyncDashboard\(/);
+assert.match(html,/data-ux-trigger="avFetchAllDetails"/);
+assert.match(html,/data-ux-trigger="avSyncAllData"/);
+assert.match(html,/class="ux-set-percent"/);
+assert.match(html,/role="tabpanel"/);
+assert.match(html,/\.ux-detail-panel\[hidden\]/);
+assert.match(html,/function physicalSort/);
+for(const direction of ['price-desc','price-asc','unit-desc','unit-asc']) assert.ok(html.includes('value="'+direction+'"'),'Missing price sorting '+direction);
+
+assert.match(html,/class="ux-jumpbar ux-desktop-quick"/);
+assert.match(html,/if\(\(aUnit===null\)!==\(bUnit===null\)\)return aUnit===null\?1:-1/);
+assert.match(html,/\['name','release-desc','release-asc','price-desc','price-asc','unit-desc','unit-asc'\]/);
+
+console.log('PASS: UX refresh navigation, card tabs, sync health and physical price sorting');
