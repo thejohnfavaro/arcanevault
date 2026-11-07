@@ -412,3 +412,42 @@ const proxy=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/LocalAppServer.c
 for(const token of ['Guid.TryParse(id','Get("collector_number")','Get("set")','Get("name")'])
  assert.ok(proxy.includes(token),'Missing validated exact printing identifier: '+token);
 console.log('PASS: physical paper-only print valuation, source labels, unavailable finish prices, and physical-only metadata repair');
+
+
+// v5.19: physical inventory set release dates, paper printing selection, move-vs-add quantity safety.
+const catalogSrc=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/ScryfallCatalog.cs'),'utf8');
+const localSrc=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/LocalAppServer.cs'),'utf8');
+for(const tag of ['id="physicalSort"','value="release-desc"','value="release-asc"',
+ 'function physicalSortCards(a,b,mode=physicalSort)','function physicalLoadSetDates()',
+ 'physicalSetDatesLoaded','id="physicalPrintingEditor"','id="physicalPrintingSelect"',
+ 'id="physicalPrintingAssign"','id="physicalPrintingAdd"','data-physical-print','data-manage-physical',
+ 'function physicalOpenPrintingPicker(name,sourceKey=null)','function physicalCommitPrinting(mode)',
+ 'function physicalPrintingsHtml(name)'])
+ assert.ok(html.includes(tag),'Physical inventory release sorting or print selector missing '+tag);
+assert.ok(localSrc.includes('/api/catalog/set-release-dates'));
+assert.ok(catalogSrc.includes('public object SetReleaseDates()'));
+assert.ok(catalogSrc.includes("MIN(release) AS released"));
+assert.ok(catalogSrc.includes("$scope!='paper'"));
+const sortStart=html.indexOf('const PHYSICAL_SORT_KEY=');
+const sortEnd=html.indexOf('async function physicalLoadSetDates()',sortStart);
+const sortCtx={load:()=> 'name',physicalSetDates:{}};
+vm.createContext(sortCtx);
+vm.runInContext(html.slice(sortStart,sortEnd)+';globalThis.sortCards=physicalSortCards;',sortCtx);
+sortCtx.physicalSetDates={new:'2026-11-01',old:'2025-01-12'};
+const a=[{name:'Alpha',set:'old',number:'1',finish:'nonfoil'},
+ {name:'Beta',set:'new',number:'1',finish:'nonfoil'},
+ {name:'Unknown',set:'unk',number:'1',finish:'nonfoil'}];
+assert.deepEqual(a.slice().sort((x,y)=>sortCtx.sortCards(x,y,'release-desc')).map(c=>c.name),
+ ['Beta','Alpha','Unknown']);
+assert.deepEqual(a.slice().sort((x,y)=>sortCtx.sortCards(x,y,'release-asc')).map(c=>c.name),
+ ['Alpha','Beta','Unknown']);
+assert.deepEqual(a.slice().sort((x,y)=>sortCtx.sortCards(x,y,'name')).map(c=>c.name),
+ ['Alpha','Beta','Unknown']);
+const commitStart=html.indexOf('function physicalCommitPrinting(mode)');
+const commitEnd=html.indexOf('const PHYSICAL_SORT_KEY=',commitStart);
+assert.ok(commitStart>0&&commitEnd>commitStart);
+assert.ok(html.slice(commitStart,commitEnd).includes('const leftover=original.qty-candidate.qty;'));
+assert.ok(html.slice(commitStart,commitEnd).includes('physicalNormalize(rows)'));
+assert.ok(html.slice(commitStart,commitEnd).includes("else rows.push(candidate)"));
+assert.match(html,/physicalPrintingOptions=.*filter\(p=>!p\.digital&&p\.games\?\.includes\('paper'\)\)/);
+console.log('PASS: physical collection set release sorting, unknown date handling, and printing selection/assignment contract');
