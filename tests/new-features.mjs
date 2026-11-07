@@ -372,17 +372,18 @@ const physicalScope={physicalCards:[{name:'Sol Ring',qty:2,set:'CMM'},{name:'sol
 vm.createContext(physicalScope);
 vm.runInContext(html.slice(sourceStart,sourceEnd)+';globalThis.inventory=setPhysicalInventory;',physicalScope);
 const physicalOutput=physicalScope.inventory();
-assert.equal(physicalOutput.length,2);
-assert.equal(physicalOutput.find(c=>c.name==='Sol Ring').qty,5);
+assert.equal(physicalOutput.length,3);
+assert.equal(physicalOutput.find(c=>c.set==='CMM').qty,2);
+assert.equal(physicalOutput.find(c=>c.set==='C21').qty,3);
 assert.equal(physicalOutput.find(c=>c.name==='Opt').qty,1);
 const serverSource=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/LocalAppServer.cs'),'utf8');
 const catalogSource=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/ScryfallCatalog.cs'),'utf8');
 for(const marker of ['/api/catalog/sets/physical','/api/catalog/set-cards/physical','PreparePhysicalOwnership(db, physicalCards)','physical_ownership','CREATE TEMP TABLE physical_ownership'])
   assert.ok((serverSource+catalogSource).includes(marker),'Missing physical catalog implementation: '+marker);
-assert.match(catalogSource,/physicalCards\.HasValue \? "physical_ownership" : "ownership"/);
+assert.match(catalogSource,/ConfirmedPrintingCte\(physicalCards\.HasValue\)/);
 assert.match(catalogSource,/DROP TABLE IF EXISTS temp\.physical_ownership; CREATE TEMP TABLE physical_ownership/,
  'Repeated physical set requests must reset stale pooled-connection temporary ownership before inserting fresh copies');
-console.log('PASS: Arena/Physical Set Progress toggle, physical quantity grouping, isolated catalog query and card paging');
+console.log('PASS: Arena/Physical Set Progress toggle, physical printing identities, isolated catalog query and card paging');
 
 
 // v5.18: paper-only valuation from exact printing identifiers, never an arbitrary name match.
