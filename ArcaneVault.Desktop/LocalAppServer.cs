@@ -122,6 +122,12 @@ internal sealed class LocalAppServer : IDisposable
                     await JsonAsync(ctx.Response, 200, catalog.Search(Param("scope"), Param("q"), Param("type"), Param("rarity"), Param("colors"), Param("role"), Param("sort"), pg, sz == 0 ? 36 : sz, Param("arena")));
                     return;
                 }
+                if (path == "/api/catalog/set-release-dates")
+                {
+                    if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local access only" }); return; }
+                    await JsonAsync(ctx.Response, 200, catalog.SetReleaseDates());
+                    return;
+                }
                 if (path == "/api/catalog/sets")
                 {
                     if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response,403,new {error="Local access only"});return; }
