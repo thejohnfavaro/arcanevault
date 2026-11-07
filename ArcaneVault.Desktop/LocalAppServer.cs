@@ -137,7 +137,7 @@ internal sealed class LocalAppServer : IDisposable
                 {
                     if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response,403,new {error="Local access only"});return; }
                     int.TryParse(ctx.Request.QueryString["page"],out int pg);int.TryParse(ctx.Request.QueryString["size"],out int sz);
-                    try { await JsonAsync(ctx.Response,200,catalog.SetCards(ctx.Request.QueryString["set"]??"",ctx.Request.QueryString["arena"]??"any",ctx.Request.QueryString["ownership"]??"all",pg,sz==0?40:sz)); }
+                    try { await JsonAsync(ctx.Response,200,catalog.SetCards(ctx.Request.QueryString["set"]??"",ctx.Request.QueryString["arena"]??"any",ctx.Request.QueryString["ownership"]??"all",pg,sz==0?40:sz,null,ctx.Request.QueryString["sort"]??"name")); }
                     catch(ArgumentException ex) { await JsonAsync(ctx.Response,400,new {error=ex.Message}); }return;
                 }
                 if (path == "/api/catalog/variants")
@@ -259,7 +259,7 @@ internal sealed class LocalAppServer : IDisposable
                     else
                     {
                         int.TryParse(Param("page"), out int pg); int.TryParse(Param("size"), out int sz);
-                        await JsonAsync(ctx.Response, 200, catalog.SetCards(Param("set"), Param("arena"), Param("ownership"), pg, sz == 0 ? 40 : sz, inventory));
+                        await JsonAsync(ctx.Response, 200, catalog.SetCards(Param("set"), Param("arena"), Param("ownership"), pg, sz == 0 ? 40 : sz, inventory, Param("sort")));
                     }
                 }
                 catch (Exception ex) when (ex is JsonException or ArgumentException or KeyNotFoundException or InvalidOperationException)
