@@ -31,6 +31,8 @@ internal sealed class LocalAppServer : IDisposable
     private readonly CancellationTokenSource stopped = new();
     private readonly SemaphoreSlim upstreamGate = new(1, 1);
     private DateTimeOffset lastScryfallRequest = DateTimeOffset.MinValue;
+    private DateTimeOffset scryfallCooldownUntil = DateTimeOffset.MinValue;
+    private const int ScryfallCollectionMinimumGapMs = 700;
     private readonly byte[] pageBytes;
     private Task? loop;
 
@@ -473,11 +475,19 @@ internal sealed class LocalAppServer : IDisposable
         await upstreamGate.WaitAsync(stopped.Token);
         try
         {
-            // Scryfall asks consumers to keep request frequency modest (approximately 10/sec maximum).
-            var remaining = TimeSpan.FromMilliseconds(125) - (DateTimeOffset.UtcNow - lastScryfallRequest);
-            if (remaining > TimeSpan.Zero) await Task.Delay(remaining, stopped.Token);
+            // This endpoint can be more restrictive than Scryfall's general API.
+            // Do not send or retry requests while an upstream rate-limit cooldown is active.
+            if (DateTimeOffset.UtcNow < scryfallCooldownUntil)
+            {
+                int seconds = Math.Max(1, (int)Math.Ceiling((scryfallCooldownUntil - DateTimeOffset.UtcNow).TotalSeconds));
+                ctx.Response.Headers["Retry-After"] = seconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                await JsonAsync(ctx.Response, 429, new { error = "Scryfall has limited requests. Pause pricing/metadata refresh and try again after the cooldown.", retryAfterSeconds = seconds });
+                return;
+            }
             for (int attempt = 0; attempt < 3; attempt++)
             {
+                var remaining = TimeSpan.FromMilliseconds(ScryfallCollectionMinimumGapMs) - (DateTimeOffset.UtcNow - lastScryfallRequest);
+                if (remaining > TimeSpan.Zero) await Task.Delay(remaining, stopped.Token);
                 lastScryfallRequest = DateTimeOffset.UtcNow;
                 using var message = new HttpRequestMessage(HttpMethod.Post, ScryfallEndpoint)
                 {
@@ -492,10 +502,24 @@ internal sealed class LocalAppServer : IDisposable
                         await SendAsync(ctx.Response, 200, "application/json; charset=utf-8", Encoding.UTF8.GetBytes(responseText));
                         return;
                     }
-                    if ((response.StatusCode == (HttpStatusCode)429 || response.StatusCode is HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable) && attempt < 2)
+                    if (response.StatusCode == (HttpStatusCode)429)
+                    {
+                        // Respect Retry-After and stop. Scryfall explicitly forbids
+                        // repeatedly retrying 429 until a request eventually succeeds.
+                        TimeSpan wait = TimeSpan.FromMinutes(2);
+                        if (response.Headers.RetryAfter?.Delta is { } delay) wait = delay;
+                        else if (response.Headers.RetryAfter?.Date is { } date) wait = date - DateTimeOffset.UtcNow;
+                        wait = TimeSpan.FromSeconds(Math.Clamp(wait.TotalSeconds, 60, 1800));
+                        scryfallCooldownUntil = DateTimeOffset.UtcNow + wait;
+                        var seconds = (int)Math.Ceiling(wait.TotalSeconds);
+                        ctx.Response.Headers["Retry-After"] = seconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        await JsonAsync(ctx.Response, 429, new { error = "Scryfall rate limit reached. Further lookups are paused to protect your access. Try again after the cooldown.", retryAfterSeconds = seconds });
+                        return;
+                    }
+                    if (response.StatusCode is HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable && attempt < 2)
                     {
                         var wait = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(2 * (attempt + 1));
-                        await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(wait.TotalSeconds, 1, 12)), stopped.Token);
+                        await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(wait.TotalSeconds, 1, 20)), stopped.Token);
                         continue;
                     }
                     await JsonAsync(ctx.Response, 502, new { error = $"Scryfall returned {(int)response.StatusCode}: {responseText[..Math.Min(responseText.Length, 350)]}" });
