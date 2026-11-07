@@ -304,8 +304,8 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
  <p class="note">Auto-detects recognizable Mythic Tools, ManaBox, Moxfield, Archidekt, Deckbox, Delver Lens and TCGplayer-style CSV headers. Other CSVs use flexible column matching. Review detected source, mapped fields, skipped rows and totals before import. Your Arena cards are never modified.</p><p id="physicalStatus" class="note" role="status" aria-live="polite"></p><p class="note" id="physicalImportProfile" aria-live="polite">No CSV loaded.</p></div>
  <div class="panel"><h2>Manually add or edit a card</h2><div class="studio-line"><label>Card name<input id="physicalName" class="field" placeholder="e.g. Sol Ring"></label><label>Quantity<input id="physicalQty" class="field" type="number" min="0" max="99999" value="1"></label><label>Set / Edition<input id="physicalSet" class="field" placeholder="e.g. CMM (optional)"></label><label>Collector number<input id="physicalNumber" class="field" placeholder="Optional"></label><label>Finish<select id="physicalFinish" class="field"><option value="nonfoil">Nonfoil</option><option value="foil">Foil</option><option value="etched">Etched foil</option></select></label><button class="primary" id="physicalAdd" type="button">Add copies</button></div>
  <p class="note">Use the exact name, set, collector number and finish to increase an existing entry. To decrease or remove copies, edit the quantity in the table below.</p></div>
- <div class="panel"><div class="studio-heading"><h2>Paper inventory</h2><input class="field" id="physicalSearch" placeholder="Search cards, sets or collector numbers" aria-label="Search physical inventory"></div>
- <div class="v3table-wrap"><table class="v3table"><thead><tr><th>Card</th><th>Set</th><th>No.</th><th>Finish</th><th>Owned</th><th>Est. value</th><th>Action</th></tr></thead><tbody id="physicalRows"></tbody></table></div>
+ <div class="panel"><div class="studio-heading"><h2>Paper inventory</h2><div class="studio-line"><label>Sort inventory<select id="physicalSort" class="field"><option value="name">Card name (A–Z)</option><option value="release-desc">Set release date (newest first)</option><option value="release-asc">Set release date (oldest first)</option></select></label><label>Find cards<input class="field" id="physicalSearch" placeholder="Search cards, sets or collector numbers" aria-label="Search physical inventory"></label></div></div>
+ <div class="v3table-wrap"><table class="v3table"><thead><tr><th>Card</th><th>Set</th><th>Released</th><th>No.</th><th>Finish</th><th>Owned</th><th>Est. value</th><th>Action</th></tr></thead><tbody id="physicalRows"></tbody></table></div>
  <div class="actions"><button id="physicalPrev" type="button">Previous</button><span id="physicalPage" class="note">Page 1</span><button id="physicalNext" type="button">Next</button></div></div>
 </section>
 <section id="settings" class="hidden"><h1 class="h1">Options, Collection & Metadata</h1><div class="panel av-update-panel"><h2>Application updates</h2><p class="note">Installed version: <strong id="avInstalledVersion">Loading…</strong> · Latest available: <strong id="avLatestVersion">Not checked</strong></p><p class="note">Optionally check GitHub Releases for newer versions. Nothing is downloaded or installed without your action. Update checks use compiled Windows GitHub Releases. Download and install requires a Windows release with a matching SHA-256 checksum and restarts Arcane Vault after verification.</p><div class="av-update-controls"><label>GitHub repository (owner/repo)<input id="avUpdateRepo" class="field" placeholder="e.g. RNGesus/ArcaneVault" autocomplete="off" spellcheck="false"></label><label class="v3check"><input type="checkbox" id="avAutoUpdateCheck"> Check once per week on launch</label><button type="button" id="avCheckUpdates">Check for updates</button></div><p id="avUpdateStatus" class="note" role="status" aria-live="polite">Set a release repository to enable update checks.</p><div id="avUpdateResult" class="av-update-result" hidden></div></div><div class="panel"><h2>Getting started</h2><p class="note">Explore the main features of Arcane Vault again at any time. The guide appears automatically only once per installation/browser profile.</p><button id="avReplayGuide" type="button">✦ View getting-started guide</button></div>
@@ -818,6 +818,36 @@ function physicalNormalize(rows){
 }
 let physicalCards=physicalNormalize(load(PHYSICAL_KEY,[])),physicalPage=0;
 
+const PHYSICAL_SORT_KEY='physicalSortV1';
+let physicalSort=['name','release-desc','release-asc'].includes(load(PHYSICAL_SORT_KEY,'name'))?load(PHYSICAL_SORT_KEY,'name'):'name';
+let physicalSetDates={},physicalSetDatesLoaded=false,physicalSetDatesLoading=false,physicalSetDatesError='';
+const physicalReleaseDate=c=>physicalSetDates[String(c.set||'').toLowerCase()]||'';
+function physicalSortCards(a,b,mode=physicalSort){
+ if(mode!=='name'){
+  const aDate=physicalReleaseDate(a),bDate=physicalReleaseDate(b);
+  // Unknown dates come last for either direction; never infer from a set code.
+  if(!!aDate!==!!bDate)return aDate?-1:1;
+  if(aDate!==bDate)return mode==='release-desc'?(aDate>bDate?-1:1):(aDate<bDate?-1:1);
+ }
+ return a.name.localeCompare(b.name)||a.set.localeCompare(b.set)||a.number.localeCompare(b.number)||a.finish.localeCompare(b.finish);
+}
+async function physicalLoadSetDates(){
+ if(physicalSetDatesLoaded||physicalSetDatesLoading)return;
+ physicalSetDatesLoading=true;
+ try{
+  const response=await fetch('/api/catalog/set-release-dates');
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||'Set release dates unavailable');
+  physicalSetDates={};
+  for(const [code,date] of Object.entries(data.dates||{})){
+   if(/^[a-z0-9]{2,8}$/i.test(code)&&/^\\d{4}-\\d{2}-\\d{2}$/.test(date))physicalSetDates[code.toLowerCase()]=date;
+  }
+  physicalSetDatesLoaded=true;physicalSetDatesError='';
+ }catch(err){physicalSetDatesError=err.message||String(err)}
+ finally{physicalSetDatesLoading=false;physicalRender()}
+}
+
+
 const PHYSICAL_VALUE_KEY='physicalValuesV1';
 let physicalValues=load(PHYSICAL_VALUE_KEY,null);
 let physicalValueBusy=false,physicalMetadataBusy=false;
@@ -936,14 +966,14 @@ function physicalRender(){
  const copies=physicalCards.reduce((sum,c)=>sum+c.qty,0),uniqueNames=new Set(physicalCards.map(c=>c.name.toLowerCase())).size;
  summary.textContent=uniqueNames.toLocaleString()+' distinct card names · '+physicalCards.length.toLocaleString()+' printings · '+copies.toLocaleString()+' physical copies';physicalValueRender();
  const term=$('physicalSearch').value.trim().toLowerCase();
- const rows=physicalCards.filter(c=>(c.name+' '+c.set+' '+c.number+' '+c.finish).toLowerCase().includes(term)).sort((a,b)=>a.name.localeCompare(b.name)||a.set.localeCompare(b.set)||a.number.localeCompare(b.number)||a.finish.localeCompare(b.finish));
+ const rows=physicalCards.filter(c=>(c.name+' '+c.set+' '+c.number+' '+c.finish).toLowerCase().includes(term)).sort(physicalSortCards);
  const max=Math.max(1,Math.ceil(rows.length/50));physicalPage=Math.max(0,Math.min(physicalPage,max-1));
- $('physicalPage').textContent='Page '+(physicalPage+1)+' / '+max+' · '+rows.length+' entries';
+ $('physicalPage').textContent='Page '+(physicalPage+1)+' / '+max+' · '+rows.length+' entries'+(physicalSort!=='name'?(physicalSetDatesLoading?' · Loading set release dates':physicalSetDatesError?' · Release dates unavailable: '+physicalSetDatesError:!physicalSetDatesLoaded?' · Set dates not loaded':' · Unknown dates last'):'');
  $('physicalPrev').disabled=physicalPage===0;$('physicalNext').disabled=physicalPage>=max-1;
  $('physicalRows').innerHTML=rows.slice(physicalPage*50,(physicalPage+1)*50).map(c=>{
   const key=escapeHtml(physicalKey(c));
-  return '<tr><td>'+escapeHtml(c.name)+'</td><td>'+escapeHtml(c.set||'—')+'</td><td>'+escapeHtml(c.number||'—')+'</td><td>'+escapeHtml(c.finish)+'</td><td><input class="field" type="number" min="0" max="99999" style="max-width:90px" value="'+c.qty+'" data-physical-qty="'+key+'" aria-label="Copies of '+escapeHtml(c.name)+'"></td><td>'+physicalRowValue(c)+'</td><td><button type="button" class="small" data-physical-save="'+key+'">Update</button></td></tr>';
- }).join('')||'<tr><td colspan="7" class="note">No physical cards found. Import a CSV or add a card above.</td></tr>';
+  return '<tr><td>'+escapeHtml(c.name)+'</td><td>'+escapeHtml(c.set||'—')+'</td><td>'+escapeHtml(physicalReleaseDate(c)||'—')+'</td><td>'+escapeHtml(c.number||'—')+'</td><td>'+escapeHtml(c.finish)+'</td><td><input class="field" type="number" min="0" max="99999" style="max-width:90px" value="'+c.qty+'" data-physical-qty="'+key+'" aria-label="Copies of '+escapeHtml(c.name)+'"></td><td>'+physicalRowValue(c)+'</td><td><button type="button" class="small" data-physical-save="'+key+'">Update</button></td></tr>';
+ }).join('')||'<tr><td colspan="8" class="note">No physical cards found. Import a CSV or add a card above.</td></tr>';
 }
 function physicalCsvRows(raw){
  const rows=parseCsv(raw.replace(/^\uFEFF/,'')).filter(row=>row.some(v=>String(v||'').trim()));
@@ -998,6 +1028,9 @@ function physicalCsvRows(raw){
   skipped:Object.values(skippedReasons).reduce((sum,n)=>sum+n,0),skippedReasons,issues,rawRows:rows.length};
 }
 function physicalInit(){
+ $('physicalSort').value=physicalSort;
+ $('physicalSort').onchange=()=>{physicalSort=$('physicalSort').value;save(PHYSICAL_SORT_KEY,physicalSort);physicalPage=0;physicalRender();if(physicalSort!=='name')physicalLoadSetDates()};
+ physicalLoadSetDates();
  $('physicalValueRefresh').onclick=physicalRefreshValues;
  $('physicalMetadataRepair').onclick=physicalRepairMetadata;
  physicalHydrateCachedMetadata();
