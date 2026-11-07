@@ -516,3 +516,13 @@ assert.ok(html.includes('async function avSyncAllCardData()'),'Missing unified s
 assert.ok(html.includes('const result=await syncAll(true)'),'Sync all must refresh owned-card legalities');
 
 console.log('PASS: collector-number set sorting, saved printing art, portable sync rollback, and single-use LAN QR transfer');
+
+// Set Progress release-date sorting contract: both scopes use the catalog's earliest
+// printing date, missing dates sort last, and preferences survive navigation.
+assert.match(html,/value="date-desc">Release date \(newest first\)/);
+assert.match(html,/value="date-asc">Release date \(oldest first\)/);
+assert.match(html,/const da=\/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/\.test\(a\.releaseDate/);
+assert.match(html,/save\('setSortV1',\$\('setSort'\)\.value\)/);
+assert.match(html,/Released \$\{escapeHtml\(r\.releaseDate\)\}/);
+assert.match(catalogSyncSrc,/releaseDate=reader\.IsDBNull\(4\)\?"":reader\.GetString\(4\)/);
+console.log('PASS: Set Progress release-date sort and catalog date plumbing');

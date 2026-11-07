@@ -14,6 +14,7 @@ internal sealed class LanCollectionTransfer : IDisposable
     private TcpListener? listener;
     private byte[]? payload;
     private string? token;
+    private bool transferInProgress;
     private DateTimeOffset expiry;
     private CancellationTokenSource? cancellation;
     private const int MaxBytes = 8 * 1024 * 1024;
@@ -111,13 +112,13 @@ internal sealed class LanCollectionTransfer : IDisposable
                 byte[]? content = null;
                 lock (guard)
                 {
-                    if (DateTimeOffset.UtcNow < expiry && token is not null &&
+                    if (!transferInProgress && DateTimeOffset.UtcNow < expiry && token is not null &&
                         line == $"GET /arcane-vault-sync/{token} HTTP/1.1")
                     {
-                        // A single successful GET consumes the token; do not leave collection data open.
+                        // Reserve the offer, but consume the token only after sending succeeds.
+                        // A dropped Wi-Fi/USB connection should be safely retryable.
+                        transferInProgress = true;
                         content = payload;
-                        payload = null;
-                        token = null;
                     }
                 }
                 if (content is null)
@@ -125,11 +126,20 @@ internal sealed class LanCollectionTransfer : IDisposable
                     await RespondAsync(stream, 404, "text/plain", Encoding.UTF8.GetBytes("Invalid, expired or already used transfer link."), cancel);
                     return;
                 }
-                await RespondAsync(stream, 200, "application/json", content, cancel);
-                await stream.FlushAsync(cancel);
-                // Finish sending before closing the socket and expiring the offer.
-                client.Client.Shutdown(SocketShutdown.Send);
-                lock (guard) { StopLocked(); }
+                try
+                {
+                    await RespondAsync(stream, 200, "application/json", content, cancel);
+                    await stream.FlushAsync(cancel);
+                    // A successful local send consumes the one-time offer.
+                    client.Client.Shutdown(SocketShutdown.Send);
+                    lock (guard) { StopLocked(); }
+                }
+                finally
+                {
+                    // Preserve the original token after a broken connection so the
+                    // phone can retry until the five-minute expiry.
+                    lock (guard) { transferInProgress = false; }
+                }
             }
             catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException or ObjectDisposedException) { }
         }
@@ -167,7 +177,7 @@ internal sealed class LanCollectionTransfer : IDisposable
     {
         try { cancellation?.Cancel(); listener?.Stop(); } catch { }
         cancellation?.Dispose(); cancellation = null; listener = null;
-        payload = null; token = null;
+        payload = null; token = null; transferInProgress = false;
     }
 
     public void Cancel() { lock (guard) StopLocked(); }
