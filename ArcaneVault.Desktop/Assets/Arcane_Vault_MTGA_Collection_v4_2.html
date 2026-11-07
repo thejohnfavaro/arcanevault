@@ -727,9 +727,11 @@ function avCardDetailsLayout(){
   else if(section.textContent.trim().startsWith('Format legalities'))target='legality';
   panels.get(target).appendChild(section);
  }
- const first=sections[0]||info.querySelector('.actions');
- info.insertBefore(nav,first||null);
- for(const p of panels.values())nav.after(p);
+ // Sections are now children of their tab panels, so none can be used as
+ // an insertBefore reference in info. Anchor against the actions row instead.
+ info.insertBefore(nav,info.querySelector('.actions')||null);
+ let panelAnchor=nav;
+ for(const p of panels.values()){panelAnchor.after(p);panelAnchor=p;}
  // Keep summary and ownership badges visible when switching sections.
  const activate=id=>{
   for(const btn of nav.querySelectorAll('[data-ux-detail-tab]'))btn.setAttribute('aria-selected',String(btn.dataset.uxDetailTab===id));
