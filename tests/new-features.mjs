@@ -658,3 +658,11 @@ assert.match(html,/setArtMarkup\(r\.code\)/,'Set tiles must render background ar
 assert.match(html,/setSymbol\(r\.code\)/,'Set tiles must still render official expansion symbols');
 assert.match(html,/av-set-complete/,'Completed sets should have special styling');
 console.log('PASS: Set Progress promo-art mapping, icons, fallback, preferences and completion styling');
+
+ 
+// Native update-release discovery must not depend exclusively on embedded WebView GitHub fetch.
+assert.match(html,/async function fetchGithubReleases\(repo\)/,'Updater must have native release discovery helper');
+assert.match(html,/\/api\/app\/releases\?repo=/,'Updater must call the safe local release endpoint');
+assert.match(html,/const items=await fetchGithubReleases\(repo\)/,'Update checker must use the native/browser fallback');
+assert.match(html,/Open published GitHub releases/,'Update failure must retain a manual recovery link');
+console.log('PASS: native update discovery and manual fallback');
