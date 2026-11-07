@@ -618,7 +618,21 @@ async function importCsv(file){let str=await file.text(),rows=parseCsv(str.repla
 function jsonMeta(raw){const oracle=raw.oracle_text||raw.card_faces?.map(f=>f.oracle_text||'').join('\n//\n')||'';const image=raw.image_uris?.normal||raw.card_faces?.find(f=>f.image_uris)?.image_uris?.normal||null;return {type:raw.type_line||'',oracle,rarity:raw.rarity||'',colors:raw.color_identity||[],mv:raw.cmc,image,url:raw.scryfall_uri||'',set:raw.set||'',legalities:raw.legalities||{},syncedAt:new Date().toISOString(),layout:raw.layout||'',arenaId:raw.arena_id??null,allNames:[raw.name,...(raw.card_faces||[]).map(f=>f.name)],isLegendary:/\bLegendary\b/.test(raw.type_line||''),isCommander:/(?:Legendary.*Creature|Legendary.*Planeswalker)/.test(raw.type_line||'')}}
 async function hydrateCache(){let hits=0;for(let i=0;i<cards.length;i+=100){const subset=cards.slice(i,i+100).filter(c=>!c.meta);await Promise.all(subset.map(async c=>{const m=await dbget(c.name.toLowerCase());if(m){c.meta=m;hits++}}))}render();return hits}
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
-async function syncBatch(names){
+
+function avCardNameParts(name){
+ return String(name||'').split(/\s*\/\/\s*/).map(part=>part.trim().toLowerCase()).filter(Boolean);
+}
+function avCardMatchesName(requested,raw){
+ const asked=avCardNameParts(requested),whole=avCardNameParts(raw?.name);
+ if(!asked.length||!whole.length)return false;
+ if(asked.join(' // ')===whole.join(' // '))return true;
+ const faces=(raw?.card_faces||[]).map(f=>String(f.name||'').trim().toLowerCase()).filter(Boolean);
+ return asked.length>1 && faces.length===asked.length && faces.every((part,i)=>part===asked[i]);
+}
+function avResolveCardResult(name,results){
+ return (results||[]).find(raw=>avCardMatchesName(name,raw))||null;
+}
+async function avSyncBatchRequest(names){
   // Same-origin POST to the localhost companion server: avoids CORS/preflight failures
   // from opening this HTML as a file:// page.
   if(location.protocol==='file:')throw new Error('Open Arcane Vault with START_ARCANE_VAULT.bat instead of double-clicking the HTML file. Browser file:// pages cannot reliably sync Scryfall data.');
@@ -630,7 +644,22 @@ async function syncBatch(names){
   if(!response.ok)throw new Error(data.error||('Scryfall sync returned HTTP '+response.status));
   return data;
 }
-async function syncAll(forceRefresh=false){if(syncing)return {ok:false,error:'A card detail sync is already running'};syncing=true;syncStop=false;$('enrich').disabled=true;$('enrichSettings').disabled=true;$('refreshLegalities').disabled=true;$('stopSync').disabled=false;const todo=cards.filter(c=>forceRefresh?(c.meta||!c.syncUnmatched||$('retryUnmatched')?.checked):(!c.meta&&($('retryUnmatched')?.checked||!c.syncUnmatched)));let done=0,missed=0;const batches=[];for(let i=0;i<todo.length;i+=75)batches.push(todo.slice(i,i+75));let failures=[];try{for(const batch of batches){if(syncStop)break;try{const data=await syncBatch(batch.map(x=>x.name));for(const raw of (data.data||[])){const c=index.get((raw.name||'').toLowerCase())||batch.find(x=>raw.name===x.name||raw.name?.startsWith(x.name+' // ')||x.name.startsWith(raw.name+' // '));if(c){c.meta=jsonMeta(raw);dbput(c.name.toLowerCase(),c.meta);delete c.syncUnmatched}}for(const bad of (data.not_found||[])){const nm=String(bad.name||'').toLowerCase();const c=batch.find(x=>x.name.toLowerCase()===nm);if(c)c.syncUnmatched=true;missed++}}catch(e){failures.push(e.message);break;}done+=batch.length;const percent=Math.round((done/Math.max(1,todo.length))*100);$('progressFill').style.width=percent+'%';$('progressText').textContent=`Checked ${done.toLocaleString()} of ${todo.length.toLocaleString()} remaining cards · ${missed} unmatched by Scryfall`;save('cards',cards.map(({meta,...rest})=>rest));render();await pause(140);} }finally{if(!failures.length&&!syncStop&&done>0)recordDetailsSync();syncing=false;$('enrich').disabled=false;$('enrichSettings').disabled=false;$('refreshLegalities').disabled=false;$('stopSync').disabled=true;$('progressText').textContent=failures.length?'Sync paused: '+failures[0]:syncStop?'Stopped. You can resume whenever you like.':`Sync finished. ${missed} names not found. Use 'Retry previously unmatched names' to try again.`;render();renderStudio();}return {ok:!failures.length&&!syncStop,error:failures[0]||'',stopped:syncStop};}
+
+async function syncBatch(names){
+ const initial=await avSyncBatchRequest(names);
+ const results=[...(initial.data||[])];
+ const found=new Set(names.filter(name=>avResolveCardResult(name,results)));
+ for(const requested of names){
+  if(found.has(requested)||!requested.includes('//'))continue;
+  const first=String(requested).split(/\s*\/\/\s*/)[0].trim();
+  if(!first)continue;
+  const retry=await avSyncBatchRequest([first]);
+  const recovered=avResolveCardResult(requested,retry.data);
+  if(recovered){results.push(recovered);found.add(requested);}
+ }
+ return {...initial,data:results,not_found:names.filter(name=>!found.has(name)).map(name=>({name}))};
+}
+async function syncAll(forceRefresh=false){if(syncing)return {ok:false,error:'A card detail sync is already running'};syncing=true;syncStop=false;$('enrich').disabled=true;$('enrichSettings').disabled=true;$('refreshLegalities').disabled=true;$('stopSync').disabled=false;const todo=cards.filter(c=>forceRefresh?(c.meta||!c.syncUnmatched||$('retryUnmatched')?.checked):(!c.meta&&($('retryUnmatched')?.checked||!c.syncUnmatched)));let done=0,missed=0;const batches=[];for(let i=0;i<todo.length;i+=75)batches.push(todo.slice(i,i+75));let failures=[];try{for(const batch of batches){if(syncStop)break;try{const data=await syncBatch(batch.map(x=>x.name));for(const raw of (data.data||[])){const c=batch.find(x=>avCardMatchesName(x.name,raw));if(c){c.meta=jsonMeta(raw);dbput(c.name.toLowerCase(),c.meta);delete c.syncUnmatched}}for(const bad of (data.not_found||[])){const nm=String(bad.name||'').toLowerCase();const c=batch.find(x=>x.name.toLowerCase()===nm);if(c)c.syncUnmatched=true;missed++}}catch(e){failures.push(e.message);break;}done+=batch.length;const percent=Math.round((done/Math.max(1,todo.length))*100);$('progressFill').style.width=percent+'%';$('progressText').textContent=`Checked ${done.toLocaleString()} of ${todo.length.toLocaleString()} remaining cards · ${missed} unmatched by Scryfall`;save('cards',cards.map(({meta,...rest})=>rest));render();await pause(140);} }finally{if(!failures.length&&!syncStop&&done>0)recordDetailsSync();syncing=false;$('enrich').disabled=false;$('enrichSettings').disabled=false;$('refreshLegalities').disabled=false;$('stopSync').disabled=true;$('progressText').textContent=failures.length?'Sync paused: '+failures[0]:syncStop?'Stopped. You can resume whenever you like.':`Sync finished. ${missed} names not found. Use 'Retry previously unmatched names' to try again.`;render();renderStudio();}return {ok:!failures.length&&!syncStop,error:failures[0]||'',stopped:syncStop};}
 /* Full Scryfall maintenance in two asynchronous stages: printing index, then owned card metadata. */
 let avSyncAllRunning=false;
 async function avSyncAllCardData(){
@@ -715,7 +744,7 @@ async function avFetchAllDetails(){
    const response=await syncBatch(batch.map(c=>c.name));
    for(const raw of response.data||[]){
     const name=String(raw.name||'').toLowerCase();
-    const item=byName.get(name)||batch.find(c=>name.startsWith(c.name.toLowerCase()+' // ')||c.name.toLowerCase().startsWith(name+' // '));
+    const item=batch.find(c=>avCardMatchesName(c.name,raw));
     if(!item)continue;
     const key=item.name.toLowerCase();
     item.meta=jsonMeta(raw);
@@ -744,7 +773,7 @@ async function avFetchAllDetails(){
   line.textContent='Paused after '+checked+' cards: '+(e.message||String(e))+'. Completed metadata is saved; rerun to continue.';
  }finally{avFetchDetailsRunning=false;button.disabled=false;$('stopSync').disabled=true;}
 }
-async function syncOne(name){const key=name.toLowerCase();const c=index.get(key)||catalogIndex.get(key)||ownedCollectionCards(true).find(x=>x.name.toLowerCase()===key);if(!c)return;try{const data=await syncBatch([c.name]);const raw=data.data?.[0];if(!raw)throw new Error('Not found on Scryfall. Check the card name or catalog freshness.');c.meta=jsonMeta(raw);catalogIndex.set(key,c);dbput(key,c.meta);recordDetailsSync();render();renderStudio();openCard(name)}catch(e){alert(e.message)}}
+async function syncOne(name){const key=name.toLowerCase();const c=index.get(key)||catalogIndex.get(key)||ownedCollectionCards(true).find(x=>x.name.toLowerCase()===key);if(!c)return;try{const data=await syncBatch([c.name]);const raw=avResolveCardResult(c.name,data.data);if(!raw)throw new Error('Not found on Scryfall. Check the card name or catalog freshness.');c.meta=jsonMeta(raw);catalogIndex.set(key,c);dbput(key,c.meta);recordDetailsSync();render();renderStudio();openCard(name)}catch(e){alert(e.message)}}
 
 const AV_NAV_KEY='arcaneVault.sidebar.v1';
 const AV_NAV_DEFAULT_GROUPS=['Collection','Decks'];
