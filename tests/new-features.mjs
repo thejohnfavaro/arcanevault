@@ -494,6 +494,12 @@ assert.ok(lanSyncSrc.includes('if (!endOfHeaders) return;'),'QR transfer must re
 assert.ok(lanSyncSrc.includes('await stream.FlushAsync(cancel);'),'QR transfer must flush JSON response');
 assert.ok(lanSyncSrc.includes('SocketShutdown.Send'),'QR transfer must cleanly finish the response');
 assert.ok(html.includes('id="avSyncAllData"'),'Missing single card data sync button');
+assert.match(html,/async function physicalRefreshValues\(\)/);
+assert.match(html,/attempt<=4/,'Physical pricing retries transient batch errors');
+assert.match(html,/const checkpoint=\(\)=>/,'Physical pricing checkpoints progress');
+assert.match(html,/Partial refresh:/,'Physical pricing distinguishes partial failures');
+assert.match(html,/batch\(es\) failed/,'Partial refresh reports failed batches');
+
 assert.ok(html.includes('id="setHideZero"'),'Missing hide zero-progress sets option');
 assert.ok(html.includes("setRows.filter(r=>Number(r.owned)>0)"),'Zero-progress sets must be filtered');
 assert.ok(html.includes("save('setHideZeroV1'"),'Zero-progress preference must persist');
