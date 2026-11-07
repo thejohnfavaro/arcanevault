@@ -272,9 +272,9 @@ console.log('PASS: exact played-deck ID evidence, minimum one-copy inference and
 
 // v5.13: independent physical collection with CSV import and manual quantity tracking.
 for(const id of ['physical','physicalCsv','physicalImportMode','physicalAdd','physicalRows','physicalExport','physicalSummary'])assert.ok(html.includes('id="'+id+'"'),id);
-for(const token of ['const PHYSICAL_KEY=','function physicalNormalize(rows)','function physicalCsvRows(raw)','function physicalRender()','function physicalInit()','physicalCards,wildcards:wc','physicalCards=physicalNormalize(data.physicalCards)'])assert.ok(html.includes(token),token);
+for(const token of ['const PHYSICAL_KEY=','function physicalNormalize(rows)','function physicalCsvRows(raw)','function physicalRender()','function physicalInit()','physicalCards,preferredArtwork,wildcards:wc','physicalCards=physicalNormalize(data.physicalCards)'])assert.ok(html.includes(token),token);
 assert.match(html,/if\(tab==='physical'\)physicalRender\(\)/);
-assert.match(html,/studioInit\(\);libraryInit\(\);physicalInit\(\);plannerInit\(\)/);
+assert.match(html,/studioInit\(\);libraryInit\(\);physicalInit\(\);portableSyncInit\(\);plannerInit\(\)/);
 const physicalStart=html.indexOf('const PHYSICAL_KEY='),physicalEnd=html.indexOf('// Arcane Vault v4: deck library',physicalStart);
 assert.ok(physicalStart>0&&physicalEnd>physicalStart);
 const physicalSnippet=html.slice(physicalStart,physicalEnd);
