@@ -298,7 +298,12 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
  <p id="physicalValueStatus" class="note" role="status" aria-live="polite">Refresh values to look up the current prices for your physical printings.</p>
  <div class="actions"><button id="physicalMetadataRepair" class="small" type="button">Repair missing physical card details &amp; tags</button></div><p id="physicalMetadataStatus" class="note" role="status" aria-live="polite"></p>
  </div>
- <div class="notice">Physical copies are tracked separately from Arena ownership, wildcards, and automatic Arena log updates. This is a local inventory, not an Arena collection sync. Imported card versions are preserved by set code and collector number when available.</div>
+ <div class="panel" id="portableSyncPanel"><h2>Sync collections with Android or another Windows device</h2>
+ <p class="note">Transfer a single Arcane Vault collection snapshot (JSON) between installations. It includes Arena ownership, physical printings and preferred artwork, without needing to reimport the original CSV. Files are transferred manually; no cloud account or automatic background synchronization.</p>
+ <div class="studio-line"><button id="portableSyncExport" type="button" class="primary">Export collection sync file</button><label>Import collection sync file<input id="portableSyncFile" class="field" type="file" accept=".json,application/json"></label><label>Replace on this device<select id="portableSyncScope" class="field"><option value="physical">Physical collection &amp; artwork</option><option value="arena">Arena collection only</option><option value="both">Both collections &amp; artwork</option></select></label></div>
+ <p class="note">Import replaces the selected collection, never adds quantities. A local rollback snapshot is saved before import. Arena match log monitoring can update Arena ownership later.</p>
+ <div class="actions"><button id="portableSyncUndo" type="button">Undo last collection sync import</button></div><p id="portableSyncStatus" role="status" aria-live="polite" class="note"></p></div>
+<div class="notice">Physical copies are tracked separately from Arena ownership, wildcards, and automatic Arena log updates. This is a local inventory, not an Arena collection sync. Imported card versions are preserved by set code and collector number when available.</div>
  <div class="panel"><div class="studio-heading"><h2>Your paper cards</h2><span id="physicalSummary" class="note">No physical cards recorded yet.</span></div>
  <div class="studio-line"><label>Import a paper collection CSV <input id="physicalCsv" class="field" type="file" accept=".csv,text/csv"></label><label>Import behavior <select class="field" id="physicalImportMode"><option value="replace">Replace physical inventory</option><option value="merge">Add quantities to physical inventory</option></select></label></div>
  <p class="note">Auto-detects recognizable Mythic Tools, ManaBox, Moxfield, Archidekt, Deckbox, Delver Lens and TCGplayer-style CSV headers. Other CSVs use flexible column matching. Review detected source, mapped fields, skipped rows and totals before import. Your Arena cards are never modified.</p><p id="physicalStatus" class="note" role="status" aria-live="polite"></p><p class="note" id="physicalImportProfile" aria-live="polite">No CSV loaded.</p></div>
@@ -828,7 +833,7 @@ async function restoreAppBackup(file){let data;try{data=JSON.parse(await file.te
  if(data.wildcards&&typeof data.wildcards==='object')wc=Object.fromEntries(rarityIds.map(r=>[r,Math.max(0,Number(data.wildcards[r])||0)]));
  save('cards',cards.map(({meta,...rest})=>rest));save('favorites',[...favorite]);save('deck',currentDeck);save('studio',studio);saveLibrary();save(WC_KEY,wc);rebuildIndex();await hydrateCache();render();updateDeckUI();renderFavorites();renderStudio();renderLibrary();renderPlanner();renderSynergy();$('importStatus').textContent='Restored backup with '+cards.length.toLocaleString()+' cards. Reload to refresh wildcard input fields.';
 }
-async function start(){applyVaultTheme(localStorage.getItem('vault_theme')||'noir');$('themeChoice').onchange=()=>applyVaultTheme($('themeChoice').value);$('themeReset').onclick=()=>applyVaultTheme('noir');await dbopen();await hydrateCache();renderChips();$('ownershipScope').value=catalogScope;$('arenaScope').value=arenaScope;render();postOwnership().then(()=>{if(catalogScope!=='owned'&&arenaScope!=='physical')renderCatalog()});renderSyncHistory();refreshCatalogStatus();updateDeckUI();renderFavorites();studioInit();libraryInit();physicalInit();plannerInit();synergyInit();archetypeInit();document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>tabs(b.dataset.tab)));initSidebarNavigation();$('ownershipScope').onchange=()=>{catalogScope=$('ownershipScope').value;save('catalogScope',catalogScope);page=0;catalogPage=[];render()};$('arenaScope').onchange=()=>{arenaScope=$('arenaScope').value;save('arenaScope',arenaScope);page=0;catalogPage=[];render()};$('catalogSync').onclick=beginCatalogDownload;document.body.addEventListener('change',e=>{if(e.target?.id==='variantFilter'){const title=$('detailInner')?.querySelector('h2')?.textContent;if(title)loadCardVariants(title)}});setInterval(()=>{if(catalogStatus?.busy)refreshCatalogStatus()},1800);
+async function start(){applyVaultTheme(localStorage.getItem('vault_theme')||'noir');$('themeChoice').onchange=()=>applyVaultTheme($('themeChoice').value);$('themeReset').onclick=()=>applyVaultTheme('noir');await dbopen();await hydrateCache();renderChips();$('ownershipScope').value=catalogScope;$('arenaScope').value=arenaScope;render();postOwnership().then(()=>{if(catalogScope!=='owned'&&arenaScope!=='physical')renderCatalog()});renderSyncHistory();refreshCatalogStatus();updateDeckUI();renderFavorites();studioInit();libraryInit();physicalInit();portableSyncInit();plannerInit();synergyInit();archetypeInit();document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>tabs(b.dataset.tab)));initSidebarNavigation();$('ownershipScope').onchange=()=>{catalogScope=$('ownershipScope').value;save('catalogScope',catalogScope);page=0;catalogPage=[];render()};$('arenaScope').onchange=()=>{arenaScope=$('arenaScope').value;save('arenaScope',arenaScope);page=0;catalogPage=[];render()};$('catalogSync').onclick=beginCatalogDownload;document.body.addEventListener('change',e=>{if(e.target?.id==='variantFilter'){const title=$('detailInner')?.querySelector('h2')?.textContent;if(title)loadCardVariants(title)}});setInterval(()=>{if(catalogStatus?.busy)refreshCatalogStatus()},1800);
 for(const id of ['query','colors','types','rarity','sort'])$(id).addEventListener(id==='query'?'input':'change',()=>{page=0;render()});$('rolechips').addEventListener('click',e=>{const b=e.target.closest('[data-role]');if(!b)return;role=b.dataset.role;page=0;renderChips();render()});$('perPage').value=String(perPage);$('perPage').onchange=()=>{perPage=Number($('perPage').value);save('pageSize',perPage);page=0;render()};$('prev').onclick=()=>{page--;render();scrollTo(0,0)};$('next').onclick=()=>{page++;render();scrollTo(0,0)};$('viewGrid').onclick=()=>{view='grid';render()};$('viewList').onclick=()=>{view='list';render()};$('clearFilters').onclick=()=>{$('query').value='';['colors','types','rarity'].forEach(id=>$(id).value='');role='';page=0;renderChips();render()};
  document.body.addEventListener('click',e=>{const resetArtwork=e.target.closest('[data-reset-card-art]');if(resetArtwork){resetPreferredArt(resetArtwork.dataset.resetCardArt);return}const manage=e.target.closest('[data-manage-physical]');if(manage){e.preventDefault();if($('detail')?.open)$('detail').close();tabs('physical');$('physicalSearch').value=manage.dataset.managePhysical;physicalPage=0;physicalRender();physicalOpenPrintingPicker(manage.dataset.managePhysical);return}const open=e.target.closest('[data-open]'),star=e.target.closest('[data-star]'),one=e.target.closest('[data-one]');if(open){e.preventDefault();openCard(open.dataset.open)}if(star)toggleFav(star.dataset.star);if(one)syncOne(one.dataset.one)});$('enrich').onclick=$('enrichSettings').onclick=()=>syncAll(false);$('refreshLegalities').onclick=()=>syncAll(true);$('stopSync').onclick=()=>{syncStop=true};$('exportCsv').onclick=filterExport;$('csvfile').onchange=async e=>{if(e.target.files?.[0])await importCsv(e.target.files[0])};$('rollbackCollection').onclick=async()=>{const prev=load('previousCollection',null);if(!Array.isArray(prev)||!prev.length){alert('No previous CSV import snapshot was found.');return}if(!confirm('Restore the collection from before the last CSV import? Saved decks remain unchanged.'))return;const current=cards.map(({meta,...rest})=>rest);cards=prev;save('previousCollection',current);rebuildIndex();await hydrateCache();save('cards',cards.map(({meta,...rest})=>rest));postOwnership();render();renderStudio();renderFavorites();renderPlanner();renderSynergy();alert('Previous collection restored.')};$('restoreSeed').onclick=async()=>{if(!confirm('Restore the original embedded export?'))return;cards=structuredClone(bundled.cards);rebuildIndex();await hydrateCache();save('cards',cards);postOwnership();render();updateDeckUI();renderStudio()};$('saveBackup').onclick=()=>download('arcane-vault-backup.json',JSON.stringify({schema:2,exported:new Date().toISOString(),cards:cards.map(c=>({...c})),favorites:[...favorite],deck:currentDeck,studio,deckLibrary,physicalCards,wildcards:wc,collectionHistory:JSON.parse(localStorage.getItem('arcaneVault.collectionHistory.v1')||'[]')},null,2),'application/json');$('restoreBackupFile').onchange=async e=>{if(e.target.files?.[0])await restoreAppBackup(e.target.files[0]);e.target.value=''};$('copyShortlist').onclick=()=>navigator.clipboard.writeText([...favorite].map(n=>'1 '+n).join('\n')).then(()=>alert('Copied!')).catch(()=>prompt('Copy this list:',[...favorite].map(n=>'1 '+n).join('\n')));$('copyDeck').onclick=()=>{const txt=$('deckText').value;navigator.clipboard.writeText(txt).then(()=>alert('Copied!')).catch(()=>prompt('Copy this deck:',txt))};$('applyDeck').onclick=labOpenSelected;$('labOpenStudio').onclick=labOpenSelected;$('resetDeck').onclick=()=>{$('labDeckChoice').value='draft';save('labChoice','draft');updateDeckUI()};$('labDeckChoice').onchange=()=>{save('labChoice',$('labDeckChoice').value);updateDeckUI()};$('labRefresh').onclick=updateDeckUI;}
 
@@ -1103,6 +1108,90 @@ async function physicalRepairMetadata(){
  }
 }
 
+const PORTABLE_SYNC_ROLLBACK='portableSyncRollbackV1';
+function portableSyncExport(){
+ const documentData={format:'arcane-vault-collection-sync',schema:1,exportedAt:new Date().toISOString(),
+  arenaCards:cards.map(({meta,...c})=>c),physicalCards:physicalCards.map(c=>({...c})),
+  preferredArtwork};
+ download('arcane-vault-collections-'+new Date().toISOString().slice(0,10)+'.json',
+  JSON.stringify(documentData,null,2),'application/json');
+ $('portableSyncStatus').textContent='Collection sync snapshot exported. Transfer it to your other device and import it there.';
+}
+function portableSyncCleanArt(value){
+ const output={};if(!value||typeof value!=='object'||Array.isArray(value))return output;
+ for(const [name,entry] of Object.entries(value).slice(0,30000)){
+  if(name.length>200||!entry||typeof entry!=='object'||typeof entry.image!=='string')continue;
+  if(!/^https:\/\/cards\.scryfall\.io\//i.test(entry.image))continue;
+  output[name.trim().toLowerCase()]={image:entry.image,id:String(entry.id||'').slice(0,80),
+   set:String(entry.set||'').slice(0,20),collectorNumber:String(entry.collectorNumber||'').slice(0,50)};
+ }
+ return output;
+}
+function portableSyncArena(value){
+ if(!Array.isArray(value)||value.length>150000)throw Error('Invalid Arena collection.');
+ const seen=new Map();
+ for(const item of value){
+  if(!item||typeof item.name!=='string'||!Array.isArray(item.sets))throw Error('Invalid Arena card record.');
+  const name=item.name.trim(),qty=Number(item.qty);
+  if(!name||name.length>300||!Number.isInteger(qty)||qty<0||qty>99999)throw Error('Invalid Arena card quantity.');
+  const key=name.toLowerCase(),sets=item.sets.map(x=>String(x).slice(0,40)).slice(0,50);
+  if(seen.has(key))throw Error('Duplicate Arena card '+name);
+  seen.set(key,{name,qty,sets,tags:Array.isArray(item.tags)?item.tags.filter(x=>typeof x==='string').slice(0,30):[],
+   uses:Array.isArray(item.uses)?item.uses.filter(x=>typeof x==='string').slice(0,30):[]});
+ }
+ return [...seen.values()];
+}
+function portableSyncApply(data,scope,confirmAction=true){
+ if(!data||data.format!=='arcane-vault-collection-sync'||data.schema!==1)
+  throw Error('Not an Arcane Vault collection sync file (schema 1).');
+ if(!['physical','arena','both'].includes(scope))throw Error('Invalid import scope.');
+ const paper=scope!=='arena',digital=scope!=='physical';
+ if(paper&&!Array.isArray(data.physicalCards))throw Error('Sync file does not contain a physical collection.');
+ if(digital&&!Array.isArray(data.arenaCards))throw Error('Sync file does not contain an Arena collection.');
+ if(paper&&data.physicalCards.length>150000)throw Error('Physical collection exceeds the limit.');
+ const newPhysical=paper?physicalNormalize(data.physicalCards):null;
+ const newArena=digital?portableSyncArena(data.arenaCards):null;
+ if(confirmAction&&!confirm('Replace '+(scope==='both'?'both inventories':scope+' inventory')+
+  ' with this sync snapshot from '+String(data.exportedAt||'unknown date')+'? This will not add quantities. A rollback snapshot will be kept.'))return false;
+ const rollback={format:'arcane-vault-collection-sync',schema:1,exportedAt:new Date().toISOString(),
+  arenaCards:cards.map(({meta,...c})=>c),physicalCards:physicalCards.map(c=>({...c})),preferredArtwork:{...preferredArtwork}};
+ save(PORTABLE_SYNC_ROLLBACK,rollback);
+ if(digital){
+  cards=newArena;save('cards',cards);rebuildIndex();
+  hydrateCache().then(()=>{render();renderStudio()});
+  postOwnership().catch(e=>console.warn('Arena ownership sync retry pending',e));
+ }
+ if(paper){
+  physicalCards=newPhysical;preferredArtwork=portableSyncCleanArt(data.preferredArtwork);
+  save(PREFERRED_ART_KEY,preferredArtwork);physicalSave();physicalPage=0;physicalRender();
+ }
+ render();if($('sets')&&!$('sets').classList.contains('hidden'))loadSets();
+ return true;
+}
+async function portableSyncImport(file){
+ try{
+  if(file.size>25000000)throw Error('Sync file is too large.');
+  const data=JSON.parse(await file.text());
+  const scope=$('portableSyncScope').value;
+  if(portableSyncApply(data,scope))
+   $('portableSyncStatus').textContent='Imported '+scope+' inventory successfully. Artwork and collection totals have refreshed.';
+ }catch(e){$('portableSyncStatus').textContent='Sync import failed: '+(e.message||String(e))}
+}
+function portableSyncInit(){
+ $('portableSyncExport').onclick=portableSyncExport;
+ $('portableSyncFile').onchange=async e=>{if(e.target.files?.[0])await portableSyncImport(e.target.files[0]);e.target.value=''};
+ $('portableSyncUndo').onclick=()=>{
+  const data=load(PORTABLE_SYNC_ROLLBACK,null);
+  if(!data){$('portableSyncStatus').textContent='No previous collection sync snapshot is available.';return}
+  if(!confirm('Restore Arena and Physical inventories from before the last collection sync import?'))return;
+  try{
+   const current={format:'arcane-vault-collection-sync',schema:1,exportedAt:new Date().toISOString(),
+    arenaCards:cards.map(({meta,...c})=>c),physicalCards:physicalCards.map(c=>({...c})),preferredArtwork:{...preferredArtwork}};
+   portableSyncApply(data,'both',false);save(PORTABLE_SYNC_ROLLBACK,current);
+   $('portableSyncStatus').textContent='Previous inventory snapshot restored.';
+  }catch(e){$('portableSyncStatus').textContent='Undo failed: '+e.message}
+ };
+}
 function physicalSave(){save(PHYSICAL_KEY,physicalCards);physicalValueRender();physicalHydrateCachedMetadata();if($('browse')&&!$('browse').classList.contains('hidden'))render()}
 function physicalRender(){
  const summary=$('physicalSummary');if(!summary)return;
