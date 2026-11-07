@@ -499,6 +499,14 @@ assert.match(html,/attempt<=4/,'Physical pricing retries transient batch errors'
 assert.match(html,/const checkpoint=\(\)=>/,'Physical pricing checkpoints progress');
 assert.match(html,/Partial refresh:/,'Physical pricing distinguishes partial failures');
 assert.match(html,/batch\(es\) failed/,'Partial refresh reports failed batches');
+assert.match(html,/if\(rateLimited\)break;/,'Valuation must stop on Scryfall throttle');
+assert.match(html,/response\.status===429\|\|response\.status===403/,'Rate-limit and access denial must not be retried');
+assert.match(html,/checkpoint\(\);/,'Partial prices must be persisted before a rate-limit stop');
+assert.match(localSyncSrc,/ScryfallCollectionMinimumGapMs = 700/,'Scryfall collection requests must be conservatively paced');
+assert.match(localSyncSrc,/scryfallCooldownUntil/,'API throttling must activate shared cooldown');
+assert.match(localSyncSrc,/ctx\.Response\.Headers\["Retry-After"\]/,'Cooldown must be communicated to the UI');
+assert.match(localSyncSrc,/if \(response\.StatusCode == \(HttpStatusCode\)429\)/,'429 must be treated separately from retryable errors');
+
 
 assert.ok(html.includes('id="setHideZero"'),'Missing hide zero-progress sets option');
 assert.ok(html.includes("setRows.filter(r=>Number(r.owned)>0)"),'Zero-progress sets must be filtered');
