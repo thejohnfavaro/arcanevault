@@ -2307,7 +2307,7 @@ function drawSets(){
   const db=/^\d{4}-\d{2}-\d{2}$/.test(b.releaseDate||'')?b.releaseDate:'';
   if(!da||!db)return da?-1:db?1:a.name.localeCompare(b.name);
   return (sort==='date-desc'?db.localeCompare(da):da.localeCompare(db))||a.name.localeCompare(b.name);
- }
+ });
  else if(sort==='progress')rows.sort((a,b)=>b.percentage-a.percentage||a.name.localeCompare(b.name));
  else if(sort==='missing')rows.sort((a,b)=>b.missing-a.missing||a.name.localeCompare(b.name));
  else if(sort==='total')rows.sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name));
