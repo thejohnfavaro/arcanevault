@@ -572,7 +572,7 @@ assert.match(html,/function avRefreshSyncDashboard\(/);
 assert.match(html,/data-ux-trigger="avFetchAllDetails"/);
 assert.match(html,/data-ux-trigger="avSyncAllData"/);
 assert.match(html,/class="ux-set-percent"/);
-assert.match(html,/role="tabpanel"/);
+assert.match(html,/setAttribute\('role','tabpanel'\)/);
 assert.match(html,/\.ux-detail-panel\[hidden\]/);
 assert.match(html,/function physicalSort/);
 for(const direction of ['price-desc','price-asc','unit-desc','unit-asc']) assert.ok(html.includes('value="'+direction+'"'),'Missing price sorting '+direction);
