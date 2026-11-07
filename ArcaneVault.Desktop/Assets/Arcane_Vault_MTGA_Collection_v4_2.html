@@ -2645,12 +2645,52 @@ function setSymbol(code){
 let setArtworkEnabled=load('setShowArtworkV1',true)!==false;
 $('setShowArt').checked=setArtworkEnabled;
 $('setShowArt').onchange=()=>{setArtworkEnabled=$('setShowArt').checked;save('setShowArtworkV1',setArtworkEnabled);drawSets()};
-// Curated direct image URLs from Wizards of the Coast promotional pages.
-// Add only verified art assets here; WPN posters/PDFs are not directly usable as image URLs.
-// URLs are loaded on demand, not redistributed with the application.
+// Curated promotional key art associated with the listed Magic set codes.
+// Artwork is copyrighted by Wizards of the Coast and its artists. Images are NOT
+// packaged with Arcane Vault; official Wizards CDN is preferred when available.
+// Other URLs are pages/hosts serving the corresponding official promotional art.
+// Missing or blocked URLs fall back to Scryfall, then the existing gradient.
+// Related Commander/bonus-set codes intentionally share their parent set's key art.
+// Do not add generic card art here: that is already handled by the fallback.
 const setPromotionalArtwork=Object.freeze({
- blb:'https://images.ctfassets.net/s5n2t79q9icq/4If0bVcGTVw1FmdmcPLX0l/b270559331bd98f10afe9afff3e9c1dc/B73H34Ddder_1920x1080.jpg?q=80',
- blc:'https://images.ctfassets.net/s5n2t79q9icq/4If0bVcGTVw1FmdmcPLX0l/b270559331bd98f10afe9afff3e9c1dc/B73H34Ddder_1920x1080.jpg?q=80'
+ woe:'https://media.wizards.com/2023/images/daily/nNjKmcrleh.jpg',
+ woc:'https://media.wizards.com/2023/images/daily/nNjKmcrleh.jpg',
+ wot:'https://media.wizards.com/2023/images/daily/nNjKmcrleh.jpg',
+ blb:'https://media.wizards.com/2024/images/daily/28c0611a3f.jpg',
+ blc:'https://media.wizards.com/2024/images/daily/28c0611a3f.jpg',
+ mkm:'https://gamingtrend.com/content/images/size/w1200/2025/02/mkm-key-art-16-9.jpg',
+ mkc:'https://gamingtrend.com/content/images/size/w1200/2025/02/mkm-key-art-16-9.jpg',
+ otj:'https://cdn4.idcgames.com/storage/image/1102/outlaws-of-thunder-junction/default.jpg',
+ otc:'https://cdn4.idcgames.com/storage/image/1102/outlaws-of-thunder-junction/default.jpg',
+ otp:'https://cdn4.idcgames.com/storage/image/1102/outlaws-of-thunder-junction/default.jpg',
+ big:'https://cdn4.idcgames.com/storage/image/1102/outlaws-of-thunder-junction/default.jpg',
+ lci:'https://bizweb.dktcdn.net/100/499/503/articles/lci-sma-key-1000x1000-en.jpg?v=1706252382090',
+ lcc:'https://bizweb.dktcdn.net/100/499/503/articles/lci-sma-key-1000x1000-en.jpg?v=1706252382090',
+ dsk:'https://1uprm.com/cdn/shop/files/magic_the_gathering_duskmourn.jpg?v=1722955798&width=2000',
+ dsc:'https://1uprm.com/cdn/shop/files/magic_the_gathering_duskmourn.jpg?v=1722955798&width=2000',
+ fdn:'https://i0.wp.com/mtgazone.com/wp-content/uploads/2024/08/FDN_sma_key_1000x1000.png?fit=1000%2C1000&ssl=1',
+ j25:'https://i0.wp.com/mtgazone.com/wp-content/uploads/2024/08/FDN_sma_key_1000x1000.png?fit=1000%2C1000&ssl=1',
+ dft:'https://1stcapitalgaming.com/cdn/shop/collections/DFT_sma_key_1920x1080_en.jpg?v=1738188857',
+ drc:'https://1stcapitalgaming.com/cdn/shop/collections/DFT_sma_key_1920x1080_en.jpg?v=1738188857',
+ tdm:'https://cdn.shopify.com/s/files/1/0735/5219/9959/collections/TDM_sma_key_1000x1000_en.jpg?v=1740369459',
+ tdc:'https://cdn.shopify.com/s/files/1/0735/5219/9959/collections/TDM_sma_key_1000x1000_en.jpg?v=1740369459',
+ eoe:'https://geekerygames.com/cdn/shop/articles/preorder-mtg-edge-of-eternities_651eb987-bc05-485e-b3eb-cf882cd71316.jpg?v=1750564610',
+ eoc:'https://geekerygames.com/cdn/shop/articles/preorder-mtg-edge-of-eternities_651eb987-bc05-485e-b3eb-cf882cd71316.jpg?v=1750564610',
+ ecl:'https://cdn.shopify.com/s/files/1/0728/8645/2564/files/ECL_sma_key_1920x1080_en.jpg?v=1759171744',
+ ecc:'https://cdn.shopify.com/s/files/1/0728/8645/2564/files/ECL_sma_key_1920x1080_en.jpg?v=1759171744',
+ dmu:'https://mtgazone.com/wp-content/uploads/2022/08/Dominaria-United-Key-Art.jpg',
+ bro:'https://scg-static.starcitygames.com/articles/2022/08/aa28b5e0-bro_1080p_en.jpg',
+ brc:'https://scg-static.starcitygames.com/articles/2022/08/aa28b5e0-bro_1080p_en.jpg',
+ one:'https://images.squarespace-cdn.com/content/v1/5c2bd40f620b859e3111aca6/1675873237806-H73UO1Y2IJB0H07UXZGF/one_sma_fb_1000x1000_en.jpg',
+ onc:'https://images.squarespace-cdn.com/content/v1/5c2bd40f620b859e3111aca6/1675873237806-H73UO1Y2IJB0H07UXZGF/one_sma_fb_1000x1000_en.jpg',
+ neo:'https://magicmarketcanada.com/cdn/shop/collections/neo_sma_v1_fb_1000x1000_en.jpg?v=1742609965',
+ nec:'https://magicmarketcanada.com/cdn/shop/collections/neo_sma_v1_fb_1000x1000_en.jpg?v=1742609965',
+ snc:'https://i0.wp.com/mtgazone.com/wp-content/uploads/2022/03/snc_sma_fb_1600x841_en.jpg?fit=1600%2C841&ssl=1',
+ ncc:'https://i0.wp.com/mtgazone.com/wp-content/uploads/2022/03/snc_sma_fb_1600x841_en.jpg?fit=1600%2C841&ssl=1',
+ khm:'https://techraptor.net/sites/default/files/2021-02/KHM-Kaldheim-Key-Art%20%281%29.jpg',
+ khc:'https://techraptor.net/sites/default/files/2021-02/KHM-Kaldheim-Key-Art%20%281%29.jpg',
+ iko:'https://i0.wp.com/mtgazone.com/wp-content/uploads/2019/10/iko_1080p_rbg.jpg?fit=1920%2C1080&ssl=1',
+ c20:'https://i0.wp.com/mtgazone.com/wp-content/uploads/2019/10/iko_1080p_rbg.jpg?fit=1920%2C1080&ssl=1'
 });
 function setArtMarkup(code){
  if(!setArtworkEnabled)return '';
