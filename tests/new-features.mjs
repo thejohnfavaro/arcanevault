@@ -506,6 +506,7 @@ assert.match(localSyncSrc,/ScryfallCollectionMinimumGapMs = 700/,'Scryfall colle
 assert.match(localSyncSrc,/scryfallCooldownUntil/,'API throttling must activate shared cooldown');
 assert.match(localSyncSrc,/ctx\.Response\.Headers\["Retry-After"\]/,'Cooldown must be communicated to the UI');
 assert.match(localSyncSrc,/if \(response\.StatusCode == \(HttpStatusCode\)429\)/,'429 must be treated separately from retryable errors');
+assert.match(localSyncSrc,/response\.StatusCode is HttpStatusCode\.Forbidden or HttpStatusCode\.BadRequest/,'Scryfall 400 and 403 must stop client retries');
 
 
 assert.ok(html.includes('id="setHideZero"'),'Missing hide zero-progress sets option');
