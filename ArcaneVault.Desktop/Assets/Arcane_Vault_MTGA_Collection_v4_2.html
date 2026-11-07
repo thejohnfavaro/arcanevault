@@ -1219,7 +1219,7 @@ function physicalCommitPrinting(mode){
 
 
 const PHYSICAL_SORT_KEY='physicalSortV1';
-let physicalSort=['name','release-desc','release-asc'].includes(load(PHYSICAL_SORT_KEY,'name'))?load(PHYSICAL_SORT_KEY,'name'):'name';
+let physicalSort=['name','release-desc','release-asc','price-desc','price-asc','unit-desc','unit-asc'].includes(load(PHYSICAL_SORT_KEY,'name'))?load(PHYSICAL_SORT_KEY,'name'):'name';
 let physicalSetDates={},physicalSetDatesLoaded=false,physicalSetDatesLoading=false,physicalSetDatesError='';
 const physicalReleaseDate=c=>physicalSetDates[String(c.set||'').toLowerCase()]||'';
 function physicalSortCards(a,b,mode=physicalSort){
@@ -1616,7 +1616,7 @@ function physicalInit(){
    :'The selected printing has no compatible Scryfall image.';
  };
  $('physicalSort').value=physicalSort;
- $('physicalSort').onchange=()=>{physicalSort=$('physicalSort').value;save(PHYSICAL_SORT_KEY,physicalSort);physicalPage=0;physicalRender();if(physicalSort!=='name')physicalLoadSetDates()};
+ $('physicalSort').onchange=()=>{physicalSort=$('physicalSort').value;save(PHYSICAL_SORT_KEY,physicalSort);physicalPage=0;physicalRender();if(physicalSort.startsWith('release-'))physicalLoadSetDates()};
  physicalLoadSetDates();
  $('physicalValueRefresh').onclick=physicalRefreshValues;
  $('physicalMetadataRepair').onclick=physicalRepairMetadata;
