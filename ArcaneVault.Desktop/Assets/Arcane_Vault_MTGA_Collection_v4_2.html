@@ -3285,15 +3285,35 @@ function renderReleaseNotes(parent,markdown){
  parent.append(root);
 }
 function validRepo(raw){return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(raw)&&!raw.includes('..')}
+// Prefer native HTTPS for GitHub releases. Some embedded WebViews reject a
+// browser-side GitHub fetch with no HTTP response; keep direct fetch as fallback.
+async function fetchGithubReleases(repo){
+ let localError='';
+ try{
+  const local=await fetch('/api/app/releases?repo='+encodeURIComponent(repo),{cache:'no-store'});
+  const payload=await local.json();
+  if(!local.ok)throw Error(payload?.error||'Local update service returned HTTP '+local.status);
+  if(!Array.isArray(payload))throw Error('Invalid native release listing');
+  return payload;
+ }catch(e){localError=e?.message||'Native request unavailable'}
+ try{
+  const response=await fetch('https://api.github.com/repos/'+repo+'/releases?per_page=50',{headers:{Accept:'application/vnd.github+json'},cache:'no-store'});
+  if(!response.ok)throw Error('GitHub returned HTTP '+response.status);
+  const items=await response.json();
+  if(!Array.isArray(items))throw Error('Unexpected GitHub response');
+  return items;
+ }catch(e){
+  throw Error('GitHub release check unavailable (native: '+localError+'; web: '+(e?.message||'network unavailable')+'). Check internet access, or use the GitHub Releases page directly.');
+ }
+}
 async function checkUpdates(silent=false){
  const status=$av('avUpdateStatus'),result=$av('avUpdateResult'),button=$av('avCheckUpdates'),repo=$av('avUpdateRepo')?.value.trim()||'';
  if(!validRepo(repo)){if(!silent&&status)status.textContent='Enter a GitHub repository as owner/repo (not a URL).';return}
- savePref('repo',repo);savePref('lastChecked',new Date().toISOString());
+ savePref('repo',repo);
  if(button)button.disabled=true;if(status)status.textContent='Checking published '+PLATFORM+' releases…';if(result)result.hidden=true;
  try{
-  const response=await fetch('https://api.github.com/repos/'+repo+'/releases?per_page=50',{headers:{Accept:'application/vnd.github+json'}});
-  if(!response.ok)throw Error('GitHub returned HTTP '+response.status);
-  const items=await response.json();if(!Array.isArray(items))throw Error('Unexpected GitHub response');
+  const items=await fetchGithubReleases(repo);
+  savePref('lastChecked',new Date().toISOString());
   const installed=await readInstalledVersion();
   const found=items.map(releaseMatch).filter(Boolean).sort((a,b)=>semverCompare(b.version,a.version))[0];
   if(found){const latest=$av('avLatestVersion');if(latest)latest.textContent=found.version;}
@@ -3326,7 +3346,10 @@ async function checkUpdates(silent=false){
    if(updateAvailable&&repo==='thejohnfavaro/arcanevault')result.append(install);
    if(updateAvailable){const later=document.createElement('button');later.type='button';later.textContent='Remind me later';later.style.marginLeft='10px';later.onclick=()=>{result.hidden=true;status.textContent='Update '+found.version+' available. Check again when ready.'};result.append(later)}
   }
- }catch(e){if(status)status.textContent='Could not check for updates: '+(e?.message||'Network error')+'. Existing app data was not changed.'}
+  }catch(e){
+  if(status)status.textContent='Could not check for updates: '+(e?.message||'Network error')+'. Existing app data was not changed.';
+  if(result){result.hidden=false;result.replaceChildren();const a=document.createElement('a');a.href='https://github.com/'+repo+'/releases';a.target='_blank';a.rel='noopener noreferrer';a.textContent='Open published GitHub releases';result.append(a)}
+ }
  finally{if(button)button.disabled=false}
 }
 function init(){
