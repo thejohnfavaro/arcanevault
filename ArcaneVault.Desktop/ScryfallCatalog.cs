@@ -293,7 +293,8 @@ internal sealed class ScryfallCatalog
             SELECT print_id,setcode,setname,collector,rarity,image,image_back,art_id,games,
                    arena,digital,promo,full_art,border,release,url
             FROM variants WHERE name=$name AND ($scope!='arena' OR arena=1)
-            ORDER BY arena DESC, release DESC, setcode, collector LIMIT 400
+              AND ($scope!='paper' OR (digital=0 AND ','||games||',' LIKE '%,paper,%'))
+            ORDER BY CASE WHEN $scope='paper' THEN 0 ELSE 1-arena END, release DESC, setcode, collector LIMIT 400
             """;
         cmd.Parameters.AddWithValue("$name",name);cmd.Parameters.AddWithValue("$scope",scope);
         var rows=new List<object>();using var reader=cmd.ExecuteReader();
