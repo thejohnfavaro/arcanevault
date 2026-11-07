@@ -27,7 +27,7 @@ internal sealed class LanCollectionTransfer : IDisposable
         {
             StopLocked();
             cancellation = new CancellationTokenSource();
-            listener = new TcpListener(IPAddress.Any, 0);
+            listener = new TcpListener(viaUsb ? IPAddress.Loopback : IPAddress.Any, 0);
             listener.Start(2);
             payload = json.ToArray();
             token = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
