@@ -647,7 +647,11 @@ console.log('PASS: exact mixed Boros/mono-color identities and normalized rarity
 assert.match(html,/id="setShowArt"/,'Artwork opt-out control must remain available');
 assert.match(html,/function setSymbol\(code\)/,'Official set symbols must remain independent of art');
 assert.match(html,/const setPromotionalArtwork=Object\.freeze\(/,'Curated promotional art source must be explicit');
-assert.match(html,/blb:'https:\/\/images\.ctfassets\.net\//,'Bloomburrow should use an official asset URL');
+assert.match(html,/blb:'https:\/\/media\.wizards\.com\//,'Bloomburrow should use an official asset URL');
+assert.match(html,/ecl:'https:\/\//,'Lorwyn Eclipsed should have promotional art');
+assert.match(html,/neo:'https:\/\//,'Kamigawa: Neon Dynasty should have promotional art');
+assert.match(html,/iko:'https:\/\//,'Ikoria should have promotional art');
+assert.match(html,/woe:'https:\/\/media\.wizards\.com\//,'Wilds of Eldraine should use Wizards-hosted promotional artwork');
 assert.match(html,/function setArtMarkup\(code\)/,'Set artwork must use shared renderer');
 assert.match(html,/data-fallback/,'Promotional artwork must fall back on error');
 assert.match(html,/setArtMarkup\(r\.code\)/,'Set tiles must render background artwork');
