@@ -268,6 +268,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 </style>
 <style id="av-shared-set-visual-system">
+/* Optional set-card illustrations; the expansion icon remains the primary identifier. */
+#sets .set-tile{overflow:hidden;isolation:isolate}
+#sets .set-tile.av-art-enabled:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(90deg,rgba(13,18,30,.93),rgba(13,18,30,.73) 65%,rgba(13,18,30,.59)),linear-gradient(0deg,rgba(13,18,30,.85),transparent 85%)}
+#sets .av-set-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 40%;z-index:-2;opacity:.65;pointer-events:none}
+#sets .set-tile.av-set-complete{border-color:rgba(200,165,102,.8);box-shadow:inset 0 0 0 1px rgba(200,165,102,.17),0 8px 20px rgba(0,0,0,.18)}
+#sets .set-tile.av-set-complete .ux-set-percent{color:#e8c27b}
+#sets .set-tile.av-art-enabled .set-symbol{background:rgba(19,27,43,.92);border-color:rgba(224,194,131,.75);box-shadow:0 2px 12px rgba(0,0,0,.35)}
+@media(prefers-reduced-motion:reduce){#sets .set-tile{transition:none}#sets .set-tile:hover{transform:none}}
+
 
 /* Arcane Vault visual system: shared Set Progress treatment. Scoped to preserve other screens. */
 #sets{--av-vault-teal:#67e2d3;--av-vault-gold:#c8a566;--av-vault-edge:rgba(177,185,216,.24);--av-vault-paper:#f2ebdf}
@@ -352,7 +361,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <section id="sets" class="hidden">
  <div class="top"><div><h1 class="h1">Set Progress</h1><p class="subtitle">Discover what you've collected and what you're missing, set by set.</p></div><button id="setRefresh" class="primary">↻ Refresh</button></div>
  <div class="notice">Completion counts <b>confirmed owned printings</b> appearing in a set, using the selected collection. Owning a printing from another set does not count. Arena name-only imports cannot confirm set-specific ownership. Tokens and supplemental sets can appear. Download the full Scryfall catalog first.</div>
- <div class="set-toolbar"><div class="set-source-wrap"><span id="setSourceLabel">Collection</span><div class="set-source-toggle" role="group" aria-labelledby="setSourceLabel"><button type="button" data-set-source="arena" class="active" aria-pressed="true">Arena</button><button type="button" data-set-source="physical" aria-pressed="false">Physical</button></div></div><label>Find set<input class="field" id="setSearch" placeholder="e.g. Foundations or FDN"></label><label>Catalog scope<select class="field" id="setArena"><option value="arena">Arena-listed printings</option><option value="any">All Magic printings</option></select></label><label>Sort by<select class="field" id="setSort"><option value="name">Set name</option><option value="date-desc">Release date (newest first)</option><option value="date-asc">Release date (oldest first)</option><option value="progress">Highest completion</option><option value="missing">Most missing</option><option value="total">Largest sets</option></select></label><label class="v3check" style="display:flex;align-items:center;gap:8px"><input id="setHideZero" type="checkbox"> Hide sets with no progress</label></div>
+ <div class="set-toolbar"><div class="set-source-wrap"><span id="setSourceLabel">Collection</span><div class="set-source-toggle" role="group" aria-labelledby="setSourceLabel"><button type="button" data-set-source="arena" class="active" aria-pressed="true">Arena</button><button type="button" data-set-source="physical" aria-pressed="false">Physical</button></div></div><label>Find set<input class="field" id="setSearch" placeholder="e.g. Foundations or FDN"></label><label>Catalog scope<select class="field" id="setArena"><option value="arena">Arena-listed printings</option><option value="any">All Magic printings</option></select></label><label>Sort by<select class="field" id="setSort"><option value="name">Set name</option><option value="date-desc">Release date (newest first)</option><option value="date-asc">Release date (oldest first)</option><option value="progress">Highest completion</option><option value="missing">Most missing</option><option value="total">Largest sets</option></select></label><label class="v3check" style="display:flex;align-items:center;gap:8px"><input id="setHideZero" type="checkbox"> Hide sets with no progress</label><label class="v3check" style="display:flex;align-items:center;gap:8px"><input id="setShowArt" type="checkbox"> Show set artwork</label></div>
  <div id="setStatus" class="set-note">Open this tab to load set progress.</div><div id="setSummary" class="set-summary"></div><div id="setGrid" class="set-grid"></div>
  <div id="setDrill" class="hidden"><hr style="margin:26px 0;border:0;border-top:1px solid var(--line)"><div class="top"><div><div class="set-drill-heading"><h2 id="setDrillTitle">Set</h2></div><p id="setDrillDesc" class="note"></p></div><button id="setClose">← All sets</button></div>
  <div class="set-toolbar"><label>Sort cards<select class="field" id="setCardSort"><option value="collector">Collector number (ascending)</option><option value="name">Card name (A–Z)</option></select></label><label>Show cards<select class="field" id="setCardScope"><option value="all">All</option><option value="missing">Missing</option><option value="owned">Owned</option></select></label><label>Per page<select class="field" id="setPageSize"><option>20</option><option selected>40</option><option>80</option></select></label><button id="setExport" class="small">Export visible cards (CSV)</button></div>
@@ -2631,6 +2640,27 @@ function setSymbol(code){
  if(!safe)return `<span class="set-symbol"><span class="set-fallback">${label}</span></span>`;
  return `<span class="set-symbol" title="${label} set symbol"><img loading="lazy" alt="" src="https://svgs.scryfall.io/sets/${safe}.svg" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="set-fallback" hidden>${label}</span></span>`;
 }
+// Art is an optional, lazy-loaded representative card crop (collector #1), not a set icon.
+// Failed/unavailable images fall back to the existing gradient without affecting tiles.
+let setArtworkEnabled=load('setShowArtworkV1',true)!==false;
+$('setShowArt').checked=setArtworkEnabled;
+$('setShowArt').onchange=()=>{setArtworkEnabled=$('setShowArt').checked;save('setShowArtworkV1',setArtworkEnabled);drawSets()};
+// Curated direct image URLs from Wizards of the Coast promotional pages.
+// Add only verified art assets here; WPN posters/PDFs are not directly usable as image URLs.
+// URLs are loaded on demand, not redistributed with the application.
+const setPromotionalArtwork=Object.freeze({
+ blb:'https://images.ctfassets.net/s5n2t79q9icq/4If0bVcGTVw1FmdmcPLX0l/b270559331bd98f10afe9afff3e9c1dc/B73H34Ddder_1920x1080.jpg?q=80',
+ blc:'https://images.ctfassets.net/s5n2t79q9icq/4If0bVcGTVw1FmdmcPLX0l/b270559331bd98f10afe9afff3e9c1dc/B73H34Ddder_1920x1080.jpg?q=80'
+});
+function setArtMarkup(code){
+ if(!setArtworkEnabled)return '';
+ const safe=String(code||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ if(!safe)return '';
+ const fallback='https://api.scryfall.com/cards/'+safe+'/1?format=image&amp;version=art_crop';
+ const promo=setPromotionalArtwork[safe];
+ if(!promo)return '<img class="av-set-art" loading="lazy" decoding="async" alt="" aria-hidden="true" src="'+fallback+'" onerror="this.remove()">';
+ return '<img class="av-set-art" loading="lazy" decoding="async" alt="" aria-hidden="true" src="'+escapeHtml(promo)+'" data-fallback="'+fallback+'" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.dataset.fallback=\'\'}else{this.remove()}">';
+}
 function drawSets(){
  const sort=$('setSort').value;const rows=$('setHideZero').checked?setRows.filter(r=>Number(r.owned)>0):[...setRows];
  if(sort==='date-desc'||sort==='date-asc')rows.sort((a,b)=>{
@@ -2655,7 +2685,7 @@ function drawSets(){
   const safePct=Math.max(0,Math.min(100,Number(r.percentage)||0));
   const name=escapeHtml(r.name||r.code||'Unknown set'),code=escapeHtml(String(r.code||'').toUpperCase());
   const date=r.releaseDate?'<span class="av-set-date">Released '+escapeHtml(r.releaseDate)+'</span>':'';
-  return '<button type="button" class="set-tile" data-set="'+escapeHtml(r.code)+'" aria-label="'+name+', '+safePct.toFixed(1)+'% complete"><div class="set-heading">'+setSymbol(r.code)+'<div><b>'+name+'</b><div class="av-set-meta"><span class="av-set-code">'+code+'</span>'+date+'</div></div><span class="ux-set-percent">'+safePct.toFixed(1)+'%</span></div><div class="set-track" role="progressbar" aria-label="Set completion" aria-valuenow="'+safePct+'" aria-valuemin="0" aria-valuemax="100"><div class="set-fill" style="width:'+safePct+'%"></div></div><div class="av-set-count"><span>'+Number(r.owned||0).toLocaleString()+' / '+Number(r.total||0).toLocaleString()+' confirmed</span><span>'+Number(r.missing||0).toLocaleString()+' missing</span></div></button>';
+  return '<button type="button" class="set-tile'+(setArtworkEnabled?' av-art-enabled':'')+(Number(r.total)>0&&Number(r.missing)===0?' av-set-complete':'')+'" data-set="'+escapeHtml(r.code)+'" aria-label="'+name+', '+safePct.toFixed(1)+'% complete">'+setArtMarkup(r.code)+'<div class="set-heading">'+setSymbol(r.code)+'<div><b>'+name+'</b><div class="av-set-meta"><span class="av-set-code">'+code+'</span>'+date+'</div></div><span class="ux-set-percent">'+safePct.toFixed(1)+'%</span></div><div class="set-track" role="progressbar" aria-label="Set completion" aria-valuenow="'+safePct+'" aria-valuemin="0" aria-valuemax="100"><div class="set-fill" style="width:'+safePct+'%"></div></div><div class="av-set-count"><span>'+Number(r.owned||0).toLocaleString()+' / '+Number(r.total||0).toLocaleString()+' confirmed</span><span>'+Number(r.missing||0).toLocaleString()+' missing</span></div></button>';
  }).join('');
  $('setGrid').innerHTML=tiles||noMatches;
 
