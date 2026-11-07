@@ -641,3 +641,16 @@ console.log('PASS: exact mixed Boros/mono-color identities and normalized rarity
  assert.match(html,/min-width:116px;height:26px;min-height:26px;max-height:26px/);
  assert.match(html,/#cards \.cardbody \.meta\{flex-wrap:wrap/);
  assert.match(html,/#cards \.cardbody \.meta>\.av-rarity\{margin-left:auto\}/);
+
+
+// Set Progress illustrated tiles: official symbols survive and art has explicit fallback.
+assert.match(html,/id="setShowArt"/,'Artwork opt-out control must remain available');
+assert.match(html,/function setSymbol\(code\)/,'Official set symbols must remain independent of art');
+assert.match(html,/const setPromotionalArtwork=Object\.freeze\(/,'Curated promotional art source must be explicit');
+assert.match(html,/blb:'https:\/\/images\.ctfassets\.net\//,'Bloomburrow should use an official asset URL');
+assert.match(html,/function setArtMarkup\(code\)/,'Set artwork must use shared renderer');
+assert.match(html,/data-fallback/,'Promotional artwork must fall back on error');
+assert.match(html,/setArtMarkup\(r\.code\)/,'Set tiles must render background artwork');
+assert.match(html,/setSymbol\(r\.code\)/,'Set tiles must still render official expansion symbols');
+assert.match(html,/av-set-complete/,'Completed sets should have special styling');
+console.log('PASS: Set Progress promo-art mapping, icons, fallback, preferences and completion styling');
