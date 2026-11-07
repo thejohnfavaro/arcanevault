@@ -539,3 +539,25 @@ assert.match(html,/function setPhysicalInventory\(\)/);
 assert.match(html,/scryfallId:c\.scryfallId/);
 assert.doesNotMatch(html,/Aggregate printings into name quantities, without modifying Arena ownership/);
 console.log('PASS: printing-specific Set Progress contract');
+
+
+// Multi-face card detail lookups must match the exact composite name and
+// retry by first face only after a full-name miss.
+assert.match(html,/function avCardNameParts\(/);
+assert.match(html,/function avCardMatchesName\(/);
+assert.match(html,/function avResolveCardResult\(/);
+assert.match(html,/const retry=await avSyncBatchRequest\(\[first\]\)/);
+assert.match(html,/const raw=avResolveCardResult\(c\.name,data\.data\)/);
+const nameStart=html.indexOf('function avCardNameParts(');
+const nameEnd=html.indexOf('async function avSyncBatchRequest(',nameStart);
+assert.ok(nameStart>0&&nameEnd>nameStart);
+const nameCtx={};
+vm.createContext(nameCtx);
+vm.runInContext(html.slice(nameStart,nameEnd)+';globalThis.avTest={avCardMatchesName,avResolveCardResult};',nameCtx);
+const split={name:'Fire // Ice',card_faces:[{name:'Fire'},{name:'Ice'}]};
+const adventure={name:'Brazen Borrower',card_faces:[{name:'Brazen Borrower'},{name:'Petty Theft'}]};
+assert.equal(nameCtx.avTest.avCardMatchesName('Fire // Ice',split),true);
+assert.equal(nameCtx.avTest.avCardMatchesName('Fire // Water',split),false);
+assert.equal(nameCtx.avTest.avCardMatchesName('Brazen Borrower // Petty Theft',adventure),true);
+assert.equal(nameCtx.avTest.avCardMatchesName('Fire // Ice',{name:'Fire'}),false);
+console.log('PASS: verified multi-face name resolution');
