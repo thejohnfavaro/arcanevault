@@ -18,10 +18,11 @@ internal sealed class LanCollectionTransfer : IDisposable
     private CancellationTokenSource? cancellation;
     private const int MaxBytes = 8 * 1024 * 1024;
 
-    public object Start(byte[] json)
+    internal sealed record TransferOffer(string url, int port, int expiresSeconds, int sizeBytes, string network);
+    public TransferOffer Start(byte[] json, bool viaUsb = false)
     {
         if (json.Length is < 20 or > MaxBytes) throw new ArgumentException("Sync file exceeds 8 MB or is empty.");
-        var address = FindLanAddress() ?? throw new InvalidOperationException("No Wi-Fi/Ethernet IPv4 address found. Connect both devices to the same network.");
+        var address = viaUsb ? IPAddress.Loopback : FindLanAddress() ?? throw new InvalidOperationException("No Wi-Fi/Ethernet IPv4 address found. Connect both devices to the same network.");
         lock (guard)
         {
             StopLocked();
@@ -35,7 +36,7 @@ internal sealed class LanCollectionTransfer : IDisposable
             var url = $"http://{address}:{port}/arcane-vault-sync/{token}";
             _ = ListenAsync(listener, cancellation.Token);
             _ = ExpireAsync(listener, cancellation.Token);
-            return new { url, expiresSeconds = 300, sizeBytes = payload.Length, network = address.ToString() };
+            return new TransferOffer(url, port, 300, payload.Length, viaUsb ? "USB (ADB)" : address.ToString());
         }
     }
 
@@ -146,5 +147,6 @@ internal sealed class LanCollectionTransfer : IDisposable
         payload = null; token = null;
     }
 
-    public void Dispose() { lock (guard) StopLocked(); }
+    public void Cancel() { lock (guard) StopLocked(); }
+    public void Dispose() { Cancel(); }
 }
