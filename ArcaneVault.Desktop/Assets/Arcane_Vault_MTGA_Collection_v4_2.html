@@ -222,7 +222,7 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
 
 <section id="sets" class="hidden">
  <div class="top"><div><h1 class="h1">Set Progress</h1><p class="subtitle">Discover what you've collected and what you're missing, set by set.</p></div><button id="setRefresh" class="primary">↻ Refresh</button></div>
- <div class="notice">Completion counts <b>unique card names</b> appearing in a set, using the selected collection. Owning a card from another set counts toward name completion; this is <b>not printing, cosmetic, or Arena set-vault completion</b>. Tokens and supplemental sets can appear. Download the full Scryfall catalog first.</div>
+ <div class="notice">Completion counts <b>confirmed owned printings</b> appearing in a set, using the selected collection. Owning a printing from another set does not count. Arena name-only imports cannot confirm set-specific ownership. Tokens and supplemental sets can appear. Download the full Scryfall catalog first.</div>
  <div class="set-toolbar"><div class="set-source-wrap"><span id="setSourceLabel">Collection</span><div class="set-source-toggle" role="group" aria-labelledby="setSourceLabel"><button type="button" data-set-source="arena" class="active" aria-pressed="true">Arena</button><button type="button" data-set-source="physical" aria-pressed="false">Physical</button></div></div><label>Find set<input class="field" id="setSearch" placeholder="e.g. Foundations or FDN"></label><label>Catalog scope<select class="field" id="setArena"><option value="arena">Arena-listed printings</option><option value="any">All Magic printings</option></select></label><label>Sort by<select class="field" id="setSort"><option value="name">Set name</option><option value="date-desc">Release date (newest first)</option><option value="date-asc">Release date (oldest first)</option><option value="progress">Highest completion</option><option value="missing">Most missing</option><option value="total">Largest sets</option></select></label><label class="v3check" style="display:flex;align-items:center;gap:8px"><input id="setHideZero" type="checkbox"> Hide sets with no progress</label></div>
  <div id="setStatus" class="set-note">Open this tab to load set progress.</div><div id="setSummary" class="set-summary"></div><div id="setGrid" class="set-grid"></div>
  <div id="setDrill" class="hidden"><hr style="margin:26px 0;border:0;border-top:1px solid var(--line)"><div class="top"><div><div class="set-drill-heading"><h2 id="setDrillTitle">Set</h2></div><p id="setDrillDesc" class="note"></p></div><button id="setClose">← All sets</button></div>
@@ -2260,16 +2260,10 @@ let setRows=[],setCurrent=null,setPage=0,setCardsPage=[],setRequest=0;
 let setCollectionSource=load('setCollectionSourceV1','arena')==='physical'?'physical':'arena';
 let setCardRequest=0;
 function setPhysicalInventory(){
- // Aggregate printings into name quantities, without modifying Arena ownership.
- const names=new Map();
- for(const card of physicalCards){
-  const name=String(card.name||'').trim(),qty=Number(card.qty)||0;
-  if(!name||!Number.isInteger(qty)||qty<=0)continue;
-  const key=name.toLocaleLowerCase();
-  const entry=names.get(key);
-  if(entry)entry.qty+=qty;else names.set(key,{name,qty});
- }
- return [...names.values()];
+ // Preserve each owned printing's identity. Aggregation by name falsely credited
+ // every reprint (including future sets), so pass exact physical records instead.
+ return physicalCards.filter(c=>Number.isInteger(Number(c.qty))&&Number(c.qty)>0)
+  .map(c=>({name:c.name,qty:Number(c.qty),set:c.set||'',number:c.number||'',scryfallId:c.scryfallId||''}));
 }
 function setSourceUI(){
  document.querySelectorAll('[data-set-source]').forEach(b=>{
@@ -2318,10 +2312,10 @@ function drawSets(){
 async function loadSets(){const req=++setRequest;
  $('setStatus').textContent='Loading set completion from the local catalog…';
  try{const u='/api/catalog/sets?arena='+encodeURIComponent($('setArena').value)+'&q='+encodeURIComponent($('setSearch').value.trim());const source=setCollectionSource;const r=await setProgressRequest(u);const j=await r.json();if(!r.ok)throw Error(j.error||'Set lookup failed');if(req!==setRequest||source!==setCollectionSource)return;
- setRows=j.sets||[];$('setStatus').textContent='Showing '+(setCollectionSource==='physical'?'Physical':'Arena')+' ownership by card name, not set-specific printings. '+setRows.length+' sets found.';drawSets();if(setCurrent){const match=setRows.find(s=>s.code===setCurrent);if(match)await openSet(match);else closeSet()}
+ setRows=j.sets||[];$('setStatus').textContent='Showing '+(setCollectionSource==='physical'?'Physical':'Arena')+' confirmed printings. Name-only ownership is excluded. '+setRows.length+' sets found.';drawSets();if(setCurrent){const match=setRows.find(s=>s.code===setCurrent);if(match)await openSet(match);else closeSet()}
  }catch(e){if(req===setRequest)$('setStatus').textContent='Set data unavailable: '+e.message+' — launch the Visual Studio app and download the full catalog.'}
 }
-async function openSet(r){setCurrent=r.code;setPage=0;$('setDrill').classList.remove('hidden');$('setGrid').classList.add('hidden');$('setSummary').classList.add('hidden');$('setDrillTitle').textContent=r.name+' ('+r.code.toUpperCase()+')';const existingIcon=$('setDrillTitle').parentElement.querySelector('.set-symbol');if(existingIcon)existingIcon.remove();$('setDrillTitle').insertAdjacentHTML('beforebegin',setSymbol(r.code));$('setDrillDesc').textContent=`${r.owned} of ${r.total} card names owned · ${r.percentage}% by name`;await loadSetCards()}
+async function openSet(r){setCurrent=r.code;setPage=0;$('setDrill').classList.remove('hidden');$('setGrid').classList.add('hidden');$('setSummary').classList.add('hidden');$('setDrillTitle').textContent=r.name+' ('+r.code.toUpperCase()+')';const existingIcon=$('setDrillTitle').parentElement.querySelector('.set-symbol');if(existingIcon)existingIcon.remove();$('setDrillTitle').insertAdjacentHTML('beforebegin',setSymbol(r.code));$('setDrillDesc').textContent=`${r.owned} of ${r.total} confirmed card names · ${r.percentage}% by printing`;await loadSetCards()}
 function closeSet(){setCardRequest++;setCurrent=null;$('setDrill').classList.add('hidden');$('setGrid').classList.remove('hidden');$('setSummary').classList.remove('hidden')}
 async function loadSetCards(){if(!setCurrent)return;
  $('setCards').innerHTML='<p class="note">Loading cards…</p>';
