@@ -301,10 +301,10 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
  <div class="actions"><button id="physicalMetadataRepair" class="small" type="button">Repair missing physical card details &amp; tags</button></div><p id="physicalMetadataStatus" class="note" role="status" aria-live="polite"></p>
  </div>
  <div class="panel" id="portableSyncPanel"><h2>Sync collections with Android or another Windows device</h2>
- <p class="note">Transfer a single Arcane Vault collection snapshot (JSON) between installations. It includes Arena ownership, physical printings and preferred artwork, without needing to reimport the original CSV. Files are transferred manually; no cloud account or automatic background synchronization.</p>
- <div class="studio-line"><button id="portableSyncQr" type="button" class="primary">Show QR for Android</button><button id="portableSyncExport" type="button">Export collection sync file</button><label>Import collection sync file<input id="portableSyncFile" class="field" type="file" accept=".json,application/json"></label><label>Replace on this device<select id="portableSyncScope" class="field"><option value="physical">Physical collection &amp; artwork</option><option value="arena">Arena collection only</option><option value="both">Both collections &amp; artwork</option></select></label></div>
- <p class="note">Import replaces the selected collection, never adds quantities. A local rollback snapshot is saved before import. Arena match log monitoring can update Arena ownership later.</p>
- <div class="actions"><button id="portableSyncUndo" type="button">Undo last collection sync import</button></div><div id="portableSyncQrPanel" class="hidden" style="margin:14px 0"><p class="note">Scan from the Arcane Vault Android app on the same Wi-Fi network. The link expires in 5 minutes and only works once. Data travels over your local network without cloud storage; use a trusted private network.</p><div id="portableSyncQrImage" style="background:white;padding:12px;width:max-content;max-width:100%;border-radius:8px"></div><p id="portableSyncQrLink" class="note" style="overflow-wrap:anywhere"></p></div><p id="portableSyncStatus" role="status" aria-live="polite" class="note"></p></div>
+ <p class="note">Transfer a single Arcane Vault collection snapshot (JSON) between installations. It includes Arena ownership, physical printings and preferred artwork, without needing to reimport the original CSV. Use Wi-Fi QR, USB debugging QR, or transfer a JSON sync file via a normal USB file connection. No cloud account or automatic background synchronization.</p>
+ <div class="studio-line"><button id="portableSyncQr" type="button" class="primary">Show QR for Android</button><button id="portableSyncUsb" type="button">Show USB transfer QR</button><button id="portableSyncExport" type="button">Export collection sync file</button><label>Import collection sync file<input id="portableSyncFile" class="field" type="file" accept=".json,application/json"></label><label>Replace on this device<select id="portableSyncScope" class="field"><option value="physical">Physical collection &amp; artwork</option><option value="arena">Arena collection only</option><option value="both">Both collections &amp; artwork</option></select></label></div>
+ <p class="note">USB QR requires USB debugging enabled, a trusted computer approval on your Galaxy, and Android SDK Platform-Tools (ADB) installed on Windows. The ordinary USB cable/file-transfer fallback is Export collection sync file → copy JSON to Galaxy → Import sync file in Android. Import replaces the selected collection, never adds quantities. A local rollback snapshot is saved before import. Arena match log monitoring can update Arena ownership later.</p>
+ <div class="actions"><button id="portableSyncUndo" type="button">Undo last collection sync import</button></div><div id="portableSyncQrPanel" class="hidden" style="margin:14px 0"><p class="note">Scan with Arcane Vault Android → Physical Collection → Scan Windows QR. Wi-Fi mode requires the same LAN; USB mode requires a USB debugging connection. Links expire in 5 minutes or after one download. No cloud storage.</p><div id="portableSyncQrImage" style="background:white;padding:12px;width:max-content;max-width:100%;border-radius:8px"></div><p id="portableSyncQrLink" class="note" style="overflow-wrap:anywhere"></p></div><p id="portableSyncStatus" role="status" aria-live="polite" class="note"></p></div>
 <div class="notice">Physical copies are tracked separately from Arena ownership, wildcards, and automatic Arena log updates. This is a local inventory, not an Arena collection sync. Imported card versions are preserved by set code and collector number when available.</div>
  <div class="panel"><div class="studio-heading"><h2>Your paper cards</h2><span id="physicalSummary" class="note">No physical cards recorded yet.</span></div>
  <div class="studio-line"><label>Import a paper collection CSV <input id="physicalCsv" class="field" type="file" accept=".csv,text/csv"></label><label>Import behavior <select class="field" id="physicalImportMode"><option value="replace">Replace physical inventory</option><option value="merge">Add quantities to physical inventory</option></select></label></div>
@@ -1183,12 +1183,12 @@ async function portableSyncImport(file){
    $('portableSyncStatus').textContent='Imported '+scope+' inventory successfully. Artwork and collection totals have refreshed.';
  }catch(e){$('portableSyncStatus').textContent='Sync import failed: '+(e.message||String(e))}
 }
-async function portableSyncShowQr(){
- const button=$('portableSyncQr'),status=$('portableSyncStatus'),panel=$('portableSyncQrPanel');
- button.disabled=true;status.textContent='Preparing a one-time local transfer link…';
+async function portableSyncShowQr(viaUsb=false){
+ const button=$(viaUsb?'portableSyncUsb':'portableSyncQr'),status=$('portableSyncStatus'),panel=$('portableSyncQrPanel');
+ button.disabled=true;status.textContent=viaUsb?'Connecting to Android over USB debugging…':'Preparing a one-time local transfer link…';
  try{
   const payload=JSON.stringify(portableSyncSnapshot());
-  const response=await fetch('/api/sync/qr/start',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
+  const response=await fetch(viaUsb?'/api/sync/usb/start':'/api/sync/qr/start',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
   const result=await response.json();
   if(!response.ok)throw Error(result.error||'Could not initiate sharing');
   if(typeof QRCode==='undefined')throw Error('Offline QR renderer unavailable');
@@ -1196,13 +1196,14 @@ async function portableSyncShowQr(){
   new QRCode(host,{text:result.url,width:220,height:220,colorDark:'#111111',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
   $('portableSyncQrLink').textContent=result.url;
   panel.classList.remove('hidden');
-  status.textContent='Ready: scan from Arcane Vault Android → Physical Collection → Scan Windows QR. Expires after 5 minutes or one download.';
+  status.textContent=viaUsb?'USB tunnel ready. Scan the USB QR in Arcane Vault Android → Physical Collection → Scan Windows QR. Keep the cable connected. Expires after 5 minutes or one download.':'Wi-Fi transfer ready. Scan from Arcane Vault Android → Physical Collection → Scan Windows QR. Expires after 5 minutes or one download.';
  }catch(err){panel.classList.add('hidden');status.textContent='Cannot start QR transfer: '+(err.message||String(err))+'. You can still export a sync JSON file.'}
  finally{button.disabled=false}
 }
 function portableSyncInit(){
  $('portableSyncExport').onclick=portableSyncExport;
- $('portableSyncQr').onclick=portableSyncShowQr;
+ $('portableSyncQr').onclick=()=>portableSyncShowQr(false);
+ $('portableSyncUsb').onclick=()=>portableSyncShowQr(true);
  $('portableSyncFile').onchange=async e=>{if(e.target.files?.[0])await portableSyncImport(e.target.files[0]);e.target.value=''};
  $('portableSyncUndo').onclick=()=>{
   const data=load(PORTABLE_SYNC_ROLLBACK,null);
