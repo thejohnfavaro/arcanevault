@@ -383,3 +383,32 @@ assert.match(catalogSource,/physicalCards\.HasValue \? "physical_ownership" : "o
 assert.match(catalogSource,/DROP TABLE IF EXISTS temp\.physical_ownership; CREATE TEMP TABLE physical_ownership/,
  'Repeated physical set requests must reset stale pooled-connection temporary ownership before inserting fresh copies');
 console.log('PASS: Arena/Physical Set Progress toggle, physical quantity grouping, isolated catalog query and card paging');
+
+
+// v5.18: paper-only valuation from exact printing identifiers, never an arbitrary name match.
+for(const marker of ['id="physicalValuePanel"','id="physicalValueRefresh"','id="physicalValueTotal"','id="physicalValuePriced"','id="physicalValueUnpriced"','id="physicalMetadataRepair"','function physicalRefreshValues()','function physicalPriceIdentifier(c)','function physicalCardQuote(raw,finish)','function physicalRepairMetadata()','physicalValueRender();'])
+  assert.ok(html.includes(marker),'Missing physical valuation feature: '+marker);
+const pricingStart=html.indexOf('const priceNumber=');
+const pricingEnd=html.indexOf('function physicalValueRender()',pricingStart);
+assert.ok(pricingStart>0&&pricingEnd>pricingStart);
+const pricingContext={physicalValues:null,physicalKey:()=>''};
+vm.createContext(pricingContext);
+vm.runInContext(html.slice(pricingStart,pricingEnd)+
+ ';globalThis.priceId=physicalPriceIdentifier;globalThis.quote=physicalCardQuote;globalThis.usd=priceNumber;',pricingContext);
+const priceCard={name:'Sol Ring',set:'CMM',number:'123',finish:'foil'};
+assert.equal(pricingContext.priceId(priceCard).set,'cmm');
+assert.equal(pricingContext.priceId(priceCard).collector_number,'123');
+assert.equal(pricingContext.priceId({name:'Sol Ring',set:'',number:''}),null);
+assert.equal(pricingContext.priceId({name:'Arena Exclusive',set:'',number:''}),null);
+const print={digital:false,games:['paper'],prices:{usd:'1.00',usd_foil:'3.50',usd_etched:null}};
+assert.equal(pricingContext.quote(print,'nonfoil'),1);
+assert.equal(pricingContext.quote(print,'foil'),3.5);
+assert.equal(pricingContext.quote(print,'etched'),null);
+assert.equal(pricingContext.quote({...print,digital:true},'foil'),null);
+assert.equal(pricingContext.quote({...print,games:['arena']},'nonfoil'),null);
+assert.equal(pricingContext.usd(null),null);
+assert.match(html,/const c=index\.get\(key\)\|\|catalogIndex\.get\(key\)\|\|ownedCollectionCards\(true\)/);
+const proxy=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/LocalAppServer.cs'),'utf8');
+for(const token of ['Guid.TryParse(id','Get("collector_number")','Get("set")','Get("name")'])
+ assert.ok(proxy.includes(token),'Missing validated exact printing identifier: '+token);
+console.log('PASS: physical paper-only print valuation, source labels, unavailable finish prices, and physical-only metadata repair');
