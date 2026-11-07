@@ -307,6 +307,21 @@ body[data-theme^="mtg-"] .sidebar{background:var(--sidebar)}body[data-theme^="mt
  <div class="panel"><div class="studio-heading"><h2>Paper inventory</h2><div class="studio-line"><label>Sort inventory<select id="physicalSort" class="field"><option value="name">Card name (A–Z)</option><option value="release-desc">Set release date (newest first)</option><option value="release-asc">Set release date (oldest first)</option></select></label><label>Find cards<input class="field" id="physicalSearch" placeholder="Search cards, sets or collector numbers" aria-label="Search physical inventory"></label></div></div>
  <div class="v3table-wrap"><table class="v3table"><thead><tr><th>Card</th><th>Set</th><th>Released</th><th>No.</th><th>Finish</th><th>Owned</th><th>Est. value</th><th>Action</th></tr></thead><tbody id="physicalRows"></tbody></table></div>
  <div class="actions"><button id="physicalPrev" type="button">Previous</button><span id="physicalPage" class="note">Page 1</span><button id="physicalNext" type="button">Next</button></div></div>
+
+ <div class="panel hidden" id="physicalPrintingEditor">
+  <div class="studio-heading"><div><h2 id="physicalPrintingTitle">Choose a physical printing</h2><p id="physicalPrintingHelp" class="note">Choose a printing and its finish; each version is recorded separately.</p></div><button id="physicalPrintingClose" type="button" class="small">Close</button></div>
+  <div class="studio-line">
+   <label>Printing<select id="physicalPrintingSelect" class="field"><option value="">Loading printings…</option></select></label>
+   <label>Finish<select id="physicalPrintingFinish" class="field"><option value="nonfoil">Nonfoil</option><option value="foil">Foil</option><option value="etched">Etched foil</option></select></label>
+   <label>Quantity<input id="physicalPrintingQty" class="field" type="number" min="1" max="99999" value="1"></label>
+  </div>
+  <div id="physicalPrintingPreview" class="note"></div>
+  <div class="actions">
+   <button id="physicalPrintingAssign" type="button" class="primary">Assign existing copies to this printing</button>
+   <button id="physicalPrintingAdd" type="button">Add copies of this printing</button>
+  </div>
+  <p id="physicalPrintingStatus" class="note" role="status" aria-live="polite"></p>
+ </div>
 </section>
 <section id="settings" class="hidden"><h1 class="h1">Options, Collection & Metadata</h1><div class="panel av-update-panel"><h2>Application updates</h2><p class="note">Installed version: <strong id="avInstalledVersion">Loading…</strong> · Latest available: <strong id="avLatestVersion">Not checked</strong></p><p class="note">Optionally check GitHub Releases for newer versions. Nothing is downloaded or installed without your action. Update checks use compiled Windows GitHub Releases. Download and install requires a Windows release with a matching SHA-256 checksum and restarts Arcane Vault after verification.</p><div class="av-update-controls"><label>GitHub repository (owner/repo)<input id="avUpdateRepo" class="field" placeholder="e.g. RNGesus/ArcaneVault" autocomplete="off" spellcheck="false"></label><label class="v3check"><input type="checkbox" id="avAutoUpdateCheck"> Check once per week on launch</label><button type="button" id="avCheckUpdates">Check for updates</button></div><p id="avUpdateStatus" class="note" role="status" aria-live="polite">Set a release repository to enable update checks.</p><div id="avUpdateResult" class="av-update-result" hidden></div></div><div class="panel"><h2>Getting started</h2><p class="note">Explore the main features of Arcane Vault again at any time. The guide appears automatically only once per installation/browser profile.</p><button id="avReplayGuide" type="button">✦ View getting-started guide</button></div>
 <div class="panel"><h2>Appearance</h2><p class="note">Choose a classic theme or one of all 32 Magic color identities. Your selection is saved locally.</p>
@@ -552,7 +567,7 @@ async function loadCardVariants(name){
  }catch(e){if(serial===variantSerial&&root)root.innerHTML='<p class="note">'+escapeHtml(e.message)+'. Run the desktop app and sync the catalog to browse variants.</p>'}
 }
 
-function openCard(name){const key=name.toLowerCase();const c=index.get(key)||catalogIndex.get(key)||ownedCollectionCards(true).find(item=>item.name.toLowerCase()===key);if(!c)return;const m=c.meta||{};let tags=deriveRoles(c).map(r=>`<span class="tag">${escapeHtml(r)}</span>`).join('');$('detailInner').innerHTML=`<div><img alt="${escapeHtml(c.name)}" src="${escapeHtml(imgUrl(c))}" onerror="this.style.display='none'"><p class="smalltxt muted">Artwork from Scryfall (online)</p></div><div><h2>${escapeHtml(c.name)}</h2><p><span class="badge">${escapeHtml(m.rarity||'Unknown rarity')}</span> &nbsp; <span class="badge">Arena owned ×${ownershipBySource(c.name).arena}</span> &nbsp; <span class="badge">Physical owned ×${ownershipBySource(c.name).physical}</span></p><p class="muted">${escapeHtml(m.type||c.typeHint||'Card details not yet synced')}</p><p>${escapeHtml(m.oracle||'Use “Load official card details” to retrieve card rules text, typing, and color identity.') .replace(/\n/g,'<br>')}</p><div class="tags">${tags}</div>${renderLegalities(m)}${cardVariantPanel(c)}${cardComboPanel(c)}<p class="smalltxt muted">Color identity: ${(m.colors||[]).join('')||'Colorless / unknown'} · Mana value: ${m.mv??'Unknown'} · Arena set(s): ${escapeHtml((c.sets||[]).join(', ')||'None recorded')}</p><div class="actions"><button class="primary" data-star="${escapeHtml(c.name)}">${favorite.has(c.name)?'★ Remove bookmark':'☆ Bookmark card'}</button><button id="enrichOne" data-one="${escapeHtml(c.name)}">↻ Fetch card details</button><a target="_blank" rel="noopener noreferrer" href="${escapeHtml(infoPage(c))}" class="link" style="padding:9px">View on Scryfall ↗</a></div></div>`;if(!$('detail').open)$('detail').showModal();loadCardVariants(c.name);}
+function openCard(name){const key=name.toLowerCase();const c=index.get(key)||catalogIndex.get(key)||ownedCollectionCards(true).find(item=>item.name.toLowerCase()===key);if(!c)return;const m=c.meta||{};let tags=deriveRoles(c).map(r=>`<span class="tag">${escapeHtml(r)}</span>`).join('');$('detailInner').innerHTML=`<div><img alt="${escapeHtml(c.name)}" src="${escapeHtml(imgUrl(c))}" onerror="this.style.display='none'"><p class="smalltxt muted">Artwork from Scryfall (online)</p></div><div><h2>${escapeHtml(c.name)}</h2><p><span class="badge">${escapeHtml(m.rarity||'Unknown rarity')}</span> &nbsp; <span class="badge">Arena owned ×${ownershipBySource(c.name).arena}</span> &nbsp; <span class="badge">Physical owned ×${ownershipBySource(c.name).physical}</span></p><p class="muted">${escapeHtml(m.type||c.typeHint||'Card details not yet synced')}</p><p>${escapeHtml(m.oracle||'Use “Load official card details” to retrieve card rules text, typing, and color identity.') .replace(/\n/g,'<br>')}</p><div class="tags">${tags}</div>${renderLegalities(m)}${cardVariantPanel(c)}${cardComboPanel(c)}<p class="smalltxt muted">Color identity: ${(m.colors||[]).join('')||'Colorless / unknown'} · Mana value: ${m.mv??'Unknown'} · Arena set(s): ${escapeHtml((c.sets||[]).join(', ')||'None recorded')}</p><div class="actions"><button type="button" data-manage-physical="${escapeHtml(c.name)}">Manage physical printings</button><button class="primary" data-star="${escapeHtml(c.name)}">${favorite.has(c.name)?'★ Remove bookmark':'☆ Bookmark card'}</button><button id="enrichOne" data-one="${escapeHtml(c.name)}">↻ Fetch card details</button><a target="_blank" rel="noopener noreferrer" href="${escapeHtml(infoPage(c))}" class="link" style="padding:9px">View on Scryfall ↗</a></div></div>`;if(!$('detail').open)$('detail').showModal();loadCardVariants(c.name);}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-combos]');if(b)loadCardCombos(b.dataset.combos)});
 function toggleFav(n){if(favorite.has(n))favorite.delete(n);else favorite.add(n);save('favorites',[...favorite]);render();renderFavorites();if($('detail').open)openCard(n)}
 function renderFavorites(){const list=[...cards,...catalogIndex.values()].filter((c,i,a)=>favorite.has(c.name)&&a.findIndex(v=>v.name.toLowerCase()===c.name.toLowerCase())===i);$('shortlistCards').innerHTML=list.map(miniCard).join('')||'<div class="empty">No cards saved yet. Use ☆ Save on any card to start a deckbuilding shortlist.</div>'}
@@ -789,7 +804,7 @@ async function restoreAppBackup(file){let data;try{data=JSON.parse(await file.te
 }
 async function start(){applyVaultTheme(localStorage.getItem('vault_theme')||'noir');$('themeChoice').onchange=()=>applyVaultTheme($('themeChoice').value);$('themeReset').onclick=()=>applyVaultTheme('noir');await dbopen();await hydrateCache();renderChips();$('ownershipScope').value=catalogScope;$('arenaScope').value=arenaScope;render();postOwnership().then(()=>{if(catalogScope!=='owned'&&arenaScope!=='physical')renderCatalog()});renderSyncHistory();refreshCatalogStatus();updateDeckUI();renderFavorites();studioInit();libraryInit();physicalInit();plannerInit();synergyInit();archetypeInit();document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>tabs(b.dataset.tab)));initSidebarNavigation();$('ownershipScope').onchange=()=>{catalogScope=$('ownershipScope').value;save('catalogScope',catalogScope);page=0;catalogPage=[];render()};$('arenaScope').onchange=()=>{arenaScope=$('arenaScope').value;save('arenaScope',arenaScope);page=0;catalogPage=[];render()};$('catalogSync').onclick=beginCatalogDownload;document.body.addEventListener('change',e=>{if(e.target?.id==='variantFilter'){const title=$('detailInner')?.querySelector('h2')?.textContent;if(title)loadCardVariants(title)}});setInterval(()=>{if(catalogStatus?.busy)refreshCatalogStatus()},1800);
 for(const id of ['query','colors','types','rarity','sort'])$(id).addEventListener(id==='query'?'input':'change',()=>{page=0;render()});$('rolechips').addEventListener('click',e=>{const b=e.target.closest('[data-role]');if(!b)return;role=b.dataset.role;page=0;renderChips();render()});$('perPage').value=String(perPage);$('perPage').onchange=()=>{perPage=Number($('perPage').value);save('pageSize',perPage);page=0;render()};$('prev').onclick=()=>{page--;render();scrollTo(0,0)};$('next').onclick=()=>{page++;render();scrollTo(0,0)};$('viewGrid').onclick=()=>{view='grid';render()};$('viewList').onclick=()=>{view='list';render()};$('clearFilters').onclick=()=>{$('query').value='';['colors','types','rarity'].forEach(id=>$(id).value='');role='';page=0;renderChips();render()};
- document.body.addEventListener('click',e=>{const open=e.target.closest('[data-open]'),star=e.target.closest('[data-star]'),one=e.target.closest('[data-one]');if(open){e.preventDefault();openCard(open.dataset.open)}if(star)toggleFav(star.dataset.star);if(one)syncOne(one.dataset.one)});$('enrich').onclick=$('enrichSettings').onclick=()=>syncAll(false);$('refreshLegalities').onclick=()=>syncAll(true);$('stopSync').onclick=()=>{syncStop=true};$('exportCsv').onclick=filterExport;$('csvfile').onchange=async e=>{if(e.target.files?.[0])await importCsv(e.target.files[0])};$('rollbackCollection').onclick=async()=>{const prev=load('previousCollection',null);if(!Array.isArray(prev)||!prev.length){alert('No previous CSV import snapshot was found.');return}if(!confirm('Restore the collection from before the last CSV import? Saved decks remain unchanged.'))return;const current=cards.map(({meta,...rest})=>rest);cards=prev;save('previousCollection',current);rebuildIndex();await hydrateCache();save('cards',cards.map(({meta,...rest})=>rest));postOwnership();render();renderStudio();renderFavorites();renderPlanner();renderSynergy();alert('Previous collection restored.')};$('restoreSeed').onclick=async()=>{if(!confirm('Restore the original embedded export?'))return;cards=structuredClone(bundled.cards);rebuildIndex();await hydrateCache();save('cards',cards);postOwnership();render();updateDeckUI();renderStudio()};$('saveBackup').onclick=()=>download('arcane-vault-backup.json',JSON.stringify({schema:2,exported:new Date().toISOString(),cards:cards.map(c=>({...c})),favorites:[...favorite],deck:currentDeck,studio,deckLibrary,physicalCards,wildcards:wc,collectionHistory:JSON.parse(localStorage.getItem('arcaneVault.collectionHistory.v1')||'[]')},null,2),'application/json');$('restoreBackupFile').onchange=async e=>{if(e.target.files?.[0])await restoreAppBackup(e.target.files[0]);e.target.value=''};$('copyShortlist').onclick=()=>navigator.clipboard.writeText([...favorite].map(n=>'1 '+n).join('\n')).then(()=>alert('Copied!')).catch(()=>prompt('Copy this list:',[...favorite].map(n=>'1 '+n).join('\n')));$('copyDeck').onclick=()=>{const txt=$('deckText').value;navigator.clipboard.writeText(txt).then(()=>alert('Copied!')).catch(()=>prompt('Copy this deck:',txt))};$('applyDeck').onclick=labOpenSelected;$('labOpenStudio').onclick=labOpenSelected;$('resetDeck').onclick=()=>{$('labDeckChoice').value='draft';save('labChoice','draft');updateDeckUI()};$('labDeckChoice').onchange=()=>{save('labChoice',$('labDeckChoice').value);updateDeckUI()};$('labRefresh').onclick=updateDeckUI;}
+ document.body.addEventListener('click',e=>{const manage=e.target.closest('[data-manage-physical]');if(manage){e.preventDefault();tabs('physical');$('physicalSearch').value=manage.dataset.managePhysical;physicalPage=0;physicalRender();physicalOpenPrintingPicker(manage.dataset.managePhysical);return}const open=e.target.closest('[data-open]'),star=e.target.closest('[data-star]'),one=e.target.closest('[data-one]');if(open){e.preventDefault();openCard(open.dataset.open)}if(star)toggleFav(star.dataset.star);if(one)syncOne(one.dataset.one)});$('enrich').onclick=$('enrichSettings').onclick=()=>syncAll(false);$('refreshLegalities').onclick=()=>syncAll(true);$('stopSync').onclick=()=>{syncStop=true};$('exportCsv').onclick=filterExport;$('csvfile').onchange=async e=>{if(e.target.files?.[0])await importCsv(e.target.files[0])};$('rollbackCollection').onclick=async()=>{const prev=load('previousCollection',null);if(!Array.isArray(prev)||!prev.length){alert('No previous CSV import snapshot was found.');return}if(!confirm('Restore the collection from before the last CSV import? Saved decks remain unchanged.'))return;const current=cards.map(({meta,...rest})=>rest);cards=prev;save('previousCollection',current);rebuildIndex();await hydrateCache();save('cards',cards.map(({meta,...rest})=>rest));postOwnership();render();renderStudio();renderFavorites();renderPlanner();renderSynergy();alert('Previous collection restored.')};$('restoreSeed').onclick=async()=>{if(!confirm('Restore the original embedded export?'))return;cards=structuredClone(bundled.cards);rebuildIndex();await hydrateCache();save('cards',cards);postOwnership();render();updateDeckUI();renderStudio()};$('saveBackup').onclick=()=>download('arcane-vault-backup.json',JSON.stringify({schema:2,exported:new Date().toISOString(),cards:cards.map(c=>({...c})),favorites:[...favorite],deck:currentDeck,studio,deckLibrary,physicalCards,wildcards:wc,collectionHistory:JSON.parse(localStorage.getItem('arcaneVault.collectionHistory.v1')||'[]')},null,2),'application/json');$('restoreBackupFile').onchange=async e=>{if(e.target.files?.[0])await restoreAppBackup(e.target.files[0]);e.target.value=''};$('copyShortlist').onclick=()=>navigator.clipboard.writeText([...favorite].map(n=>'1 '+n).join('\n')).then(()=>alert('Copied!')).catch(()=>prompt('Copy this list:',[...favorite].map(n=>'1 '+n).join('\n')));$('copyDeck').onclick=()=>{const txt=$('deckText').value;navigator.clipboard.writeText(txt).then(()=>alert('Copied!')).catch(()=>prompt('Copy this deck:',txt))};$('applyDeck').onclick=labOpenSelected;$('labOpenStudio').onclick=labOpenSelected;$('resetDeck').onclick=()=>{$('labDeckChoice').value='draft';save('labChoice','draft');updateDeckUI()};$('labDeckChoice').onchange=()=>{save('labChoice',$('labDeckChoice').value);updateDeckUI()};$('labRefresh').onclick=updateDeckUI;}
 
 // Physical collection is a separate local inventory. Never merge it into Arena 'cards'.
 const PHYSICAL_KEY='physicalCollectionV1';
@@ -817,6 +832,108 @@ function physicalNormalize(rows){
  return [...map.values()];
 }
 let physicalCards=physicalNormalize(load(PHYSICAL_KEY,[])),physicalPage=0;
+
+let physicalPrintingSession=0,physicalPrintingCardName='',physicalPrintingSourceKey=null,physicalPrintingOptions=[];
+function physicalPrintingSelection(){
+ const i=Number($('physicalPrintingSelect').value);
+ return Number.isInteger(i)&&i>=0?physicalPrintingOptions[i]:null;
+}
+function physicalPrintingCurrent(){
+ const item=physicalPrintingSelection();
+ if(!item)return null;
+ const qty=Number($('physicalPrintingQty').value),finish=$('physicalPrintingFinish').value;
+ if(!Number.isInteger(qty)||qty<1||qty>99999)throw Error('Enter a quantity from 1 to 99999.');
+ if(!['nonfoil','foil','etched'].includes(finish))throw Error('Select a recognized finish.');
+ return {name:physicalPrintingCardName,qty,set:item.set,number:item.collectorNumber,finish,scryfallId:item.id,
+         language:'',condition:'',location:'',purchasePrice:''};
+}
+function physicalPrintingRenderPreview(){
+ const item=physicalPrintingSelection(),root=$('physicalPrintingPreview');
+ if(!item){root.textContent='No selected printing. Download the Scryfall printing catalog in Import & Data if this card has no results.';return}
+ const match=physicalCards.filter(c=>c.name.toLowerCase()===physicalPrintingCardName.toLowerCase()&&
+   (String(c.scryfallId||'').toLowerCase()===String(item.id).toLowerCase()||
+   (c.set.toLowerCase()===item.set.toLowerCase()&&c.number.toLowerCase()===String(item.collectorNumber).toLowerCase())));
+ const copies=match.reduce((count,c)=>count+c.qty,0);
+ root.replaceChildren();
+ const p=document.createElement('p');
+ p.textContent=item.setName+' ('+item.set.toUpperCase()+') #'+item.collectorNumber+
+   ' · Released '+(item.released||'unknown')+' · '+copies+' owned across finishes';
+ root.append(p);
+ if(item.image){
+  const img=document.createElement('img');img.src=item.image;img.alt=item.setName+' '+item.collectorNumber;
+  img.loading='lazy';img.style.cssText='max-height:190px;max-width:150px;object-fit:contain;border-radius:7px';
+  root.append(img);
+ }
+}
+async function physicalOpenPrintingPicker(name,sourceKey=null){
+ const current=sourceKey?physicalCards.find(c=>physicalKey(c)===sourceKey):null;
+ physicalPrintingCardName=current?.name||String(name||'').trim();
+ if(!physicalPrintingCardName)return;
+ physicalPrintingSourceKey=current?sourceKey:null;
+ const serial=++physicalPrintingSession,editor=$('physicalPrintingEditor'),status=$('physicalPrintingStatus');
+ editor.classList.remove('hidden');
+ $('physicalPrintingTitle').textContent='Choose printing: '+physicalPrintingCardName;
+ $('physicalPrintingHelp').textContent=current
+  ?'Assign existing copies to a selected printing, or add more copies as another printing. Assignment moves copies; it never duplicates them.'
+  :'Add one or more physical printings of this card. Each distinct printing and finish is kept separately.';
+ $('physicalPrintingQty').value=current?String(current.qty):'1';
+ $('physicalPrintingFinish').value=current?.finish||'nonfoil';
+ $('physicalPrintingAssign').hidden=!current;
+ $('physicalPrintingSelect').innerHTML='<option value="">Loading physical printings…</option>';
+ $('physicalPrintingPreview').textContent='';
+ status.textContent='Loading printings from the downloaded Scryfall catalog…';
+ editor.scrollIntoView({behavior:'smooth',block:'start'});
+ try{
+  const response=await fetch('/api/catalog/variants?'+new URLSearchParams({name:physicalPrintingCardName,scope:'paper'}));
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||'Unable to load printings');
+  if(serial!==physicalPrintingSession)return;
+  physicalPrintingOptions=(data.variants||[]).filter(p=>!p.digital&&p.games?.includes('paper'));
+  $('physicalPrintingSelect').replaceChildren();
+  physicalPrintingOptions.forEach((p,i)=>{
+   const opt=document.createElement('option');opt.value=String(i);
+   opt.textContent=p.setName+' ('+p.set.toUpperCase()+') #'+p.collectorNumber+(p.released?' · '+p.released:'');
+   $('physicalPrintingSelect').appendChild(opt);
+  });
+  if(current){
+   const index=physicalPrintingOptions.findIndex(p=>
+    (current.scryfallId&&p.id.toLowerCase()===current.scryfallId.toLowerCase())||
+    (p.set.toLowerCase()===current.set.toLowerCase()&&p.collectorNumber.toLowerCase()===current.number.toLowerCase()));
+   if(index>=0)$('physicalPrintingSelect').value=String(index);
+  }
+  physicalPrintingRenderPreview();
+  status.textContent=physicalPrintingOptions.length+' physical printings available.'+
+   (physicalPrintingOptions.length===400?' Search results capped at 400 printings.':'');
+ }catch(err){if(serial!==physicalPrintingSession)return;status.textContent='Could not load printings: '+(err.message||String(err));physicalPrintingOptions=[];$('physicalPrintingSelect').replaceChildren()}
+}
+function physicalCommitPrinting(mode){
+ const status=$('physicalPrintingStatus');
+ try{
+  const candidate=physicalPrintingCurrent();
+  if(!candidate)throw Error('Select a physical printing first.');
+  let rows=[...physicalCards];
+  if(mode==='assign'){
+   if(!physicalPrintingSourceKey)throw Error('Choose an existing inventory entry to assign.');
+   const original=rows.find(c=>physicalKey(c)===physicalPrintingSourceKey);
+   if(!original)throw Error('The original entry has changed. Reopen the selector.');
+   if(candidate.qty>original.qty)throw Error('Cannot assign more than '+original.qty+' existing copies. Use Add copies for additional cards.');
+   // Keep condition, language, storage location and paid price when reassigning existing copies.
+   const moved={...original,...candidate,language:original.language,condition:original.condition,
+    location:original.location,purchasePrice:original.purchasePrice,qty:candidate.qty};
+   const leftover=original.qty-candidate.qty;
+   rows=rows.filter(c=>physicalKey(c)!==physicalPrintingSourceKey);
+   if(leftover)rows.push({...original,qty:leftover});
+   rows.push(moved);
+  }else rows.push(candidate);
+  physicalCards=physicalNormalize(rows);
+  physicalSave();physicalRender();
+  status.textContent=(mode==='assign'?'Assigned ':'Added ')+candidate.qty+' '+candidate.finish+' copy/copies of '+
+   candidate.name+' ('+candidate.set.toUpperCase()+' #'+candidate.number+').';
+  if(mode==='assign')physicalPrintingSourceKey=physicalKey(candidate);
+  $('physicalPrintingQty').value='1';
+ }catch(err){status.textContent='Cannot save printing: '+(err.message||String(err))}
+}
+
 
 const PHYSICAL_SORT_KEY='physicalSortV1';
 let physicalSort=['name','release-desc','release-asc'].includes(load(PHYSICAL_SORT_KEY,'name'))?load(PHYSICAL_SORT_KEY,'name'):'name';
@@ -972,7 +1089,7 @@ function physicalRender(){
  $('physicalPrev').disabled=physicalPage===0;$('physicalNext').disabled=physicalPage>=max-1;
  $('physicalRows').innerHTML=rows.slice(physicalPage*50,(physicalPage+1)*50).map(c=>{
   const key=escapeHtml(physicalKey(c));
-  return '<tr><td>'+escapeHtml(c.name)+'</td><td>'+escapeHtml(c.set||'—')+'</td><td>'+escapeHtml(physicalReleaseDate(c)||'—')+'</td><td>'+escapeHtml(c.number||'—')+'</td><td>'+escapeHtml(c.finish)+'</td><td><input class="field" type="number" min="0" max="99999" style="max-width:90px" value="'+c.qty+'" data-physical-qty="'+key+'" aria-label="Copies of '+escapeHtml(c.name)+'"></td><td>'+physicalRowValue(c)+'</td><td><button type="button" class="small" data-physical-save="'+key+'">Update</button></td></tr>';
+  return '<tr><td>'+escapeHtml(c.name)+'</td><td>'+escapeHtml(c.set||'—')+'</td><td>'+escapeHtml(physicalReleaseDate(c)||'—')+'</td><td>'+escapeHtml(c.number||'—')+'</td><td>'+escapeHtml(c.finish)+'</td><td><input class="field" type="number" min="0" max="99999" style="max-width:90px" value="'+c.qty+'" data-physical-qty="'+key+'" aria-label="Copies of '+escapeHtml(c.name)+'"></td><td>'+physicalRowValue(c)+'</td><td><button type="button" class="small" data-physical-save="'+key+'">Update</button> <button type="button" class="small" data-physical-print="'+key+'">Choose printing</button></td></tr>';
  }).join('')||'<tr><td colspan="8" class="note">No physical cards found. Import a CSV or add a card above.</td></tr>';
 }
 function physicalCsvRows(raw){
@@ -1028,6 +1145,10 @@ function physicalCsvRows(raw){
   skipped:Object.values(skippedReasons).reduce((sum,n)=>sum+n,0),skippedReasons,issues,rawRows:rows.length};
 }
 function physicalInit(){
+ $('physicalPrintingClose').onclick=()=>{$('physicalPrintingEditor').classList.add('hidden');physicalPrintingSession++};
+ $('physicalPrintingSelect').onchange=physicalPrintingRenderPreview;
+ $('physicalPrintingAssign').onclick=()=>physicalCommitPrinting('assign');
+ $('physicalPrintingAdd').onclick=()=>physicalCommitPrinting('add');
  $('physicalSort').value=physicalSort;
  $('physicalSort').onchange=()=>{physicalSort=$('physicalSort').value;save(PHYSICAL_SORT_KEY,physicalSort);physicalPage=0;physicalRender();if(physicalSort!=='name')physicalLoadSetDates()};
  physicalLoadSetDates();
@@ -1058,6 +1179,8 @@ function physicalInit(){
   $('physicalStatus').textContent='Added '+qty+' physical copy/copies of '+name+'.';
  };
  $('physicalRows').onclick=e=>{
+  const printing=e.target.closest('[data-physical-print]');
+  if(printing){const existing=physicalCards.find(c=>physicalKey(c)===printing.dataset.physicalPrint);if(existing)physicalOpenPrintingPicker(existing.name,physicalKey(existing));return}
   const button=e.target.closest('[data-physical-save]');if(!button)return;
   const key=button.dataset.physicalSave;
   const field=[...$('physicalRows').querySelectorAll('[data-physical-qty]')].find(el=>el.dataset.physicalQty===key);
