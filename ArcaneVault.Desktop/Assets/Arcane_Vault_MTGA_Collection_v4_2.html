@@ -1087,33 +1087,83 @@ async function physicalRefreshValues(){
  if(physicalValueBusy)return;
  if(!physicalCards.length){$('physicalValueStatus').textContent='Import or add physical cards before refreshing values.';return}
  physicalValueBusy=true;const button=$('physicalValueRefresh');button.disabled=true;
- const inventory=physicalCards.map(c=>({...c})),identifiers=new Map();
- for(const c of inventory){const id=physicalPriceIdentifier(c);if(id)identifiers.set(physicalPrintingRef(c),id)}
- const list=[...identifiers.entries()],resolved=new Map();
- let progress=0;const quotes={};let failed=null;
+ // Keep confirmed quotes by printing key and finish, and only query new or
+ // previously unsuccessful entries on the next run.
+ const inventory=physicalCards.map(c=>({...c}));
+ const previous=physicalValues?.quotes||{};
+ const quotes={};
+ const identifiers=new Map();
+ let reused=0,unidentifiable=0;
+ for(const c of inventory){
+  const key=physicalKey(c),id=physicalPriceIdentifier(c);
+  const cached=previous[key];
+  if(!id){if(cached)quotes[key]=cached;unidentifiable+=c.qty;continue}
+  if(cached&&cached.at&&priceNumber(cached.usd)!=null&&Date.now()-new Date(cached.at).getTime()<24*60*60*1000){
+   quotes[key]=cached;reused++;continue;
+  }
+  identifiers.set(physicalPrintingRef(c),id);
+ }
+ const list=[...identifiers.entries()];
+ let processed=0,failures=[],priced=0;
+ const checkpoint=()=>{
+  // Durable partial progress; never discard already confirmed prices.
+  const current=physicalValues?.quotes||{};
+  physicalValues={at:new Date().toISOString(),source:'Scryfall',quotes:{...current,...quotes}};
+  save(PHYSICAL_VALUE_KEY,physicalValues);
+ };
  try{
+  const resolved=new Map();
   for(let i=0;i<list.length;i+=75){
-   $('physicalValueStatus').textContent='Checking prices for printing '+(i+1)+'–'+Math.min(i+75,list.length)+' of '+list.length+'…';
-   const batch=list.slice(i,i+75),response=await fetch('/api/scryfall/collection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifiers:batch.map(x=>x[1])})});
-   const body=await response.json();
-   if(!response.ok)throw Error(body.error||'Scryfall price lookup failed');
-   for(const raw of body.data||[]){
+   const batch=list.slice(i,i+75);
+   const start=i+1,end=Math.min(i+75,list.length);
+   let responseBody=null,lastFailure='';
+   for(let attempt=1;attempt<=4;attempt++){
+    $('physicalValueStatus').textContent='Checking printings '+start+'–'+end+' of '+list.length+' · '+processed+' completed'+(attempt>1?' · retry '+attempt+'/4':'')+'…';
+    try{
+     const ctrl=new AbortController();
+     const timer=setTimeout(()=>ctrl.abort(),35000);
+     let response;
+     try{response=await fetch('/api/scryfall/collection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifiers:batch.map(x=>x[1])}),signal:ctrl.signal})}
+     finally{clearTimeout(timer)}
+     const payload=await response.json().catch(()=>({}));
+     if(!response.ok)throw Error(payload.error||'Scryfall lookup returned HTTP '+response.status);
+     if(!Array.isArray(payload.data))throw Error('Scryfall returned no card-data array');
+     responseBody=payload;break;
+    }catch(error){
+     lastFailure=error?.name==='AbortError'?'Request timed out':error.message||String(error);
+     if(attempt<4)await pause(Math.min(10000,1000*2**(attempt-1)));
+    }
+   }
+   if(!responseBody){
+    failures.push('Printings '+start+'–'+end+': '+lastFailure);
+    processed+=batch.length;checkpoint();
+    // Skip a failed group and continue the remaining printings. The next
+    // refresh automatically retries unresolved entries.
+    continue;
+   }
+   resolved.clear();
+   for(const raw of responseBody.data){
     if(raw?.id)resolved.set('id:'+String(raw.id).toLowerCase(),raw);
     if(raw?.set&&raw.collector_number)resolved.set('set:'+String(raw.set).toLowerCase()+'|'+String(raw.collector_number).toLowerCase(),raw);
    }
-   progress+=batch.length;
+   for(const c of inventory){
+    const ref=physicalPrintingRef(c);
+    if(!ref||!batch.some(x=>x[0]===ref))continue;
+    const raw=resolved.get(ref)||[...resolved.values()].find(v=>String(v.id||'').toLowerCase()===String(c.scryfallId||'').toLowerCase()||
+      (!!c.set&&!!c.number&&String(v.set||'').toLowerCase()===String(c.set).toLowerCase()&&String(v.collector_number||'').toLowerCase()===String(c.number).toLowerCase()));
+    quotes[physicalKey(c)]={usd:physicalCardQuote(raw,c.finish),at:new Date().toISOString()};
+    if(priceNumber(quotes[physicalKey(c)].usd)!=null)priced++;
+   }
+   processed+=batch.length;
+   checkpoint();
   }
-  for(const c of inventory){
-   const ref=physicalPrintingRef(c),raw=resolved.get(ref);
-   // If the same set/number was returned through a UUID lookup, resolve either alias.
-   const fallback=raw||[...resolved.values()].find(v=>String(v.id||'').toLowerCase()===String(c.scryfallId||'').toLowerCase() ||
-     (String(v.set||'').toLowerCase()===String(c.set||'').toLowerCase()&&String(v.collector_number||'').toLowerCase()===String(c.number||'').toLowerCase()&&c.set&&c.number));
-   quotes[physicalKey(c)]={usd:physicalCardQuote(fallback,c.finish)};
-  }
-  physicalValues={at:new Date().toISOString(),source:'Scryfall',quotes};save(PHYSICAL_VALUE_KEY,physicalValues);
- }catch(e){failed=e.message||String(e)}
- finally{physicalValueBusy=false;button.disabled=false;physicalValueRender();
-  if(failed)$('physicalValueStatus').textContent='Refresh failed: '+failed+'. Previous cached prices (if any) are retained.';
+ }catch(error){failures.push(error.message||String(error))}
+ finally{
+  physicalValueBusy=false;button.disabled=false;
+  checkpoint();physicalValueRender();
+  const status=$('physicalValueStatus');
+  if(failures.length)status.textContent='Partial refresh: '+processed+'/'+list.length+' printings checked, '+failures.length+' batch(es) failed. Saved completed prices. Press Refresh Values again to retry missing prices. '+failures[0];
+  else status.textContent='Refresh complete: '+processed+' printings checked, '+reused+' recent quotes reused, '+priced+' new quotes priced.'+(unidentifiable?' '+unidentifiable+' copies lack a printing identifier.':'');
  }
 }
 async function physicalHydrateCachedMetadata(){
