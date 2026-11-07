@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace ArcaneVault.Desktop;
 
@@ -97,6 +98,32 @@ internal sealed class LocalAppServer : IDisposable
                     if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local only" }); return; }
                     var version = typeof(LocalAppServer).Assembly.GetName().Version ?? new Version(0, 0, 0);
                     await JsonAsync(ctx.Response, 200, new { version = $"{version.Major}.{version.Minor}.{Math.Max(0, version.Build)}" }); return;
+                }
+                // Same-origin native network request: WebView's direct GitHub fetch can fail
+                // before returning an HTTP status. Never proxy arbitrary URLs.
+                if (path == "/api/app/releases")
+                {
+                    if (!AllowedLocalRequest(ctx.Request)) { await JsonAsync(ctx.Response, 403, new { error = "Local only" }); return; }
+                    var repo = ctx.Request.QueryString["repo"] ?? "";
+                    if (repo.Length > 150 || !Regex.IsMatch(repo, @"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+                        || repo.Contains("..", StringComparison.Ordinal))
+                    { await JsonAsync(ctx.Response, 400, new { error = "Invalid repository owner/name." }); return; }
+                    try
+                    {
+                        using var req = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/repos/" + repo + "/releases?per_page=50");
+                        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+                        using var upstreamResponse = await upstream.SendAsync(req, stopped.Token);
+                        if (!upstreamResponse.IsSuccessStatusCode)
+                        { await JsonAsync(ctx.Response, 502, new { error = "GitHub returned HTTP " + (int)upstreamResponse.StatusCode }); return; }
+                        var json = await upstreamResponse.Content.ReadAsStringAsync(stopped.Token);
+                        if (json.Length > 2_000_000) { await JsonAsync(ctx.Response, 502, new { error = "GitHub release listing exceeds limit." }); return; }
+                        using var data = JsonDocument.Parse(json);
+                        if (data.RootElement.ValueKind != JsonValueKind.Array) throw new JsonException("Unexpected GitHub release listing.");
+                        await SendAsync(ctx.Response, 200, "application/json; charset=utf-8", Encoding.UTF8.GetBytes(json));
+                    }
+                    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+                    { await JsonAsync(ctx.Response, 502, new { error = "Native GitHub release check failed: " + ex.Message }); }
+                    return;
                 }
                 if (path == "/api/app/update/status")
                 {
