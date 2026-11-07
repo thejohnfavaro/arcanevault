@@ -88,6 +88,26 @@ internal sealed class LanCollectionTransfer : IDisposable
                     if (buffer[0] != (byte)'\r') lineBytes.Add(buffer[0]);
                 }
                 var line = Encoding.ASCII.GetString(lineBytes.ToArray());
+                // HttpURLConnection sends HTTP request headers after the request line.
+                // Closing a TCP socket with these bytes unread can send an RST that
+                // truncates our JSON response ("Unexpected end of stream" on Android).
+                // Consume the entire header section before replying, with a strict bound.
+                int headerBytes = 0;
+                bool endOfHeaders = false;
+                int consecutiveNewlines = 0;
+                while (headerBytes < 8192)
+                {
+                    int read = await stream.ReadAsync(buffer, cancel);
+                    if (read == 0) break;
+                    headerBytes++;
+                    if (buffer[0] == (byte)'\n')
+                    {
+                        consecutiveNewlines++;
+                        if (consecutiveNewlines >= 2) { endOfHeaders = true; break; }
+                    }
+                    else if (buffer[0] != (byte)'\r') consecutiveNewlines = 0;
+                }
+                if (!endOfHeaders) return;
                 byte[]? content = null;
                 lock (guard)
                 {
@@ -106,6 +126,9 @@ internal sealed class LanCollectionTransfer : IDisposable
                     return;
                 }
                 await RespondAsync(stream, 200, "application/json", content, cancel);
+                await stream.FlushAsync(cancel);
+                // Finish sending before closing the socket and expiring the offer.
+                client.Client.Shutdown(SocketShutdown.Send);
                 lock (guard) { StopLocked(); }
             }
             catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException or ObjectDisposedException) { }
