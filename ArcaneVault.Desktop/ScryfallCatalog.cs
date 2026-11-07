@@ -310,12 +310,17 @@ internal sealed class ScryfallCatalog
         if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() > 150_000)
             throw new ArgumentException("Expected an array of physical cards.");
         using var create = db.CreateCommand();
-        create.CommandText = "DROP TABLE IF EXISTS temp.physical_ownership; CREATE TEMP TABLE physical_ownership(name TEXT PRIMARY KEY COLLATE NOCASE, qty INTEGER NOT NULL)";
+        create.CommandText = "DROP TABLE IF EXISTS temp.physical_ownership; CREATE TEMP TABLE physical_ownership(name TEXT PRIMARY KEY COLLATE NOCASE, qty INTEGER NOT NULL); DROP TABLE IF EXISTS temp.physical_printings; CREATE TEMP TABLE physical_printings(name TEXT NOT NULL COLLATE NOCASE, setcode TEXT NOT NULL COLLATE NOCASE, collector TEXT NOT NULL COLLATE NOCASE, print_id TEXT NOT NULL COLLATE NOCASE, qty INTEGER NOT NULL)";
         create.ExecuteNonQuery();
         using var insert = db.CreateCommand();
         insert.CommandText = "INSERT INTO physical_ownership(name,qty) VALUES($name,$qty) ON CONFLICT(name) DO UPDATE SET qty=qty+excluded.qty";
         insert.Parameters.Add("$name", SqliteType.Text);
         insert.Parameters.Add("$qty", SqliteType.Integer);
+        using var printing = db.CreateCommand();
+        printing.CommandText = "INSERT INTO physical_printings(name,setcode,collector,print_id,qty) VALUES($name,$set,$collector,$id,$qty)";
+        foreach (var parameter in new[] { "$name", "$set", "$collector", "$id" })
+            printing.Parameters.Add(parameter, SqliteType.Text);
+        printing.Parameters.Add("$qty", SqliteType.Integer);
         foreach (var item in array.EnumerateArray())
         {
             if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty("name", out var name) ||
@@ -326,8 +331,36 @@ internal sealed class ScryfallCatalog
             insert.Parameters["$name"].Value = cardName;
             insert.Parameters["$qty"].Value = qty;
             insert.ExecuteNonQuery();
+            static string Field(JsonElement element, string key) =>
+                element.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String
+                ? (value.GetString() ?? "").Trim() : "";
+            var set = Field(item, "set");
+            var number = Field(item, "number");
+            var id = Field(item, "scryfallId");
+            // Never infer a printing from a card name alone.
+            if (id.Length == 0 && (set.Length == 0 || number.Length == 0)) continue;
+            printing.Parameters["$name"].Value = cardName;
+            printing.Parameters["$set"].Value = set;
+            printing.Parameters["$collector"].Value = number;
+            printing.Parameters["$id"].Value = id;
+            printing.Parameters["$qty"].Value = qty;
+            printing.ExecuteNonQuery();
         }
     }
+
+    // Only printing-identified entries can contribute to an individual set.
+    // Name-only Arena ownership cannot establish which expansion's printing is held.
+    private static string ConfirmedPrintingCte(bool physical) => physical
+        ? """
+          confirmed AS (
+            SELECT v.setcode,v.name,SUM(p.qty) AS qty
+            FROM variants v JOIN physical_printings p ON
+                 (p.print_id != '' AND v.print_id=p.print_id AND v.name=p.name)
+                 OR (p.print_id = '' AND v.setcode=p.setcode AND v.collector=p.collector AND v.name=p.name)
+            GROUP BY v.setcode,v.name
+          )
+          """
+        : "confirmed AS (SELECT setcode,name,0 AS qty FROM variants WHERE 0)";
 
     // The full local Scryfall printings catalog includes the release date of each printing.
     // Use the earliest known printing release for each set; this is independent of user ownership.
@@ -354,23 +387,22 @@ internal sealed class ScryfallCatalog
         return new { dates, count = dates.Count, source = "Local Scryfall printing catalog; earliest known release per set" };
     }
 
-    // Set completion counts distinct card names, not printing count. The CSV tracks owned cards by name,
-    // so it cannot prove ownership of a specific set printing or MTGA cosmetic treatment.
+    // Set completion requires owned printings matched to the catalog, not shared card names.
     public object SetProgress(string arenaFilter = "any", string query = "", JsonElement? physicalCards = null)
     {
         using var db = Connect();
         PreparePhysicalOwnership(db, physicalCards);
-        string ownershipTable = physicalCards.HasValue ? "physical_ownership" : "ownership";
+        string confirmedSql = ConfirmedPrintingCte(physicalCards.HasValue);
         using var cmd = db.CreateCommand();
         cmd.CommandText = $"""
             WITH distinct_cards AS (
               SELECT DISTINCT v.setcode, v.name
               FROM variants v
               WHERE ($arena != 'arena' OR v.arena=1)
-            ), per_set AS (
+            ), {confirmedSql}, per_set AS (
               SELECT d.setcode, COUNT(*) AS total,
                 SUM(CASE WHEN COALESCE(o.qty,0)>0 THEN 1 ELSE 0 END) AS owned
-              FROM distinct_cards d LEFT JOIN {ownershipTable} o ON o.name=d.name
+              FROM distinct_cards d LEFT JOIN confirmed o ON o.name=d.name AND o.setcode=d.setcode
               GROUP BY d.setcode
             ), names AS (
               SELECT setcode, MAX(setname) AS setname, MIN(CASE WHEN length(release)=10 AND release GLOB '????-??-??' THEN release END) AS released FROM variants GROUP BY setcode
@@ -392,7 +424,7 @@ internal sealed class ScryfallCatalog
             totalCards+=count;ownedCards+=owned;
             result.Add(new { code=reader.GetString(0), name=reader.GetString(1), total=count,owned,missing=count-owned,percentage=count==0?0:Math.Round(100.0*owned/count,1),releaseDate=reader.IsDBNull(4)?"":reader.GetString(4) });
         }
-        return new { sets=result,count=result.Count, totalCards,ownedCards,source=physicalCards.HasValue ? "Scryfall card-name completion; physical collection" : "Scryfall card-name completion; ownership from imported Arena CSV",note="Owned means you own the card name, not necessarily its printing in this set. Tokens, promo sets and supplemental sets may appear. Arena-listed means a Scryfall printing is marked as played on Arena." };
+        return new { sets=result,count=result.Count, totalCards,ownedCards,source=physicalCards.HasValue ? "Scryfall confirmed physical printings" : "Arena ownership lacks printing identifiers",note=physicalCards.HasValue ? "Only catalog-matched set, collector number or Scryfall IDs count as owned in this set. Unidentified entries do not count." : "Arena collection is indexed by card name only; set-specific ownership is unverified and is not counted." };
     }
 
     public object SetCards(string setcode, string arenaFilter, string ownershipFilter, int page, int size, JsonElement? physicalCards = null, string sort = "name")
@@ -401,7 +433,7 @@ internal sealed class ScryfallCatalog
         page=Math.Clamp(page,0,10000);size=Math.Clamp(size,1,100);
         if (ownershipFilter is not ("owned" or "missing" or "all")) ownershipFilter="all";
         using var db=Connect();PreparePhysicalOwnership(db, physicalCards);
-        string ownershipTable=physicalCards.HasValue?"physical_ownership":"ownership";
+        string confirmedSql = ConfirmedPrintingCte(physicalCards.HasValue);
         using var cmd=db.CreateCommand();
         var filter=ownershipFilter=="owned"?" AND COALESCE(o.qty,0)>0":ownershipFilter=="missing"?" AND COALESCE(o.qty,0)=0":"";
         // Choose a consistent printing for duplicate card names within a set.
@@ -410,10 +442,10 @@ internal sealed class ScryfallCatalog
         string numberOrder="CASE WHEN v.collector GLOB '[0-9]*' THEN 0 ELSE 1 END, CAST(v.collector AS INTEGER), v.collector COLLATE NOCASE, sc.name COLLATE NOCASE";
         string order=sort=="collector" ? numberOrder : "sc.name COLLATE NOCASE";
         cmd.CommandText=$"""
-          WITH setcards AS ({distinctSql})
+          WITH setcards AS ({distinctSql}), {confirmedSql}
           SELECT sc.name,COALESCE(o.qty,0),COALESCE(v.image,c.image,''),COALESCE(c.type,''),COALESCE(c.rarity,''),COALESCE(c.uri,''),COALESCE(v.collector,'')
           FROM setcards sc
-          LEFT JOIN {ownershipTable} o ON o.name=sc.name
+          LEFT JOIN confirmed o ON o.name=sc.name AND o.setcode=$set
           LEFT JOIN cards c ON c.name=sc.name
           LEFT JOIN variants v ON v.print_id=(SELECT print_id FROM variants WHERE setcode=$set AND name=sc.name AND ($arena!='arena' OR arena=1) ORDER BY CASE WHEN collector GLOB '[0-9]*' THEN 0 ELSE 1 END, CAST(collector AS INTEGER), collector COLLATE NOCASE, print_id LIMIT 1)
           WHERE 1=1 {filter}

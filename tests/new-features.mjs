@@ -372,17 +372,18 @@ const physicalScope={physicalCards:[{name:'Sol Ring',qty:2,set:'CMM'},{name:'sol
 vm.createContext(physicalScope);
 vm.runInContext(html.slice(sourceStart,sourceEnd)+';globalThis.inventory=setPhysicalInventory;',physicalScope);
 const physicalOutput=physicalScope.inventory();
-assert.equal(physicalOutput.length,2);
-assert.equal(physicalOutput.find(c=>c.name==='Sol Ring').qty,5);
+assert.equal(physicalOutput.length,3);
+assert.equal(physicalOutput.find(c=>c.set==='CMM').qty,2);
+assert.equal(physicalOutput.find(c=>c.set==='C21').qty,3);
 assert.equal(physicalOutput.find(c=>c.name==='Opt').qty,1);
 const serverSource=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/LocalAppServer.cs'),'utf8');
 const catalogSource=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/ScryfallCatalog.cs'),'utf8');
 for(const marker of ['/api/catalog/sets/physical','/api/catalog/set-cards/physical','PreparePhysicalOwnership(db, physicalCards)','physical_ownership','CREATE TEMP TABLE physical_ownership'])
   assert.ok((serverSource+catalogSource).includes(marker),'Missing physical catalog implementation: '+marker);
-assert.match(catalogSource,/physicalCards\.HasValue \? "physical_ownership" : "ownership"/);
+assert.match(catalogSource,/ConfirmedPrintingCte\(physicalCards\.HasValue\)/);
 assert.match(catalogSource,/DROP TABLE IF EXISTS temp\.physical_ownership; CREATE TEMP TABLE physical_ownership/,
  'Repeated physical set requests must reset stale pooled-connection temporary ownership before inserting fresh copies');
-console.log('PASS: Arena/Physical Set Progress toggle, physical quantity grouping, isolated catalog query and card paging');
+console.log('PASS: Arena/Physical Set Progress toggle, physical printing identities, isolated catalog query and card paging');
 
 
 // v5.18: paper-only valuation from exact printing identifiers, never an arbitrary name match.
@@ -526,3 +527,37 @@ assert.match(html,/save\('setSortV1',\$\('setSort'\)\.value\)/);
 assert.match(html,/Released \$\{escapeHtml\(r\.releaseDate\)\}/);
 assert.match(catalogSyncSrc,/releaseDate=reader\.IsDBNull\(4\)\?"":reader\.GetString\(4\)/);
 console.log('PASS: Set Progress release-date sort and catalog date plumbing');
+
+
+// Set progress must not credit all reprints of a shared name.
+assert.match(catalogSyncSrc,/physical_printings/);
+assert.match(catalogSyncSrc,/v\.print_id=p\.print_id/);
+assert.match(catalogSyncSrc,/v\.setcode=p\.setcode AND v\.collector=p\.collector/);
+assert.match(catalogSyncSrc,/confirmed o ON o\.name=d\.name AND o\.setcode=d\.setcode/);
+assert.match(catalogSyncSrc,/confirmed o ON o\.name=sc\.name AND o\.setcode=\$set/);
+assert.match(html,/function setPhysicalInventory\(\)/);
+assert.match(html,/scryfallId:c\.scryfallId/);
+assert.doesNotMatch(html,/Aggregate printings into name quantities, without modifying Arena ownership/);
+console.log('PASS: printing-specific Set Progress contract');
+
+
+// Multi-face card detail lookups must match the exact composite name and
+// retry by first face only after a full-name miss.
+assert.match(html,/function avCardNameParts\(/);
+assert.match(html,/function avCardMatchesName\(/);
+assert.match(html,/function avResolveCardResult\(/);
+assert.match(html,/const retry=await avSyncBatchRequest\(\[first\]\)/);
+assert.match(html,/const raw=avResolveCardResult\(c\.name,data\.data\)/);
+const nameStart=html.indexOf('function avCardNameParts(');
+const nameEnd=html.indexOf('async function avSyncBatchRequest(',nameStart);
+assert.ok(nameStart>0&&nameEnd>nameStart);
+const nameCtx={};
+vm.createContext(nameCtx);
+vm.runInContext(html.slice(nameStart,nameEnd)+';globalThis.avTest={avCardMatchesName,avResolveCardResult};',nameCtx);
+const split={name:'Fire // Ice',card_faces:[{name:'Fire'},{name:'Ice'}]};
+const adventure={name:'Brazen Borrower',card_faces:[{name:'Brazen Borrower'},{name:'Petty Theft'}]};
+assert.equal(nameCtx.avTest.avCardMatchesName('Fire // Ice',split),true);
+assert.equal(nameCtx.avTest.avCardMatchesName('Fire // Water',split),false);
+assert.equal(nameCtx.avTest.avCardMatchesName('Brazen Borrower // Petty Theft',adventure),true);
+assert.equal(nameCtx.avTest.avCardMatchesName('Fire // Ice',{name:'Fire'}),false);
+console.log('PASS: verified multi-face name resolution');
