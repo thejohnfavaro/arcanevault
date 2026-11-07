@@ -380,4 +380,6 @@ const catalogSource=fs.readFileSync(path.join(root,'ArcaneVault.Desktop/Scryfall
 for(const marker of ['/api/catalog/sets/physical','/api/catalog/set-cards/physical','PreparePhysicalOwnership(db, physicalCards)','physical_ownership','CREATE TEMP TABLE physical_ownership'])
   assert.ok((serverSource+catalogSource).includes(marker),'Missing physical catalog implementation: '+marker);
 assert.match(catalogSource,/physicalCards\.HasValue \? "physical_ownership" : "ownership"/);
+assert.match(catalogSource,/DROP TABLE IF EXISTS temp\\.physical_ownership; CREATE TEMP TABLE physical_ownership/,
+ 'Repeated physical set requests must reset stale pooled-connection temporary ownership before inserting fresh copies');
 console.log('PASS: Arena/Physical Set Progress toggle, physical quantity grouping, isolated catalog query and card paging');
