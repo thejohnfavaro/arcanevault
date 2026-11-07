@@ -495,12 +495,21 @@ internal sealed class ScryfallCatalog
         if (!string.IsNullOrWhiteSpace(q)) where.Add("(c.name LIKE $q OR c.oracle LIKE $q OR c.type LIKE $q OR c.setcode LIKE $q)");
         if (!string.IsNullOrWhiteSpace(type)) where.Add("c.type LIKE $type");
         if (!string.IsNullOrWhiteSpace(rarity)) where.Add("c.rarity=$rarity");
-        if (!string.IsNullOrWhiteSpace(colors))
+        // Search exact card COLOR IDENTITIES, not the colors of mana symbols or a
+        // subset of a commander's identity. Multi-select choices are ORed.
+        var selectedIdentities = (colors ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(code => code == "C" || (code.Length is >= 1 and <= 5
+                && code.All(ch => "WUBRG".Contains(ch)) && code.Distinct().Count() == code.Length))
+            .Select(code => code == "C" ? "" : new string("WUBRG".Where(code.Contains).ToArray()))
+            .Distinct(StringComparer.Ordinal).Take(32).ToArray();
+        if (selectedIdentities.Length > 0)
         {
-            if (colors == "C") where.Add("c.colors=''");
-            else if (colors == "B+") where.Add("c.colors LIKE '%B%'");
-            else if (colors == "WU") where.Add("c.colors NOT GLOB '*[BRG]*'");
-            else where.Add("c.colors=$colors");
+            const string canonicalColors = "(CASE WHEN instr(c.colors,'W')>0 THEN 'W' ELSE '' END"
+                + " || CASE WHEN instr(c.colors,'U')>0 THEN 'U' ELSE '' END"
+                + " || CASE WHEN instr(c.colors,'B')>0 THEN 'B' ELSE '' END"
+                + " || CASE WHEN instr(c.colors,'R')>0 THEN 'R' ELSE '' END"
+                + " || CASE WHEN instr(c.colors,'G')>0 THEN 'G' ELSE '' END)";
+            where.Add(canonicalColors + " IN (" + string.Join(",", selectedIdentities.Select((_, i) => "$identity" + i)) + ")");
         }
         // Heuristics are discovery aids, not rules verdicts.
         string? hint = role switch {
@@ -549,11 +558,8 @@ internal sealed class ScryfallCatalog
             if (!string.IsNullOrWhiteSpace(q)) c.Parameters.AddWithValue("$q", "%" + q.Trim()[..Math.Min(q.Trim().Length, 160)] + "%");
             if (!string.IsNullOrWhiteSpace(type)) c.Parameters.AddWithValue("$type", "%" + type + "%");
             if (!string.IsNullOrWhiteSpace(rarity)) c.Parameters.AddWithValue("$rarity", rarity);
-            // SQL only contains $colors in the exact-color branch. Previously this
-            // parameter was omitted, making any exact color filter throw SQLite
-            // error 1 ("Insufficient parameters supplied") and return HTTP 500.
-            if (!string.IsNullOrWhiteSpace(colors) && colors is not ("C" or "B+" or "WU"))
-                c.Parameters.AddWithValue("$colors", colors);
+            for (int i = 0; i < selectedIdentities.Length; i++)
+                c.Parameters.AddWithValue("$identity" + i, selectedIdentities[i]);
             if (hint != null) c.Parameters.AddWithValue("$role", hint);
         }
     }
