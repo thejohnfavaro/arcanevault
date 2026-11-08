@@ -666,3 +666,11 @@ assert.match(html,/\/api\/app\/releases\?repo=/,'Updater must call the safe loca
 assert.match(html,/const items=await fetchGithubReleases\(repo\)/,'Update checker must use the native/browser fallback');
 assert.match(html,/Open published GitHub releases/,'Update failure must retain a manual recovery link');
 console.log('PASS: native update discovery and manual fallback');
+
+
+// Set Progress collector number and ownership must never visually run together.
+assert.match(html, /class="av-set-card-collector"/, 'Collector numbers need their own block');
+assert.match(html, /class="av-set-card-owned"/, 'Owned/Unowned needs its own block');
+assert.match(html, /\.set-card \.av-set-card-collector\{display:block/, 'Collector labels must be block-separated');
+assert.match(html, /\.set-card \.av-set-card-owned\{display:block/, 'Ownership labels must be block-separated');
+console.log('PASS: Windows Set Progress collector and ownership label separation');
