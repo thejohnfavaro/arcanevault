@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private NativeCollectionWindow? collectionWindow;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
+    private bool syntheticMode;
     private int modeVersion;
 
     public MainWindow()
@@ -34,8 +35,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         sampleCards = Enumerable.Range(1, 25_000).Select(i =>
             new SampleCard($"Sample Card {i:D5}", $"S{i % 60:D2}", $"#{i % 450 + 1:D3}")).ToArray();
-        CardsList.ItemsSource = sampleCards;
-        FilterStatus.Text = $"{sampleCards.Count:N0} synthetic cards";
+        // A new real workspace must never appear populated with demo entries.
+        CardsList.ItemsSource = Array.Empty<SampleCard>();
+        FilterStatus.Text = "No catalog selected · No sample cards are owned";
         Loaded += async (_, _) => await InitializeNativeAsync();
         Closed += (_, _) =>
         {
@@ -329,6 +331,110 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Create an empty native workspace with no source import, or replace an
+    /// existing workspace by an empty verified SQLite file while retaining
+    /// the COMPLETE previous native workspace as a new recovery point.
+    /// Nothing here touches the installed legacy app or the Scryfall catalog.
+    /// </summary>
+    private async void OnStartFreshClicked(object sender, RoutedEventArgs e)
+    {
+        StartFreshButton.IsEnabled = false;
+        NativeWorkspace.Workspace? previous;
+        try
+        {
+            previous = System.IO.File.Exists(NativeWorkspace.DefaultPath)
+                ? await Task.Run(() => NativeWorkspace.Open(NativeWorkspace.DefaultPath))
+                : null;
+            if (closing) return;
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+                MessageBox.Show(this,
+                    "The existing native workspace could not be verified, so a fresh " +
+                    "collection has NOT been started. Preserve the database and its " +
+                    "recovery copies.\n\n" + ex.Message,
+                    "Cannot safely start fresh", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        finally
+        {
+            if (!closing) StartFreshButton.IsEnabled = true;
+        }
+
+        var approval = new NativeFreshStartWindow(previous?.Collection) { Owner = this };
+        if (approval.ShowDialog() != true) return;
+
+        StartFreshButton.IsEnabled = false;
+        MigrateLegacyButton.IsEnabled = false;
+        ImportNativeButton.IsEnabled = false;
+        OpenNativeButton.IsEnabled = false;
+        RestoreRecoveryButton.IsEnabled = false;
+        CollectionBackupButton.IsEnabled = false;
+        FilterStatus.Text = "Preparing a verified empty native collection with recovery protection…";
+        try
+        {
+            var fresh = await Task.Run(() =>
+                NativeWorkspaceSafety.StartFresh(NativeWorkspace.DefaultPath,
+                    previous?.BackupSha256));
+            if (closing) return;
+
+            collectionWindow?.Close();
+            collectionWindow = null;
+            await OpenNativeCollectionAsync();
+            if (closing) return;
+
+            if (fresh.AlreadyEmpty)
+            {
+                FilterStatus.Text = "The native collection is already empty. No files changed.";
+            }
+            else if (fresh.RecoveryPath is null)
+            {
+                FilterStatus.Text = "A new empty native collection was created. No export required.";
+            }
+            else
+            {
+                FilterStatus.Text = "Started a fresh native collection. Previous collection preserved for restore.";
+                MessageBox.Show(this,
+                    "Your native collection is now empty.\n\n" +
+                    "The complete previous native collection (including decks, artwork and preferences) " +
+                    "was preserved here:\n" + fresh.RecoveryPath +
+                    "\n\nUse 'Restore native recovery' to bring it back. " +
+                    "The original Arcane Vault installation and saved card catalog are unchanged.",
+                    "Fresh native collection created",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+            {
+                FilterStatus.Text =
+                    "Could not confirm a fresh native collection. Existing/recovery files were not deliberately deleted.";
+                MessageBox.Show(this,
+                    "The fresh-start operation was not confirmed. Preserve all native " +
+                    "workspace and recovery files, and check the collection before proceeding.\n\n" +
+                    ex.Message, "Fresh start stopped",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            if (!closing)
+            {
+                bool nativeExists = System.IO.File.Exists(NativeWorkspace.DefaultPath);
+                StartFreshButton.IsEnabled = true;
+                MigrateLegacyButton.IsEnabled = true;
+                ImportNativeButton.IsEnabled = !nativeExists;
+                OpenNativeButton.IsEnabled = nativeExists;
+                RestoreRecoveryButton.IsEnabled =
+                    NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
+                CollectionBackupButton.IsEnabled = true;
+            }
+        }
+    }
+
     private async void OnRestoreRecoveryClicked(object sender, RoutedEventArgs e)
     {
         var options = NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath);
@@ -573,6 +679,7 @@ public partial class MainWindow : Window
             collectionWindow = null;
             var previous = catalogSnapshot;
             catalogSnapshot = loaded;
+            syntheticMode = false;
             EdhLabButton.IsEnabled = true;
             SaveNativeCatalogButton.IsEnabled =
                 !System.IO.File.Exists(NativeWorkspace.CatalogPath);
@@ -721,6 +828,7 @@ public partial class MainWindow : Window
         modeVersion++;
         var previous = catalogSnapshot;
         catalogSnapshot = null;
+        syntheticMode = true;
         previous?.Dispose();
         ModeStatus.Text = "Synthetic mode · No catalog file open. Nothing is imported, saved, or synced.";
         SearchBox.Text = "";
@@ -747,6 +855,14 @@ public partial class MainWindow : Window
             await Task.Delay(140, token);
             if (active is null)
             {
+                if (!syntheticMode)
+                {
+                    if (closing || version != modeVersion ||
+                        !ReferenceEquals(searchCancellation, cts)) return;
+                    CardsList.ItemsSource = Array.Empty<SampleCard>();
+                    FilterStatus.Text = "No Scryfall catalog loaded — native ownership is separate";
+                    return;
+                }
                 var started = Stopwatch.GetTimestamp();
                 var list = await Task.Run(() => sampleCards.Where(c =>
                     c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||

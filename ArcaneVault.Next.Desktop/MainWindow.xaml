@@ -21,7 +21,7 @@
                     Click="OnOpenCatalogClicked" Padding="12,9" Margin="0,0,12,0"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
             <Button x:Name="SyntheticButton" Content="Use 25,000 synthetic cards"
-                    Click="OnSyntheticClicked" Padding="12,9"
+                    Click="OnSyntheticClicked" Visibility="Collapsed" Padding="12,9"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B" Margin="0,0,12,0"/>
             <Button x:Name="SaveNativeCatalogButton" Content="Keep catalog natively"
                     Click="OnSaveNativeCatalogClicked" Padding="12,9" Margin="0,0,12,0"
@@ -38,6 +38,9 @@
             <Button x:Name="RestoreRecoveryButton" Content="Restore native recovery"
                     Click="OnRestoreRecoveryClicked" Padding="12,9" Margin="0,0,12,0"
                     IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+            <Button x:Name="StartFreshButton" Content="Start fresh collection"
+                    Click="OnStartFreshClicked" Padding="12,9" Margin="0,0,12,0"
+                    Background="#633848" Foreground="White" BorderBrush="#9E667A"/>
             <Button x:Name="CollectionBackupButton" Content="Preview external backup"
                     Click="OnCollectionBackupClicked" Padding="12,9" Margin="0,0,12,0"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
@@ -85,6 +88,6 @@
         </ListView>
         <TextBlock Grid.Row="4" x:Name="ModeStatus" Margin="0,12,0,0"
                    Foreground="#A8BACA" FontSize="12"
-                   Text="No native workspace imported. Choose Import backup once to begin. Your installed Arcane Vault remains unchanged."/>
+                   Text="No native workspace imported. Start fresh, import an existing backup, or migrate an installed collection. The old app remains untouched."/>
     </Grid>
 </Window>

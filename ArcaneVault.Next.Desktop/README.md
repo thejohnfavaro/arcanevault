@@ -2,6 +2,16 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Start a completely fresh native collection — AVN-023
+
+Use **Start fresh collection** in the native Windows app. This works even on a new computer with **no installed legacy Arcane Vault application, no Scryfall catalog, and no exported collection backup**. No sample cards or owned printings are inserted.
+
+- With **no existing native collection**, it creates an empty, verified `%LOCALAPPDATA%\\ArcaneVaultNext\\native-workspace.sqlite` directly.
+- With an **existing native collection**, the confirmation dialog shows the current physical/Arena copies, deck/revision count and preferred-artwork entries. It states exactly what will be reset. Type **`START FRESH`** to enable the final button. The app atomically creates a completely empty active database and saves the entire former native database in a uniquely named `native-workspace.rollback-*.sqlite` recovery point.
+- **Cleared from the active collection:** all physical card ownership, Arena card ownership, deck library/history, favorite choices, preferred art, wildcard counts, and collection-specific/legacy settings. The **Scryfall catalog is retained separately** and is not wiped or changed; the original legacy Windows app, its user data, and old exports are not touched.
+- An already-empty native collection is a **no-op**; resetting it again does not generate needless backups. **Restore native recovery** can restore all original data, and the intervening empty collection is then also preserved as another recovery point.
+- **Important preview limitation:** The native app still provides read-only collection browsing. Starting empty is useful to begin clean, but **adding individual owned cards directly in the native UI is not yet implemented**. Native card editing, scanning, new-deck authoring and full collection management are later Windows milestones. Do not delete recovery files.
+
 ## Safe native collection refresh and recovery — AVN-022
 
 **For Windows users who have already migrated:** The native app now supports an explicit **read / compare / replace with rollback** workflow. Close the old Arcane Vault app, select **Inspect / refresh installed data**, and review the detailed physical, Arena, deck/revision, artwork and unresolved-printing counts. If the full preserved source has no meaningful changes (ignoring the export timestamp), nothing is written. If it differs, choose whether to **replace (not merge)** the native collection. Any existing native collection is first preserved as a new `native-workspace.rollback-<timestamp>-<id>.sqlite` recovery file alongside `native-workspace.sqlite`.

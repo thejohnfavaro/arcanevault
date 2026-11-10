@@ -198,6 +198,87 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    /// <summary>
+    /// Opt-in reset to a complete EMPTY native inventory, deck library, and
+    /// artwork/preferences. The independent Scryfall catalog is not changed.
+    /// For an existing workspace, preserve the ENTIRE verified prior SQLite
+    /// database as a new recovery point; never clear it in place.
+    /// </summary>
+    public sealed record FreshStartOutcome(
+        NativeWorkspace.Workspace Current,
+        string? RecoveryPath,
+        bool Created,
+        bool AlreadyEmpty);
+
+    private static byte[] EmptyCollectionBackup() =>
+        JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schema = 2,
+            source = "arcane-vault-next-fresh-collection",
+            exported = DateTimeOffset.UtcNow.ToString("O"),
+            cards = Array.Empty<object>(),
+            physicalCards = Array.Empty<object>(),
+            deckLibrary = Array.Empty<object>(),
+            preferredArtwork = new Dictionary<string, object>(),
+            favorites = Array.Empty<string>(),
+            deck = (object?)null,
+            studio = new Dictionary<string, object>(),
+            wildcards = new { common = 0, uncommon = 0, rare = 0, mythic = 0 },
+            collectionHistory = Array.Empty<object>()
+        });
+
+    /// <summary>
+    /// Create a brand-new empty native collection without a legacy profile or
+    /// JSON export. When a workspace already exists, require its caller-observed
+    /// SHA, then stage-and-swap using the same verified rollback pipeline as
+    /// native refresh. An already-fresh workspace is an unchanged no-op.
+    /// </summary>
+    public static FreshStartOutcome StartFresh(string nativePath,
+        string? expectedCurrentBackupSha = null,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var path = Path.GetFullPath(nativePath);
+            byte[] blank = EmptyCollectionBackup();
+            if (!File.Exists(path))
+            {
+                if (!string.IsNullOrWhiteSpace(expectedCurrentBackupSha))
+                    throw new InvalidDataException(
+                        "Native collection was removed since confirmation. No new collection was created.");
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                var created = NativeWorkspace.ImportNewBytes(blank,
+                    "fresh-native-collection", path, cancellation);
+                return new FreshStartOutcome(created, null, Created: true, AlreadyEmpty: false);
+            }
+
+            if (string.IsNullOrWhiteSpace(expectedCurrentBackupSha))
+                throw new InvalidDataException(
+                    "Reset of an existing native collection requires its verified current checksum.");
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var diff = Compare(path, blank);
+            if (!diff.HasChanges)
+                return new FreshStartOutcome(
+                    NativeWorkspace.Open(path, cancellation), null,
+                    Created: false, AlreadyEmpty: true);
+
+            var replacement = Refresh(path, blank, "fresh-native-collection",
+                expectedCurrentBackupSha, cancellation);
+            var result = replacement.Current;
+            if (result.Collection.PhysicalCopies != 0 ||
+                result.Collection.ArenaCopies != 0 ||
+                result.Collection.Decks != 0 ||
+                result.Collection.DeckRevisions != 0 ||
+                result.Collection.PreferredArtworks != 0)
+                throw new InvalidDataException(
+                    "Fresh collection verification failed. Preserve native recovery files.");
+            return new FreshStartOutcome(result, replacement.RecoveryPath,
+                Created: false, AlreadyEmpty: false);
+        }
+    }
+
     public static IReadOnlyList<string> RecoveryPaths(string nativePath)
     {
         string path = Path.GetFullPath(nativePath);
