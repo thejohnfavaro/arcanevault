@@ -103,7 +103,7 @@ internal static class BackupRestoreDrill
                 add.Parameters["$section"].Value = section;
                 add.Parameters["$ordinal"].Value = ordinal++;
                 add.Parameters["$name"].Value = name;
-                add.Parameters["$qty"].Value = qty.HasValue ? qty.Value : DBNull.Value;
+                add.Parameters["$qty"].Value = qty.HasValue ? (object)qty.Value : DBNull.Value;
                 add.Parameters["$set"].Value = section == "physicalCards" ? StringOrEmpty(record, "set") : "";
                 add.Parameters["$collector"].Value = section == "physicalCards" ? StringOrEmpty(record, "number") : "";
                 add.Parameters["$print"].Value = section == "physicalCards" ? StringOrEmpty(record, "scryfallId") : "";
@@ -223,8 +223,6 @@ internal static class BackupRestoreDrill
 
         // A failed (partially processed) restore must preserve prior committed
         // snapshot and rows. Modify a late physical row so SQL has already changed.
-        using var malformed = JsonDocument.Parse(source);
-        var changed = JsonSerializer.Deserialize<Dictionary<string,JsonElement>>(malformed.RootElement.GetRawText())!;
         var corrupt = JsonSerializer.Serialize(new {
             schema=2,
             cards=new[] { new { name="Transient", qty=55, sets=new[]{"BAD"} } },
