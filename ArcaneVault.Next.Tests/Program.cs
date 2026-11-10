@@ -138,6 +138,7 @@ try
     OfflineStagingChecks.Run(work);
     NativeBackupReaderChecks.Run(work);
     NativeWorkspaceChecks.Run(work);
+    NativeWorkspaceSafetyChecks.Run(work);
     LegacyStorageImportChecks.Run(work);
     CollectionCatalogReviewChecks.Run(work);
     NativeSetProgressChecks.Run(work);

@@ -55,6 +55,8 @@ public partial class MainWindow : Window
     private async Task InitializeNativeAsync()
     {
         OpenNativeButton.IsEnabled = System.IO.File.Exists(NativeWorkspace.DefaultPath);
+        RestoreRecoveryButton.IsEnabled =
+            NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
         ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
         MigrateLegacyButton.IsEnabled = true;
         SaveNativeCatalogButton.IsEnabled = false;
@@ -177,30 +179,59 @@ public partial class MainWindow : Window
                 var existing = await Task.Run(() =>
                     NativeWorkspace.Open(NativeWorkspace.DefaultPath));
                 if (closing) return;
-                bool physicalMatch = existing.Collection.PhysicalCards.SequenceEqual(view.PhysicalCards);
-                bool arenaMatch = existing.Collection.ArenaCards.SequenceEqual(view.ArenaCards);
+                var comparison = await Task.Run(() =>
+                    NativeWorkspaceSafety.Compare(NativeWorkspace.DefaultPath, recovered.BackupBytes));
+                if (closing) return;
+
                 string match(bool yes) => yes ? "MATCH" : "DIFFERENT";
-                MessageBox.Show(this,
-                    $"Installed legacy profile (read-only):\n" +
-                    $"  Physical {view.PhysicalCopies:N0} copies / {view.PhysicalCards.Count:N0} rows\n" +
-                    $"  Arena {view.ArenaCopies:N0} copies / {view.ArenaCards.Count:N0} entries\n" +
-                    $"  Decks {view.Decks:N0}, revisions {view.DeckRevisions:N0}, art {view.PreferredArtworks:N0}\n\n" +
-                    $"Existing native workspace:\n" +
-                    $"  Physical {existing.Collection.PhysicalCopies:N0} copies / " +
-                      $"{existing.Collection.PhysicalCards.Count:N0} rows — {match(physicalMatch)}\n" +
-                    $"  Arena {existing.Collection.ArenaCopies:N0} copies / " +
-                      $"{existing.Collection.ArenaCards.Count:N0} entries — {match(arenaMatch)}\n" +
-                    $"  Deck counts: {existing.Collection.Decks:N0} — " +
-                      $"{match(existing.Collection.Decks == view.Decks)}\n" +
-                    $"  Revision counts: {existing.Collection.DeckRevisions:N0} — " +
-                      $"{match(existing.Collection.DeckRevisions == view.DeckRevisions)}\n" +
-                    $"  Artwork counts: {existing.Collection.PreferredArtworks:N0} — " +
-                      $"{match(existing.Collection.PreferredArtworks == view.PreferredArtworks)}\n\n" +
-                    "Physical/Arena MATCH compares full typed inventory rows, including printing IDs. " +
-                    "Deck/art comparison checks counts only. Nothing was changed or overwritten.",
-                    "Installed vs native collection — read-only comparison",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                FilterStatus.Text = "Read-only legacy comparison finished. Native database is unchanged.";
+                string details =
+                    $"Installed legacy: {view.PhysicalCopies:N0} physical / {view.ArenaCopies:N0} Arena copies, " +
+                    $"{view.Decks:N0} decks, {view.DeckRevisions:N0} revisions, {view.PreferredArtworks:N0} art entries.\n" +
+                    $"Native workspace: {existing.Collection.PhysicalCopies:N0} physical / " +
+                    $"{existing.Collection.ArenaCopies:N0} Arena copies, " +
+                    $"{existing.Collection.Decks:N0} decks, " +
+                    $"{existing.Collection.DeckRevisions:N0} revisions, " +
+                    $"{existing.Collection.PreferredArtworks:N0} art entries.\n\n" +
+                    $"Physical/Arena records: {match(comparison.InventoryEqual)}\n" +
+                    $"Deck/revision/art counts: {match(comparison.OtherCountsEqual)}\n" +
+                    $"Complete data (excluding export timestamp): {match(comparison.PayloadEquivalent)}\n" +
+                    $"Unresolved physical: {comparison.CurrentUnresolvedCopies:N0} native, " +
+                    $"{comparison.CandidateUnresolvedCopies:N0} legacy copies.\n\n";
+                if (!comparison.HasChanges)
+                {
+                    MessageBox.Show(this, details + "No meaningful changes found. Nothing was modified.",
+                        "Native collection is up to date", MessageBoxButton.OK, MessageBoxImage.Information);
+                    FilterStatus.Text = "Native collection matches legacy source; no refresh necessary.";
+                    return;
+                }
+
+                if (MessageBox.Show(this, details +
+                    "Replace (not merge) the native workspace with these exact installed-app records? " +
+                    "The previous native database will be retained as a separate recovery point. " +
+                    "The original installed application is never modified.\n\n" +
+                    "Choose No if any numbers appear unexpected.",
+                    "Confirm native refresh with recovery", MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                {
+                    FilterStatus.Text = "Refresh canceled; native collection unchanged.";
+                    return;
+                }
+
+                FilterStatus.Text = "Validating replacement and preserving a native rollback…";
+                var refreshed = await Task.Run(() =>
+                    NativeWorkspaceSafety.Refresh(NativeWorkspace.DefaultPath, recovered.BackupBytes,
+                        "installed-webview2-offline-refresh", comparison.CurrentBackupSha256));
+                if (closing) return;
+                collectionWindow?.Close();
+                collectionWindow = null;
+                RestoreRecoveryButton.IsEnabled = true;
+                await OpenNativeCollectionAsync();
+                if (!closing)
+                    MessageBox.Show(this,
+                        "Native refresh completed. The previous collection was saved at:\n" +
+                        refreshed.RecoveryPath +
+                        "\n\nUse 'Restore native recovery' to reverse this refresh.",
+                        "Native refresh verified", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -291,6 +322,91 @@ public partial class MainWindow : Window
                 bool exists = System.IO.File.Exists(NativeWorkspace.DefaultPath);
                 OpenNativeButton.IsEnabled = exists;
                 ImportNativeButton.IsEnabled = !exists;
+                MigrateLegacyButton.IsEnabled = true;
+                RestoreRecoveryButton.IsEnabled =
+                    NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
+            }
+        }
+    }
+
+    private async void OnRestoreRecoveryClicked(object sender, RoutedEventArgs e)
+    {
+        var options = NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath);
+        if (options.Count == 0)
+        {
+            FilterStatus.Text = "No native recovery copies have been created.";
+            RestoreRecoveryButton.IsEnabled = false;
+            return;
+        }
+        var picker = new OpenFileDialog
+        {
+            Title = "Choose a native collection recovery point",
+            Filter = "Native recovery SQLite (*.sqlite)|*.sqlite",
+            InitialDirectory = NativeWorkspace.RootDirectory,
+            FileName = System.IO.Path.GetFileName(options[0]),
+            CheckFileExists = true
+        };
+        if (picker.ShowDialog(this) != true) return;
+        string chosen = System.IO.Path.GetFullPath(picker.FileName);
+        if (!options.Contains(chosen, StringComparer.OrdinalIgnoreCase))
+        {
+            FilterStatus.Text = "Selected file is not a registered native recovery point.";
+            return;
+        }
+        RestoreRecoveryButton.IsEnabled = false;
+        MigrateLegacyButton.IsEnabled = false;
+        OpenNativeButton.IsEnabled = false;
+        try
+        {
+            var pair = await Task.Run(() =>
+                (current: NativeWorkspace.Open(NativeWorkspace.DefaultPath),
+                 prior: NativeWorkspace.Open(chosen)));
+            if (closing) return;
+            if (MessageBox.Show(this,
+                $"Current: {pair.current.Collection.PhysicalCopies:N0} physical, " +
+                $"{pair.current.Collection.ArenaCopies:N0} Arena copies, " +
+                $"{pair.current.Collection.Decks:N0} decks.\n" +
+                $"Recovery: {pair.prior.Collection.PhysicalCopies:N0} physical, " +
+                $"{pair.prior.Collection.ArenaCopies:N0} Arena copies, " +
+                $"{pair.prior.Collection.Decks:N0} decks.\n\n" +
+                "Restore this recovery? Your current native database will ALSO be " +
+                "saved as a new recovery point. The installed Windows app is untouched.",
+                "Confirm verified native recovery", MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                FilterStatus.Text = "Recovery canceled; native data unchanged.";
+                return;
+            }
+            FilterStatus.Text = "Validating native recovery and preserving current workspace…";
+            var recovered = await Task.Run(() =>
+                NativeWorkspaceSafety.Restore(NativeWorkspace.DefaultPath, chosen,
+                    pair.current.BackupSha256));
+            if (closing) return;
+            collectionWindow?.Close();
+            collectionWindow = null;
+            await OpenNativeCollectionAsync();
+            if (!closing)
+                MessageBox.Show(this,
+                    "Previous native collection restored. The replaced version is preserved at:\n" +
+                    recovered.RecoveryPath,
+                    "Recovery completed", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+                MessageBox.Show(this,
+                    "Recovery was not confirmed. Keep all native database files and verify " +
+                    "the current collection before another attempt.\n\n" + ex.Message,
+                    "Native recovery stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            if (!closing)
+            {
+                RestoreRecoveryButton.IsEnabled =
+                    NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
+                OpenNativeButton.IsEnabled =
+                    System.IO.File.Exists(NativeWorkspace.DefaultPath);
                 MigrateLegacyButton.IsEnabled = true;
             }
         }

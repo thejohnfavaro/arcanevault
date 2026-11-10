@@ -26,7 +26,7 @@
             <Button x:Name="SaveNativeCatalogButton" Content="Keep catalog natively"
                     Click="OnSaveNativeCatalogClicked" Padding="12,9" Margin="0,0,12,0"
                     IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
-            <Button x:Name="MigrateLegacyButton" Content="Inspect / migrate installed data"
+            <Button x:Name="MigrateLegacyButton" Content="Inspect / refresh installed data"
                     Click="OnMigrateLegacyClicked" Padding="12,9" Margin="0,0,12,0"
                     Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
             <Button x:Name="ImportNativeButton" Content="Import backup once"
@@ -34,6 +34,9 @@
                     Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
             <Button x:Name="OpenNativeButton" Content="Open native collection"
                     Click="OnOpenNativeClicked" Padding="12,9" Margin="0,0,12,0"
+                    IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+            <Button x:Name="RestoreRecoveryButton" Content="Restore native recovery"
+                    Click="OnRestoreRecoveryClicked" Padding="12,9" Margin="0,0,12,0"
                     IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
             <Button x:Name="CollectionBackupButton" Content="Preview external backup"
                     Click="OnCollectionBackupClicked" Padding="12,9" Margin="0,0,12,0"

@@ -2,11 +2,19 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Safe native collection refresh and recovery — AVN-022
+
+**For Windows users who have already migrated:** The native app now supports an explicit **read / compare / replace with rollback** workflow. Close the old Arcane Vault app, select **Inspect / refresh installed data**, and review the detailed physical, Arena, deck/revision, artwork and unresolved-printing counts. If the full preserved source has no meaningful changes (ignoring the export timestamp), nothing is written. If it differs, choose whether to **replace (not merge)** the native collection. Any existing native collection is first preserved as a new `native-workspace.rollback-<timestamp>-<id>.sqlite` recovery file alongside `native-workspace.sqlite`.
+
+The refresh stages a complete verified replacement in the private native folder, rechecks that the existing native database has not changed since the comparison, atomically swaps it while preserving the old SQLite file, and reopens the result. The original installed-app profile is never written. Use **Restore native recovery** to explicitly choose a prior native rollback and see its counts before restoring; the replaced newer native version is also retained as a *new* recovery point. **Never manually delete or rename these recovery files while the app is open.**
+
+**Limits:** There is no automatic sync and no merging of changes. Refreshing from the old app will replace any native-only data made after that source snapshot, once native editing is introduced. Legacy data and current native data can diverge; carefully compare the on-screen counts. Rollback copies are unencrypted and consume disk space; retain them until recovery has been verified. Editing remains disabled while source-parity and on-device rollback tests continue.
+
 ## Self-contained build and safe comparison
 
 GitHub Actions now offers **`ArcaneVaultNext-NativeStandalone`**, a Windows x64 bundle that includes the .NET 10 Desktop runtime (extract the entire artifact and run `ArcaneVault.Next.Desktop.exe`). The one-time legacy profile bridge still needs the local Microsoft Edge **WebView2 Runtime**; normal native collection/catalog viewing does not. This artifact is a development preview, not a signed installer.
 
-The **Inspect / migrate installed data** button is safe to use even if you have already migrated using a manual backup. If `native-workspace.sqlite` exists, it **only reads a clone of the legacy profile** and compares physical/Arena inventory records and deck/art counts against the native data. It will **not overwrite, refresh or merge** the existing native collection. This allows checking the importer without deleting prior native data. New users without a native workspace get the migration confirmation flow described below.
+The **Inspect / migrate installed data** button is safe to use even if you have already migrated using a manual backup. If `native-workspace.sqlite` exists, it first reads a clone of the installed profile **without writing**, then compares the data and offers an explicit refresh **with an automatic recovery copy** if differences exist. It never merges data or modifies the installed app. You may decline with no changes. This allows checking the importer without deleting prior native data. New users without a native workspace get the migration confirmation flow described below.
 
 ## Direct migration from installed Windows app — AVN-021
 
@@ -16,7 +24,7 @@ The importer clones **only** the old WebView2 localStorage LevelDB to a private 
 
 The native app previews Arena and paper quantities, decks/history, preferred art and unresolved printing-ID copies; confirm totals before it creates a **new** independent `%LOCALAPPDATA%\\ArcaneVaultNext\\native-workspace.sqlite`. The full migrated document is assembled **in memory** and stored transactionally with checksum and raw extra browser settings. The native Scryfall catalog is copied independently if available. Subsequent launches open the native data directly without the old application, manual file export, or migration bridge.
 
-**Limits:** This is a **one-time** migration, not automatic synchronization. It currently supports the installed **127.0.0.1:8765 / Default profile** origin; older/different browser profiles or absent ownership keys intentionally fail without altering data. If it fails, use the existing **Import backup once** action. An existing native workspace is never overwritten. Native editing, restore/refresh, source cutover, and eliminating WebView2 from the one-time migration itself remain future tasks. Do not delete the installed old app or backup yet; device-level validation is still required.
+**Limits:** This is a **one-time** migration, not automatic synchronization. It currently supports the installed **127.0.0.1:8765 / Default profile** origin; older/different browser profiles or absent ownership keys intentionally fail without altering data. If it fails, use the existing **Import backup once** action. An existing native workspace is **never silently overwritten**. A verified refresh is now opt-in with a retained recovery copy. Native editing, automated sync, signed Windows releases and eliminating WebView2 from legacy profile inspection remain future tasks. Do not delete the installed old app or backup yet; device-level validation is still required.
 
 ## One-time native setup — AVN-020
 
