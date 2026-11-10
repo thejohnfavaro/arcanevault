@@ -2,6 +2,12 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Self-contained build and safe comparison
+
+GitHub Actions now offers **`ArcaneVaultNext-NativeStandalone`**, a Windows x64 bundle that includes the .NET 10 Desktop runtime (extract the entire artifact and run `ArcaneVault.Next.Desktop.exe`). The one-time legacy profile bridge still needs the local Microsoft Edge **WebView2 Runtime**; normal native collection/catalog viewing does not. This artifact is a development preview, not a signed installer.
+
+The **Inspect / migrate installed data** button is safe to use even if you have already migrated using a manual backup. If `native-workspace.sqlite` exists, it **only reads a clone of the legacy profile** and compares physical/Arena inventory records and deck/art counts against the native data. It will **not overwrite, refresh or merge** the existing native collection. This allows checking the importer without deleting prior native data. New users without a native workspace get the migration confirmation flow described below.
+
 ## Direct migration from installed Windows app — AVN-021
 
 **Preferred for first-time native setup:** Open the new native EXE and select **Migrate installed Windows data**. **No manual backup export or old app running is required.** The old Arcane Vault Windows program **must be CLOSED** during migration; its localhost port 8765 must be free. The one-time extraction still uses the installed Microsoft Edge **WebView2 Runtime**, but Arcane Vault Next's collection and catalog afterwards use native SQLite.
