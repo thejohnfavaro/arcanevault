@@ -1,10 +1,11 @@
 <Window x:Class="ArcaneVault.Next.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Arcane Vault Next — Native UI Prototype" Width="1060" Height="740"
-        MinWidth="760" MinHeight="500" Background="#101620" Foreground="#EBF1F8">
+        Title="Arcane Vault Next — Native Catalog Prototype" Width="1080" Height="750"
+        MinWidth="780" MinHeight="520" Background="#101620" Foreground="#EBF1F8">
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -13,20 +14,26 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
             <TextBlock FontSize="27" FontWeight="Bold" Text="Arcane Vault Next"/>
             <TextBlock FontSize="13" Foreground="#ADC0D1" Margin="0,4,0,0"
-                       Text="Performance prototype only · No live collection or network access"/>
+                       Text="Native performance prototype · Explicit read-only catalog snapshot · No user ownership or deck edits"/>
         </StackPanel>
-
-        <DockPanel Grid.Row="1" Margin="0,0,0,12">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button x:Name="OpenCatalogButton" Content="Open a read-only catalog snapshot"
+                    Click="OnOpenCatalogClicked" Padding="12,9" Margin="0,0,12,0"
+                    Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+            <Button x:Name="SyntheticButton" Content="Use 25,000 synthetic cards"
+                    Click="OnSyntheticClicked" Padding="12,9"
+                    Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+        </StackPanel>
+        <DockPanel Grid.Row="2" Margin="0,0,0,12">
             <TextBlock DockPanel.Dock="Right" x:Name="FilterStatus" TextAlignment="Right"
-                       Width="330" VerticalAlignment="Center" Foreground="#B5CCD7"
-                       Text="Loading synthetic sample…"/>
+                       Width="340" VerticalAlignment="Center" Foreground="#B5CCD7"
+                       Text="25,000 synthetic rows"/>
             <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged"
-                     ToolTip="Filter a synthetic catalog of 25,000 items"
+                     ToolTip="Catalog mode performs bounded name-prefix searches, max 200 printings"
                      Padding="12,9" FontSize="15" Background="#202C3B" Foreground="White"
                      BorderBrush="#516174"/>
         </DockPanel>
-
-        <ListView Grid.Row="2" x:Name="CardsList"
+        <ListView Grid.Row="3" x:Name="CardsList"
                   Background="#17202D" Foreground="#EAF0F6" BorderBrush="#405063"
                   ScrollViewer.CanContentScroll="True"
                   VirtualizingStackPanel.IsVirtualizing="True"
@@ -54,8 +61,8 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
-        <TextBlock Grid.Row="3" Margin="0,12,0,0"
+        <TextBlock Grid.Row="4" x:Name="ModeStatus" Margin="0,12,0,0"
                    Foreground="#A8BACA" FontSize="12"
-                   Text="25,000 synthetic rows for control virtualization and cancellation tests. Nothing is imported, saved, or synced."/>
+                   Text="Synthetic mode · No catalog file open. Nothing is imported, saved, or synced."/>
     </Grid>
 </Window>
