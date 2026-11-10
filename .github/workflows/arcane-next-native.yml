@@ -5,6 +5,7 @@ on:
     paths:
       - 'ArcaneVault.Next.Desktop/**'
       - 'ArcaneVault.Next.Domain/**'
+      - 'ArcaneVault.Next.Collection/**'
       - 'ArcaneVault.Next.EDHLab/**'
       - 'ArcaneVault.Next.Migration/**'
       - 'contracts/**'
@@ -17,6 +18,7 @@ on:
       - 'ArcaneVault.Next.Migration/**'
       - 'ArcaneVault.Next.Desktop/**'
       - 'ArcaneVault.Next.Domain/**'
+      - 'ArcaneVault.Next.Collection/**'
       - 'ArcaneVault.Next.EDHLab/**'
       - 'contracts/**'
       - 'ArcaneVault.Next.Tests/**'

@@ -137,6 +137,7 @@ try
     MigrationPreviewChecks.Run(work);
     OfflineStagingChecks.Run(work);
     NativeBackupReaderChecks.Run(work);
+    CollectionCatalogReviewChecks.Run(work);
     EdhLabChecks.Run(work);
 
     Console.WriteLine("PASS: 25,202-row read-only snapshot, original unchanged, bounded/escaped searches, snapshot isolation and cleanup");
