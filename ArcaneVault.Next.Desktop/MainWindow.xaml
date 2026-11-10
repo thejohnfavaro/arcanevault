@@ -21,7 +21,7 @@
                     Click="OnOpenCatalogClicked" Padding="12,9" Margin="0,0,12,0"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
             <Button x:Name="SyntheticButton" Content="Use 25,000 synthetic cards"
-                    Click="OnSyntheticClicked" Padding="12,9"
+                    Click="OnSyntheticClicked" Visibility="Collapsed" Padding="12,9"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B" Margin="0,0,12,0"/>
             <Button x:Name="SaveNativeCatalogButton" Content="Keep catalog natively"
                     Click="OnSaveNativeCatalogClicked" Padding="12,9" Margin="0,0,12,0"

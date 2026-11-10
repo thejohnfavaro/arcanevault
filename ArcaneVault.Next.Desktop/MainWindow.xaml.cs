@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private NativeCollectionWindow? collectionWindow;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
+    private bool syntheticMode;
     private int modeVersion;
 
     public MainWindow()
@@ -34,8 +35,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         sampleCards = Enumerable.Range(1, 25_000).Select(i =>
             new SampleCard($"Sample Card {i:D5}", $"S{i % 60:D2}", $"#{i % 450 + 1:D3}")).ToArray();
-        CardsList.ItemsSource = sampleCards;
-        FilterStatus.Text = $"{sampleCards.Count:N0} synthetic cards";
+        // A new real workspace must never appear populated with demo entries.
+        CardsList.ItemsSource = Array.Empty<SampleCard>();
+        FilterStatus.Text = "No catalog selected · No sample cards are owned";
         Loaded += async (_, _) => await InitializeNativeAsync();
         Closed += (_, _) =>
         {
@@ -677,6 +679,7 @@ public partial class MainWindow : Window
             collectionWindow = null;
             var previous = catalogSnapshot;
             catalogSnapshot = loaded;
+            syntheticMode = false;
             EdhLabButton.IsEnabled = true;
             SaveNativeCatalogButton.IsEnabled =
                 !System.IO.File.Exists(NativeWorkspace.CatalogPath);
@@ -825,6 +828,7 @@ public partial class MainWindow : Window
         modeVersion++;
         var previous = catalogSnapshot;
         catalogSnapshot = null;
+        syntheticMode = true;
         previous?.Dispose();
         ModeStatus.Text = "Synthetic mode · No catalog file open. Nothing is imported, saved, or synced.";
         SearchBox.Text = "";
@@ -851,6 +855,14 @@ public partial class MainWindow : Window
             await Task.Delay(140, token);
             if (active is null)
             {
+                if (!syntheticMode)
+                {
+                    if (closing || version != modeVersion ||
+                        !ReferenceEquals(searchCancellation, cts)) return;
+                    CardsList.ItemsSource = Array.Empty<SampleCard>();
+                    FilterStatus.Text = "No Scryfall catalog loaded — native ownership is separate";
+                    return;
+                }
                 var started = Stopwatch.GetTimestamp();
                 var list = await Task.Run(() => sampleCards.Where(c =>
                     c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
