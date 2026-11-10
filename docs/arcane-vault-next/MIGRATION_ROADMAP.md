@@ -112,6 +112,33 @@
 - No data-loss or major feature-parity issues.
 - Old backup restore still supported and tested.
 
+## EDH Lab — Commander and Arena Brawl deckbuilding toolbox (Phase 5 product work)
+
+**Product target — not a shipped feature.** EDH Lab is a dedicated workspace over the shared Card Browser, Deck Studio, ownership and legality services. It supports two independent rule profiles: **paper Commander** and **100-card MTG Arena Brawl**, with an optional separate Competitive Brawl legality profile if available. Every saved deck retains its rule profile; switching modes never silently alters or deletes a deck.
+
+### Commander discovery and random picker
+- **Browse all eligible commanders** from the current synced catalog (not just a 200-row preview). Search by name and ability text, with virtualized/paginated results and art previews.
+- **Color-identity filters**: W/U/B/R/G plus colorless; exact identity, contains all selected colors, or contains any selected color. Include named pairs, shards, wedges, four-color and five-color combinations.
+- Availability: all format-eligible, physical collection only, Arena collection only, and owned/unowned; distinguish a card being on Arena from the player actually owning it. Multiple printings display as one commander identity with selectable art.
+- **Random Commander / Surprise Me** selects uniformly from the *currently eligible, filtered pool*; reroll preserves chosen filters. No result? Show an explicit empty state and reset suggestion. Provide favorites, recent rolls, and optional no-repeat-until-exhausted behavior.
+- Commander eligibility follows the selected format rather than merely checking a `legendary` string: ordinary paper Commander commanders are legendary creatures or explicitly permitted exceptions, while Arena Brawl has its own allowed commander categories and ban list. Partner, backgrounds and other multi-commander constructions need explicit compatibility checks.
+
+### EDH Lab build and optimization workspace
+- Starting a build from any commander or random roll preloads the **correct color identity, format, card count and singleton rules**; supports legal multi-commander configurations.
+- Filters card pool by actual format legality, color identity, Arena availability, and physical/Arena owned quantities. Never claim a card is owned by inferring a printing from its name.
+- Deck roles, synergy packages, mana curve, color sources, ramp, removal, interaction, draw, board wipes and win conditions; adjustable goals for casual / Commander bracket / high-power play.
+- **Collection-first recommendations** with visible owned vs missing quantities, wildcard cost for Arena, optional physical purchase/budget view, and warnings for illegal cards.
+- One-click add/replace/remove, deck comparison, probability/goldfishing integrations, and import/export (Arena Brawl, Commander text formats) with rules-validated results.
+- Android companion: browse commanders, randomize, view saved EDH Lab lists and make simple verified edits after sync v2 is reliable. Advanced optimization remains Windows-first.
+
+### EDH Lab acceptance
+- Entire catalog appears with no artificial result cap; filter math is correct for colorless through five colors. Zero results never causes random picker crashes.
+- Random rolls cannot return illegal/banned or excluded commanders; rerolls use the same current filter set.
+- Paper Commander and Arena Brawl rule differences, multi-commander exceptions, singleton counts, color identity, card availability, and exports have golden tests.
+- Missing print IDs and missing card metadata are surfaced without fabricated ownership or legality claims; save and reopen preserves chosen commander(s), rule profile and all 100 cards.
+
+**Sequencing:** design rules/contracts and UI information architecture after Phase 1; implement native EDH Lab in Phase 5 after authoritative inventory, deck persistence and format-validation services. EDH Lab must not delay P0 data reliability or native collection migration.
+
 ## Phase 6 — Hardening, regression and controlled release (weeks 22–30)
 
 ### Deliverables
@@ -149,7 +176,7 @@ Parallel work: scanner UI mock/test corpus and WPF shell proof-of-concept can be
 | AVN-005 | P0 | Build non-destructive migration dry-run | Exact count/identity/deck comparison; no writes to old profile |
 | AVN-006 | P1 | Prove Android camera OCR + local printing candidate lookup | Functional proof of concept, no inventory writes |
 
-Next tickets: AVN-007 durable change journal, AVN-008 v2 sync/retry/conflicts, AVN-009 WPF virtualized browser, AVN-010 physical collection parity, AVN-011 Set Progress, AVN-012 scanner save flow, AVN-013 decks and strategy parity.
+Next tickets: AVN-007 durable change journal, AVN-008 v2 sync/retry/conflicts, AVN-009 WPF virtualized browser, AVN-010 physical collection parity, AVN-011 Set Progress, AVN-012 scanner save flow, AVN-013 decks and strategy parity. EDH Lab follow-ups: AVN-014 full commander registry + color-identity filters + random picker, AVN-015 Brawl/Commander rules and collection-aware builder, AVN-016 native EDH Lab and Android companion handoff.
 
 ## Reporting cadence
 
