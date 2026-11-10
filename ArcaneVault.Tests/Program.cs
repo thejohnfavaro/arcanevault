@@ -73,6 +73,19 @@ try
         throw new Exception("Multiline decklist event not captured: "+arenaSnapshot);
     Console.WriteLine("PASS: complete and multiline deck payload capture; name-only excluded.");
 
+    // Verify that the *loaded* native SQLite engine, not only the NuGet
+    // package declaration, includes the upstream memory-corruption fix.
+    using (var sqlite = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:"))
+    {
+        sqlite.Open();
+        using var version = sqlite.CreateCommand();
+        version.CommandText = "SELECT sqlite_version()";
+        var runtime = Convert.ToString(version.ExecuteScalar()) ?? "";
+        if (!Version.TryParse(runtime, out var parsed) || parsed < new Version(3, 50, 2))
+            throw new Exception("SQLite runtime must be 3.50.2 or newer, actual: " + runtime);
+        Console.WriteLine("PASS: SQLite runtime " + runtime + " meets 3.50.2 security floor");
+    }
+
     BackupRestoreDrill.Run(temp);
 
     Console.WriteLine("PASS: deck ID matching auto-assigns match.");

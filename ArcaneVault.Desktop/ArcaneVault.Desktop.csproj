@@ -9,13 +9,13 @@
     <RootNamespace>ArcaneVault.Desktop</RootNamespace>
     <ApplicationTitle>Arcane Vault</ApplicationTitle>
     <ApplicationIcon>Assets\ArcaneVault.ico</ApplicationIcon>
-    <Version>5.21.15</Version>
+    <Version>5.21.16</Version>
     <!-- Publish settings: desktop window + embedded Scryfall service in ONE EXE. -->
     <PublishSingleFile Condition="'$(PublishSingleFile)' == ''">true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract Condition="'$(IncludeNativeLibrariesForSelfExtract)' == ''">true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.33" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
     <EmbeddedResource Include="Assets\ArcaneVault.ico" LogicalName="ArcaneVault.Desktop.WindowIcon.ico" />
     <EmbeddedResource Include="Assets\Arcane_Vault_MTGA_Collection_v4_2.html" LogicalName="ArcaneVault.Desktop.App.html" />
