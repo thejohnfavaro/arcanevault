@@ -10,4 +10,7 @@
     <RootNamespace>ArcaneVault.Next.Desktop</RootNamespace>
     <ApplicationTitle>Arcane Vault Next — Native UI Prototype</ApplicationTitle>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+  </ItemGroup>
 </Project>
