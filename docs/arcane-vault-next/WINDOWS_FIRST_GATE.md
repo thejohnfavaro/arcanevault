@@ -14,6 +14,12 @@
 
 All of the following must be validated: shipping Windows version installs/launches and updates without data loss; real full backup/restore (disposable profile) passes quantity/printing/deck/artwork comparison; core native card catalog, physical collection, Arena inventory, card details and Set Progress are functional; unresolved printings are visible rather than guessed; performance and stability have been measured; recovery route documented and tested. At that point, EDH Lab can be reprioritized.
 
+## Current implementation slice: AVN-021 — direct installed Windows migration
+
+Native UI has a **Migrate installed Windows data** button which, with explicit consent and the old Windows application closed, reads the old app's origin-local browser storage using an isolated temporary WebView2 profile clone. A complete schema-2 backup is synthesized **only in memory**, verified for paper/Arena quantities and deck/art counts, then imported into the independent native SQLite workspace. The optional Scryfall catalog is safely copied to its own native store. Existing installed profile and native workspace are never overwritten. No manual full-backup export is needed for this one-time bootstrap, but the bridge currently depends on the installed WebView2 Runtime and matching legacy origin. The old app is not required for subsequent native launches.
+
+**This is NOT validated as a working migration on the user's actual Windows machine yet.** Protect original data, test full counts with the user and keep rollback available before enabling native writes.
+
 ## Current implementation slice: AVN-020 — persistent native Windows startup
 
 A user must explicitly import the complete legacy backup **once** and explicitly preserve a copy of the Scryfall catalog **once**. Arcane Vault Next then opens these **private native SQLite files** on launch without selecting a backup/catalog again. The imported native collection includes all physical and Arena rows plus preserved decks/history/artwork; source and native rows are checked for equality and no replace-on-import is allowed. Existing installed app data is never modified. **This is not native live editing, automatic source WebView ingestion, sync, rollback, or completed migration.** User-device restart/recovery validation is still required.

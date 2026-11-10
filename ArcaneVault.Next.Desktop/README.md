@@ -2,9 +2,19 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Direct migration from installed Windows app — AVN-021
+
+**Preferred for first-time native setup:** Open the new native EXE and select **Migrate installed Windows data**. **No manual backup export or old app running is required.** The old Arcane Vault Windows program **must be CLOSED** during migration; its localhost port 8765 must be free. The one-time extraction still uses the installed Microsoft Edge **WebView2 Runtime**, but Arcane Vault Next's collection and catalog afterwards use native SQLite.
+
+The importer clones **only** the old WebView2 localStorage LevelDB to a private temporary browser profile, serves a minimal local-only migration page at the same 127.0.0.1:8765 origin, and reads the copied localStorage. It does **not** execute the original HTML application or mutate the original profile. The browser clone is deleted after the attempt. Required `vault_cards` and `vault_physicalCollectionV1` keys must be present: no source means **stop**, not import the bundled demo collection or silently count zero owned cards.
+
+The native app previews Arena and paper quantities, decks/history, preferred art and unresolved printing-ID copies; confirm totals before it creates a **new** independent `%LOCALAPPDATA%\\ArcaneVaultNext\\native-workspace.sqlite`. The full migrated document is assembled **in memory** and stored transactionally with checksum and raw extra browser settings. The native Scryfall catalog is copied independently if available. Subsequent launches open the native data directly without the old application, manual file export, or migration bridge.
+
+**Limits:** This is a **one-time** migration, not automatic synchronization. It currently supports the installed **127.0.0.1:8765 / Default profile** origin; older/different browser profiles or absent ownership keys intentionally fail without altering data. If it fails, use the existing **Import backup once** action. An existing native workspace is never overwritten. Native editing, restore/refresh, source cutover, and eliminating WebView2 from the one-time migration itself remain future tasks. Do not delete the installed old app or backup yet; device-level validation is still required.
+
 ## One-time native setup — AVN-020
 
-This is the first Windows slice that **reopens your own native collection and local Scryfall catalog on subsequent launches**, instead of requiring a JSON backup selection each time. It remains a **separate experimental application**, not an installed-app replacement or a bidirectional sync.
+This is the first Windows slice that **reopens your own native collection and local Scryfall catalog on subsequent launches**. AVN-021 adds direct one-click migration, so the manual full-backup import described below is now the **fallback**, not the normal route. It remains a **separate experimental application**, not an installed-app replacement or a bidirectional sync.
 
 1. Open your installed (old) Arcane Vault app, use **Data & Sync → Save full backup**, and keep the downloaded `arcane-vault-backup.json` safe.
 2. Launch `ArcaneVault.Next.Desktop.exe`. Select the existing `%LOCALAPPDATA%\\ArcaneVault\\scryfall-catalog.sqlite` with **Open a read-only catalog snapshot**.
