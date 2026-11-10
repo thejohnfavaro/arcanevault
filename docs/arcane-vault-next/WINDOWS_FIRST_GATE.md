@@ -14,6 +14,12 @@
 
 All of the following must be validated: shipping Windows version installs/launches and updates without data loss; real full backup/restore (disposable profile) passes quantity/printing/deck/artwork comparison; core native card catalog, physical collection, Arena inventory, card details and Set Progress are functional; unresolved printings are visible rather than guessed; performance and stability have been measured; recovery route documented and tested. At that point, EDH Lab can be reprioritized.
 
+## In-progress slice: AVN-024 — verified paper ownership additions
+
+The native Windows collection gains **Add physical printing** only when a native workspace and a local Scryfall catalog are loaded. Search returns explicit paper printings with Scryfall ID, set code and collector number; the user picks exact identity, quantity (1–99,999) and finish (nonfoil/foil/etched) and reviews a confirmation before saving. Edits use a second catalog validation, optimistic backup-SHA guard, full verified staging and a retained, restorable SQLite recovery copy. Identical print ID + finish combines quantities only if the existing line's catalog identity agrees; different editions/finishes remain separate. Existing name-only/unresolved rows are preserved, never silently matched.
+
+**Scope limitations:** native Arena edits, physical quantity reductions/deletions, bulk imports, scanner, device sync, price data and EDH Lab are still out of scope. Existing legacy Windows app data is not changed; native additions do not automatically flow back to that legacy app or Android. This prototype is not a shipping installer; CI synthetic tests do not replace an installed-Windows acceptance test.
+
 ## Current implementation slice: AVN-023 — new empty native collection
 
 Arcane Vault Next adds **Start fresh collection** for both an uninitialized native profile (no legacy app/JSON export required) and an existing native collection (verified staged replacement plus non-overwritten rollback file). The action clears active physical and Arena ownership, decks/history, preferred art, favorites, wildcards and legacy settings; the independently stored Scryfall catalog, old Windows app and its data are not touched. The user is shown the data being replaced and must type `START FRESH`; **Restore native recovery** can undo the reset. CI covers first-run blank, double reset no-op, stale SHA rejection, reset/restore count conservation, and catalog isolation. **Native ownership editing is not yet available**, so this is not full standalone collection-management parity.
