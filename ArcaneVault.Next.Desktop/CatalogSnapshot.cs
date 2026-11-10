@@ -107,6 +107,7 @@ public sealed class CatalogSnapshot : IDisposable
             cmd.Parameters.AddWithValue("$prefix", escaped + "%");
             cmd.Parameters.AddWithValue("$limit", limit + 1);
             var rows = new List<PrintingRow>(limit);
+            bool hasExtra = false;
             var started = Stopwatch.GetTimestamp();
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -114,10 +115,9 @@ public sealed class CatalogSnapshot : IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 if (rows.Count < limit)
                     rows.Add(new PrintingRow(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
-                else break;
+                else { hasExtra = true; break; }
             }
-            return new SearchResult(rows, Stopwatch.GetElapsedTime(started).TotalMilliseconds,
-                reader.HasRows && rows.Count == limit /* bounded, conservative indication */);
+            return new SearchResult(rows, Stopwatch.GetElapsedTime(started).TotalMilliseconds, hasExtra);
         }
     }
 
