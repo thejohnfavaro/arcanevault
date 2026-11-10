@@ -26,6 +26,9 @@ public sealed class CatalogSnapshot : IDisposable
 
     public long TotalPrintings { get; }
 
+    // The native EDH Lab preview loads the exact same isolated SQLite snapshot.
+    internal string ReadOnlySnapshotPath => snapshotPath;
+
     private static SqliteConnection Connect(string path, SqliteOpenMode mode)
     {
         var connection = new SqliteConnection(new SqliteConnectionStringBuilder

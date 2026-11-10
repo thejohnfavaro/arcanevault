@@ -1,0 +1,104 @@
+<Window x:Class="ArcaneVault.Next.Desktop.CommanderBrowserWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="EDH Lab — Commander Browser (Native Preview)"
+        Width="1000" Height="755" MinWidth="760" MinHeight="550"
+        Background="#101620" Foreground="#EAF0F6">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock FontSize="26" FontWeight="Bold" Text="EDH Lab"/>
+            <TextBlock FontSize="13" Foreground="#B6C6D7" Margin="0,4,0,0"
+                       Text="Read-only commander discovery · Paper Commander / 100-card Arena Brawl · No collection edits"/>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Format" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="FormatChoice" Width="185" Margin="0,0,20,0"
+                      SelectedIndex="0" SelectionChanged="OnFiltersChanged">
+                <ComboBoxItem Content="Paper Commander"/>
+                <ComboBoxItem Content="Arena Brawl"/>
+            </ComboBox>
+            <TextBlock Text="Color match" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="ColorMatchChoice" Width="180" Margin="0,0,20,0"
+                      SelectedIndex="0" SelectionChanged="OnFiltersChanged">
+                <ComboBoxItem Content="Exact identity"/>
+                <ComboBoxItem Content="Contains all selected"/>
+                <ComboBoxItem Content="Contains any selected"/>
+            </ComboBox>
+            <CheckBox x:Name="AvoidRepeats" Content="Random: no repeats" VerticalAlignment="Center"
+                      IsChecked="True"/>
+        </StackPanel>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Text="Identity" VerticalAlignment="Center" Margin="0,0,12,0"/>
+            <CheckBox x:Name="WhiteColor" Content="W" Tag="W" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged"/>
+            <CheckBox x:Name="BlueColor" Content="U" Tag="U" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged"/>
+            <CheckBox x:Name="BlackColor" Content="B" Tag="B" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged"/>
+            <CheckBox x:Name="RedColor" Content="R" Tag="R" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged"/>
+            <CheckBox x:Name="GreenColor" Content="G" Tag="G" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged"/>
+            <CheckBox x:Name="Colorless" Content="Colorless" Tag="C" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged"/>
+            <Button Content="Clear colors" Padding="10,5" Click="OnClearColors"/>
+        </StackPanel>
+        <DockPanel Grid.Row="3" Margin="0,0,0,12">
+            <Button Content="Surprise Me!" DockPanel.Dock="Right" Click="OnRandomClicked"
+                    Padding="18,9" Background="#C86531" Foreground="White" BorderBrush="#D48156"
+                    Margin="12,0,0,0"/>
+            <TextBox x:Name="CommanderSearch" TextChanged="OnFiltersChanged"
+                     ToolTip="Search commander name or Oracle text"
+                     FontSize="14" Padding="10,9"
+                     Background="#202C3B" Foreground="White" BorderBrush="#516174"/>
+        </DockPanel>
+        <ListView Grid.Row="4" x:Name="CommanderList"
+                  Background="#17202D" Foreground="#EAF0F6"
+                  BorderBrush="#405063"
+                  ScrollViewer.CanContentScroll="True"
+                  VirtualizingStackPanel.IsVirtualizing="True"
+                  VirtualizingStackPanel.VirtualizationMode="Recycling">
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Margin="4,7">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="88"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
+                            <TextBlock Text="{Binding TypeLine}" Foreground="#ABC2D6" FontSize="12"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding ColorText}"
+                                   TextAlignment="Right" VerticalAlignment="Center"
+                                   Foreground="#E9C27A" FontWeight="SemiBold"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <DockPanel Grid.Row="5" Margin="0,12,0,0">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button Content="Previous" Click="OnPrevious" Padding="10,7" Margin="8,0,0,0"/>
+                <Button Content="Next" Click="OnNext" Padding="10,7" Margin="8,0,0,0"/>
+            </StackPanel>
+            <TextBlock x:Name="ResultStatus" VerticalAlignment="Center"
+                       Foreground="#BDD0E0" Text="Loading…"/>
+        </DockPanel>
+        <TextBlock Grid.Row="6" TextWrapping="Wrap" Margin="0,12,0,0"
+                   Foreground="#8DA8BD" FontSize="11"
+                   Text="Preview uses cached Scryfall legality, not live bans. Specialized Vehicle/Spacecraft and paired commander configurations need additional metadata and validation. Arena ownership is not inferred."/>
+    </Grid>
+</Window>
