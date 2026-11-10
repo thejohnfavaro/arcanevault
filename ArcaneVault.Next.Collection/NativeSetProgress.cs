@@ -107,7 +107,7 @@ public static class NativeSetProgress
             string set = reader.GetString(0).Trim();
             string name = reader.IsDBNull(1) ? set : reader.GetString(1);
             string release = reader.IsDBNull(2) ? "" : reader.GetString(2);
-            int slots = reader.GetInt32(3);
+            int slots = checked((int)reader.GetInt64(3));
             if (slots <= 0) continue;
             owned.TryGetValue(set, out var verifiedSlots);
             int confirmedCount = verifiedSlots?.Count ?? 0;
