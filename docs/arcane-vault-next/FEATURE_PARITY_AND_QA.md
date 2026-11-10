@@ -17,6 +17,7 @@
 | Collection import/export | CSV, sync snapshots, full backup, restore, rollback, provider variant handling | F | C (backup/basic) | Q-MIG-01 |
 | Deck Studio | Create/edit, Brawl/Commander rules, counts, colors, ownership, validation, recommendations | F | C (simple edit) | Q-DECK-01 |
 | Deck Library | Save/rename, covers, favorites, folders/tags, revisions and restore | F | C (read/light edit) | Q-DECK-02 |
+| EDH Lab | All legal Commander/Brawl commanders, exact/inclusive color-identity filters, random selection, collection-aware builds, validation and import/export | New F | C (browse, random, light edit) | Q-EDH-01, Q-EDH-02, Q-EDH-03 |
 | Goldfishing | Hand/draw/mulligan/land/spell simulation, state restoration | F | N/A initially | Q-DECK-03 |
 | Strategy Workbench | Mana/curve/probability, functional/creature searches, deck comparisons | F | V optional | Q-ANALYSIS-01 |
 | Synergy/archetypes | Combo and role recommendations, advisor, owned matches | F | N/A initially | Q-ANALYSIS-02 |
@@ -62,6 +63,12 @@
 - **Q-ANALYSIS-01:** Probability, ramp/land and card-role calculations match approved numerical fixtures within agreed tolerance.
 - **Q-ANALYSIS-02:** Analyzer cache misses and disconnected network degrade gracefully without invented combo results.
 - **Q-ARENA-01:** Log replay, deck assignment and match result calculation are stable and don't conflate Bo3 games with matches.
+
+### EDH Lab
+
+- **Q-EDH-01:** Complete paginated/virtualized commander registry from synced printings without artificial caps. Include colorless, WUBRG, pairs, 3-/4-color and five-color identities. Exact, contains-all and contains-any filters return mathematically correct pools; ownership filters never invent availability.
+- **Q-EDH-02:** Random picker samples **only** the current legal, filtered commander pool; repeat rolls honor retained filters, optional no-repeat mode, and zero-result fallback. Paper Commander and Arena Brawl commander eligibility, current bans and special multiple-commanders rules are tested separately.
+- **Q-EDH-03:** Starting EDH Lab deck from any selected/rolled commander, saving, reopening and exporting retains exact color identity, format, 100-card count, singleton constraints, commander configurations and owned/missing quantities; legalities and ownership warnings are visible, not silently 'fixed'.
 
 ### Camera OCR and companion
 

@@ -13,6 +13,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'ArcaneVault.Next.Migration/**'
       - 'ArcaneVault.Next.Desktop/**'
       - 'ArcaneVault.Next.Domain/**'
       - 'contracts/**'
@@ -55,7 +56,7 @@ jobs:
         run: dotnet publish ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj -c Release -r win-x64 --self-contained false -o preview/ArcaneVaultNextNative
       - name: Publish migration preview as a self-contained diagnostic EXE
         run: dotnet publish ArcaneVault.Next.Migration/ArcaneVault.Next.Migration.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o preview/MigrationPreview
-      - name: Upload read-only migration preview (not an application release)
+      - name: Upload opt-in offline migration diagnostic (not an application release)
         uses: actions/upload-artifact@v6
         with:
           name: ArcaneVaultNext-MigrationPreview-AVN005
