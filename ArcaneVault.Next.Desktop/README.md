@@ -4,6 +4,9 @@ This is a **separate experimental WPF/.NET 10 application**, not a replacement f
 
 ## Current functionality
 
+- **EDH Lab — Commanders** opens a **second native WPF window** after you load a full Scryfall catalog. Browse every eligible identity through 50-row virtualized pages (without the original card search's 200-result cap); choose paper Commander or Arena Brawl, filter exact/includes-all/includes-any mana identities, search names or Oracle text, and use **Surprise Me!** with optional no-repeats. This is an offline, read-only prototype: no deck creation, collection edits, ownership detection, or live legality downloads.
+
+
 - The native virtualized list starts with 25,000 deterministic synthetic cards; no account, collection, or catalog is accessed automatically.
 - **Open a read-only catalog snapshot** lets you explicitly choose the existing Scryfall catalog SQLite file. The app opens that file in SQLite read-only mode, uses SQLite's transactionally consistent online backup to make a private temporary snapshot, then queries only the copied printing catalog.
 - The first **200** matching printing rows are displayed. Search is a **name-prefix search**, not the full production Card Browser filter engine; percent signs, underscores, and backslashes are treated as literal characters. Queries are parameterized and can be canceled. Query milliseconds are displayed.
@@ -31,6 +34,14 @@ Or retrieve the **ArcaneVaultNext-NativeUI-SPIKE** artifact from the passing Git
     dotnet run --project ArcaneVault.Next.Tests/ArcaneVault.Next.Tests.csproj -c Release
 
 CI creates a synthetic SQLite printing catalog (25,202 rows), verifies source hash remains unchanged after the read-only snapshot, checks isolation from a later synthetic source edit, tests literal prefix handling and bounded result limits, and asserts temporary snapshot cleanup. It also reports p50/p95 query timing from the CI machine. No user's cards or backups are uploaded.
+
+## EDH Lab candidate rules and known coverage gaps
+
+- Eligibility requires an explicit local Scryfall format legality of `legal`. Brawl uses current `brawl`, with `historicbrawl` used only when `brawl` is absent. Cards must also be available on Arena for Brawl. An unknown/malformed legality excludes the card; the local catalog may be stale.
+- Paper Commander includes legendary creatures, plus explicit `can be your commander` / `may be your commander` exceptions. Arena Brawl additionally supports legendary planeswalkers. Standalone Background enchantments are not treated as commanders.
+- A qualified Vehicle or Spacecraft requires validated printed power/toughness, but the current legacy `cards` table does **not** preserve it. Such special cases are conservatively excluded until catalog schema enrichment. **This preview is not yet an exhaustive commander legality checker**, especially for paired commanders.
+- A commander name appearing on a list does **not** mean that you own it. Paper and Arena ownership remain separate and are not read by this window.
+- The random picker uses uniform secure random index selection from the current legal and filtered pool; filters are retained when rerolling. A result set with zero candidates returns a clear message instead of a card.
 
 ## Current limitations and next engineering gates
 

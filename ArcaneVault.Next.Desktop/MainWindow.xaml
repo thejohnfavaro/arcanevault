@@ -22,7 +22,10 @@
                     Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
             <Button x:Name="SyntheticButton" Content="Use 25,000 synthetic cards"
                     Click="OnSyntheticClicked" Padding="12,9"
-                    Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+                    Background="#283F55" Foreground="White" BorderBrush="#65778B" Margin="0,0,12,0"/>
+            <Button x:Name="EdhLabButton" Content="EDH Lab — Commanders"
+                    Click="OnEdhLabClicked" Padding="12,9" IsEnabled="False"
+                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
         </StackPanel>
         <DockPanel Grid.Row="2" Margin="0,0,0,12">
             <TextBlock DockPanel.Dock="Right" x:Name="FilterStatus" TextAlignment="Right"

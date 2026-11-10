@@ -10,6 +10,7 @@
     <Compile Include="..\ArcaneVault.Next.Desktop\CatalogSnapshot.cs" Link="CatalogSnapshot.cs" />
     <ProjectReference Include="..\ArcaneVault.Next.Domain\ArcaneVault.Next.Domain.csproj" />
     <ProjectReference Include="..\ArcaneVault.Next.Migration\ArcaneVault.Next.Migration.csproj" />
+    <ProjectReference Include="..\ArcaneVault.Next.EDHLab\ArcaneVault.Next.EDHLab.csproj" />
     <None Include="..\contracts\ownership-v1.golden.json" Link="ownership-v1.golden.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

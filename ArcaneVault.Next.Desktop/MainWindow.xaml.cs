@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using ArcaneVault.Next.EDHLab;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -20,6 +21,7 @@ public partial class MainWindow : Window
 
     private readonly IReadOnlyList<SampleCard> sampleCards;
     private CatalogSnapshot? catalogSnapshot;
+    private CommanderBrowserWindow? edhLabWindow;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
     private int modeVersion;
@@ -34,6 +36,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             closing = true;
+            edhLabWindow?.Close();
             CancelPendingSearch();
             catalogSnapshot?.Dispose();
         };
@@ -75,8 +78,10 @@ public partial class MainWindow : Window
             var loaded = await Task.Run(() => CatalogSnapshot.Open(picker.FileName));
             if (closing) { loaded.Dispose(); return; }
             CancelPendingSearch();
+            edhLabWindow?.Close();
             var previous = catalogSnapshot;
             catalogSnapshot = loaded;
+            EdhLabButton.IsEnabled = true;
             modeVersion++;
             previous?.Dispose();
             ModeStatus.Text = $"{loaded.TotalPrintings:N0} catalog printings in isolated snapshot · Prefix search · First 200 rows only · No live edits";
@@ -101,9 +106,52 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnEdhLabClicked(object sender, RoutedEventArgs e)
+    {
+        var active = catalogSnapshot;
+        if (active is null) return;
+        if (edhLabWindow is not null)
+        {
+            edhLabWindow.Activate();
+            return;
+        }
+
+        var currentVersion = modeVersion;
+        EdhLabButton.IsEnabled = false;
+        FilterStatus.Text = "Opening native EDH Lab from isolated catalog…";
+        try
+        {
+            var index = await Task.Run(() =>
+                CommanderCatalog.OpenReadOnly(active.ReadOnlySnapshotPath));
+            if (closing || currentVersion != modeVersion ||
+                !ReferenceEquals(active, catalogSnapshot)) return;
+            var window = new CommanderBrowserWindow(index) { Owner = this };
+            edhLabWindow = window;
+            window.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(edhLabWindow, window)) edhLabWindow = null;
+                if (!closing && catalogSnapshot is not null) EdhLabButton.IsEnabled = true;
+            };
+            window.Show();
+            FilterStatus.Text = $"{index.LoadedCardIdentities:N0} read-only commander candidates loaded";
+        }
+        catch (Exception)
+        {
+            if (!closing)
+                FilterStatus.Text = "EDH Lab needs a fully indexed Scryfall card catalog. Current collection data is unchanged.";
+        }
+        finally
+        {
+            if (!closing && edhLabWindow is null)
+                EdhLabButton.IsEnabled = catalogSnapshot is not null;
+        }
+    }
+
     private void OnSyntheticClicked(object sender, RoutedEventArgs e)
     {
         CancelPendingSearch();
+        edhLabWindow?.Close();
+        EdhLabButton.IsEnabled = false;
         modeVersion++;
         var previous = catalogSnapshot;
         catalogSnapshot = null;
