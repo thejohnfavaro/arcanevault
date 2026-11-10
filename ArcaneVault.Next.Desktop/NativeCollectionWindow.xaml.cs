@@ -28,7 +28,7 @@ public partial class NativeCollectionWindow : Window
 
     private void RefreshLists()
     {
-        if (SearchBox is null || PhysicalList is null || ArenaList is null) return;
+        if (SearchBox is null || MissingOnly is null || PhysicalList is null || ArenaList is null || StatusText is null) return;
         var search = SearchBox.Text.Trim();
         var invalidOnly = MissingOnly.IsChecked == true;
         var physical = snapshot.PhysicalCards.Where(x =>
