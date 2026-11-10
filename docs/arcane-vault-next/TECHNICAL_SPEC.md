@@ -219,6 +219,14 @@ All existing functional workflows require golden-data comparisons against the cu
 
 **Minimum release blockers:** incomplete migration totals, non-idempotent sync, unconfirmed printing assignments, broken offline reads, corrupted catalog rollback, missed signed updater identity, performance worse than current baseline beyond agreed tolerance, or a failing regression fixture.
 
+### EDH Lab: shared commander discovery and deck-building domain (planned)
+
+EDH Lab is a native Windows-first Commander/Brawl workspace using catalog, collection, deck persistence and format-validation services, not another unrelated data silo. Its discovery engine must enumerate **all format-eligible commanders** from the active card catalog, deduplicated by card identity while retaining owned printing variants. Commander candidates support search, exact/contains-all/contains-any color-identity filters (including colorless), legality, Arena availability and owned status.
+
+The `Random Commander` feature samples the current legal filtered candidate pool with stable, documented eligibility rules, a clear empty state, and optional no-repeat-until-exhausted behavior. Selecting or rerolling does not mutate user ownership or existing decks. Creating a deck explicitly chooses a paper Commander or MTG Arena Brawl ruleset and checks commander exceptions, multi-commander combinations where supported, color identity and deck validity. Format bans, Arena availability, and ownership/wildcard costs are **separate** checks.
+
+The toolbox should offer collection-first card recommendations, deck-role coverage, ramp/draw/removal/curve guidance, bracket or power-goal settings for Commander, and ownership-aware upgrades. Native Windows handles deep analysis and import/export; Android receives commander browsing/randomization and safe lightweight editing once data synchronization is reliable. This is **planned future functionality**, not implemented in the migration-staging prototype.
+
 ## 11. Open decisions / spikes
 
 1. Validate WPF on .NET 10 LTS with a representative virtualized card grid before finalizing the UI framework.
