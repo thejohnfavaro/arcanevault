@@ -1,0 +1,29 @@
+<Window x:Class="ArcaneVault.Next.Desktop.NativeCardDetailsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Card Details — Arcane Vault Next (Read-only)"
+        Width="720" Height="610" MinWidth="520" MinHeight="450"
+        Background="#101620" Foreground="#EAF0F6">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" x:Name="CardName" FontSize="25" FontWeight="SemiBold"
+                   TextWrapping="Wrap" Margin="0,0,0,8"/>
+        <TextBlock Grid.Row="1" x:Name="Ownership" FontSize="13" Foreground="#E3B87C"
+                   TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="2" x:Name="CardMetadata" FontSize="13" Foreground="#BDD1E0"
+                   TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <TextBox Grid.Row="3" x:Name="OracleText"
+                 Background="#192638" Foreground="#EAF0F6" BorderBrush="#405063"
+                 TextWrapping="Wrap" IsReadOnly="True"
+                 VerticalScrollBarVisibility="Auto" Padding="14,12" FontSize="14"/>
+        <TextBlock Grid.Row="4" TextWrapping="Wrap" FontSize="11" Foreground="#98ACBE"
+                   Margin="0,12,0,0"
+                   Text="Offline Scryfall catalog metadata. This view never writes inventory or changes card printing identity."/>
+    </Grid>
+</Window>
