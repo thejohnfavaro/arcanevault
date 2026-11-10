@@ -108,7 +108,7 @@ public static class NativeBackupReader
     public static NativeBackupView Read(byte[] bytes)
     {
         ArgumentNullException.ThrowIfNull(bytes);
-        Require(bytes.Length is > 0 and <= MaxBytes);
+        Require(bytes.Length is > 0 and <= (int)MaxBytes);
         using var doc = JsonDocument.Parse(bytes);
         return Parse(doc.RootElement);
     }
