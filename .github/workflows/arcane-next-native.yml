@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - 'ArcaneVault.Next.Desktop/**'
+      - 'ArcaneVault.Next.Tests/**'
       - '.github/workflows/arcane-next-native.yml'
       - 'ArcaneVault.Desktop/**'
   push:
     branches: [main]
     paths:
       - 'ArcaneVault.Next.Desktop/**'
+      - 'ArcaneVault.Next.Tests/**'
       - '.github/workflows/arcane-next-native.yml'
   workflow_dispatch:
 
@@ -33,6 +35,10 @@ jobs:
         run: dotnet restore ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj
       - name: Compile WPF prototype
         run: dotnet build ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj -c Release --no-restore
+      - name: Restore native catalog regression project
+        run: dotnet restore ArcaneVault.Next.Tests/ArcaneVault.Next.Tests.csproj
+      - name: Test consistent read-only SQLite snapshot and record query timing
+        run: dotnet run --project ArcaneVault.Next.Tests/ArcaneVault.Next.Tests.csproj -c Release --no-restore
       - name: Check existing desktop source on .NET 10 without changing shipping TFM
         shell: pwsh
         run: |
