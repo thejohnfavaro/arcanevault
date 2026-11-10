@@ -5,6 +5,7 @@ on:
     paths:
       - 'ArcaneVault.Next.Desktop/**'
       - 'ArcaneVault.Next.Domain/**'
+      - 'ArcaneVault.Next.EDHLab/**'
       - 'ArcaneVault.Next.Migration/**'
       - 'contracts/**'
       - 'ArcaneVault.Next.Tests/**'
@@ -16,6 +17,7 @@ on:
       - 'ArcaneVault.Next.Migration/**'
       - 'ArcaneVault.Next.Desktop/**'
       - 'ArcaneVault.Next.Domain/**'
+      - 'ArcaneVault.Next.EDHLab/**'
       - 'contracts/**'
       - 'ArcaneVault.Next.Tests/**'
       - '.github/workflows/arcane-next-native.yml'
