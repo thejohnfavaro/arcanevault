@@ -32,6 +32,7 @@ jobs:
           node --check tests/regression.mjs
           node tests/regression.mjs
           node tests/new-features.mjs
+          node tests/phase0-audit.mjs
       - name: Restore packages
         run: dotnet restore ArcaneVault.sln
       - name: Build solution
