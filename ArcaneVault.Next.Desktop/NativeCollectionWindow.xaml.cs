@@ -40,11 +40,14 @@ public partial class NativeCollectionWindow : Window
             !string.IsNullOrWhiteSpace(nativePath) &&
             !string.IsNullOrWhiteSpace(expectedBackupSha) &&
             !string.IsNullOrWhiteSpace(catalogPath);
+        AdjustPhysicalButton.IsEnabled = nativeWorkspace &&
+            !string.IsNullOrWhiteSpace(nativePath) &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha);
         if (nativeWorkspace)
         {
             Title = "Arcane Vault Next — Native Collection";
             DataSourceLabel.Text =
-                "Native SQLite collection — verified paper-printing additions require explicit confirmation and retain recovery; other edits are locked";
+                "Native SQLite — verified printing additions and selected-row reductions/removals retain recovery; other edits are locked";
         }
         Closed += (_, _) => { closing = true; setQueryVersion++; };
         TotalsText.Text =
@@ -165,6 +168,47 @@ public partial class NativeCollectionWindow : Window
 
         // Reopen from newly verified SQLite rather than retaining stale rows,
         // catalog-set counts or the old optimistic-concurrency checksum.
+        Close();
+        if (reopenNative is not null)
+            await reopenNative();
+    }
+
+    private async void OnAdjustPhysicalClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha))
+        {
+            StatusText.Text = "Quantity edits are only available for a native collection.";
+            return;
+        }
+        if (CollectionTabs.SelectedIndex != 0 ||
+            PhysicalList.SelectedItem is not CollectionCatalogReview.PrintingRow selected)
+        {
+            StatusText.Text = "Switch to Physical Collection and select the exact row to adjust.";
+            return;
+        }
+
+        // The displayed row is an element of the original, ordered review.
+        // Reference equality disambiguates even duplicate name/finish lines.
+        int ordinal = -1;
+        for (int i = 0; i < review.Rows.Count; i++)
+            if (ReferenceEquals(review.Rows[i], selected))
+            {
+                ordinal = i;
+                break;
+            }
+        if (ordinal < 0 || ordinal >= backup.PhysicalCards.Count ||
+            backup.PhysicalCards[ordinal] != selected.Original)
+        {
+            StatusText.Text = "Selected row is stale. Close and reopen this collection.";
+            return;
+        }
+
+        var dialog = new NativeAdjustPhysicalWindow(nativePath,
+            expectedBackupSha, ordinal, selected.Original) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+
+        // Refresh the entire collection and verified set counts after an edit.
         Close();
         if (reopenNative is not null)
             await reopenNative();
