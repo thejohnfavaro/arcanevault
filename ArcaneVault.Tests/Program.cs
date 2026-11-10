@@ -1,3 +1,4 @@
+using ArcaneVault.Tests;
 using ArcaneVault.Desktop;
 using System.Text.Json;
 
@@ -71,6 +72,8 @@ try
     if(!arenaSnapshot.Contains("multiline-list") || !arenaSnapshot.Contains("Commander Example"))
         throw new Exception("Multiline decklist event not captured: "+arenaSnapshot);
     Console.WriteLine("PASS: complete and multiline deck payload capture; name-only excluded.");
+
+    BackupRestoreDrill.Run(temp);
 
     Console.WriteLine("PASS: deck ID matching auto-assigns match.");
     Console.WriteLine("PASS: win, game/match separation, duplicate IDs, unknown result.");
