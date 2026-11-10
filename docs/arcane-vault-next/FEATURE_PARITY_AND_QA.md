@@ -1,5 +1,7 @@
 # Arcane Vault Next — Feature Parity & QA Acceptance Matrix (RFC-001B)
 
+**Windows-first scope:** core Windows recovery and collection parity are active. EDH Lab QA work is backlogged until the Windows recovery gate in WINDOWS_FIRST_GATE.md is met. Android new features are deferred unless blocking data safety.
+
 **Status:** Proposed test contract; not evidence of passing tests. Cross-reference TECHNICAL_SPEC.md and MIGRATION_ROADMAP.md.
 
 ## A. Feature parity ledger

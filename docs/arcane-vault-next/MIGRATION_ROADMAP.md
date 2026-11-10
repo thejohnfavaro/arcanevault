@@ -2,7 +2,9 @@
 
 **Status:** Planning baseline, not a calendar commitment. **Updated:** 2026-11-10.
 **Read first:** TECHNICAL_SPEC.md and FEATURE_PARITY_AND_QA.md.
-**Priority order:** (1) user-data safety, (2) measured speed, (3) full native Windows parity, (4) Android scanner and companion quality.
+**Priority order (Windows-first recovery directive, Nov 10, 2026):** (1) shipping Windows application startup/update/backup reliability, (2) working native Windows catalog, collection, card details and Set Progress, (3) measured performance + reversible data migration, (4) necessary Android data-safety maintenance only. **EDH Lab and new Android feature work are paused until the Windows recovery gate is verified.**
+
+See **WINDOWS_FIRST_GATE.md** for criteria and the current read-only collection viewer slice.
 
 ## Proposed delivery strategy
 
@@ -112,9 +114,9 @@
 - No data-loss or major feature-parity issues.
 - Old backup restore still supported and tested.
 
-## EDH Lab — Commander and Arena Brawl deckbuilding toolbox (Phase 5 product work)
+## EDH Lab — BACKLOGGED until Windows core recovery gate passes
 
-**Product target — not a shipped feature.** EDH Lab is a dedicated workspace over the shared Card Browser, Deck Studio, ownership and legality services. It supports two independent rule profiles: **paper Commander** and **100-card MTG Arena Brawl**, with an optional separate Competitive Brawl legality profile if available. Every saved deck retains its rule profile; switching modes never silently alters or deletes a deck.
+**Paused — do not start new EDH Lab development until the Windows app is fully usable and validated according to WINDOWS_FIRST_GATE.md.** Preserve existing prototype code and issue #33 for later. EDH Lab is a dedicated workspace over the shared Card Browser, Deck Studio, ownership and legality services. It supports two independent rule profiles: **paper Commander** and **100-card MTG Arena Brawl**, with an optional separate Competitive Brawl legality profile if available. Every saved deck retains its rule profile; switching modes never silently alters or deletes a deck.
 
 ### Commander discovery and random picker
 - **Browse all eligible commanders** from the current synced catalog (not just a 200-row preview). Search by name and ability text, with virtualized/paginated results and art previews.
