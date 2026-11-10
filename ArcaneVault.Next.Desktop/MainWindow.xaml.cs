@@ -226,7 +226,8 @@ public partial class MainWindow : Window
                 !ReferenceEquals(activeCatalog, catalogSnapshot)) return;
 
             var view = new NativeCollectionWindow(bundle.workspace.Collection,
-                bundle.verification, activeCatalog?.ReadOnlySnapshotPath, bundle.progress)
+                bundle.verification, activeCatalog?.ReadOnlySnapshotPath,
+                bundle.progress, nativeWorkspace: true)
             { Owner = this };
             collectionWindow = view;
             view.Closed += (_, _) =>

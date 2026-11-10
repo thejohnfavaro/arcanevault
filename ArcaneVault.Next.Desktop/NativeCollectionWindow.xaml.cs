@@ -21,13 +21,19 @@ public partial class NativeCollectionWindow : Window
 
     public NativeCollectionWindow(NativeBackupView backup,
         CollectionCatalogReview.Result review, string? catalogPath,
-        NativeSetProgress.Result? progress)
+        NativeSetProgress.Result? progress, bool nativeWorkspace = false)
     {
         this.backup = backup ?? throw new ArgumentNullException(nameof(backup));
         this.review = review ?? throw new ArgumentNullException(nameof(review));
         this.catalogPath = catalogPath;
         this.progress = progress;
         InitializeComponent();
+        if (nativeWorkspace)
+        {
+            Title = "Arcane Vault Next — Native Collection (read-only)";
+            DataSourceLabel.Text =
+                "Persistent native SQLite collection — loaded directly from Arcane Vault Next, no backup selection needed";
+        }
         Closed += (_, _) => { closing = true; setQueryVersion++; };
         TotalsText.Text =
             $"Physical: {backup.PhysicalCopies:N0} copies · {backup.PhysicalCards.Count:N0} lines · " +
