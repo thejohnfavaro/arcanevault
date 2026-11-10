@@ -3,6 +3,8 @@
 // This tool NEVER writes to the source files or reads a live application profile.
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
 
 const MAX_BYTES = 100 * 1024 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -165,7 +167,7 @@ function main(args) {
   process.stdout.write(JSON.stringify(report, null, 2) + '\n');
   return 0;
 }
-if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try { process.exitCode = main(process.argv.slice(2)); }
   catch (err) {
     // Intentionally redact error object/path to prevent leaking card data from malformed inputs.
