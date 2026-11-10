@@ -129,7 +129,8 @@ internal static class NativeFreshStartChecks
              prior.Collection.PreferredArtworks == 1,
              "The recovery copy did not retain all previous collection data.");
         using (var sqlite = new SqliteConnection(new SqliteConnectionStringBuilder
-               { DataSource = populatedPath, Mode = SqliteOpenMode.ReadOnly }.ToString()))
+               { DataSource = populatedPath, Mode = SqliteOpenMode.ReadOnly,
+                 Pooling = false }.ToString()))
         {
             sqlite.Open();
             using var query = sqlite.CreateCommand();
