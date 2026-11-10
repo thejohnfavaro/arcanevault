@@ -1,0 +1,51 @@
+name: Arcane Vault Next - .NET 10 Native Compatibility Spike
+
+on:
+  pull_request:
+    paths:
+      - 'ArcaneVault.Next.Desktop/**'
+      - '.github/workflows/arcane-next-native.yml'
+      - 'ArcaneVault.Desktop/**'
+  push:
+    branches: [main]
+    paths:
+      - 'ArcaneVault.Next.Desktop/**'
+      - '.github/workflows/arcane-next-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  net10-wpf-spike:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Verify SDK
+        run: dotnet --version
+      - name: Restore WPF prototype
+        run: dotnet restore ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj
+      - name: Compile WPF prototype
+        run: dotnet build ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj -c Release --no-restore
+      - name: Check existing desktop source on .NET 10 without changing shipping TFM
+        shell: pwsh
+        run: |
+          dotnet restore ArcaneVault.Desktop/ArcaneVault.Desktop.csproj -p:TargetFramework=net10.0-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build ArcaneVault.Desktop/ArcaneVault.Desktop.csproj -c Release --no-restore -p:TargetFramework=net10.0-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Publish isolated preview artifact
+        run: dotnet publish ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj -c Release -r win-x64 --self-contained false -o preview/ArcaneVaultNextNative
+      - name: Upload native UI prototype (not an application release)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ArcaneVaultNext-NativeUI-SPIKE
+          path: preview/ArcaneVaultNextNative/**
+          retention-days: 14
+          if-no-files-found: error
