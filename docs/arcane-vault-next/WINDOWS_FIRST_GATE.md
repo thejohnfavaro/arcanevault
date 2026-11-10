@@ -14,7 +14,11 @@
 
 All of the following must be validated: shipping Windows version installs/launches and updates without data loss; real full backup/restore (disposable profile) passes quantity/printing/deck/artwork comparison; core native card catalog, physical collection, Arena inventory, card details and Set Progress are functional; unresolved printings are visible rather than guessed; performance and stability have been measured; recovery route documented and tested. At that point, EDH Lab can be reprioritized.
 
-## Current implementation slice: AVN-017 through AVN-019
+## Current implementation slice: AVN-020 — persistent native Windows startup
+
+A user must explicitly import the complete legacy backup **once** and explicitly preserve a copy of the Scryfall catalog **once**. Arcane Vault Next then opens these **private native SQLite files** on launch without selecting a backup/catalog again. The imported native collection includes all physical and Arena rows plus preserved decks/history/artwork; source and native rows are checked for equality and no replace-on-import is allowed. Existing installed app data is never modified. **This is not native live editing, automatic source WebView ingestion, sync, rollback, or completed migration.** User-device restart/recovery validation is still required.
+
+## Earlier slice: AVN-017 through AVN-019
 
 AVN-019 adds a **read-only native Set Progress screen** from the explicitly exported schema-2 backup and an isolated Scryfall catalog snapshot. Numerators credit only catalog-verified, paper-printing collector-number slots (not repeated copies/foils or unverified name hints); denominators include all numbered paper catalog slots for the set. Search, hide-empty and collector-number drilldown are now part of the native preview. **This is not an in-place Set Progress repair for the shipping app.** User-device and data parity acceptance is still needed.
 
