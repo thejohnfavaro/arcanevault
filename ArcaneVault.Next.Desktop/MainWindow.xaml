@@ -1,7 +1,7 @@
 <Window x:Class="ArcaneVault.Next.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Arcane Vault Next — Native Catalog Prototype" Width="1080" Height="750"
+        Title="Arcane Vault Next — Native Workspace" Width="1080" Height="750"
         MinWidth="780" MinHeight="520" Background="#101620" Foreground="#EBF1F8">
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -14,7 +14,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
             <TextBlock FontSize="27" FontWeight="Bold" Text="Arcane Vault Next"/>
             <TextBlock FontSize="13" Foreground="#ADC0D1" Margin="0,4,0,0"
-                       Text="Native performance prototype · Explicit read-only catalog snapshot · No user ownership or deck edits"/>
+                       Text="Native Windows workspace · Import once, reopen locally · Read-only collection until editing is verified"/>
         </StackPanel>
         <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
             <Button x:Name="OpenCatalogButton" Content="Open a read-only catalog snapshot"
@@ -23,7 +23,16 @@
             <Button x:Name="SyntheticButton" Content="Use 25,000 synthetic cards"
                     Click="OnSyntheticClicked" Padding="12,9"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B" Margin="0,0,12,0"/>
-            <Button x:Name="CollectionBackupButton" Content="View collection backup"
+            <Button x:Name="SaveNativeCatalogButton" Content="Keep catalog natively"
+                    Click="OnSaveNativeCatalogClicked" Padding="12,9" Margin="0,0,12,0"
+                    IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+            <Button x:Name="ImportNativeButton" Content="Import backup once"
+                    Click="OnImportNativeClicked" Padding="12,9" Margin="0,0,12,0"
+                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
+            <Button x:Name="OpenNativeButton" Content="Open native collection"
+                    Click="OnOpenNativeClicked" Padding="12,9" Margin="0,0,12,0"
+                    IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+            <Button x:Name="CollectionBackupButton" Content="Preview external backup"
                     Click="OnCollectionBackupClicked" Padding="12,9" Margin="0,0,12,0"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
             <!-- EDH Lab feature preserved but hidden until Windows core parity passes. -->
@@ -70,6 +79,6 @@
         </ListView>
         <TextBlock Grid.Row="4" x:Name="ModeStatus" Margin="0,12,0,0"
                    Foreground="#A8BACA" FontSize="12"
-                   Text="Synthetic mode · No catalog file open. Nothing is imported, saved, or synced."/>
+                   Text="No native workspace imported. Choose Import backup once to begin. Your installed Arcane Vault remains unchanged."/>
     </Grid>
 </Window>
