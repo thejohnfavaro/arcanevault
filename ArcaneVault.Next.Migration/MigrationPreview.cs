@@ -162,6 +162,7 @@ public static class MigrationPreview
         long? validIdCopies = null, confirmed = null, unresolved = null;
         int? distinct = null, confirmedSets = null;
         var breakdown = new Dictionary<string, long>(StringComparer.Ordinal);
+        bool catalogValidated = false;
 
         if (arena.ValueKind == JsonValueKind.Array)
         {
@@ -248,6 +249,7 @@ public static class MigrationPreview
             else
             {
                 var result = PrintingReconciliation.Reconcile(rows, ReadCatalog(catalogPath));
+                catalogValidated = true;
                 confirmed = result.ConfirmedCopies;
                 unresolved = result.UnresolvedCopies;
                 distinct = result.ConfirmedDistinctPrintings;
@@ -307,7 +309,7 @@ public static class MigrationPreview
         if (sync && physical.ValueKind != JsonValueKind.Array && arena.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("Collection transfer contains no inventory.");
 
-        return new Report(format, true, false, !string.IsNullOrWhiteSpace(catalogPath),
+        return new Report(format, true, false, catalogValidated,
             arenaRows, arenaCopies, physicalRows, physicalNames, physicalCopies,
             validIdRows, validIdCopies, confirmed, distinct, confirmedSets, unresolved,
             duplicateRows, deckCount, deckRevisions, preferredArtwork,
