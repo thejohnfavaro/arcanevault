@@ -279,6 +279,33 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    /// <summary>
+    /// Add copies of one explicitly selected catalog-verified paper printing to
+    /// the native collection. The expected checksum protects against stale UI
+    /// edits. Refresh stages a complete verified replacement and retains the
+    /// entire old database as a new, independently restorable recovery point.
+    /// The legacy Windows app and external catalog are never written.
+    /// </summary>
+    public static Replacement AddVerifiedPhysical(string nativePath,
+        string catalogPath, Guid printId, int quantity, string finish,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var printing = NativePhysicalEditing.RequirePaperPrinting(catalogPath, printId);
+            byte[] updated = NativePhysicalEditing.AddCopies(
+                ReadPreservedBackup(path), printing, quantity, finish);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "verified-native-paper-printing",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static IReadOnlyList<string> RecoveryPaths(string nativePath)
     {
         string path = Path.GetFullPath(nativePath);
