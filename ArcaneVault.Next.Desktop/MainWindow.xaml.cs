@@ -605,7 +605,10 @@ public partial class MainWindow : Window
 
             var view = new NativeCollectionWindow(bundle.workspace.Collection,
                 bundle.verification, activeCatalog?.ReadOnlySnapshotPath,
-                bundle.progress, nativeWorkspace: true)
+                bundle.progress, nativeWorkspace: true,
+                nativePath: bundle.workspace.DatabasePath,
+                expectedBackupSha: bundle.workspace.BackupSha256,
+                reopenNative: OpenNativeCollectionAsync)
             { Owner = this };
             collectionWindow = view;
             view.Closed += (_, _) =>
