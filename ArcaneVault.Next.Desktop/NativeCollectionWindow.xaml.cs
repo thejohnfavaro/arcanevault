@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using System.IO;
 using ArcaneVault.Next.Domain;
 using System.Windows;
 using System.Windows.Controls;

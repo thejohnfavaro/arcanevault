@@ -143,11 +143,27 @@ public static class NativeSetProgress
             throw new InvalidDataException("Choose a catalog-backed set.");
         var ownership = OwnedBySet(verification);
         ownership.TryGetValue(setCode.Trim(), out var ownedSlots);
+        // One collector number can appear on multiple catalog records. Show a
+        // verified owned card's name when present; never imply an unowned
+        // catalog variant is the exact card the user owns.
+        var verifiedNames = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in verification.Rows)
+        {
+            if (!line.Confirmed ||
+                !string.Equals(line.ConfirmedSet.Trim(), setCode.Trim(), StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (!verifiedNames.TryGetValue(line.CatalogCollector.Trim(), out var names))
+            {
+                names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                verifiedNames.Add(line.CatalogCollector.Trim(), names);
+            }
+            names.Add(line.CatalogName);
+        }
         var result = new List<SetSlot>();
         using var db = OpenReadOnly(catalogPath);
         using var cmd = db.CreateCommand();
         cmd.CommandText = """
-            SELECT collector,MIN(name)
+            SELECT collector,MIN(name),COUNT(DISTINCT name COLLATE NOCASE)
             FROM variants
             WHERE setcode=$set COLLATE NOCASE
               AND digital=0
@@ -166,6 +182,13 @@ public static class NativeSetProgress
             string collector = reader.GetString(0).Trim();
             string name = reader.IsDBNull(1) ? "" : reader.GetString(1);
             long copies = ownedSlots?.GetValueOrDefault(collector) ?? 0;
+            if (copies > 0 && verifiedNames.TryGetValue(collector, out var names))
+            {
+                name = string.Join(" / ", names.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).Take(3));
+                if (names.Count > 3) name += " / …";
+            }
+            else if (reader.GetInt64(2) > 1)
+                name += " (multiple catalog names at this number)";
             result.Add(new SetSlot(collector, name, copies));
         }
         if (ownedSlots is not null && ownedSlots.Count > result.Count)

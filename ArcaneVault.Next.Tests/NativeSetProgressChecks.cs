@@ -52,7 +52,7 @@ internal static class NativeSetProgressChecks
                     ('00000000-0000-4000-8000-000000000101','Card A','ZXQ','001','paper,arena',0,'Zeta Set','2026-01-01'),
                     ('00000000-0000-4000-8000-000000000102','Card B','ZXQ','002','paper',0,'Zeta Set','2026-01-01'),
                     ('00000000-0000-4000-8000-000000000103','Card C','ZXQ','010','paper',0,'Zeta Set','2026-01-01'),
-                    ('00000000-0000-4000-8000-000000000104','Other Card A','ZXQ','001','paper',0,'Zeta Set','2026-01-01'),
+                    ('00000000-0000-4000-8000-000000000104','A Different Catalog Print','ZXQ','001','paper',0,'Zeta Set','2026-01-01'),
                     ('00000000-0000-4000-8000-000000000105','Card E','YYY','100','paper',0,'Yotta Set','2026-02-01'),
                     ('00000000-0000-4000-8000-000000000106','Card F','YYY','101','paper',0,'Yotta Set','2026-02-01'),
                     ('00000000-0000-4000-8000-000000000107','Digital Only','ZXQ','011','arena',1,'Zeta Set','2026-01-01'),
@@ -103,7 +103,8 @@ internal static class NativeSetProgressChecks
         Must(slots.Count == 3 &&
              slots.Select(s => s.CollectorNumber).SequenceEqual(new[] { "001", "002", "010" }),
             "Collector slot list must be sorted numerically and exclude digital/arena-only entries.");
-        Must(slots[0].VerifiedCopies == 3 && slots[1].VerifiedCopies == 4 &&
+        Must(slots[0].CardName == "Card A" &&
+             slots[0].VerifiedCopies == 3 && slots[1].VerifiedCopies == 4 &&
              slots[2].VerifiedCopies == 0 && slots[2].Ownership == "Missing",
             "Only verified physical print IDs count; name-only hint cannot mark slot owned.");
         Must(NativeSetProgress.LoadSetSlots(review, catalog, "ZXQ' OR 1=1 --").Count == 0,
