@@ -14,7 +14,11 @@
 
 All of the following must be validated: shipping Windows version installs/launches and updates without data loss; real full backup/restore (disposable profile) passes quantity/printing/deck/artwork comparison; core native card catalog, physical collection, Arena inventory, card details and Set Progress are functional; unresolved printings are visible rather than guessed; performance and stability have been measured; recovery route documented and tested. At that point, EDH Lab can be reprioritized.
 
-## Current implementation slice: AVN-017
+## Current implementation slice: AVN-017 through AVN-019
+
+AVN-019 adds a **read-only native Set Progress screen** from the explicitly exported schema-2 backup and an isolated Scryfall catalog snapshot. Numerators credit only catalog-verified, paper-printing collector-number slots (not repeated copies/foils or unverified name hints); denominators include all numbered paper catalog slots for the set. Search, hide-empty and collector-number drilldown are now part of the native preview. **This is not an in-place Set Progress repair for the shipping app.** User-device and data parity acceptance is still needed.
+
+## Earlier slice: AVN-017
 
 The next native prototype can display an explicitly exported **schema-2 full backup** in a read-only Physical/Arena collection window. This is **not** a live collection reader, migration, restore or verified printing credit. Printed IDs in the export are marked **supplied, not verified**; missing/invalid IDs remain unresolved. Deck and artwork **counts only** are shown.
 
