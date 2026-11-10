@@ -1,0 +1,61 @@
+<Window x:Class="ArcaneVault.Next.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Arcane Vault Next — Native UI Prototype" Width="1060" Height="740"
+        MinWidth="760" MinHeight="500" Background="#101620" Foreground="#EBF1F8">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Margin="0,0,0,18">
+            <TextBlock FontSize="27" FontWeight="Bold" Text="Arcane Vault Next"/>
+            <TextBlock FontSize="13" Foreground="#ADC0D1" Margin="0,4,0,0"
+                       Text="Performance prototype only · No live collection or network access"/>
+        </StackPanel>
+
+        <DockPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock DockPanel.Dock="Right" x:Name="FilterStatus" TextAlignment="Right"
+                       Width="330" VerticalAlignment="Center" Foreground="#B5CCD7"
+                       Text="Loading synthetic sample…"/>
+            <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged"
+                     ToolTip="Filter a synthetic catalog of 25,000 items"
+                     Padding="12,9" FontSize="15" Background="#202C3B" Foreground="White"
+                     BorderBrush="#516174"/>
+        </DockPanel>
+
+        <ListView Grid.Row="2" x:Name="CardsList"
+                  Background="#17202D" Foreground="#EAF0F6" BorderBrush="#405063"
+                  ScrollViewer.CanContentScroll="True"
+                  VirtualizingStackPanel.IsVirtualizing="True"
+                  VirtualizingStackPanel.VirtualizationMode="Recycling">
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel/>
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Margin="5,7">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="150"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding CollectorNumber}" Grid.Column="0"
+                                   Foreground="#A3C2D0"/>
+                        <TextBlock Text="{Binding Name}" Grid.Column="1"
+                                   FontWeight="Medium"/>
+                        <TextBlock Text="{Binding SetCode}" Grid.Column="2"
+                                   Foreground="#B8C7D6"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <TextBlock Grid.Row="3" Margin="0,12,0,0"
+                   Foreground="#A8BACA" FontSize="12"
+                   Text="25,000 synthetic rows for control virtualization and cancellation tests. Nothing is imported, saved, or synced."/>
+    </Grid>
+</Window>
