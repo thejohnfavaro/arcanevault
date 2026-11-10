@@ -141,6 +141,7 @@ try
     NativeWorkspaceSafetyChecks.Run(work);
     NativeFreshStartChecks.Run(work);
     NativePhysicalEditingChecks.Run(work);
+    NativePhysicalQuantityChecks.Run(work);
     LegacyStorageImportChecks.Run(work);
     CollectionCatalogReviewChecks.Run(work);
     NativeSetProgressChecks.Run(work);

@@ -180,4 +180,68 @@ public static class NativePhysicalEditing
             throw new InvalidDataException("Native edit failed collection conservation checks.");
         return result;
     }
+    /// <summary>
+    /// Modify ONLY the specifically selected native physical row. Unlike adding
+    /// copies, reductions may also target name-only/unresolved legacy rows:
+    /// deleting one user's selected line needs no guessed printing identity.
+    /// The ordinal AND complete original row AND workspace SHA must match.
+    /// Zero removes that ONE line rather than storing a zero-quantity tombstone.
+    /// </summary>
+    public static byte[] SetCopies(byte[] completeBackup, int physicalOrdinal,
+        NativePhysicalRow expectedRow, int newQuantity)
+    {
+        ArgumentNullException.ThrowIfNull(completeBackup);
+        ArgumentNullException.ThrowIfNull(expectedRow);
+        if (newQuantity is < 0 or > 99_999)
+            throw new ArgumentOutOfRangeException(nameof(newQuantity));
+
+        var before = NativeBackupReader.Read(completeBackup);
+        if (physicalOrdinal < 0 || physicalOrdinal >= before.PhysicalCards.Count)
+            throw new InvalidDataException("Selected physical row no longer exists.");
+        var oldRow = before.PhysicalCards[physicalOrdinal];
+        if (oldRow != expectedRow)
+            throw new InvalidDataException("Selected physical row changed since it was displayed.");
+        if (newQuantity == oldRow.Quantity)
+            throw new InvalidDataException("Quantity is unchanged; no recovery point was created.");
+        if (newQuantity > oldRow.Quantity)
+            throw new InvalidDataException(
+                "Use Add physical printing to increase verified inventory quantities.");
+        
+        var json = JsonNode.Parse(completeBackup) as JsonObject ??
+            throw new InvalidDataException("Invalid full backup root.");
+        var physical = json["physicalCards"] as JsonArray ??
+            throw new InvalidDataException("Full backup has no physical collection.");
+        if (physical.Count != before.PhysicalCards.Count ||
+            physical[physicalOrdinal] is not JsonObject line)
+            throw new InvalidDataException("Physical row count or payload does not match the source.");
+        if (newQuantity == 0)
+            physical.RemoveAt(physicalOrdinal);
+        else
+            line["qty"] = newQuantity;
+
+        byte[] result = JsonSerializer.SerializeToUtf8Bytes(json);
+        var after = NativeBackupReader.Read(result);
+        var expectedCopies = checked(before.PhysicalCopies -
+            oldRow.Quantity + newQuantity);
+        if (after.PhysicalCopies != expectedCopies ||
+            after.ArenaCopies != before.ArenaCopies ||
+            after.ArenaCards.Count != before.ArenaCards.Count ||
+            after.Decks != before.Decks ||
+            after.DeckRevisions != before.DeckRevisions ||
+            after.PreferredArtworks != before.PreferredArtworks ||
+            after.PhysicalCards.Count != before.PhysicalCards.Count -
+                (newQuantity == 0 ? 1 : 0))
+            throw new InvalidDataException("Physical edit failed collection conservation checks.");
+
+        // Immutable rows on either side of the exact ordinal must survive.
+        for (int i = 0; i < before.PhysicalCards.Count; i++)
+        {
+            if (i == physicalOrdinal) continue;
+            int target = i > physicalOrdinal && newQuantity == 0 ? i - 1 : i;
+            if (before.PhysicalCards[i] != after.PhysicalCards[target])
+                throw new InvalidDataException("Physical edit affected an unrelated ownership row.");
+        }
+        return result;
+    }
+
 }

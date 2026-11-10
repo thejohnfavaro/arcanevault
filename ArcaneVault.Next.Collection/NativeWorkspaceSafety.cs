@@ -306,6 +306,32 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    /// <summary>
+    /// Reduce or remove ONE explicitly selected physical line, including a
+    /// legacy unresolved row. Recheck live checksum and selected row before a
+    /// staged complete replacement; all other collection sections survive.
+    /// Returns the new complete workspace and its automatic rollback path.
+    /// </summary>
+    public static Replacement SetPhysicalQuantity(string nativePath,
+        int physicalOrdinal, NativePhysicalRow expectedRow, int newQuantity,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        ArgumentNullException.ThrowIfNull(expectedRow);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] updated = NativePhysicalEditing.SetCopies(
+                ReadPreservedBackup(path), physicalOrdinal, expectedRow, newQuantity);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "native-paper-quantity-adjustment",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static IReadOnlyList<string> RecoveryPaths(string nativePath)
     {
         string path = Path.GetFullPath(nativePath);
