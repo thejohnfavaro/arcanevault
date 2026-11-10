@@ -31,6 +31,10 @@
                         Click="OnAddPhysicalClicked" IsEnabled="False" Padding="14,8"
                         Margin="0,0,10,0"
                         Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
+                <Button x:Name="AdjustPhysicalButton" Content="Reduce / remove selected"
+                        Click="OnAdjustPhysicalClicked" IsEnabled="False" Padding="14,8"
+                        Margin="0,0,10,0" Background="#60394A" Foreground="White"
+                        BorderBrush="#966274"/>
                 <Button Content="Card details" Click="OnDetailsClicked" Padding="14,8"
                         Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
             </StackPanel>
