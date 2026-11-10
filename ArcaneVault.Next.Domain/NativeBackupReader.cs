@@ -59,8 +59,9 @@ public static class NativeBackupReader
 
     private static JsonElement Required(JsonElement row, string key, JsonValueKind type)
     {
-        Require(row.ValueKind == JsonValueKind.Object &&
-                row.TryGetProperty(key, out var value) && value.ValueKind == type);
+        if (row.ValueKind != JsonValueKind.Object ||
+            !row.TryGetProperty(key, out var value) || value.ValueKind != type)
+            throw new InvalidDataException("The full backup is missing a required field.");
         return value;
     }
 
