@@ -137,6 +137,7 @@ try
     MigrationPreviewChecks.Run(work);
     OfflineStagingChecks.Run(work);
     NativeBackupReaderChecks.Run(work);
+    NativeWorkspaceChecks.Run(work);
     CollectionCatalogReviewChecks.Run(work);
     NativeSetProgressChecks.Run(work);
     EdhLabChecks.Run(work);

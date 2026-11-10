@@ -101,7 +101,20 @@ public static class NativeBackupReader
         Require(source.Exists && source.Length is > 0 and <= MaxBytes);
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var doc = JsonDocument.Parse(stream);
-        var root = doc.RootElement;
+        return Parse(doc.RootElement);
+    }
+
+    /// <summary>Read the preserved full backup stored inside the private native SQLite workspace.</summary>
+    public static NativeBackupView Read(byte[] bytes)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        Require(bytes.Length is > 0 and <= (int)MaxBytes);
+        using var doc = JsonDocument.Parse(bytes);
+        return Parse(doc.RootElement);
+    }
+
+    private static NativeBackupView Parse(JsonElement root)
+    {
         var schema = Required(root, "schema", JsonValueKind.Number);
         Require(schema.TryGetInt32(out var version) && version == 2);
         // Full Windows backup only, never a lossy QR/USB portable snapshot.

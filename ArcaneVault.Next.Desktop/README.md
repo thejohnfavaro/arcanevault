@@ -2,6 +2,20 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## One-time native setup — AVN-020
+
+This is the first Windows slice that **reopens your own native collection and local Scryfall catalog on subsequent launches**, instead of requiring a JSON backup selection each time. It remains a **separate experimental application**, not an installed-app replacement or a bidirectional sync.
+
+1. Open your installed (old) Arcane Vault app, use **Data & Sync → Save full backup**, and keep the downloaded `arcane-vault-backup.json` safe.
+2. Launch `ArcaneVault.Next.Desktop.exe`. Select the existing `%LOCALAPPDATA%\\ArcaneVault\\scryfall-catalog.sqlite` with **Open a read-only catalog snapshot**.
+3. Click **Keep catalog natively**. Arcane Vault Next makes its own transactional, read-only-verified copy into `%LOCALAPPDATA%\\ArcaneVaultNext\\native-catalog.sqlite`. If a native copy already exists, it will not overwrite it.
+4. Click **Import backup once**, select the complete JSON export and approve creation of `%LOCALAPPDATA%\\ArcaneVaultNext\\native-workspace.sqlite`. This is a private, independently staged SQLite database with physical/Arena inventory, the full preserved backup, decks/revisions and artwork preferences. Import verifies exact quantities/rows and source SHA before publishing.
+5. Close **Arcane Vault Next**. Open it again: **the saved native catalog and native collection open automatically**, no old app, JSON prompt, or catalog selection needed. Use **Open native collection** to bring the view back if closed.
+
+**Important safeguards:** Only the initial creation of the *private* native workspace writes a file. Subsequent launches are read-only, and the prototype never edits, replaces or deletes the installed legacy app profile. Import is disabled after a native workspace exists, rather than replacing or merging anything silently. Preserve your original exported backup. **Don't manually delete `native-workspace.sqlite`** to force reimport; it contains your separate native copy. A safe refresh/reimport and transactional editing/rollback are future milestones. Native SQLite data is local but **not encrypted**; protect access to your Windows user profile and any backups.
+
+If your existing full backup has missing printing IDs, those rows stay unresolved; even after import, Set Progress credits only trustworthy printings. This first persistent workspace does **not** read the legacy WebView localStorage automatically and does not keep itself synchronized with changes in the old app.
+
 ## Current functionality
 
 - **Native Set Progress (AVN-019):** after opening a full backup **and** a read-only Scryfall catalog snapshot, the collection view includes Set Progress with verified owned/total **paper collector-number slots**, a percentage, a set-name search, an optional “include empty sets” toggle, and a per-set list sorted by collector number. All catalog paper slots are included (including numbered promos and tokens); this is **not** a standard booster-only set checklist. Unknown/invalid/conflicting Scryfall IDs and digital/Arena-only printings do not count, and several foil/copy rows from one slot count only once toward completion. Set details open offline card text. No real collection data is modified.
@@ -15,7 +29,7 @@ This is a **separate experimental WPF/.NET 10 application**, not a replacement f
 - [Backlogged, launcher hidden] **EDH Lab — Commanders** contains a second native WPF window after you load a full Scryfall catalog. Browse every eligible identity through 50-row virtualized pages (without the original card search's 200-result cap); choose paper Commander or Arena Brawl, filter exact/includes-all/includes-any mana identities, search names or Oracle text, and use **Surprise Me!** with optional no-repeats. This is an offline, read-only prototype: no deck creation, collection edits, ownership detection, or live legality downloads.
 
 
-- The native virtualized list starts with 25,000 deterministic synthetic cards; no account, collection, or catalog is accessed automatically.
+- On a **fresh** install, the native catalog list starts with 25,000 deterministic synthetic cards. **After an explicit one-time native import, the app auto-opens its independent catalog and collection on later launches.** The installed legacy Arcane Vault profile is never opened or changed automatically.
 - **Open a read-only catalog snapshot** lets you explicitly choose the existing Scryfall catalog SQLite file. The app opens that file in SQLite read-only mode, uses SQLite's transactionally consistent online backup to make a private temporary snapshot, then queries only the copied printing catalog.
 - The first **200** matching printing rows are displayed. Search is a **name-prefix search**, not the full production Card Browser filter engine; percent signs, underscores, and backslashes are treated as literal characters. Queries are parameterized and can be canceled. Query milliseconds are displayed.
 - **Use 25,000 synthetic cards** closes and deletes the isolated catalog snapshot and restores the prior synthetic view.
@@ -53,7 +67,7 @@ CI creates a synthetic SQLite printing catalog (25,202 rows), verifies source ha
 
 ## Current limitations and next engineering gates
 
-- This prototype is **not** a native collection manager yet: no owned printing selections, metadata enrichment, artwork display, deck editing, progress, backup restore, or Scryfall network requests.
+- The native workspace persists collection rows, full backup contents, deck history and artwork choices locally, but **does not support inventory edits, live sync, replayable refresh, restoring a full backup into the installed app, or on-device migration cutover**. Card artwork rendering, rich card browser and Scryfall network sync remain future work.
 - The timing displayed is **SQL query timing**, not end-to-end input latency or first paint.
 - A temporary snapshot of a large catalog consumes extra free disk space. Verify disk availability before testing on a low-space device.
 - WPF scrolling, artwork memory, cold/warm startup, and 1k/5k/25k realistic browsing need explicit reference-device performance measurements before deciding to replace the current UI.

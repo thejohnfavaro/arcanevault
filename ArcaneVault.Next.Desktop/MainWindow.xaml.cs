@@ -36,6 +36,7 @@ public partial class MainWindow : Window
             new SampleCard($"Sample Card {i:D5}", $"S{i % 60:D2}", $"#{i % 450 + 1:D3}")).ToArray();
         CardsList.ItemsSource = sampleCards;
         FilterStatus.Text = $"{sampleCards.Count:N0} synthetic cards";
+        Loaded += async (_, _) => await InitializeNativeAsync();
         Closed += (_, _) =>
         {
             closing = true;
@@ -44,6 +45,218 @@ public partial class MainWindow : Window
             CancelPendingSearch();
             catalogSnapshot?.Dispose();
         };
+    }
+
+    /// <summary>
+    /// Start from the independent native profile. Never read or modify the
+    /// installed WebView app automatically and never silently import a backup.
+    /// A corrupt workspace is reported, not reset.
+    /// </summary>
+    private async Task InitializeNativeAsync()
+    {
+        OpenNativeButton.IsEnabled = System.IO.File.Exists(NativeWorkspace.DefaultPath);
+        ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
+        SaveNativeCatalogButton.IsEnabled = false;
+
+        if (System.IO.File.Exists(NativeWorkspace.CatalogPath))
+        {
+            try
+            {
+                var persisted = await Task.Run(() =>
+                    CatalogSnapshot.OpenPersistent(NativeWorkspace.CatalogPath));
+                if (closing) { persisted.Dispose(); return; }
+                var previous = catalogSnapshot;
+                catalogSnapshot = persisted;
+                modeVersion++;
+                previous?.Dispose();
+                ModeStatus.Text =
+                    $"{persisted.TotalPrintings:N0} printings loaded from private native catalog · No live data edits";
+                _ = FilterAsync();
+            }
+            catch (Exception)
+            {
+                if (!closing)
+                    ModeStatus.Text =
+                        "Native catalog could not be loaded. Choose a catalog source manually; no files were altered.";
+            }
+        }
+
+        if (!closing && System.IO.File.Exists(NativeWorkspace.DefaultPath))
+            await OpenNativeCollectionAsync();
+    }
+
+    private async void OnSaveNativeCatalogClicked(object sender, RoutedEventArgs e)
+    {
+        var active = catalogSnapshot;
+        if (active is null) return;
+        if (System.IO.File.Exists(NativeWorkspace.CatalogPath))
+        {
+            FilterStatus.Text = "A native catalog already exists. Existing data was preserved.";
+            return;
+        }
+
+        SaveNativeCatalogButton.IsEnabled = false;
+        OpenCatalogButton.IsEnabled = false;
+        SyntheticButton.IsEnabled = false;
+        FilterStatus.Text = "Saving a native catalog once, without changing the installed app…";
+        int version = modeVersion;
+        try
+        {
+            System.IO.Directory.CreateDirectory(NativeWorkspace.RootDirectory);
+            var saved = await Task.Run(() =>
+                CatalogSnapshot.SavePersistentCopy(active.ReadOnlySnapshotPath,
+                    NativeWorkspace.CatalogPath));
+            if (closing || version != modeVersion)
+            {
+                saved.Dispose();
+                return;
+            }
+            CancelPendingSearch();
+            collectionWindow?.Close();
+            collectionWindow = null;
+            var previous = catalogSnapshot;
+            catalogSnapshot = saved;
+            modeVersion++;
+            previous?.Dispose();
+            ModeStatus.Text =
+                $"{saved.TotalPrintings:N0} printings now loaded directly from the native catalog";
+            FilterStatus.Text = "Native catalog saved. It will reopen automatically next launch.";
+            _ = FilterAsync();
+        }
+        catch (Exception)
+        {
+            if (!closing) FilterStatus.Text =
+                "Native catalog import failed or already exists. Original catalog was not changed.";
+        }
+        finally
+        {
+            if (!closing)
+            {
+                SaveNativeCatalogButton.IsEnabled =
+                    catalogSnapshot is not null &&
+                    !System.IO.File.Exists(NativeWorkspace.CatalogPath);
+                OpenCatalogButton.IsEnabled = true;
+                SyntheticButton.IsEnabled = true;
+            }
+        }
+    }
+
+    private async void OnImportNativeClicked(object sender, RoutedEventArgs e)
+    {
+        if (System.IO.File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Native collection already exists. Import is blocked to prevent replacement.";
+            return;
+        }
+        var picker = new OpenFileDialog
+        {
+            Title = "Import a complete full backup once into a native Windows workspace",
+            Filter = "Arcane Vault full backup (*.json)|*.json|All files (*.*)|*.*",
+            CheckFileExists = true,
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        };
+        if (picker.ShowDialog(this) != true) return;
+
+        if (MessageBox.Show(this,
+            "This will make an independent, persistent, READ-ONLY native SQLite collection from your exported full backup. " +
+            "It will not alter the installed Arcane Vault app, and it will NOT silently replace an existing native workspace. Continue?",
+            "Import once into native Arcane Vault Next", MessageBoxButton.YesNo,
+            MessageBoxImage.Information) != MessageBoxResult.Yes)
+            return;
+
+        ImportNativeButton.IsEnabled = false;
+        OpenNativeButton.IsEnabled = false;
+        FilterStatus.Text = "Importing and validating complete backup into a native workspace…";
+        try
+        {
+            System.IO.Directory.CreateDirectory(NativeWorkspace.RootDirectory);
+            await Task.Run(() => NativeWorkspace.ImportNew(
+                picker.FileName, NativeWorkspace.DefaultPath));
+            if (closing) return;
+            FilterStatus.Text = "Native collection imported and verified. Reopening persisted data…";
+            await OpenNativeCollectionAsync();
+        }
+        catch (Exception)
+        {
+            if (!closing) FilterStatus.Text =
+                "Native import failed or workspace already exists; original backup and installed app are unchanged.";
+        }
+        finally
+        {
+            if (!closing)
+            {
+                OpenNativeButton.IsEnabled =
+                    System.IO.File.Exists(NativeWorkspace.DefaultPath);
+                ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
+            }
+        }
+    }
+
+    private async void OnOpenNativeClicked(object sender, RoutedEventArgs e) =>
+        await OpenNativeCollectionAsync();
+
+    private async Task OpenNativeCollectionAsync()
+    {
+        if (collectionWindow is not null)
+        {
+            collectionWindow.Activate();
+            return;
+        }
+        if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "No native collection yet. Choose Import backup once.";
+            return;
+        }
+        var activeCatalog = catalogSnapshot;
+        int version = modeVersion;
+        OpenNativeButton.IsEnabled = false;
+        FilterStatus.Text = "Verifying native SQLite workspace and loading local collection…";
+        try
+        {
+            var bundle = await Task.Run(() =>
+            {
+                var workspace = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
+                var verification = CollectionCatalogReview.Examine(
+                    workspace.Collection, activeCatalog?.ReadOnlySnapshotPath);
+                var progress = activeCatalog is null ? null :
+                    NativeSetProgress.Build(verification, activeCatalog.ReadOnlySnapshotPath);
+                return (workspace, verification, progress);
+            });
+            if (closing || version != modeVersion ||
+                !ReferenceEquals(activeCatalog, catalogSnapshot)) return;
+
+            var view = new NativeCollectionWindow(bundle.workspace.Collection,
+                bundle.verification, activeCatalog?.ReadOnlySnapshotPath,
+                bundle.progress, nativeWorkspace: true)
+            { Owner = this };
+            collectionWindow = view;
+            view.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(collectionWindow, view))
+                    collectionWindow = null;
+            };
+            view.Show();
+            FilterStatus.Text =
+                $"Native collection: {bundle.workspace.Collection.PhysicalCopies:N0} physical + " +
+                $"{bundle.workspace.Collection.ArenaCopies:N0} Arena copies · restored from local SQLite";
+            ModeStatus.Text = $"Private native workspace: {bundle.workspace.OriginalFileName} · " +
+                $"imported {bundle.workspace.ImportedAtUtc} · read-only / source preserved";
+        }
+        catch (Exception)
+        {
+            if (!closing)
+                FilterStatus.Text =
+                    "Native workspace verification failed. Data was NOT reset; preserve the file and use backup preview.";
+        }
+        finally
+        {
+            if (!closing)
+            {
+                OpenNativeButton.IsEnabled =
+                    System.IO.File.Exists(NativeWorkspace.DefaultPath);
+                ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
+            }
+        }
     }
 
     private void CancelPendingSearch()
@@ -88,6 +301,8 @@ public partial class MainWindow : Window
             var previous = catalogSnapshot;
             catalogSnapshot = loaded;
             EdhLabButton.IsEnabled = true;
+            SaveNativeCatalogButton.IsEnabled =
+                !System.IO.File.Exists(NativeWorkspace.CatalogPath);
             modeVersion++;
             previous?.Dispose();
             ModeStatus.Text = $"{loaded.TotalPrintings:N0} catalog printings in isolated snapshot · Prefix search · First 200 rows only · No live edits";
@@ -229,6 +444,7 @@ public partial class MainWindow : Window
         collectionWindow?.Close();
         collectionWindow = null;
         EdhLabButton.IsEnabled = false;
+        SaveNativeCatalogButton.IsEnabled = false;
         modeVersion++;
         var previous = catalogSnapshot;
         catalogSnapshot = null;
