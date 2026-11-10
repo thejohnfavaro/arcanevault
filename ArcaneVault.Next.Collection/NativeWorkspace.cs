@@ -74,10 +74,33 @@ public static class NativeWorkspace
         ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
         string source = Path.GetFullPath(backupPath);
         string target = Path.GetFullPath(targetPath);
-        Need(target.EndsWith(".sqlite", StringComparison.OrdinalIgnoreCase),
-            "Native workspace must end with .sqlite.");
         Need(!string.Equals(source, target, StringComparison.OrdinalIgnoreCase),
             "Workspace may not overwrite its backup.");
+        // Keep the explicit user-export source locked while reading it.
+        using var input = new FileStream(source, FileMode.Open,
+            FileAccess.Read, FileShare.Read);
+        Need(input.Length is > 0 and <= 100L * 1024 * 1024,
+            "Full backup exceeds the 100 MiB supported limit.");
+        cancellation.ThrowIfCancellationRequested();
+        var bytes = new byte[checked((int)input.Length)];
+        input.ReadExactly(bytes);
+        return ImportNewBytes(bytes, Path.GetFileName(source), target, cancellation);
+    }
+
+    /// <summary>
+    /// Direct native onboarding: import a validated IN-MEMORY extraction from
+    /// an isolated legacy WebView2 profile snapshot. No export JSON file
+    /// is required, and no plaintext backup is staged on disk.
+    /// </summary>
+    public static Workspace ImportNewBytes(byte[] bytes, string sourceDescription,
+        string targetPath, CancellationToken cancellation = default)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceDescription);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
+        string target = Path.GetFullPath(targetPath);
+        Need(target.EndsWith(".sqlite", StringComparison.OrdinalIgnoreCase),
+            "Native workspace must end with .sqlite.");
         Need(!File.Exists(target) && !Directory.Exists(target),
             "Native workspace already exists. It was not replaced.");
         string legacy = Path.Combine(
@@ -87,18 +110,12 @@ public static class NativeWorkspace
             "Do not create native workspace in the installed legacy app profile.");
         Need(Directory.Exists(Path.GetDirectoryName(target)!),
             "Choose an existing directory for the native workspace.");
-
-        // A sharing lock prohibits concurrent modification while importing.
-        using var input = new FileStream(source, FileMode.Open,
-            FileAccess.Read, FileShare.Read);
-        Need(input.Length is > 0 and <= 100L * 1024 * 1024,
+        Need(bytes.Length is > 0 and <= 100 * 1024 * 1024,
             "Full backup exceeds the 100 MiB supported limit.");
         cancellation.ThrowIfCancellationRequested();
-        var bytes = new byte[checked((int)input.Length)];
-        input.ReadExactly(bytes);
         var expected = NativeBackupReader.Read(bytes);
         var digest = Convert.ToHexString(SHA256.HashData(bytes));
-        var sourceName = Path.GetFileName(source);
+        var sourceName = Path.GetFileName(sourceDescription);
         var importedAt = DateTimeOffset.UtcNow.ToString("O");
         string partial = target + "." + Guid.NewGuid().ToString("N") + ".partial";
         bool published = false;
