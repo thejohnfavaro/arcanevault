@@ -312,6 +312,54 @@ public static class NativeWorkspaceSafety
     /// staged complete replacement; all other collection sections survive.
     /// Returns the new complete workspace and its automatic rollback path.
     /// </summary>
+    /// <summary>
+    /// Add Arena name-only copies to a native inventory. No claim is made
+    /// about exact physical printing, set ownership or Arena format legality.
+    /// Retains one complete verified recovery file for every successful edit.
+    /// </summary>
+    public static Replacement AddArenaCopies(string nativePath, string cardName,
+        int quantity, string expectedCurrentBackupSha,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] updated = NativeArenaEditing.AddCopies(
+                ReadPreservedBackup(path), cardName, quantity);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "native-arena-add-copies",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
+    /// <summary>
+    /// Change one user-selected Arena name/quantity or remove that exact row.
+    /// The source ordinal, old row and native workspace SHA must all match.
+    /// </summary>
+    public static Replacement EditArenaRow(string nativePath, int arenaOrdinal,
+        NativeArenaRow expectedRow, string newCardName, int newQuantity,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        ArgumentNullException.ThrowIfNull(expectedRow);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] updated = NativeArenaEditing.EditRow(
+                ReadPreservedBackup(path), arenaOrdinal, expectedRow, newCardName, newQuantity);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "native-arena-edit-row",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static Replacement SetPhysicalQuantity(string nativePath,
         int physicalOrdinal, NativePhysicalRow expectedRow, int newQuantity,
         string expectedCurrentBackupSha, CancellationToken cancellation = default)
