@@ -26,7 +26,7 @@
             <Button x:Name="SaveNativeCatalogButton" Content="Keep catalog natively"
                     Click="OnSaveNativeCatalogClicked" Padding="12,9" Margin="0,0,12,0"
                     IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
-            <Button x:Name="MigrateLegacyButton" Content="Migrate installed Windows data"
+            <Button x:Name="MigrateLegacyButton" Content="Inspect / migrate installed data"
                     Click="OnMigrateLegacyClicked" Padding="12,9" Margin="0,0,12,0"
                     Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
             <Button x:Name="ImportNativeButton" Content="Import backup once"

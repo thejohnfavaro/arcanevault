@@ -56,7 +56,7 @@ public partial class MainWindow : Window
     {
         OpenNativeButton.IsEnabled = System.IO.File.Exists(NativeWorkspace.DefaultPath);
         ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
-        MigrateLegacyButton.IsEnabled = !OpenNativeButton.IsEnabled;
+        MigrateLegacyButton.IsEnabled = true;
         SaveNativeCatalogButton.IsEnabled = false;
 
         if (System.IO.File.Exists(NativeWorkspace.CatalogPath))
@@ -144,11 +144,7 @@ public partial class MainWindow : Window
 
     private async void OnMigrateLegacyClicked(object sender, RoutedEventArgs e)
     {
-        if (System.IO.File.Exists(NativeWorkspace.DefaultPath))
-        {
-            FilterStatus.Text = "A native workspace already exists. It cannot be overwritten by migration.";
-            return;
-        }
+        bool compareOnly = System.IO.File.Exists(NativeWorkspace.DefaultPath);
         if (!System.IO.Directory.Exists(LegacyProfileSnapshot.LiveProfilePath))
         {
             FilterStatus.Text = "No installed Arcane Vault browser profile was found. Use Import backup once if necessary.";
@@ -159,7 +155,8 @@ public partial class MainWindow : Window
             "Close the old Arcane Vault Windows app before continuing.\n\n" +
             "This reads a temporary ISOLATED COPY of its local browser storage. " +
             "The original app and collection will not be modified, and the new native workspace is read-only. " +
-            "You will verify totals before anything is imported.\n\n" +
+            "You will review recovered totals before anything could be imported. " +
+            "If a native workspace already exists, this is COMPARISON ONLY and cannot replace it.\n\n" +
             "This one-time migration requires the installed Microsoft Edge WebView2 Runtime. Continue?",
             "Migrate installed Arcane Vault collection", MessageBoxButton.YesNo,
             MessageBoxImage.Information) != MessageBoxResult.Yes)
@@ -175,6 +172,38 @@ public partial class MainWindow : Window
             if (closing) return;
 
             var view = recovered.Collection;
+            if (compareOnly)
+            {
+                var existing = await Task.Run(() =>
+                    NativeWorkspace.Open(NativeWorkspace.DefaultPath));
+                if (closing) return;
+                bool physicalMatch = existing.Collection.PhysicalCards.SequenceEqual(view.PhysicalCards);
+                bool arenaMatch = existing.Collection.ArenaCards.SequenceEqual(view.ArenaCards);
+                string match(bool yes) => yes ? "MATCH" : "DIFFERENT";
+                MessageBox.Show(this,
+                    $"Installed legacy profile (read-only):\n" +
+                    $"  Physical {view.PhysicalCopies:N0} copies / {view.PhysicalCards.Count:N0} rows\n" +
+                    $"  Arena {view.ArenaCopies:N0} copies / {view.ArenaCards.Count:N0} entries\n" +
+                    $"  Decks {view.Decks:N0}, revisions {view.DeckRevisions:N0}, art {view.PreferredArtworks:N0}\n\n" +
+                    $"Existing native workspace:\n" +
+                    $"  Physical {existing.Collection.PhysicalCopies:N0} copies / " +
+                      $"{existing.Collection.PhysicalCards.Count:N0} rows — {match(physicalMatch)}\n" +
+                    $"  Arena {existing.Collection.ArenaCopies:N0} copies / " +
+                      $"{existing.Collection.ArenaCards.Count:N0} entries — {match(arenaMatch)}\n" +
+                    $"  Deck counts: {existing.Collection.Decks:N0} — " +
+                      $"{match(existing.Collection.Decks == view.Decks)}\n" +
+                    $"  Revision counts: {existing.Collection.DeckRevisions:N0} — " +
+                      $"{match(existing.Collection.DeckRevisions == view.DeckRevisions)}\n" +
+                    $"  Artwork counts: {existing.Collection.PreferredArtworks:N0} — " +
+                      $"{match(existing.Collection.PreferredArtworks == view.PreferredArtworks)}\n\n" +
+                    "Physical/Arena MATCH compares full typed inventory rows, including printing IDs. " +
+                    "Deck/art comparison checks counts only. Nothing was changed or overwritten.",
+                    "Installed vs native collection — read-only comparison",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                FilterStatus.Text = "Read-only legacy comparison finished. Native database is unchanged.";
+                return;
+            }
+
             if (MessageBox.Show(this,
                 $"Legacy source recovered:\n" +
                 $"Physical: {view.PhysicalCards.Count:N0} inventory rows / {view.PhysicalCopies:N0} copies\n" +
@@ -262,7 +291,7 @@ public partial class MainWindow : Window
                 bool exists = System.IO.File.Exists(NativeWorkspace.DefaultPath);
                 OpenNativeButton.IsEnabled = exists;
                 ImportNativeButton.IsEnabled = !exists;
-                MigrateLegacyButton.IsEnabled = !exists;
+                MigrateLegacyButton.IsEnabled = true;
             }
         }
     }
@@ -314,7 +343,7 @@ public partial class MainWindow : Window
                 OpenNativeButton.IsEnabled =
                     System.IO.File.Exists(NativeWorkspace.DefaultPath);
                 ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
-                MigrateLegacyButton.IsEnabled = !OpenNativeButton.IsEnabled;
+                MigrateLegacyButton.IsEnabled = true;
             }
         }
     }
@@ -382,7 +411,7 @@ public partial class MainWindow : Window
                 OpenNativeButton.IsEnabled =
                     System.IO.File.Exists(NativeWorkspace.DefaultPath);
                 ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
-                MigrateLegacyButton.IsEnabled = !OpenNativeButton.IsEnabled;
+                MigrateLegacyButton.IsEnabled = true;
             }
         }
     }
