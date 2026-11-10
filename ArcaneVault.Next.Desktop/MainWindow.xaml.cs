@@ -142,12 +142,15 @@ public partial class MainWindow : Window
                 var view = NativeBackupReader.Read(picker.FileName);
                 var verification = CollectionCatalogReview.Examine(
                     view, activeCatalog?.ReadOnlySnapshotPath);
-                return (view, verification);
+                var setProgress = activeCatalog is null ? null :
+                    NativeSetProgress.Build(verification, activeCatalog.ReadOnlySnapshotPath);
+                return (view, verification, setProgress);
             });
             if (closing || version != modeVersion ||
                 !ReferenceEquals(activeCatalog, catalogSnapshot)) return;
             var dialog = new NativeCollectionWindow(
-                result.view, result.verification, activeCatalog?.ReadOnlySnapshotPath)
+                result.view, result.verification,
+                activeCatalog?.ReadOnlySnapshotPath, result.setProgress)
             { Owner = this };
             collectionWindow = dialog;
             dialog.Closed += (_, _) =>
