@@ -12,6 +12,8 @@ Export a full backup from the shipping Arcane Vault app to a **private location 
 dotnet run --project ArcaneVault.Next.Migration/ArcaneVault.Next.Migration.csproj -c Release -- --backup "C:\Private\arcane-full-backup.json" --catalog "$env:LOCALAPPDATA\ArcaneVault\scryfall-catalog.sqlite"
 ```
 
+A standalone Windows diagnostic EXE is also produced in the passing **ArcaneVaultNext-MigrationPreview-AVN005** GitHub Actions artifact. Extract it locally and invoke `ArcaneVault.Next.Migration.exe --backup <export.json> --catalog <scryfall-catalog.sqlite>`. It is a preview tool, **not an Arcane Vault application update**. Keep backups on your own machine.
+
 Without `--catalog`, the report is **unverified**: even valid Scryfall UUIDs are counted as unresolved, not confirmed. If using a running Windows app, let catalog indexing finish first, since a live SQLite catalog can be updating while this read-only statement executes.
 
 The JSON output contains **only aggregate counts and warning codes**: Arena copies, physical rows/names/copies, present UUIDs, exact catalog-confirmed printing copies/sets, unresolved copies broken down by reason, duplicate identities, deck and revision counts, and artwork preferences. No individual names, print IDs, deck names, local paths, data hashes, or contents are printed. It is not telemetry and is not uploaded.
