@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.IO;
 using System.Diagnostics;
 
 namespace ArcaneVault.Next.Desktop;
