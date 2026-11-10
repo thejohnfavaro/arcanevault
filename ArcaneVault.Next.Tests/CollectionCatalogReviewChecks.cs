@@ -45,11 +45,13 @@ internal static class CollectionCatalogReviewChecks
             using var cmd = db.CreateCommand();
             cmd.CommandText = """
                 CREATE TABLE variants(print_id TEXT PRIMARY KEY, name TEXT NOT NULL,
-                    setcode TEXT NOT NULL, collector TEXT NOT NULL);
+                    setcode TEXT NOT NULL, collector TEXT NOT NULL,
+                    games TEXT NOT NULL, digital INTEGER NOT NULL,
+                    setname TEXT NOT NULL, release TEXT NOT NULL);
                 INSERT INTO variants VALUES('00000000-0000-4000-8000-000000000111',
-                    'Split // Back', 'AAA', '1');
+                    'Split // Back', 'AAA', '1','paper,arena',0,'Alpha','2026-01-01');
                 INSERT INTO variants VALUES('00000000-0000-4000-8000-000000000222',
-                    'Different Face', 'BBB', '2');
+                    'Different Face', 'BBB', '2','paper',0,'Beta','2026-02-01');
                 CREATE TABLE cards(name TEXT PRIMARY KEY, type TEXT NOT NULL,
                     oracle TEXT NOT NULL, rarity TEXT NOT NULL, mv REAL NOT NULL,
                     colors TEXT NOT NULL, legalities TEXT NOT NULL, setcode TEXT NOT NULL);
