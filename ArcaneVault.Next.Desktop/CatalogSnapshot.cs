@@ -17,11 +17,13 @@ public sealed class CatalogSnapshot : IDisposable
     private readonly string snapshotPath;
     private readonly object gate = new();
     private bool disposed;
+    private readonly bool ownsTemporaryFile;
 
-    private CatalogSnapshot(string path, long total)
+    private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true)
     {
         snapshotPath = path;
         TotalPrintings = total;
+        this.ownsTemporaryFile = ownsTemporaryFile;
     }
 
     public long TotalPrintings { get; }
@@ -78,6 +80,68 @@ public sealed class CatalogSnapshot : IDisposable
         }
     }
 
+    /// <summary>
+    /// Open the app-owned, persistent catalog directly without creating another
+    /// large temporary database. The original legacy catalog remains separate.
+    /// </summary>
+    public static CatalogSnapshot OpenPersistent(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            throw new FileNotFoundException("The native Scryfall catalog does not exist.", path);
+        using var db = Connect(path, SqliteOpenMode.ReadOnly);
+        using var command = db.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='table' AND name IN ('cards','variants')
+            """;
+        if (Convert.ToInt64(command.ExecuteScalar()) != 2)
+            throw new InvalidDataException("The selected native catalog lacks cards or printings.");
+        command.CommandText = "SELECT COUNT(*) FROM variants";
+        long total = Convert.ToInt64(command.ExecuteScalar());
+        if (total < 1)
+            throw new InvalidDataException("The native catalog has no printings.");
+        return new CatalogSnapshot(Path.GetFullPath(path), total, ownsTemporaryFile: false);
+    }
+
+    /// <summary>
+    /// Copy an explicitly selected catalog once into the private ArcaneVaultNext
+    /// directory using SQLite's online backup, verify it, then atomically publish.
+    /// Never overwrite installed/legacy catalog or an existing native copy.
+    /// </summary>
+    public static CatalogSnapshot SavePersistentCopy(string sourcePath, string targetPath)
+    {
+        var source = Path.GetFullPath(sourcePath);
+        var target = Path.GetFullPath(targetPath);
+        if (!Directory.Exists(Path.GetDirectoryName(target)!) || File.Exists(target) ||
+            Directory.Exists(target) ||
+            string.Equals(source, target, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Native catalog already exists or destination is invalid.");
+        string legacy = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArcaneVault");
+        if (target.StartsWith(Path.GetFullPath(legacy).TrimEnd(Path.DirectorySeparatorChar) +
+                    Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Never write a native catalog inside the installed app profile.");
+
+        string partial = target + "." + Guid.NewGuid().ToString("N") + ".partial";
+        bool published = false;
+        try
+        {
+            using (var db = Connect(source, SqliteOpenMode.ReadOnly))
+            using (var output = Connect(partial, SqliteOpenMode.ReadWriteCreate))
+            {
+                db.BackupDatabase(output);
+            }
+            using var verified = OpenPersistent(partial);
+            File.Move(partial, target, overwrite: false);
+            published = true;
+            return OpenPersistent(target);
+        }
+        finally
+        {
+            if (!published) DeleteSnapshot(partial);
+        }
+    }
+
     private static void DeleteSnapshot(string filename)
     {
         foreach (var suffix in new[] { "", "-wal", "-shm" })
@@ -131,7 +195,7 @@ public sealed class CatalogSnapshot : IDisposable
         {
             if (disposed) return;
             disposed = true;
-            DeleteSnapshot(snapshotPath);
+            if (ownsTemporaryFile) DeleteSnapshot(snapshotPath);
         }
     }
 }
