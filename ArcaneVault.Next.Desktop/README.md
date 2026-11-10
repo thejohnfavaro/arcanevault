@@ -1,19 +1,41 @@
-# Arcane Vault Next — WPF/.NET 10 compatibility spike
+# Arcane Vault Next — Read-only Native Catalog Performance Prototype
 
-This is an **isolated proof of concept**, NOT a replacement Arcane Vault app. It intentionally has no connection to the user's WebView2 profile, card database, Scryfall account, or collection.
+This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
-It validates the native WPF window, recyclable ListView virtualization, background filtering with cancellation, and `net10.0-windows` compilation. It displays 25,000 **synthetic** card rows and reports local sample filter timing. It does not benchmark real SQLite queries, image caching, startup, disk usage, or real collection workloads.
+## Current functionality
 
-## Build locally (Windows with .NET 10 SDK)
+- The native virtualized list starts with 25,000 deterministic synthetic cards; no account, collection, or catalog is accessed automatically.
+- **Open a read-only catalog snapshot** lets you explicitly choose the existing Scryfall catalog SQLite file. The app opens that file in SQLite read-only mode, uses SQLite's transactionally consistent online backup to make a private temporary snapshot, then queries only the copied printing catalog.
+- The first **200** matching printing rows are displayed. Search is a **name-prefix search**, not the full production Card Browser filter engine; percent signs, underscores, and backslashes are treated as literal characters. Queries are parameterized and can be canceled. Query milliseconds are displayed.
+- **Use 25,000 synthetic cards** closes and deletes the isolated catalog snapshot and restores the prior synthetic view.
+- The snapshot is deleted when the prototype closes normally; after a crash, the OS temporary directory may retain an orphaned SQLite file. Do not rely on automatic cleanup after a forced termination.
+- The snapshot copies the entire local catalog database (including its cached ownership mirror), but **never imports, changes, or displays user ownership**; the snapshot is kept under the user's temporary directory, not uploaded.
 
-```powershell
-dotnet restore ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj
-dotnet build ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj -c Release --no-restore
-dotnet run --project ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj -c Release
-```
+## Build and try on Windows
 
-## Proposed promotion gate
+Use the .NET 10 SDK.
 
-Before native UI code replaces any production view, require a golden-data sample imported into an isolated database, p95 search/filter/list-scroll timings with 1k/5k/25k data, realistic card images and memory profiles, accessibility tests, and no lost owned printings. Existing Windows shipping app remains `net8.0-windows` while compatibility testing proceeds.
+    dotnet restore ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj
+    dotnet run --project ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj -c Release
 
-The independent GitHub Actions job also tries to compile the *existing* Windows application sources with `TargetFramework=net10.0-windows` as an explicit command-line override; this does not modify or retarget the shipping project.
+Select the catalog from:
+
+    %LOCALAPPDATA%\ArcaneVault\scryfall-catalog.sqlite
+
+If the catalog has never been downloaded in the current Windows app, return to the shipping Arcane Vault app and complete a Scryfall sync first. This prototype does not download or index cards.
+
+Or retrieve the **ArcaneVaultNext-NativeUI-SPIKE** artifact from the passing GitHub Actions workflow. This preview is not signed or packaged as a shipping Arcane Vault update, and no user should replace their existing Windows executable with it.
+
+## Synthetic automated tests
+
+    dotnet run --project ArcaneVault.Next.Tests/ArcaneVault.Next.Tests.csproj -c Release
+
+CI creates a synthetic SQLite printing catalog (25,202 rows), verifies source hash remains unchanged after the read-only snapshot, checks isolation from a later synthetic source edit, tests literal prefix handling and bounded result limits, and asserts temporary snapshot cleanup. It also reports p50/p95 query timing from the CI machine. No user's cards or backups are uploaded.
+
+## Current limitations and next engineering gates
+
+- This prototype is **not** a native collection manager yet: no owned printing selections, metadata enrichment, artwork display, deck editing, progress, backup restore, or Scryfall network requests.
+- The timing displayed is **SQL query timing**, not end-to-end input latency or first paint.
+- A temporary snapshot of a large catalog consumes extra free disk space. Verify disk availability before testing on a low-space device.
+- WPF scrolling, artwork memory, cold/warm startup, and 1k/5k/25k realistic browsing need explicit reference-device performance measurements before deciding to replace the current UI.
+- The existing WebView2 source-of-truth storage requires its own migration dry-run and rollback verification; **this prototype does not read it**.
