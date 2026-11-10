@@ -4,6 +4,10 @@ This is a **separate experimental WPF/.NET 10 application**, not a replacement f
 
 ## Current functionality
 
+- **Catalog verification inside the collection viewer (AVN-018):** when a read-only catalog snapshot has been opened first, the Physical Collection tab verifies every supplied Scryfall printing UUID against the **catalog's** name, set code, and collector number. Unmatched, invalid, absent, or conflicting IDs stay unresolved; valid UUID syntax alone is not enough. A **Verified Sets** tab shows only proven distinct printings and quantities by set (not completion percentages).
+- **Offline Card Details:** double-click a physical/Arena card or select it and click **Card details**. Show cached local Scryfall Oracle text, type, rarity, mana value, color identity and legality, alongside ownership context. No network or inventory edits; without a selected catalog, the details dialog safely shows owned quantities and a missing-metadata message.
+
+
 - **View collection backup:** open an explicitly exported **schema-2 full Windows backup** to view physical and Arena card quantities in a separate **native WPF collection window**. Browse printing-ID status, sets, collector numbers and finishes in a virtualized grid, filter missing/invalid printing IDs, and see deck, revision and preferred-artwork totals. This is **not a live-collection view, import, restoration, ownership edit or verified Set Progress**. Backups remain entirely local and unchanged.
 - **EDH Lab is backlogged and hidden from the prototype launcher**, preserving its existing code until Windows core stability and parity are verified. See `docs/arcane-vault-next/WINDOWS_FIRST_GATE.md`.
 

@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Arcane Vault Next — Collection Backup (Read-only)"
-        Width="1120" Height="760" MinWidth="780" MinHeight="540"
+        Width="1200" Height="780" MinWidth="820" MinHeight="560"
         Background="#101620" Foreground="#EAF0F6">
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -14,41 +14,48 @@
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Physical &amp; Arena Collection" FontSize="26" FontWeight="SemiBold"/>
-            <TextBlock Text="Read-only preview of an exported full backup — not your live Windows collection"
+            <TextBlock Text="Read-only full-backup preview — not a live collection or an import"
                        Foreground="#B4C8D8" Margin="0,5,0,0"/>
         </StackPanel>
-        <TextBlock Grid.Row="1" x:Name="TotalsText" Foreground="#E3B87C"
-                   TextWrapping="Wrap" FontSize="13" Margin="0,0,0,12"/>
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock x:Name="TotalsText" Foreground="#E3B87C" TextWrapping="Wrap" FontSize="13"/>
+            <TextBlock x:Name="VerificationText" Foreground="#B6D9D1" Margin="0,5,0,0"
+                       TextWrapping="Wrap" FontSize="13"/>
+        </StackPanel>
         <DockPanel Grid.Row="2" Margin="0,0,0,12">
-            <CheckBox DockPanel.Dock="Right" x:Name="MissingOnly"
-                      Content="Missing/invalid printing ID only" Margin="18,5,0,0"
-                      Foreground="#C8D4DD" Checked="OnFilterChanged" Unchecked="OnFilterChanged"/>
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="14,0,0,0">
+                <CheckBox x:Name="MissingOnly"
+                          Content="Unresolved physical printings only" Margin="0,7,14,0"
+                          Foreground="#C8D4DD" Checked="OnFilterChanged" Unchecked="OnFilterChanged"/>
+                <Button Content="Card details" Click="OnDetailsClicked" Padding="14,8"
+                        Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
+            </StackPanel>
             <TextBox x:Name="SearchBox" Padding="10,7" FontSize="14"
-                     ToolTip="Find owned card names, set codes, and collector numbers"
+                     ToolTip="Filter card names, set hints, collector numbers, and status"
                      TextChanged="OnFilterChanged"
                      Background="#202C3B" Foreground="#FFFFFF" BorderBrush="#526377"/>
         </DockPanel>
         <TabControl Grid.Row="3" x:Name="CollectionTabs"
                     Background="#172231" Foreground="#EAF0F6" BorderBrush="#3C5165">
             <TabItem Header="Physical Collection">
-                <ListView x:Name="PhysicalList"
+                <ListView x:Name="PhysicalList" MouseDoubleClick="OnDetailsClicked"
                           Background="#172231" Foreground="#EAF0F6"
                           VirtualizingStackPanel.IsVirtualizing="True"
                           VirtualizingStackPanel.VirtualizationMode="Recycling"
                           ScrollViewer.CanContentScroll="True">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="Card" Width="280" DisplayMemberBinding="{Binding Name}"/>
-                            <GridViewColumn Header="Qty" Width="55" DisplayMemberBinding="{Binding Quantity}"/>
+                            <GridViewColumn Header="Card" Width="285" DisplayMemberBinding="{Binding Name}"/>
+                            <GridViewColumn Header="Qty" Width="50" DisplayMemberBinding="{Binding Quantity}"/>
                             <GridViewColumn Header="Set / #" Width="135" DisplayMemberBinding="{Binding SetAndNumber}"/>
-                            <GridViewColumn Header="Finish" Width="100" DisplayMemberBinding="{Binding Finish}"/>
-                            <GridViewColumn Header="Printing identity" Width="270" DisplayMemberBinding="{Binding PrintingStatus}"/>
+                            <GridViewColumn Header="Finish" Width="95" DisplayMemberBinding="{Binding Finish}"/>
+                            <GridViewColumn Header="Printing verification" Width="300" DisplayMemberBinding="{Binding Status}"/>
                         </GridView>
                     </ListView.View>
                 </ListView>
             </TabItem>
             <TabItem Header="Arena Collection">
-                <ListView x:Name="ArenaList"
+                <ListView x:Name="ArenaList" MouseDoubleClick="OnDetailsClicked"
                           Background="#172231" Foreground="#EAF0F6"
                           VirtualizingStackPanel.IsVirtualizing="True"
                           VirtualizingStackPanel.VirtualizationMode="Recycling"
@@ -61,9 +68,24 @@
                     </ListView.View>
                 </ListView>
             </TabItem>
+            <TabItem Header="Verified Sets">
+                <ListView x:Name="SetSummaryList"
+                          Background="#172231" Foreground="#EAF0F6"
+                          VirtualizingStackPanel.IsVirtualizing="True"
+                          VirtualizingStackPanel.VirtualizationMode="Recycling"
+                          ScrollViewer.CanContentScroll="True">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Set" Width="180" DisplayMemberBinding="{Binding SetCode}"/>
+                            <GridViewColumn Header="Distinct verified printings" Width="230" DisplayMemberBinding="{Binding DistinctPrintings}"/>
+                            <GridViewColumn Header="Verified copies" Width="180" DisplayMemberBinding="{Binding Copies}"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </TabItem>
         </TabControl>
         <TextBlock Grid.Row="4" x:Name="StatusText" Margin="0,12,0,0"
                    Foreground="#B7C9D8" TextWrapping="Wrap"
-                   Text="Only a saved backup is displayed. IDs are not catalog-verified and nothing is written, synced, restored, or counted toward Set Progress."/>
+                   Text="The viewer never changes collection data. Verified set totals are not completion percentages."/>
     </Grid>
 </Window>

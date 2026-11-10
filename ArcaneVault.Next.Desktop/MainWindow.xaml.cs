@@ -1,6 +1,7 @@
 using Microsoft.Win32;
 using ArcaneVault.Next.EDHLab;
 using ArcaneVault.Next.Domain;
+using ArcaneVault.Next.Collection;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -82,6 +83,8 @@ public partial class MainWindow : Window
             if (closing) { loaded.Dispose(); return; }
             CancelPendingSearch();
             edhLabWindow?.Close();
+            collectionWindow?.Close();
+            collectionWindow = null;
             var previous = catalogSnapshot;
             catalogSnapshot = loaded;
             EdhLabButton.IsEnabled = true;
@@ -127,21 +130,36 @@ public partial class MainWindow : Window
         if (picker.ShowDialog(this) != true) return;
 
         CollectionBackupButton.IsEnabled = false;
-        FilterStatus.Text = "Reading a local exported backup without importing…";
+        OpenCatalogButton.IsEnabled = false;
+        SyntheticButton.IsEnabled = false;
+        FilterStatus.Text = "Reading backup and checking trusted printing IDs…";
+        var activeCatalog = catalogSnapshot;
+        var version = modeVersion;
         try
         {
-            var view = await Task.Run(() => NativeBackupReader.Read(picker.FileName));
-            if (closing) return;
-            var dialog = new NativeCollectionWindow(view) { Owner = this };
+            var result = await Task.Run(() =>
+            {
+                var view = NativeBackupReader.Read(picker.FileName);
+                var verification = CollectionCatalogReview.Examine(
+                    view, activeCatalog?.ReadOnlySnapshotPath);
+                return (view, verification);
+            });
+            if (closing || version != modeVersion ||
+                !ReferenceEquals(activeCatalog, catalogSnapshot)) return;
+            var dialog = new NativeCollectionWindow(
+                result.view, result.verification, activeCatalog?.ReadOnlySnapshotPath)
+            { Owner = this };
             collectionWindow = dialog;
             dialog.Closed += (_, _) =>
             {
                 if (ReferenceEquals(collectionWindow, dialog)) collectionWindow = null;
             };
             dialog.Show();
-            FilterStatus.Text =
-                $"Backup preview: {view.PhysicalCopies:N0} physical, " +
-                $"{view.ArenaCopies:N0} Arena copies (no live changes)";
+            FilterStatus.Text = result.verification.CatalogVerified
+                ? $"Verified {result.verification.ConfirmedCopies:N0} physical copies · " +
+                  $"{result.verification.UnresolvedCopies:N0} unresolved (read-only)"
+                : $"Backup: {result.view.PhysicalCopies:N0} physical, " +
+                  $"{result.view.ArenaCopies:N0} Arena copies · catalog not loaded";
         }
         catch (Exception)
         {
@@ -151,7 +169,12 @@ public partial class MainWindow : Window
         }
         finally
         {
-            if (!closing) CollectionBackupButton.IsEnabled = true;
+            if (!closing)
+            {
+                CollectionBackupButton.IsEnabled = true;
+                OpenCatalogButton.IsEnabled = true;
+                SyntheticButton.IsEnabled = true;
+            }
         }
     }
 
@@ -200,6 +223,8 @@ public partial class MainWindow : Window
     {
         CancelPendingSearch();
         edhLabWindow?.Close();
+        collectionWindow?.Close();
+        collectionWindow = null;
         EdhLabButton.IsEnabled = false;
         modeVersion++;
         var previous = catalogSnapshot;
