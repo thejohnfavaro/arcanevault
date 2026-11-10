@@ -1,0 +1,23 @@
+# Windows-first stabilization gate (effective 2026-11-10)
+
+**Owner directive:** Finish restoring a dependable, usable Windows Arcane Vault before resuming EDH Lab and new Android feature development.
+
+## Priority order
+
+1. **Shipping Windows stability first.** Verify installed app launches, in-app update works, local collections survive update, card browser/card details can be opened, and backup/restore is recoverable. A green GitHub compile is not a device acceptance test.
+2. **Core native Windows parity next.** Reliable local Scryfall catalog, browsable physical + Arena inventory, confirmed-printing identification, Set Progress, card details, and safe backups/restores; then gated edits and rollback. Do not replace the installed app by default.
+3. **Data loss/crash/performance gates.** Preserve physical printing rows and quantities, decks/revisions, artwork and Arena inventory; test live-profile compatibility on a disposable copy and measure startup/search p95 on Windows.
+4. **Android companion maintenance only if blocking collection safety.** Do not start new scanner/feature work before Windows core is stable.
+5. **EDH Lab paused in backlog.** Existing EDH Lab source and Issue #33 are retained, but no new EDH Lab features, testing expansion or shipping UI exposure until the Windows gate below passes.
+
+## Windows re-entry gate for EDH Lab
+
+All of the following must be validated: shipping Windows version installs/launches and updates without data loss; real full backup/restore (disposable profile) passes quantity/printing/deck/artwork comparison; core native card catalog, physical collection, Arena inventory, card details and Set Progress are functional; unresolved printings are visible rather than guessed; performance and stability have been measured; recovery route documented and tested. At that point, EDH Lab can be reprioritized.
+
+## Current implementation slice: AVN-017
+
+The next native prototype can display an explicitly exported **schema-2 full backup** in a read-only Physical/Arena collection window. This is **not** a live collection reader, migration, restore or verified printing credit. Printed IDs in the export are marked **supplied, not verified**; missing/invalid IDs remain unresolved. Deck and artwork **counts only** are shown.
+
+The prior EDH Lab preview remains in source control, but its launcher is hidden from the Windows prototype to reinforce the scope freeze. No installed-app files are modified by this work.
+
+This document is a project priority decision; successful CI does not establish the Windows re-entry gate has passed.
