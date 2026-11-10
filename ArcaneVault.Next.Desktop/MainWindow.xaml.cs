@@ -1,5 +1,6 @@
 using Microsoft.Win32;
 using ArcaneVault.Next.EDHLab;
+using ArcaneVault.Next.Domain;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -22,6 +23,7 @@ public partial class MainWindow : Window
     private readonly IReadOnlyList<SampleCard> sampleCards;
     private CatalogSnapshot? catalogSnapshot;
     private CommanderBrowserWindow? edhLabWindow;
+    private NativeCollectionWindow? collectionWindow;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
     private int modeVersion;
@@ -37,6 +39,7 @@ public partial class MainWindow : Window
         {
             closing = true;
             edhLabWindow?.Close();
+            collectionWindow?.Close();
             CancelPendingSearch();
             catalogSnapshot?.Dispose();
         };
@@ -103,6 +106,52 @@ public partial class MainWindow : Window
                 OpenCatalogButton.IsEnabled = true;
                 SyntheticButton.IsEnabled = true;
             }
+        }
+    }
+
+    private async void OnCollectionBackupClicked(object sender, RoutedEventArgs e)
+    {
+        if (collectionWindow is not null)
+        {
+            collectionWindow.Activate();
+            return;
+        }
+
+        var picker = new OpenFileDialog
+        {
+            Title = "Select an exported full Windows backup (read-only)",
+            Filter = "Arcane Vault backup (*.json)|*.json|All files (*.*)|*.*",
+            CheckFileExists = true,
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        };
+        if (picker.ShowDialog(this) != true) return;
+
+        CollectionBackupButton.IsEnabled = false;
+        FilterStatus.Text = "Reading a local exported backup without importing…";
+        try
+        {
+            var view = await Task.Run(() => NativeBackupReader.Read(picker.FileName));
+            if (closing) return;
+            var dialog = new NativeCollectionWindow(view) { Owner = this };
+            collectionWindow = dialog;
+            dialog.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(collectionWindow, dialog)) collectionWindow = null;
+            };
+            dialog.Show();
+            FilterStatus.Text =
+                $"Backup preview: {view.PhysicalCopies:N0} physical, " +
+                $"{view.ArenaCopies:N0} Arena copies (no live changes)";
+        }
+        catch (Exception)
+        {
+            if (!closing)
+                FilterStatus.Text =
+                    "Backup preview failed or file unsupported. Existing collection remains untouched.";
+        }
+        finally
+        {
+            if (!closing) CollectionBackupButton.IsEnabled = true;
         }
     }
 

@@ -16,17 +16,21 @@
             <TextBlock FontSize="13" Foreground="#ADC0D1" Margin="0,4,0,0"
                        Text="Native performance prototype · Explicit read-only catalog snapshot · No user ownership or deck edits"/>
         </StackPanel>
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+        <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
             <Button x:Name="OpenCatalogButton" Content="Open a read-only catalog snapshot"
                     Click="OnOpenCatalogClicked" Padding="12,9" Margin="0,0,12,0"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
             <Button x:Name="SyntheticButton" Content="Use 25,000 synthetic cards"
                     Click="OnSyntheticClicked" Padding="12,9"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B" Margin="0,0,12,0"/>
+            <Button x:Name="CollectionBackupButton" Content="View collection backup"
+                    Click="OnCollectionBackupClicked" Padding="12,9" Margin="0,0,12,0"
+                    Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+            <!-- EDH Lab feature preserved but hidden until Windows core parity passes. -->
             <Button x:Name="EdhLabButton" Content="EDH Lab — Commanders"
-                    Click="OnEdhLabClicked" Padding="12,9" IsEnabled="False"
+                    Click="OnEdhLabClicked" Visibility="Collapsed" Padding="12,9" IsEnabled="False"
                     Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
-        </StackPanel>
+        </WrapPanel>
         <DockPanel Grid.Row="2" Margin="0,0,0,12">
             <TextBlock DockPanel.Dock="Right" x:Name="FilterStatus" TextAlignment="Right"
                        Width="340" VerticalAlignment="Center" Foreground="#B5CCD7"
