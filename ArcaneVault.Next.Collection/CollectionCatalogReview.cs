@@ -112,6 +112,9 @@ public static class CollectionCatalogReview
                 status = "Printing ID absent from catalog";
             else if (!match.IsPaper)
                 status = "Not a physical paper printing";
+            else if (string.IsNullOrWhiteSpace(match.Set) ||
+                     string.IsNullOrWhiteSpace(match.Collector))
+                status = "Catalog printing is missing a set or collector number";
             else if (!string.Equals(row.Name.Trim(), match.Name.Trim(),
                          StringComparison.OrdinalIgnoreCase))
                 status = "Card name conflicts with printing ID";
