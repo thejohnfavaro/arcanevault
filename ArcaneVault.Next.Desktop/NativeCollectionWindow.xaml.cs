@@ -18,21 +18,33 @@ public partial class NativeCollectionWindow : Window
     private readonly NativeSetProgress.Result? progress;
     private int setQueryVersion;
     private bool closing;
+    private readonly string? nativePath;
+    private readonly string? expectedBackupSha;
+    private readonly Func<Task>? reopenNative;
 
     public NativeCollectionWindow(NativeBackupView backup,
         CollectionCatalogReview.Result review, string? catalogPath,
-        NativeSetProgress.Result? progress, bool nativeWorkspace = false)
+        NativeSetProgress.Result? progress, bool nativeWorkspace = false,
+        string? nativePath = null, string? expectedBackupSha = null,
+        Func<Task>? reopenNative = null)
     {
         this.backup = backup ?? throw new ArgumentNullException(nameof(backup));
         this.review = review ?? throw new ArgumentNullException(nameof(review));
         this.catalogPath = catalogPath;
         this.progress = progress;
+        this.nativePath = nativePath;
+        this.expectedBackupSha = expectedBackupSha;
+        this.reopenNative = reopenNative;
         InitializeComponent();
+        AddPhysicalButton.IsEnabled = nativeWorkspace &&
+            !string.IsNullOrWhiteSpace(nativePath) &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha) &&
+            !string.IsNullOrWhiteSpace(catalogPath);
         if (nativeWorkspace)
         {
-            Title = "Arcane Vault Next — Native Collection (read-only)";
+            Title = "Arcane Vault Next — Native Collection";
             DataSourceLabel.Text =
-                "Persistent native SQLite collection — loaded directly from Arcane Vault Next, no backup selection needed";
+                "Native SQLite collection — verified paper-printing additions require explicit confirmation and retain recovery; other edits are locked";
         }
         Closed += (_, _) => { closing = true; setQueryVersion++; };
         TotalsText.Text =
@@ -136,6 +148,26 @@ public partial class NativeCollectionWindow : Window
                 SetDetailsHeader.Text =
                     "Unable to display this catalog set. Backup data remains unchanged.";
         }
+    }
+
+    private async void OnAddPhysicalClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha) ||
+            string.IsNullOrWhiteSpace(catalogPath))
+        {
+            StatusText.Text = "Physical additions require a native collection and verified local catalog.";
+            return;
+        }
+        var dialog = new NativeAddPrintingWindow(catalogPath, nativePath,
+            expectedBackupSha) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+
+        // Reopen from newly verified SQLite rather than retaining stale rows,
+        // catalog-set counts or the old optimistic-concurrency checksum.
+        Close();
+        if (reopenNative is not null)
+            await reopenNative();
     }
 
     private void OnDetailsClicked(object sender, RoutedEventArgs e)

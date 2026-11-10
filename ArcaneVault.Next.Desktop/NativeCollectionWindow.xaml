@@ -27,6 +27,10 @@
                 <CheckBox x:Name="MissingOnly"
                           Content="Unresolved physical printings only" Margin="0,7,14,0"
                           Foreground="#C8D4DD" Checked="OnFilterChanged" Unchecked="OnFilterChanged"/>
+                <Button x:Name="AddPhysicalButton" Content="Add physical printing"
+                        Click="OnAddPhysicalClicked" IsEnabled="False" Padding="14,8"
+                        Margin="0,0,10,0"
+                        Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
                 <Button Content="Card details" Click="OnDetailsClicked" Padding="14,8"
                         Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
             </StackPanel>
