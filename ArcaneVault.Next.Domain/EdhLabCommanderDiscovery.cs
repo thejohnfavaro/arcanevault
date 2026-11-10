@@ -161,8 +161,10 @@ public sealed class EdhLabCommanderIndex
     public EdhLabPage Browse(EdhLabQuery query)
     {
         var filtered = Filter(query);
-        var page = filtered.Skip(checked(query.Page * (long)query.PageSize))
-            .Take(query.PageSize).ToArray();
+        var offset = (long)query.Page * query.PageSize;
+        var page = offset >= filtered.Count
+            ? Array.Empty<EdhLabCommanderCard>()
+            : filtered.Skip((int)offset).Take(query.PageSize).ToArray();
         return new EdhLabPage(filtered.Count, query.Page, query.PageSize, page);
     }
 }
