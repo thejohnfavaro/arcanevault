@@ -68,20 +68,58 @@
                     </ListView.View>
                 </ListView>
             </TabItem>
-            <TabItem Header="Verified Sets">
-                <ListView x:Name="SetSummaryList"
-                          Background="#172231" Foreground="#EAF0F6"
-                          VirtualizingStackPanel.IsVirtualizing="True"
-                          VirtualizingStackPanel.VirtualizationMode="Recycling"
-                          ScrollViewer.CanContentScroll="True">
-                    <ListView.View>
-                        <GridView>
-                            <GridViewColumn Header="Set" Width="180" DisplayMemberBinding="{Binding SetCode}"/>
-                            <GridViewColumn Header="Distinct verified printings" Width="230" DisplayMemberBinding="{Binding DistinctPrintings}"/>
-                            <GridViewColumn Header="Verified copies" Width="180" DisplayMemberBinding="{Binding Copies}"/>
-                        </GridView>
-                    </ListView.View>
-                </ListView>
+            <TabItem Header="Set Progress">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="3*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Find a set" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox x:Name="SetSearch" Width="220" Padding="8,5"
+                                 Background="#202C3B" Foreground="White" BorderBrush="#516174"
+                                 TextChanged="OnSetFilterChanged" Margin="0,0,18,0"/>
+                        <CheckBox x:Name="ShowEmptySets" Content="Include sets with 0 verified slots"
+                                  IsChecked="False" VerticalAlignment="Center"
+                                  Checked="OnSetFilterChanged" Unchecked="OnSetFilterChanged"/>
+                    </StackPanel>
+                    <ListView Grid.Row="1" x:Name="SetSummaryList"
+                              SelectionChanged="OnSetSelected"
+                              Background="#172231" Foreground="#EAF0F6"
+                              VirtualizingStackPanel.IsVirtualizing="True"
+                              VirtualizingStackPanel.VirtualizationMode="Recycling"
+                              ScrollViewer.CanContentScroll="True">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Set" Width="70" DisplayMemberBinding="{Binding SetCode}"/>
+                                <GridViewColumn Header="Set name" Width="215" DisplayMemberBinding="{Binding SetName}"/>
+                                <GridViewColumn Header="Released" Width="110" DisplayMemberBinding="{Binding Released}"/>
+                                <GridViewColumn Header="Owned slots" Width="100" DisplayMemberBinding="{Binding SlotsLabel}"/>
+                                <GridViewColumn Header="Progress" Width="100" DisplayMemberBinding="{Binding PercentLabel}"/>
+                                <GridViewColumn Header="Verified copies" Width="115" DisplayMemberBinding="{Binding VerifiedCopies}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                    <TextBlock x:Name="SetDetailsHeader" Grid.Row="2" Foreground="#E3B87C"
+                               Margin="0,12,0,8" TextWrapping="Wrap"
+                               Text="Select a set to inspect its collector-number checklist."/>
+                    <ListView Grid.Row="3" x:Name="SetSlotsList"
+                              MouseDoubleClick="OnDetailsClicked"
+                              Background="#172231" Foreground="#EAF0F6"
+                              VirtualizingStackPanel.IsVirtualizing="True"
+                              VirtualizingStackPanel.VirtualizationMode="Recycling"
+                              ScrollViewer.CanContentScroll="True">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Collector #" Width="140" DisplayMemberBinding="{Binding CollectorNumber}"/>
+                                <GridViewColumn Header="Card" Width="410" DisplayMemberBinding="{Binding CardName}"/>
+                                <GridViewColumn Header="Status" Width="180" DisplayMemberBinding="{Binding Ownership}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
             </TabItem>
         </TabControl>
         <TextBlock Grid.Row="4" x:Name="StatusText" Margin="0,12,0,0"

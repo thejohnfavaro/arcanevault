@@ -14,7 +14,8 @@ public static class CollectionCatalogReview
         bool Confirmed,
         string Status,
         string ConfirmedSet,
-        string CatalogName)
+        string CatalogName,
+        string CatalogCollector)
     {
         public string Name => Original.Name;
         public int Quantity => Original.Quantity;
@@ -38,7 +39,7 @@ public static class CollectionCatalogReview
         public bool QuantitiesConserved => ConfirmedCopies + UnresolvedCopies == TotalCopies;
     }
 
-    private sealed record Printing(Guid Id, string Name, string Set, string Collector);
+    private sealed record Printing(Guid Id, string Name, string Set, string Collector, bool IsPaper);
 
     private static SqliteConnection Open(string path)
     {
@@ -69,7 +70,7 @@ public static class CollectionCatalogReview
         {
             using var db = Open(catalogPath!);
             using var command = db.CreateCommand();
-            command.CommandText = "SELECT print_id,name,setcode,collector FROM variants";
+            command.CommandText = "SELECT print_id,name,setcode,collector,games,digital FROM variants";
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {
@@ -77,10 +78,14 @@ public static class CollectionCatalogReview
                 if (reader.IsDBNull(0) || !Guid.TryParse(reader.GetString(0), out var id) ||
                     id == Guid.Empty || !presentIds.Contains(id))
                     continue;
-                if (reader.IsDBNull(1) || reader.IsDBNull(2) || reader.IsDBNull(3))
+                if (reader.IsDBNull(1) || reader.IsDBNull(2) || reader.IsDBNull(3) ||
+                    reader.IsDBNull(4) || reader.IsDBNull(5))
                     continue;
+                bool hasPaper = reader.GetString(4).Split(',',
+                    StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                    .Any(g => g.Equals("paper", StringComparison.OrdinalIgnoreCase));
                 var record = new Printing(id, reader.GetString(1), reader.GetString(2),
-                    reader.GetString(3));
+                    reader.GetString(3), hasPaper && reader.GetInt64(5) == 0);
                 if (!matches.TryAdd(id, record))
                     throw new InvalidDataException("Catalog contains a duplicated Scryfall printing ID.");
             }
@@ -105,6 +110,11 @@ public static class CollectionCatalogReview
                 status = "ID supplied — load catalog to verify";
             else if (!matches.TryGetValue(id, out match))
                 status = "Printing ID absent from catalog";
+            else if (!match.IsPaper)
+                status = "Not a physical paper printing";
+            else if (string.IsNullOrWhiteSpace(match.Set) ||
+                     string.IsNullOrWhiteSpace(match.Collector))
+                status = "Catalog printing is missing a set or collector number";
             else if (!string.Equals(row.Name.Trim(), match.Name.Trim(),
                          StringComparison.OrdinalIgnoreCase))
                 status = "Card name conflicts with printing ID";
@@ -132,7 +142,8 @@ public static class CollectionCatalogReview
             if (!ok)
                 unresolved = checked(unresolved + row.Quantity);
             rows.Add(new PrintingRow(row, ok, status,
-                ok ? match!.Set : "", ok ? match!.Name : ""));
+                ok ? match!.Set : "", ok ? match!.Name : "",
+                ok ? match!.Collector : ""));
         }
         if (backup.PhysicalCopies != confirmed + unresolved)
             throw new InvalidDataException("Collection verification failed copy conservation.");

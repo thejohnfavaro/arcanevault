@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using System.IO;
 using ArcaneVault.Next.Domain;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,14 +15,20 @@ public partial class NativeCollectionWindow : Window
     private readonly NativeBackupView backup;
     private readonly CollectionCatalogReview.Result review;
     private readonly string? catalogPath;
+    private readonly NativeSetProgress.Result? progress;
+    private int setQueryVersion;
+    private bool closing;
 
     public NativeCollectionWindow(NativeBackupView backup,
-        CollectionCatalogReview.Result review, string? catalogPath)
+        CollectionCatalogReview.Result review, string? catalogPath,
+        NativeSetProgress.Result? progress)
     {
         this.backup = backup ?? throw new ArgumentNullException(nameof(backup));
         this.review = review ?? throw new ArgumentNullException(nameof(review));
         this.catalogPath = catalogPath;
+        this.progress = progress;
         InitializeComponent();
+        Closed += (_, _) => { closing = true; setQueryVersion++; };
         TotalsText.Text =
             $"Physical: {backup.PhysicalCopies:N0} copies · {backup.PhysicalCards.Count:N0} lines · " +
             $"{backup.DistinctPhysicalNames:N0} names  |  " +
@@ -34,7 +41,7 @@ public partial class NativeCollectionWindow : Window
               $"Unresolved: {review.UnresolvedCopies:N0} copies"
             : $"No catalog selected — none of the {review.TotalCopies:N0} physical copies " +
               "can be credited to a confirmed set yet.";
-        SetSummaryList.ItemsSource = review.ConfirmedSets;
+        RefreshSetList();
         RefreshLists();
     }
 
@@ -60,10 +67,70 @@ public partial class NativeCollectionWindow : Window
         ArenaList.ItemsSource = arena;
         StatusText.Text = $"{physical.Length:N0} physical lines and {arena.Length:N0} Arena names shown. " +
             "Double-click a card for offline details. Arena ownership has no printing IDs. " +
-            "Sets show verified copies only, never guessed completion percentages.";
+            "Set Progress counts only verified paper collector-number slots; missing/invalid print IDs never count.";
     }
 
     private void OnFilterChanged(object sender, RoutedEventArgs e) => RefreshLists();
+
+    private void RefreshSetList()
+    {
+        if (SetSummaryList is null || ShowEmptySets is null ||
+            SetSearch is null || SetDetailsHeader is null || SetSlotsList is null) return;
+
+        string query = SetSearch.Text.Trim();
+        bool includeEmpty = ShowEmptySets.IsChecked == true;
+        var items = (progress?.Sets ?? Array.Empty<NativeSetProgress.SetRow>())
+            .Where(x => (includeEmpty || x.OwnedSlots > 0) &&
+                (query.Length == 0 ||
+                 x.SetCode.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                 x.SetName.Contains(query, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+        setQueryVersion++;
+        SetSummaryList.ItemsSource = items;
+        SetSlotsList.ItemsSource = null;
+
+        if (progress is null)
+            SetDetailsHeader.Text = "Load the local Scryfall catalog snapshot before opening the backup to calculate Set Progress.";
+        else if (items.Length == 0)
+            SetDetailsHeader.Text = "No matching sets with verified owned collector slots. Choose 'Include sets with 0 verified slots' to inspect the catalog.";
+        else
+            SetDetailsHeader.Text = $"Showing {items.Length:N0} sets. Select a set to inspect its catalog collector-number checklist.";
+    }
+
+    private void OnSetFilterChanged(object sender, RoutedEventArgs e) => RefreshSetList();
+
+    private async void OnSetSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (SetSummaryList is null || SetSlotsList is null ||
+            SetDetailsHeader is null || progress is null ||
+            string.IsNullOrWhiteSpace(catalogPath)) return;
+
+        int version = ++setQueryVersion;
+        SetSlotsList.ItemsSource = null;
+        if (SetSummaryList.SelectedItem is not NativeSetProgress.SetRow selected) return;
+
+        SetDetailsHeader.Text =
+            $"{selected.SetName} ({selected.SetCode}) · loading numbered paper catalog slots…";
+        try
+        {
+            var slots = await Task.Run(() =>
+                NativeSetProgress.LoadSetSlots(review, catalogPath, selected.SetCode));
+            if (closing || version != setQueryVersion) return;
+            if (slots.Count != selected.TotalSlots)
+                throw new InvalidDataException("Set denominator differs from its collector-number checklist.");
+            SetSlotsList.ItemsSource = slots;
+            SetDetailsHeader.Text =
+                $"{selected.SetName} · {selected.SlotsLabel} verified slots " +
+                $"({selected.PercentLabel}), {selected.VerifiedCopies:N0} physical copies · " +
+                "double-click a card for offline details.";
+        }
+        catch (Exception)
+        {
+            if (!closing && version == setQueryVersion)
+                SetDetailsHeader.Text =
+                    "Unable to display this catalog set. Backup data remains unchanged.";
+        }
+    }
 
     private void OnDetailsClicked(object sender, RoutedEventArgs e)
     {
@@ -83,9 +150,16 @@ public partial class NativeCollectionWindow : Window
             name = arena.Name;
             ownership = $"Arena: {arena.Quantity} copies · name-only ownership, not set-verified";
         }
+        else if (CollectionTabs.SelectedIndex == 2 &&
+                 SetSlotsList.SelectedItem is NativeSetProgress.SetSlot slot)
+        {
+            name = slot.CardName;
+            ownership = $"Catalog collector slot #{slot.CollectorNumber} · " +
+                        $"{slot.Ownership} (verified physical copies only)";
+        }
         else
         {
-            StatusText.Text = "Select a card in Physical Collection or Arena Collection to view details.";
+            StatusText.Text = "Select a card in Physical Collection, Arena Collection, or a set's checklist.";
             return;
         }
 
