@@ -36,6 +36,9 @@ public static class LegacyStorageImport
             try
             {
                 using var json = JsonDocument.Parse(value);
+                if (key == "vault_deck" &&
+                    json.RootElement.ValueKind == JsonValueKind.Null)
+                    return default;
                 if (json.RootElement.ValueKind != expected)
                     throw new InvalidDataException("Invalid legacy storage structure for " + key);
                 return json.RootElement.Clone();

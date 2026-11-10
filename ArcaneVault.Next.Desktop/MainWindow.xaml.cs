@@ -56,6 +56,7 @@ public partial class MainWindow : Window
     {
         OpenNativeButton.IsEnabled = System.IO.File.Exists(NativeWorkspace.DefaultPath);
         ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
+        MigrateLegacyButton.IsEnabled = !OpenNativeButton.IsEnabled;
         SaveNativeCatalogButton.IsEnabled = false;
 
         if (System.IO.File.Exists(NativeWorkspace.CatalogPath))
@@ -141,6 +142,131 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnMigrateLegacyClicked(object sender, RoutedEventArgs e)
+    {
+        if (System.IO.File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "A native workspace already exists. It cannot be overwritten by migration.";
+            return;
+        }
+        if (!System.IO.Directory.Exists(LegacyProfileSnapshot.LiveProfilePath))
+        {
+            FilterStatus.Text = "No installed Arcane Vault browser profile was found. Use Import backup once if necessary.";
+            return;
+        }
+
+        if (MessageBox.Show(this,
+            "Close the old Arcane Vault Windows app before continuing.\n\n" +
+            "This reads a temporary ISOLATED COPY of its local browser storage. " +
+            "The original app and collection will not be modified, and the new native workspace is read-only. " +
+            "You will verify totals before anything is imported.\n\n" +
+            "This one-time migration requires the installed Microsoft Edge WebView2 Runtime. Continue?",
+            "Migrate installed Arcane Vault collection", MessageBoxButton.YesNo,
+            MessageBoxImage.Information) != MessageBoxResult.Yes)
+            return;
+
+        MigrateLegacyButton.IsEnabled = false;
+        ImportNativeButton.IsEnabled = false;
+        OpenNativeButton.IsEnabled = false;
+        FilterStatus.Text = "Reading an isolated snapshot of installed Arcane Vault WebView storage…";
+        try
+        {
+            var recovered = await OfflineLegacyBridge.ExtractAsync(this);
+            if (closing) return;
+
+            var view = recovered.Collection;
+            if (MessageBox.Show(this,
+                $"Legacy source recovered:\n" +
+                $"Physical: {view.PhysicalCards.Count:N0} inventory rows / {view.PhysicalCopies:N0} copies\n" +
+                $"Arena: {view.ArenaCards.Count:N0} entries / {view.ArenaCopies:N0} copies\n" +
+                $"Decks: {view.Decks:N0}, revisions: {view.DeckRevisions:N0}\n" +
+                $"Preferred artwork: {view.PreferredArtworks:N0}\n" +
+                $"Missing or invalid physical printing IDs: {view.CopiesWithMissingOrInvalidIds:N0} copies\n\n" +
+                "Create a NEW private native workspace with these exact records? " +
+                "The installed app will remain unchanged. Empty or unexpected totals should be investigated before confirming.",
+                "Verify local collection before native migration", MessageBoxButton.YesNo,
+                MessageBoxImage.Question) != MessageBoxResult.Yes)
+            {
+                FilterStatus.Text = "Migration canceled. No native workspace was created.";
+                return;
+            }
+
+            FilterStatus.Text = "Verifying and committing independent native collection…";
+            System.IO.Directory.CreateDirectory(NativeWorkspace.RootDirectory);
+            await Task.Run(() => NativeWorkspace.ImportNewBytes(
+                recovered.BackupBytes, "installed-webview2-offline-snapshot",
+                NativeWorkspace.DefaultPath));
+            if (closing) return;
+
+            // Catalog is derived metadata, never authoritative ownership.
+            // Its import is optional and must not invalidate the new collection.
+            string legacyCatalog = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ArcaneVault", "scryfall-catalog.sqlite");
+            if (System.IO.File.Exists(legacyCatalog) &&
+                !System.IO.File.Exists(NativeWorkspace.CatalogPath))
+            {
+                try
+                {
+                    using var nativeCatalog = await Task.Run(() =>
+                        CatalogSnapshot.SavePersistentCopy(
+                            legacyCatalog, NativeWorkspace.CatalogPath));
+                }
+                catch (Exception)
+                {
+                    if (!closing) FilterStatus.Text =
+                        "Collection migrated; optional native catalog copy failed. Card metadata can be loaded separately.";
+                }
+            }
+
+            if (closing) return;
+            if (System.IO.File.Exists(NativeWorkspace.CatalogPath))
+            {
+                try
+                {
+                    var catalog = await Task.Run(() =>
+                        CatalogSnapshot.OpenPersistent(NativeWorkspace.CatalogPath));
+                    if (closing) { catalog.Dispose(); return; }
+                    collectionWindow?.Close();
+                    collectionWindow = null;
+                    CancelPendingSearch();
+                    var previous = catalogSnapshot;
+                    catalogSnapshot = catalog;
+                    modeVersion++;
+                    previous?.Dispose();
+                    _ = FilterAsync();
+                }
+                catch (Exception) { /* Collection still safe and independently readable. */ }
+            }
+
+            FilterStatus.Text = "Direct native migration completed. Reopening persisted collection…";
+            await OpenNativeCollectionAsync();
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+            {
+                FilterStatus.Text = "Direct migration did not complete. Existing data was not overwritten.";
+                MessageBox.Show(this,
+                    "Migration was stopped without changing the installed app.\n\n" + ex.Message +
+                    "\n\nIf the original app uses an unsupported browser profile, " +
+                    "the previous manual full-backup import is still available.",
+                    "Arcane Vault Next — safe migration stop",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            if (!closing)
+            {
+                bool exists = System.IO.File.Exists(NativeWorkspace.DefaultPath);
+                OpenNativeButton.IsEnabled = exists;
+                ImportNativeButton.IsEnabled = !exists;
+                MigrateLegacyButton.IsEnabled = !exists;
+            }
+        }
+    }
+
     private async void OnImportNativeClicked(object sender, RoutedEventArgs e)
     {
         if (System.IO.File.Exists(NativeWorkspace.DefaultPath))
@@ -188,6 +314,7 @@ public partial class MainWindow : Window
                 OpenNativeButton.IsEnabled =
                     System.IO.File.Exists(NativeWorkspace.DefaultPath);
                 ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
+                MigrateLegacyButton.IsEnabled = !OpenNativeButton.IsEnabled;
             }
         }
     }
@@ -255,6 +382,7 @@ public partial class MainWindow : Window
                 OpenNativeButton.IsEnabled =
                     System.IO.File.Exists(NativeWorkspace.DefaultPath);
                 ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
+                MigrateLegacyButton.IsEnabled = !OpenNativeButton.IsEnabled;
             }
         }
     }
