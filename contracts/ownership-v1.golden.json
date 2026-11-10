@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "description": "Synthetic reconciliation fixture: no user collection or actual identifiers.",
+  "catalogPrintings": [
+    {"printId":"00000000-0000-0000-0000-000000000101","name":"Sol Ring","setCode":"CMM","collectorNumber":"401"},
+    {"printId":"00000000-0000-0000-0000-000000000102","name":"Sol Ring","setCode":"WHO","collectorNumber":"235"},
+    {"printId":"00000000-0000-0000-0000-000000000103","name":"Fire // Ice","setCode":"APC","collectorNumber":"128"}
+  ],
+  "physicalLines": [
+    {"lineId":"10000000-0000-0000-0000-000000000001","name":"Sol Ring","quantity":1,"printId":"00000000-0000-0000-0000-000000000101","setCode":"CMM","collectorNumber":"401","finish":"nonfoil"},
+    {"lineId":"10000000-0000-0000-0000-000000000002","name":"Sol Ring","quantity":2,"printId":"00000000-0000-0000-0000-000000000102","setCode":"WHO","collectorNumber":"235","finish":"foil"},
+    {"lineId":"10000000-0000-0000-0000-000000000003","name":"Fire // Ice","quantity":1,"printId":"00000000-0000-0000-0000-000000000103","setCode":"APC","collectorNumber":"128","finish":"nonfoil"},
+    {"lineId":"10000000-0000-0000-0000-000000000004","name":"Sol Ring","quantity":2,"printId":"00000000-0000-0000-0000-000000000101","setCode":"cmm","collectorNumber":"401","finish":"etched"},
+    {"lineId":"10000000-0000-0000-0000-000000000005","name":"Sol Ring","quantity":4,"printId":null,"setCode":"CMM","collectorNumber":"401","finish":"unknown"},
+    {"lineId":"10000000-0000-0000-0000-000000000006","name":"Sol Ring","quantity":2,"printId":"00000000-0000-0000-0000-000000000999","setCode":"CMM","collectorNumber":"401","finish":"unknown"},
+    {"lineId":"10000000-0000-0000-0000-000000000007","name":"Fire // Ice","quantity":1,"printId":"00000000-0000-0000-0000-000000000103","setCode":"BRO","collectorNumber":"128","finish":"nonfoil"},
+    {"lineId":"10000000-0000-0000-0000-000000000008","name":"Sol Ring","quantity":0,"printId":"00000000-0000-0000-0000-000000000101","setCode":"CMM","collectorNumber":"401","finish":"nonfoil"}
+  ],
+  "expected": {
+    "totalCopies": 13, "confirmedCopies": 6, "unresolvedCopies": 7,
+    "confirmedDistinctPrintings": 3,
+    "bySet": [
+      {"setCode":"apc","distinctPrintings":1,"copies":1},
+      {"setCode":"cmm","distinctPrintings":1,"copies":3},
+      {"setCode":"who","distinctPrintings":1,"copies":2}
+    ],
+    "unresolvedLines": [
+      {"lineId":"10000000-0000-0000-0000-000000000005","copies":4,"reason":"NoPrintId"},
+      {"lineId":"10000000-0000-0000-0000-000000000006","copies":2,"reason":"PrintIdAbsentFromCatalog"},
+      {"lineId":"10000000-0000-0000-0000-000000000007","copies":1,"reason":"SourceMetadataConflict"}
+    ]
+  }
+}

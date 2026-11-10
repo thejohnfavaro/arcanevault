@@ -8,5 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <Compile Include="..\ArcaneVault.Next.Desktop\CatalogSnapshot.cs" Link="CatalogSnapshot.cs" />
+    <ProjectReference Include="..\ArcaneVault.Next.Domain\ArcaneVault.Next.Domain.csproj" />
+    <None Include="..\contracts\ownership-v1.golden.json" Link="ownership-v1.golden.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

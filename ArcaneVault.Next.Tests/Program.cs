@@ -133,6 +133,8 @@ try
     catch (InvalidDataException) { rejected = true; }
     Assert(rejected, "Invalid source must be rejected");
 
+    OwnershipGoldenChecks.Run();
+
     Console.WriteLine("PASS: 25,202-row read-only snapshot, original unchanged, bounded/escaped searches, snapshot isolation and cleanup");
 }
 finally

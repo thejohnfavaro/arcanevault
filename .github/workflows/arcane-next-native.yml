@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'ArcaneVault.Next.Desktop/**'
+      - 'ArcaneVault.Next.Domain/**'
+      - 'contracts/**'
       - 'ArcaneVault.Next.Tests/**'
       - '.github/workflows/arcane-next-native.yml'
       - 'ArcaneVault.Desktop/**'
@@ -11,6 +13,8 @@ on:
     branches: [main]
     paths:
       - 'ArcaneVault.Next.Desktop/**'
+      - 'ArcaneVault.Next.Domain/**'
+      - 'contracts/**'
       - 'ArcaneVault.Next.Tests/**'
       - '.github/workflows/arcane-next-native.yml'
   workflow_dispatch:
