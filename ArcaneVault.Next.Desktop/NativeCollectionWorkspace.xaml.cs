@@ -449,7 +449,9 @@ public partial class NativeCollectionWorkspace : UserControl
             try
             {
                 var snapshot = await Task.Run(() =>
-                    NativeSetProgress.BuildArena(backup.ArenaCards, catalogPath));
+                    NativeSetProgressCache.Arena(backup.ArenaCards,
+                        NativeWorkspace.CatalogPath, expectedBackupSha ??
+                        throw new InvalidDataException("Arena cache requires a verified workspace.")));
                 if (closing) return;
                 arenaProgress = snapshot;
             }
