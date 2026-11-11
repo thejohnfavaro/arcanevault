@@ -108,6 +108,7 @@ public static class NativeArenaEditing
         // Renaming to another existing Arena entry must be deliberate:
         // stop rather than merging/duplicating potentially different records.
         if (newQuantity > 0 &&
+            !expectedRow.Name.Equals(newName, StringComparison.OrdinalIgnoreCase) &&
             view.ArenaCards.Select((row, idx) => (row, idx))
                 .Any(x => x.idx != arenaOrdinal &&
                           x.row.Name.Equals(newName, StringComparison.OrdinalIgnoreCase)))
