@@ -273,9 +273,9 @@ public partial class NativeCollectionWindow : Window
             if (!closing)
             {
                 AddDeckButton.IsEnabled = !string.IsNullOrWhiteSpace(expectedBackupSha);
-                bool selected = DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow row;
-                EditDeckButton.IsEnabled = selected && row!.Editable;
-                DeleteDeckButton.IsEnabled = selected;
+                var selected = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+                EditDeckButton.IsEnabled = selected?.Editable == true;
+                DeleteDeckButton.IsEnabled = selected is not null;
             }
         }
     }
