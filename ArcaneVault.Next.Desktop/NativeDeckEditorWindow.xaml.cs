@@ -15,6 +15,7 @@ public partial class NativeDeckEditorWindow : Window
     private readonly NativeBackupView ownership;
     private readonly string? catalogPath;
     private bool busy;
+    private int draftVersion;
     private sealed record OwnedDisplay(string Name, long Owned)
     {
         public string Display => $"{Name}  ·  {Owned:N0} owned";
@@ -31,12 +32,28 @@ public partial class NativeDeckEditorWindow : Window
             .Select(x => new OwnedDisplay(x.Name, x.Owned)).ToArray();
     }
 
+    private void InvalidateAnalytics()
+    {
+        draftVersion++;
+        if (AnalyticsCharts is null || AnalyticsText is null) return;
+        AnalyticsCharts.Visibility = Visibility.Collapsed;
+        AnalyticsText.Text = "Deck changed. Select Analyze deck to refresh the charts.";
+    }
+
     private void OnDraftChanged(object sender,
-        System.Windows.Controls.TextChangedEventArgs e) => RefreshDraftSummary();
+        System.Windows.Controls.TextChangedEventArgs e)
+    {
+        InvalidateAnalytics();
+        RefreshDraftSummary();
+    }
 
     private void OnFormatChanged(object sender,
         System.Windows.Controls.SelectionChangedEventArgs e) =>
-        Dispatcher.BeginInvoke(new Action(RefreshDraftSummary));
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            InvalidateAnalytics();
+            RefreshDraftSummary();
+        }));
 
     private void RefreshDraftSummary()
     {
@@ -90,7 +107,8 @@ public partial class NativeDeckEditorWindow : Window
 
     private async void OnAnalyzeDeckClicked(object sender, RoutedEventArgs e)
     {
-        if (busy) return;
+        if (busy || !AnalyzeDeckButton.IsEnabled) return;
+        AnalyticsPanel.IsExpanded = true;
         IReadOnlyList<NativeDeckEditing.Entry> entries;
         try
         {
@@ -98,26 +116,50 @@ public partial class NativeDeckEditorWindow : Window
         }
         catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
         {
+            AnalyticsCharts.Visibility = Visibility.Collapsed;
             AnalyticsText.Text = "Deck analytics unavailable: " + ex.Message;
             return;
         }
-        // Capture draft before awaiting: results describe exactly the analyzed text.
+
+        // Snapshot the draft before crossing the async boundary. Late results
+        // must never be shown for a different deck or format.
+        int version = draftVersion;
+        string mainboard = MainboardBox.Text;
         string commander = CommanderBox.Text;
         string format = FormatBox.Text;
         AnalyzeDeckButton.IsEnabled = false;
+        AnalyticsCharts.Visibility = Visibility.Collapsed;
         AnalyticsText.Text = "Analyzing offline Scryfall metadata…";
         try
         {
             var report = await Task.Run(() => NativeDeckAnalytics.Analyze(
                 entries, commander, format, catalogPath));
-            AnalyticsText.Text = report.CoverageSummary + "\n" +
-                report.Summary + "\n" + report.CurveSummary + "\n" +
-                report.ColorSummary;
+            if (version != draftVersion ||
+                MainboardBox.Text != mainboard ||
+                CommanderBox.Text != commander ||
+                FormatBox.Text != format)
+            {
+                AnalyticsText.Text = "Deck changed during analysis. Select Analyze deck again.";
+                return;
+            }
+            var charts = NativeDeckAnalyticsCharts.FromReport(report);
+            ManaCurveBars.ItemsSource = charts.Curve;
+            ColorIdentityBars.ItemsSource = charts.Identity;
+            CardTypeBars.ItemsSource = charts.Types;
+            AverageManaText.Text = report.AverageNonlandManaValue.HasValue
+                ? $"Average nonland mana value: {report.AverageNonlandManaValue.Value:F2}"
+                : "Average nonland mana value: unavailable";
+            AnalyticsText.Text = report.CoverageSummary +
+                (report.UnknownCards > 0
+                    ? " · Unknown copies excluded from the charts."
+                    : " · All deck copies matched offline metadata.");
+            AnalyticsCharts.Visibility = Visibility.Visible;
         }
         catch (Exception ex) when (ex is InvalidDataException or
             Microsoft.Data.Sqlite.SqliteException or IOException or
-            UnauthorizedAccessException or ArgumentException)
+            UnauthorizedAccessException or ArgumentException or OverflowException)
         {
+            AnalyticsCharts.Visibility = Visibility.Collapsed;
             AnalyticsText.Text = "Analytics unavailable: " + ex.Message +
                 " (the deck and collection were not modified).";
         }
