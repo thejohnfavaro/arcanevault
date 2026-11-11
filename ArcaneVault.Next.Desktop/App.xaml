@@ -236,7 +236,6 @@
             <Setter Property="Foreground" Value="{StaticResource VaultAccent}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="CharacterSpacing" Value="1"/>
         </Style>
         <Style x:Key="VaultMutedText" TargetType="{x:Type TextBlock}">
             <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
