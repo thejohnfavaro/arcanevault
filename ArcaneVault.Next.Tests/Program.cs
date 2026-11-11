@@ -143,6 +143,7 @@ try
     NativePhysicalEditingChecks.Run(work);
     NativePhysicalQuantityChecks.Run(work);
     NativeArenaEditingChecks.Run(work);
+    NativeArenaImportChecks.Run(work);
     await NativeScryfallCatalogSyncChecks.RunAsync(work);
     NativeDeckEditingChecks.Run(work);
     NativeDeckPreflightChecks.Run(work);
