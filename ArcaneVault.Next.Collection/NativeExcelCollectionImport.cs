@@ -182,7 +182,7 @@ public static class NativeExcelCollectionImport
                 throw new InvalidDataException("Excel import supports at most 60,000 worksheet rows.");
             int rowIndex = int.TryParse((string?)row.Attribute("r"), out int parsed)
                 ? parsed : physicalRows;
-            var values = new string[64];
+            var values = Enumerable.Repeat(string.Empty, 64).ToArray();
             foreach (var cell in row.Elements(S + "c"))
             {
                 int col = Column((string?)cell.Attribute("r") ?? "");
