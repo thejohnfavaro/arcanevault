@@ -102,7 +102,7 @@ internal static class NativeVisualShellChecks
         foreach (string name in new[]
         {
             "CollectionTabs", "PhysicalList", "ArenaList",
-            "DeckLibraryList", "SetSummaryList", "SetSlotsList",
+            "DeckLibraryList", "SetSummaryList", "SetSlotsList", "SetScopeBox",
             "AddPhysicalButton", "AdjustPhysicalButton", "AddArenaButton",
             "EditArenaButton", "AddDeckButton", "EditDeckButton",
             "DuplicateDeckButton", "DeleteDeckButton", "TotalsText",
@@ -144,6 +144,12 @@ internal static class NativeVisualShellChecks
              !startup.Contains("await OpenNativeCollectionAsync();", StringComparison.Ordinal),
              "Startup must only prefetch ownership and not open Collection / Deck Library.");
 
+        Must(collection.Contains("OnSetTileClicked", StringComparison.Ordinal) &&
+             collection.Contains("UniformGrid Rows=\"1\"", StringComparison.Ordinal) &&
+             collection.Contains("OnSetScopeChanged", StringComparison.Ordinal) &&
+             collectionCode.Contains("LoadArenaSetNames", StringComparison.Ordinal) &&
+             collectionCode.Contains("SetTileRow", StringComparison.Ordinal),
+            "Set Progress requires responsive virtualized cards and distinct Arena / physical scopes.");
         // Image view virtualizes rows instead of constructing every image at once.
         Must(main.Contains("CatalogTileRowTemplate", StringComparison.Ordinal) &&
              main.Contains("UniformGrid Rows=\"1\"", StringComparison.Ordinal) &&
