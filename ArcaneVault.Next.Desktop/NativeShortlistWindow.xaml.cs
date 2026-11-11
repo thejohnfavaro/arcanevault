@@ -33,6 +33,8 @@ public partial class NativeShortlistWindow : Window
         Closed += (_, _) => { closing = true; version++; };
     }
 
+    public Task RefreshFromWorkspaceAsync() => ReloadAsync();
+
     private async Task ReloadAsync()
     {
         if (busy || closing) return;
