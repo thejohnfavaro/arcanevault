@@ -31,6 +31,7 @@ public sealed class CatalogSnapshot : IDisposable
     private bool disposed;
     private readonly bool ownsTemporaryFile;
     public bool HasFullMetadata { get; }
+    public bool HasPaperPrintingMetadata { get; }
 
     public enum ColorMatching { ContainsAll, Exact, ContainsAny }
     public enum OwnershipMode
@@ -53,12 +54,13 @@ public sealed class CatalogSnapshot : IDisposable
     }
 
     private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true,
-        bool hasFullMetadata = false)
+        bool hasFullMetadata = false, bool hasPaperPrintingMetadata = false)
     {
         snapshotPath = path;
         TotalPrintings = total;
         this.ownsTemporaryFile = ownsTemporaryFile;
         HasFullMetadata = hasFullMetadata;
+        HasPaperPrintingMetadata = hasPaperPrintingMetadata;
     }
 
     public long TotalPrintings { get; }
@@ -76,6 +78,25 @@ public sealed class CatalogSnapshot : IDisposable
         }.ToString());
         connection.Open();
         return connection;
+    }
+
+    private static bool HasPaperFields(SqliteConnection db)
+    {
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info(variants)";
+        var fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read()) fields.Add(reader.GetString(1));
+        return fields.Contains("games") && fields.Contains("digital");
+    }
+
+    private static bool IsPaper(SqliteDataReader reader)
+    {
+        if (reader.IsDBNull(4) || reader.IsDBNull(5) || reader.GetInt64(5) != 0)
+            return false;
+        return reader.GetString(4).Split(',',
+            StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Any(x => x.Equals("paper", StringComparison.OrdinalIgnoreCase));
     }
 
     public static CatalogSnapshot Open(string sourcePath, CancellationToken cancellationToken = default)
@@ -112,7 +133,8 @@ public sealed class CatalogSnapshot : IDisposable
             bool hasFullMetadata = Convert.ToInt64(query.ExecuteScalar()) == 1;
             cancellationToken.ThrowIfCancellationRequested();
             return new CatalogSnapshot(staging, count,
-                hasFullMetadata: hasFullMetadata);
+                hasFullMetadata: hasFullMetadata,
+                hasPaperPrintingMetadata: HasPaperFields(snapshot));
         }
         catch
         {
@@ -142,7 +164,8 @@ public sealed class CatalogSnapshot : IDisposable
         if (total < 1)
             throw new InvalidDataException("The native catalog has no printings.");
         return new CatalogSnapshot(Path.GetFullPath(path), total,
-            ownsTemporaryFile: false, hasFullMetadata: true);
+            ownsTemporaryFile: false, hasFullMetadata: true,
+            hasPaperPrintingMetadata: HasPaperFields(db));
     }
 
     /// <summary>
@@ -209,12 +232,20 @@ public sealed class CatalogSnapshot : IDisposable
             using var cmd = db.CreateCommand();
             // ESCAPE ensures user-entered %, _, and \ are literal, not wildcards.
             // Prefix-only queries can use the existing NOCASE name index.
-            cmd.CommandText = """
-                SELECT print_id, name, setcode, collector FROM variants
-                WHERE name LIKE $prefix ESCAPE '\'
-                ORDER BY name COLLATE NOCASE, setcode, collector
-                LIMIT $limit
-                """;
+            cmd.CommandText = HasPaperPrintingMetadata
+                ? """
+                  SELECT print_id, name, setcode, collector, games, digital FROM variants
+                  WHERE name LIKE $prefix ESCAPE '\'
+                  ORDER BY name COLLATE NOCASE, setcode, collector
+                  LIMIT $limit
+                  """
+                : """
+                  SELECT print_id, name, setcode, collector,
+                         'missing' AS games, 1 AS digital FROM variants
+                  WHERE name LIKE $prefix ESCAPE '\'
+                  ORDER BY name COLLATE NOCASE, setcode, collector
+                  LIMIT $limit
+                  """;
             var escaped = input.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
             cmd.Parameters.AddWithValue("$prefix", escaped + "%");
             cmd.Parameters.AddWithValue("$limit", limit + 1);
@@ -230,7 +261,8 @@ public sealed class CatalogSnapshot : IDisposable
                     string name = reader.GetString(1);
                     string set = reader.GetString(2);
                     string number = reader.GetString(3);
-                    var counts = ownership?.ForPrinting(reader.GetString(0), name, set, number);
+                    var counts = ownership?.ForPrinting(reader.GetString(0), name, set,
+                        number, IsPaper(reader));
                     rows.Add(new PrintingRow(name, set, number,
                         counts?.VerifiedPhysical ?? 0, counts?.Arena ?? 0,
                         counts?.UnresolvedName ?? 0));
@@ -256,6 +288,10 @@ public sealed class CatalogSnapshot : IDisposable
         if (filters.Ownership != OwnershipMode.All && ownership is null)
             throw new InvalidDataException(
                 "Load or create a native collection to filter owned and unverified printings.");
+        if (filters.Ownership is OwnershipMode.PhysicalVerified or
+                OwnershipMode.PhysicalNotVerified && !HasPaperPrintingMetadata)
+            throw new InvalidDataException(
+                "This catalog lacks Scryfall paper/digital printing metadata; refresh the native catalog before filtering physical ownership.");
         if (filters.IsDefault)
             return SearchPrefix(input, limit, cancellationToken, ownership);
         input = (input ?? "").Trim();
@@ -293,13 +329,16 @@ public sealed class CatalogSnapshot : IDisposable
             using var cmd = db.CreateCommand();
             var where = new List<string> { @"v.name LIKE $prefix ESCAPE '\'" };
             cmd.Parameters.AddWithValue("$prefix", EscapeLike(input) + "%");
+            string paperColumns = HasPaperPrintingMetadata
+                ? "v.games,v.digital"
+                : "'missing' AS games, 1 AS digital";
             if (needsCard)
-                cmd.CommandText = """
-                    SELECT v.print_id,v.name,v.setcode,v.collector FROM variants v
-                    INNER JOIN cards c ON c.name = v.name COLLATE NOCASE
-                    """;
+                cmd.CommandText = "SELECT v.print_id,v.name,v.setcode,v.collector," +
+                    paperColumns + "\nFROM variants v\n" +
+                    "INNER JOIN cards c ON c.name = v.name COLLATE NOCASE\n";
             else cmd.CommandText =
-                "SELECT v.print_id,v.name,v.setcode,v.collector FROM variants v\n";
+                "SELECT v.print_id,v.name,v.setcode,v.collector," +
+                paperColumns + "\nFROM variants v\n";
 
             if (set.Length > 0)
             {
@@ -356,7 +395,7 @@ public sealed class CatalogSnapshot : IDisposable
                 string setCode = reader.GetString(2);
                 string collector = reader.GetString(3);
                 var counts = ownership?.ForPrinting(reader.GetString(0),
-                    name, setCode, collector);
+                    name, setCode, collector, IsPaper(reader));
                 bool matches = filters.Ownership switch
                 {
                     OwnershipMode.PhysicalVerified => counts?.VerifiedPhysical > 0,
