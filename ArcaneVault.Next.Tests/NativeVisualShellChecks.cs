@@ -119,6 +119,18 @@ internal static class NativeVisualShellChecks
              main.Contains("OnShowCatalogClicked", StringComparison.Ordinal) &&
              mainCode.Contains("nativeWorkspaceView.NavigateTo(section)", StringComparison.Ordinal),
             "Card Catalog and Deck Library sidebar navigation must preserve in-shell routing.");
+        // Startup must never eagerly construct the collection/deck workspace
+        // or show a second window. Only ownership indices are loaded so the
+        // default Owned Physical Printing catalog filter remains useful.
+        string init = mainCode.Split("private async Task InitializeNativeAsync()", 2)[1]
+            .Split("private async Task LoadNativeOwnershipForCatalogAsync()", 2)[0];
+        Must(init.Contains("await LoadNativeOwnershipForCatalogAsync();",
+                     StringComparison.Ordinal) &&
+             !init.Contains("await OpenNativeCollectionAsync();",
+                     StringComparison.Ordinal) &&
+             mainCode.Contains("new NativeCollectionWorkspace(", StringComparison.Ordinal),
+             "Native startup must prefetch ownership without launching collection UI.");
+
         Must(collection.Contains("Value=\"{Binding Percent}\"", StringComparison.Ordinal) &&
              collection.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
                  StringComparison.Ordinal),
