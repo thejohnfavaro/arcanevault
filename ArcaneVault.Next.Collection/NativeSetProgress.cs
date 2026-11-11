@@ -34,6 +34,7 @@ public static class NativeSetProgress
         string CardName,
         long VerifiedCopies, bool NameCoverage = false, string ArtworkUrl = "")
     {
+        public string DisplayCollectorNumber => NameCoverage ? "" : CollectorNumber;
         public string Ownership => NameCoverage
             ? (VerifiedCopies > 0 ? $"Name-owned ({VerifiedCopies:N0})" : "Missing name")
             : (VerifiedCopies > 0 ? $"Owned ({VerifiedCopies:N0})" : "Missing");

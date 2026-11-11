@@ -564,7 +564,7 @@
                                             <TextBlock Text="{Binding CardName}" FontSize="15"
                                                        FontWeight="SemiBold" TextWrapping="Wrap"
                                                        Foreground="{StaticResource VaultText}"/>
-                                            <TextBlock Text="{Binding CollectorNumber}"
+                                            <TextBlock Text="{Binding DisplayCollectorNumber}"
                                                        Foreground="{StaticResource VaultMuted}"
                                                        FontSize="12" Margin="0,5,0,0"/>
                                         </StackPanel>

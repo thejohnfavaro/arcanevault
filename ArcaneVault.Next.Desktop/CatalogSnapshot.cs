@@ -13,10 +13,11 @@ public sealed class CatalogSnapshot : IDisposable
 {
     public sealed record PrintingRow(string Name, string SetCode, string CollectorNumber,
         int PhysicalOwned = 0, int ArenaOwned = 0, int UnresolvedName = 0,
-        string ImageUrl = "", string RolesLabel = "")
+        string ImageUrl = "", string RolesLabel = "", bool ArenaPresentation = false)
     {
         // Presentation only: preserve the original set code for identity and filters.
-        public string DisplaySetCode => SetCode.ToUpperInvariant();
+        public string DisplaySetCode => ArenaPresentation ? "ARENA CARD" : SetCode.ToUpperInvariant();
+        public string DisplayCollectorNumber => ArenaPresentation ? "" : CollectorNumber;
 
         public string OwnershipLabel =>
             PhysicalOwned == 0 && ArenaOwned == 0 && UnresolvedName == 0
@@ -105,7 +106,7 @@ public sealed class CatalogSnapshot : IDisposable
         HasFields(db, "variants", "games", "digital");
 
     private static PrintingRow ReadRow(SqliteDataReader reader,
-        NativeCatalogOwnership? ownership, bool includeRoles)
+        NativeCatalogOwnership? ownership, bool includeRoles, bool arenaPresentation = false)
     {
         string name = reader.GetString(1);
         string set = reader.GetString(2);
@@ -120,7 +121,7 @@ public sealed class CatalogSnapshot : IDisposable
             : "";
         return new PrintingRow(name, set, collector,
             counts?.VerifiedPhysical ?? 0, counts?.Arena ?? 0,
-            counts?.UnresolvedName ?? 0, image, roles);
+            counts?.UnresolvedName ?? 0, image, roles, arenaPresentation);
     }
 
     private static bool IsPaper(SqliteDataReader reader)
@@ -447,7 +448,7 @@ public sealed class CatalogSnapshot : IDisposable
             while (reader.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var row = ReadRow(reader, ownership, HasRoleMetadata);
+                var row = ReadRow(reader, ownership, HasRoleMetadata, arenaScope);
                 bool matches = filters.Ownership switch
                 {
                     OwnershipMode.PhysicalVerified => row.PhysicalOwned > 0,

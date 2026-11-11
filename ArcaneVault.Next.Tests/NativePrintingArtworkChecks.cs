@@ -96,13 +96,10 @@ internal static class NativePrintingArtworkChecks
             "Gallery must show exact printings ordered newest first, even with unavailable artwork.");
         var arenaStyles = NativePrintingArtwork.Read(catalogPath, "Sol Ring",
             arenaOnly: true);
-        Must(arenaStyles.Printings.Count == 2 &&
-             arenaStyles.Printings.Any(x => x.SetCode == "ana" &&
-                 x.ImageUrl.EndsWith("/arena.jpg", StringComparison.Ordinal)) &&
-             arenaStyles.Printings.Single(x => x.SetCode == "trk")
-                 .CollectorNumber == "111" &&
-             !arenaStyles.Printings.Any(x => x.CollectorNumber is "428" or "438"),
-            "Arena gallery must show the base shared art, not collector-only paper alternatives; independently digital styles are retained.");
+        Must(arenaStyles.Printings.Count == 1 &&
+             arenaStyles.Printings.Single().SetCode == "trk" &&
+             arenaStyles.Printings.Single().CollectorNumber == "111",
+            "Arena scope offers one base-card preview, never unverified Scryfall printings as owned styles.");
         Must(NativePrintingArtwork.Read(catalogPath, "Sol Ring", 1).Truncated,
             "Gallery must disclose truncated printing lists.");
         Must(NativePrintingArtwork.Require(catalogPath, "Sol Ring",

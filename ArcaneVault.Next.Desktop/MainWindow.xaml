@@ -29,7 +29,7 @@
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="{Binding DisplaySetCode}" FontSize="11"
                            Margin="5,5" Foreground="{StaticResource VaultAccent}"/>
-                <TextBlock Grid.Column="2" Text="{Binding CollectorNumber}" FontSize="11"
+                <TextBlock Grid.Column="2" Text="{Binding DisplayCollectorNumber}" FontSize="11"
                            Margin="5,5" Foreground="{StaticResource VaultMuted}"/>
             </Grid>
         </DataTemplate>
@@ -91,7 +91,7 @@
                                     <TextBlock Text="{Binding DisplaySetCode}" FontSize="11"
                                                Foreground="{StaticResource VaultMuted}"/>
                                     <TextBlock Text="  ·  #" Foreground="{StaticResource VaultMuted}"/>
-                                    <TextBlock Text="{Binding CollectorNumber}" FontSize="11"
+                                    <TextBlock Text="{Binding DisplayCollectorNumber}" FontSize="11"
                                                Foreground="{StaticResource VaultMuted}"/>
                                 </StackPanel>
                             </StackPanel>
@@ -597,7 +597,7 @@
                                                        Foreground="{StaticResource VaultAccent}"
                                                        FontWeight="SemiBold"/>
                                         </Border>
-                                        <TextBlock Text="{Binding CollectorNumber}"
+                                        <TextBlock Text="{Binding DisplayCollectorNumber}"
                                                    Grid.Column="2"
                                                    VerticalAlignment="Center"
                                                    FontSize="12"

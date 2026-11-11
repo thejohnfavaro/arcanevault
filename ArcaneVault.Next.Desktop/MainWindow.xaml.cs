@@ -1313,7 +1313,8 @@ public partial class MainWindow : Window
         if (closing || version != modeVersion ||
             !ReferenceEquals(snapshot, catalogSnapshot)) return;
         var dialog = new NativeCardDetailsWindow(selected.Name,
-            $"Catalog: {selected.SetCode} #{selected.CollectorNumber}. " +
+            (selected.ArenaPresentation ? "Arena card (name-owned). " :
+                $"Catalog: {selected.SetCode} #{selected.CollectorNumber}. ") +
             (catalogOwnership is null
                 ? "No native collection loaded; ownership unknown."
                 : selected.PhysicalOwned > 0 || selected.ArenaOwned > 0

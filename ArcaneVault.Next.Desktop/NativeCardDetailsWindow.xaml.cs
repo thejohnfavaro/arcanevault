@@ -160,7 +160,9 @@ public partial class NativeCardDetailsWindow : Window
     {
         string? url = defaultArtworkUrl;
         bool chosen = false;
-        if (!string.IsNullOrWhiteSpace(nativePath))
+        // The legacy preferredArtwork record stores a physical printing UUID,
+        // not an MTG Arena cosmetic style. Never apply it in Arena scope.
+        if (!arenaScope && !string.IsNullOrWhiteSpace(nativePath))
         {
             try
             {

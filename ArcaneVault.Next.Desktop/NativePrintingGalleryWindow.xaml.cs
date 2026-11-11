@@ -17,10 +17,12 @@ public partial class NativePrintingGalleryWindow : Window
     private sealed record Choice(NativePrintingArtwork.Printing Printing,
         int PhysicalOwned, int ArenaOwned, bool IsPreferred, bool ArenaScope)
     {
-        public string Title => Printing.Title;
-        public string Subtitle => Printing.Subtitle;
+        public string Title => ArenaScope ? "Base card artwork" : Printing.Title;
+        public string Subtitle => ArenaScope
+            ? "Arena card name · style inventory not synced"
+            : Printing.Subtitle;
         public string OwnedLabel => ArenaScope
-            ? (ArenaOwned > 0 ? "Owned on Arena (by name)" : "Not owned on Arena")
+            ? (ArenaOwned > 0 ? "Owned card (by name)" : "Ownership unknown")
             : (PhysicalOwned > 0 ? $"Owned ×{PhysicalOwned}" : "Not verified owned");
         public string PreferredLabel => IsPreferred ? "★ Saved artwork" : "";
     }
@@ -52,7 +54,9 @@ public partial class NativePrintingGalleryWindow : Window
         this.arenaOnly = arenaOnly;
         if (arenaOnly)
         {
-            Title = "Arcane Vault — Arena Card Styles";
+            Title = "Arcane Vault — Arena Card & Styles";
+            SavePreferenceButton.IsEnabled = false;
+            ResetPreferenceButton.Visibility = Visibility.Collapsed;
             OwnedOnly.Visibility = Visibility.Collapsed;
         }
         CardHeading.Text = name;
@@ -102,12 +106,13 @@ public partial class NativePrintingGalleryWindow : Window
             OwnedOnly.IsChecked = anyOwned && !preferredUnowned;
             UpdateList();
             GalleryStatus.Text =
-                $"{choices.Count:N0} cached Scryfall " + (arenaOnly ? "Arena-available card styles" : "printings") +
+                (arenaOnly ? "Base artwork preview · Arena card styles not synced" :
+                    $"{choices.Count:N0} cached Scryfall printings") +
                 (data.Truncated ? " (first 400; refine the official catalog to see more)" : "") +
                 (expectedSha is null
                     ? " · Browse only: create/open your native collection to save a preference."
                     : arenaOnly
-                        ? " · Only styles flagged for Arena are listed; name ownership does not identify a style."
+                        ? " · Scryfall printing records do not establish available or owned Arena cosmetics."
                         : " · Only confirmed paper printing IDs count as owned.");
             ResetPreferenceButton.IsEnabled = preferred is not null && expectedSha is not null;
         }
@@ -172,14 +177,15 @@ public partial class NativePrintingGalleryWindow : Window
         ArtPreview.Source = null;
         ArtPreview.Visibility = Visibility.Collapsed;
         ArtPlaceholder.Visibility = Visibility.Visible;
-        SavePreferenceButton.IsEnabled = !busy && choice is not null &&
+        SavePreferenceButton.IsEnabled = !arenaOnly && !busy && choice is not null &&
             expectedSha is not null &&
             NativeCardArtwork.IsTrustedArtworkUrl(choice.Printing.ImageUrl) &&
             !choice.IsPreferred;
         if (choice is null) return;
-        PreviewInfo.Text =
-            $"{choice.Printing.Title} · {choice.Printing.Subtitle}\n" +
-            $"{choice.OwnedLabel}. Changing displayed art never changes inventory.";
+        PreviewInfo.Text = arenaOnly
+            ? "Base card preview only. Cosmetic card-style availability and ownership are not imported from MTG Arena."
+            : $"{choice.Printing.Title} · {choice.Printing.Subtitle}\n" +
+              $"{choice.OwnedLabel}. Changing displayed art never changes inventory.";
         if (!NativeCardArtwork.IsTrustedArtworkUrl(choice.Printing.ImageUrl))
         {
             ArtPlaceholder.Text = "No supported official Scryfall artwork for this printing.";
@@ -218,7 +224,7 @@ public partial class NativePrintingGalleryWindow : Window
 
     private async void OnSaveClicked(object sender, RoutedEventArgs e)
     {
-        if (busy || expectedSha is null || nativePath is null ||
+        if (arenaOnly || busy || expectedSha is null || nativePath is null ||
             PrintingsList.SelectedItem is not Choice selected) return;
         if (selected.PhysicalOwned == 0 &&
             MessageBox.Show(this,
@@ -257,7 +263,7 @@ public partial class NativePrintingGalleryWindow : Window
 
     private async void OnResetClicked(object sender, RoutedEventArgs e)
     {
-        if (busy || expectedSha is null || nativePath is null || preferred is null) return;
+        if (arenaOnly || busy || expectedSha is null || nativePath is null || preferred is null) return;
         if (MessageBox.Show(this,
                 "Reset this card to its default Scryfall artwork?\n\n" +
                 "This removes only the saved display preference and preserves all ownership.",
