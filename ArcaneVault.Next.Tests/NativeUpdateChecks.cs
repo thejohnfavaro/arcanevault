@@ -40,7 +40,8 @@ internal static class NativeUpdateChecks
     };
 
     private static string Zip(string folder, string filename, string version,
-        string? malicious = null, string? badManifest = null)
+        string? malicious = null, string? badManifest = null,
+        bool manifestUtf8Bom = false)
     {
         string path = Path.Combine(folder, filename);
         using (var zip = ZipFile.Open(path, ZipArchiveMode.Create))
@@ -52,10 +53,19 @@ internal static class NativeUpdateChecks
                 file.Write(value);
             }
             Add(NativeUpdateService.ExecutableName, "synthetic executable");
-            Add(NativeUpdateService.ManifestName, badManifest ?? JsonSerializer.Serialize(new
+            string manifestJson = badManifest ?? JsonSerializer.Serialize(new
             {
                 version, sourceSha = new string('a', 40), channel = "preview"
-            }));
+            });
+            if (manifestUtf8Bom)
+            {
+                var manifestEntry = zip.CreateEntry(NativeUpdateService.ManifestName);
+                using var manifestStream = manifestEntry.Open();
+                manifestStream.Write(new byte[] { 0xEF, 0xBB, 0xBF });
+                manifestStream.Write(Encoding.UTF8.GetBytes(manifestJson));
+            }
+            else
+                Add(NativeUpdateService.ManifestName, manifestJson);
             Add("support/docs.txt", "This is a synthetic distribution.");
             if (malicious is not null) Add(malicious, "should not be extracted");
         }
@@ -112,6 +122,20 @@ internal static class NativeUpdateChecks
              File.Exists(Path.Combine(installed.Directory, "support", "docs.txt")) &&
              installed.Directory.StartsWith(root, StringComparison.OrdinalIgnoreCase),
             "New executable must be installed in a new version directory.");
+        // Windows PowerShell 5.1 writes a UTF-8 BOM by default.
+        // A valid signed/checksummed native archive must accept that encoding
+        // without weakening manifest identity, archive hash or data isolation.
+        string bomZip = Zip(upgrade, "bom-manifest.zip", "0.9.6",
+            manifestUtf8Bom: true);
+        var bomInstalled = NativeUpdateService.InstallVerifiedArchive(
+            bomZip, Sha(bomZip), new Version(0, 9, 6), root);
+        Must(File.Exists(bomInstalled.ExecutablePath),
+            "A checksummed native preview archive with a UTF-8 BOM must install.");
+        string bomMismatch = Zip(upgrade, "bom-wrong-identity.zip", "0.9.7",
+            manifestUtf8Bom: true);
+        Reject(() => NativeUpdateService.InstallVerifiedArchive(
+            bomMismatch, Sha(bomMismatch), new Version(0, 9, 8), root));
+
         var after = new[] { nativeWorkspace, catalog, recovery }.Select(Sha).ToArray();
         Must(before.SequenceEqual(after),
             "An app-only update must leave workspace, catalog and rollback byte-identical.");
