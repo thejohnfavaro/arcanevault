@@ -93,7 +93,7 @@ internal static class NativeVisualShellChecks
             "MigrateLegacyButton", "ImportNativeButton",
             "ExportFullBackupButton", "RestoreRecoveryButton",
             "CollectionBackupButton", "SearchBox", "CardsList", "ModeStatus",
-            "CatalogNavigationButton", "DeckLibraryNavigationButton",
+            "CatalogNavigationButton", "DeckLibraryNavigationButton", "SetProgressNavigationButton",
             "NativeWorkspaceHost"
         })
             Must(main.Contains("x:Name=\"" + name + "\"", StringComparison.Ordinal),
@@ -115,6 +115,9 @@ internal static class NativeVisualShellChecks
              backupPreviewCode.Contains("new NativeCollectionWorkspace(", StringComparison.Ordinal) &&
              mainCode.Contains("new NativeCollectionWorkspace(", StringComparison.Ordinal),
             "Standalone backup preview and embedded native shell must share one collection control.");
+        Must(main.Contains("OnOpenSetProgressClicked", StringComparison.Ordinal) &&
+             mainCode.Contains("NavigateToNativeWorkspaceAsync(3)", StringComparison.Ordinal),
+             "Set Progress must be available as a direct sidebar destination.");
         Must(main.Contains("OnOpenDeckLibraryClicked", StringComparison.Ordinal) &&
              main.Contains("OnShowCatalogClicked", StringComparison.Ordinal) &&
              mainCode.Contains("nativeWorkspaceView.NavigateTo(section)", StringComparison.Ordinal),
