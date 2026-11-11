@@ -430,70 +430,72 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                 <Border MouseLeftButtonDown="OnSetTileClicked" Cursor="Hand"
-                                        ToolTip="Choose this set to inspect its ownership checklist"
+                                        ToolTip="Open the selected set and browse its cards"
                                         Background="{StaticResource VaultPanelRaised}"
-                                        BorderBrush="{StaticResource VaultLine}"
+                                        BorderBrush="{StaticResource VaultAccentBorder}"
                                         BorderThickness="1" CornerRadius="12"
-                                        Margin="6,4" Padding="12">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="74"/>
-                                            <ColumnDefinition Width="14"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="110"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" Width="70" Height="78"
-                                                BorderBrush="{StaticResource VaultAccentBorder}"
-                                                BorderThickness="1" CornerRadius="9">
+                                        Height="196" Margin="6,6" ClipToBounds="True">
+                                    <Grid ClipToBounds="True">
+                                        <!-- Entire tile is an art banner; image cache only loads visible rows. -->
+                                        <local:NativeCardArtImage ArtUrl="{Binding BannerArtworkUrl}"
+                                            Stretch="UniformToFill" DecodeWidth="600" Opacity="0.9"/>
+                                        <Border>
                                             <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#38314F" Offset="0"/>
-                                                    <GradientStop Color="#1B2634" Offset="1"/>
+                                                <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                                                    <GradientStop Color="#AA101521" Offset="0"/>
+                                                    <GradientStop Color="#30101520" Offset="0.35"/>
+                                                    <GradientStop Color="#F5101523" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
-                                            <Grid ClipToBounds="True">
-                                                <local:NativeCardArtImage ArtUrl="{Binding ArtworkUrl}"
-                                                    Width="70" Height="78" Stretch="UniformToFill"
-                                                    Opacity="0.76"/>
-                                                <Border Background="#9E101622" CornerRadius="7"/>
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="✦" FontSize="23"
-                                                        TextAlignment="Center"
-                                                        Foreground="{StaticResource VaultAccent}"/>
-                                                    <TextBlock Text="{Binding DisplaySetCode}" FontSize="12"
-                                                        FontWeight="Bold" TextAlignment="Center"
-                                                        Foreground="White"/>
-                                                </StackPanel>
-                                            </Grid>
                                         </Border>
-                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding SetName}" FontSize="15"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="{StaticResource VaultText}"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding Released}"
-                                                       FontSize="11" Foreground="{StaticResource VaultMuted}"
-                                                       Margin="0,4,0,9"/>
-                                            <ProgressBar Minimum="0" Maximum="100" Height="7"
-                                                         Value="{Binding Percent, Mode=OneWay}"
-                                                         Background="{StaticResource VaultLine}"
-                                                         Foreground="{StaticResource VaultAccent}"/>
-                                            <TextBlock Text="{Binding SlotsLabel}"
-                                                       FontSize="11" Foreground="{StaticResource VaultMuted}"
-                                                       Margin="0,6,0,0"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="3"
-                                                    HorizontalAlignment="Right"
-                                                    VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding PercentLabel}"
-                                                       FontSize="21" FontWeight="Bold"
-                                                       HorizontalAlignment="Right"
-                                                       Foreground="{StaticResource VaultAccent}"/>
-                                            <TextBlock Text="{Binding CopiesLabel}"
-                                                       FontSize="11" Foreground="{StaticResource VaultMuted}"
-                                                       Margin="0,5,0,0"
-                                                       HorizontalAlignment="Right"/>
-                                        </StackPanel>
+                                        <Grid Margin="15,12,15,14">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid Grid.Row="0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="54" Height="54" CornerRadius="9"
+                                                        BorderBrush="#80FFFFFF" BorderThickness="1"
+                                                        Background="#C0202532" Padding="8"
+                                                        ToolTip="Official set symbol (cached locally from Scryfall)">
+                                                    <local:NativeSetSymbol SetCode="{Binding SetCode}"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="{Binding DisplaySetCode}"
+                                                           VerticalAlignment="Center" FontSize="12"
+                                                           FontWeight="Bold" Margin="10,0,0,0"
+                                                           Foreground="White"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding PercentLabel}"
+                                                           FontSize="23" FontWeight="Bold"
+                                                           Foreground="White" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <StackPanel Grid.Row="2">
+                                                <TextBlock Text="{Binding SetName}" FontSize="17"
+                                                           FontWeight="Bold" Foreground="White"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <Grid Margin="0,4,0,10">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Released}" FontSize="11"
+                                                               Foreground="#E0E8EF"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding CopiesLabel}"
+                                                               FontSize="11" Foreground="#E0E8EF"/>
+                                                </Grid>
+                                                <ProgressBar Minimum="0" Maximum="100" Height="7"
+                                                             Value="{Binding Percent, Mode=OneWay}"
+                                                             Background="#7A111827"
+                                                             Foreground="{StaticResource VaultAccent}"/>
+                                                <TextBlock Text="{Binding SlotsLabel}" FontSize="11"
+                                                           Foreground="White" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </Grid>
                                 </Border>
                                         </DataTemplate>

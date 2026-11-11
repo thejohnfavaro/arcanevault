@@ -449,7 +449,13 @@ public partial class NativeCollectionWorkspace : UserControl
             try
             {
                 var snapshot = await Task.Run(() =>
-                    NativeSetProgress.BuildArena(backup.ArenaCards, catalogPath));
+                    expectedBackupSha is not null &&
+                    System.IO.Path.GetFullPath(catalogPath).Equals(
+                        System.IO.Path.GetFullPath(NativeWorkspace.CatalogPath),
+                        StringComparison.OrdinalIgnoreCase)
+                        ? NativeSetProgressCache.Arena(backup.ArenaCards,
+                            catalogPath, expectedBackupSha)
+                        : NativeSetProgress.BuildArena(backup.ArenaCards, catalogPath));
                 if (closing) return;
                 arenaProgress = snapshot;
             }

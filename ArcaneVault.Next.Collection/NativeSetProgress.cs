@@ -19,6 +19,17 @@ public static class NativeSetProgress
         long VerifiedCopies, bool NameCoverage = false, string ArtworkUrl = "")
     {
         public string DisplaySetCode => SetCode.ToUpperInvariant();
+        // Normal Scryfall card images are full-card frames. A set banner should
+        // use the official illustration-only crop when the URL follows the
+        // Scryfall image CDN's documented normal/art_crop convention.
+        public string BannerArtworkUrl =>
+            Uri.TryCreate(ArtworkUrl, UriKind.Absolute, out var uri) &&
+            uri.Scheme == Uri.UriSchemeHttps &&
+            uri.Host.Equals("cards.scryfall.io", StringComparison.OrdinalIgnoreCase) &&
+            uri.AbsolutePath.StartsWith("/normal/", StringComparison.Ordinal)
+                ? ArtworkUrl.Replace("/normal/", "/art_crop/", StringComparison.Ordinal)
+                : ArtworkUrl;
+
         public double Percent => TotalSlots == 0 ? 0 : 100.0 * OwnedSlots / TotalSlots;
         public string PercentLabel => $"{Percent:0.0}%";
         public string SlotsLabel => NameCoverage

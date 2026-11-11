@@ -159,6 +159,15 @@ internal static class NativeVisualShellChecks
              collectionCode.Contains("RefreshSetSlotFilter()", StringComparison.Ordinal) &&
              collectionCode.Contains("x => x.VerifiedCopies > 0", StringComparison.Ordinal),
              "Set Progress must open an artwork-rich in-place checklist with a hide-unowned filter and back navigation.");
+        Must(collection.Contains("BannerArtworkUrl", StringComparison.Ordinal) &&
+             collection.Contains("NativeSetSymbol SetCode=", StringComparison.Ordinal) &&
+             collection.Contains("DecodeWidth=\"600\"", StringComparison.Ordinal),
+             "Set tiles must use full-bleed art crops and official vector set-symbol controls.");
+        string setSymbolCode = File.ReadAllText(
+            Path.Combine(dir, "NativeSetSymbol.cs"));
+        Must(setSymbolCode.Contains("svgs.scryfall.io/sets/", StringComparison.Ordinal) &&
+             setSymbolCode.Contains("set-symbols", StringComparison.Ordinal),
+             "Official set symbols must have a persistent per-user icon cache.");
         // Image view virtualizes rows instead of constructing every image at once.
         Must(main.Contains("CatalogTileRowTemplate", StringComparison.Ordinal) &&
              main.Contains("UniformGrid Rows=\"1\"", StringComparison.Ordinal) &&
