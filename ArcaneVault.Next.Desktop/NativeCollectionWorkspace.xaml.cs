@@ -22,6 +22,7 @@ public partial class NativeCollectionWorkspace : UserControl
     private bool arenaProgressLoading;
     private sealed record SetTileRow(IReadOnlyList<NativeSetProgress.SetRow> Cards);
     private NativeSetProgress.SetRow? selectedSetRow;
+    private IReadOnlyList<NativeSetProgress.SetSlot> allSetSlots = Array.Empty<NativeSetProgress.SetSlot>();
     private int setColumns;
     private int setQueryVersion;
     private bool closing;
@@ -335,6 +336,43 @@ public partial class NativeCollectionWorkspace : UserControl
 
     private bool ArenaSetScope => SetScopeBox?.SelectedIndex == 1;
 
+    private void SetDetailsMode(bool show)
+    {
+        if (SetSummaryList is null || SetSlotsList is null ||
+            SetDetailsControls is null || SetBrowseRow is null ||
+            SetChecklistRow is null) return;
+        SetBrowseRow.Height = show ? new GridLength(0) :
+            new GridLength(1, GridUnitType.Star);
+        SetChecklistRow.Height = show ? new GridLength(1, GridUnitType.Star) :
+            new GridLength(0);
+        SetSummaryList.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        SetDetailsControls.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        SetSlotsList.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        FindSetLabel.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        SetSearch.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        ShowEmptySets.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        if (show)
+            HideUnownedSetSlots.Content = ArenaSetScope
+                ? "Hide unowned Arena card names"
+                : "Hide unowned physical printings";
+    }
+
+    private void OnBackToSetsClicked(object sender, RoutedEventArgs e) =>
+        RefreshSetList();
+
+    private void OnSetOwnedFilterChanged(object sender, RoutedEventArgs e) =>
+        RefreshSetSlotFilter();
+
+    private void RefreshSetSlotFilter()
+    {
+        if (SetSlotsList is null || HideUnownedSetSlots is null) return;
+        SetSlotsList.ItemsSource = HideUnownedSetSlots.IsChecked == true
+            ? allSetSlots.Where(x => x.VerifiedCopies > 0).ToArray()
+            : allSetSlots;
+    }
+
+
+
     private void RefreshSetList(bool preserveDetails = false)
     {
         if (SetSummaryList is null || ShowEmptySets is null ||
@@ -354,7 +392,9 @@ public partial class NativeCollectionWorkspace : UserControl
         {
             setQueryVersion++;
             selectedSetRow = null;
+            allSetSlots = Array.Empty<NativeSetProgress.SetSlot>();
             SetSlotsList.ItemsSource = null;
+            SetDetailsMode(false);
         }
         int cols = SetColumnsForWidth(SetSummaryList.ActualWidth);
         setColumns = cols;
@@ -391,6 +431,7 @@ public partial class NativeCollectionWorkspace : UserControl
             { DataContext: NativeSetProgress.SetRow selected }) return;
         e.Handled = true;
         selectedSetRow = selected;
+        SetDetailsMode(true);
         await LoadSetDetailsAsync(selected);
     }
 
@@ -432,6 +473,7 @@ public partial class NativeCollectionWorkspace : UserControl
             string.IsNullOrWhiteSpace(catalogPath)) return;
 
         int version = ++setQueryVersion;
+        allSetSlots = Array.Empty<NativeSetProgress.SetSlot>();
         SetSlotsList.ItemsSource = null;
         bool arena = selected.NameCoverage;
 
@@ -447,7 +489,8 @@ public partial class NativeCollectionWorkspace : UserControl
             if (closing || version != setQueryVersion) return;
             if (slots.Count != selected.TotalSlots)
                 throw new InvalidDataException("Set counts differ from the catalog checklist.");
-            SetSlotsList.ItemsSource = slots;
+            allSetSlots = slots;
+            RefreshSetSlotFilter();
             SetDetailsHeader.Text = arena
                 ? $"{selected.SetName} · {selected.SlotsLabel} ({selected.PercentLabel}). " +
                   "Arena quantities are name-only: a match does not verify a style or printing. " +

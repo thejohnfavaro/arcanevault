@@ -150,6 +150,15 @@ internal static class NativeVisualShellChecks
              collectionCode.Contains("LoadArenaSetNames", StringComparison.Ordinal) &&
              collectionCode.Contains("SetTileRow", StringComparison.Ordinal),
             "Set Progress requires responsive virtualized cards and distinct Arena / physical scopes.");
+        Must(collection.Contains("BackToSetsButton", StringComparison.Ordinal) &&
+             collection.Contains("HideUnownedSetSlots", StringComparison.Ordinal) &&
+             collection.Contains("ArtUrl=\"{Binding ArtworkUrl}\"", StringComparison.Ordinal) &&
+             collection.Contains("SetDetailsControls", StringComparison.Ordinal) &&
+             collectionCode.Contains("SetDetailsMode(true)", StringComparison.Ordinal) &&
+             collectionCode.Contains("OnBackToSetsClicked", StringComparison.Ordinal) &&
+             collectionCode.Contains("RefreshSetSlotFilter()", StringComparison.Ordinal) &&
+             collectionCode.Contains("x => x.VerifiedCopies > 0", StringComparison.Ordinal),
+             "Set Progress must open an artwork-rich in-place checklist with a hide-unowned filter and back navigation.");
         // Image view virtualizes rows instead of constructing every image at once.
         Must(main.Contains("CatalogTileRowTemplate", StringComparison.Ordinal) &&
              main.Contains("UniformGrid Rows=\"1\"", StringComparison.Ordinal) &&

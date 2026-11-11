@@ -1,6 +1,7 @@
 <UserControl x:Class="ArcaneVault.Next.Desktop.NativeCollectionWorkspace"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
         Background="{StaticResource VaultBackground}"
         Foreground="{StaticResource VaultText}">
     <Grid Margin="14,15,14,12">
@@ -380,9 +381,9 @@
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="2*"/>
+                        <RowDefinition x:Name="SetBrowseRow" Height="*"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="3*"/>
+                        <RowDefinition x:Name="SetChecklistRow" Height="0"/>
                     </Grid.RowDefinitions>
                     <WrapPanel Grid.Row="0" Margin="0,0,0,9">
                         <TextBlock Text="COLLECTION" VerticalAlignment="Center" Margin="0,0,8,0"
@@ -396,7 +397,7 @@
                             <ComboBoxItem Content="Physical · verified printings"/>
                             <ComboBoxItem Content="Arena · card-name coverage"/>
                         </ComboBox>
-                        <TextBlock Text="Find a set" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="FindSetLabel" Text="Find a set" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBox x:Name="SetSearch" Width="220" Padding="8,5"
                                  Background="{StaticResource VaultPanelRaised}" Foreground="White" BorderBrush="{StaticResource VaultLine}"
                                  TextChanged="OnSetFilterChanged" Margin="0,0,18,0"/>
@@ -450,14 +451,20 @@
                                                     <GradientStop Color="#1B2634" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
-                                            <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="✦" FontSize="29"
-                                                           TextAlignment="Center"
-                                                           Foreground="{StaticResource VaultAccent}"/>
-                                                <TextBlock Text="{Binding DisplaySetCode}" FontSize="11"
-                                                           FontWeight="Bold" TextAlignment="Center"
-                                                           Foreground="#D9C9FF"/>
-                                            </StackPanel>
+                                            <Grid ClipToBounds="True">
+                                                <local:NativeCardArtImage ArtUrl="{Binding ArtworkUrl}"
+                                                    Width="70" Height="78" Stretch="UniformToFill"
+                                                    Opacity="0.76"/>
+                                                <Border Background="#9E101622" CornerRadius="7"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="✦" FontSize="23"
+                                                        TextAlignment="Center"
+                                                        Foreground="{StaticResource VaultAccent}"/>
+                                                    <TextBlock Text="{Binding DisplaySetCode}" FontSize="12"
+                                                        FontWeight="Bold" TextAlignment="Center"
+                                                        Foreground="White"/>
+                                                </StackPanel>
+                                            </Grid>
                                         </Border>
                                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding SetName}" FontSize="15"
@@ -495,22 +502,80 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
-                    <TextBlock x:Name="SetDetailsHeader" Grid.Row="2" Foreground="{StaticResource VaultWarning}"
-                               Margin="0,12,0,8" TextWrapping="Wrap"
-                               Text="Select a set to inspect its collector-number checklist."/>
+                    <Grid x:Name="SetDetailsControls" Grid.Row="2"
+                          Visibility="Collapsed" Margin="0,14,0,10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <WrapPanel Grid.Row="0" Margin="0,0,0,8">
+                            <Button x:Name="BackToSetsButton" Content="← All sets"
+                                    Click="OnBackToSetsClicked" Padding="13,7"
+                                    Margin="0,0,17,0" Background="{StaticResource VaultPanelRaised}"
+                                    Foreground="{StaticResource VaultText}"
+                                    BorderBrush="{StaticResource VaultAccentBorder}"/>
+                            <CheckBox x:Name="HideUnownedSetSlots" Content="Hide unowned cards / printings"
+                                      VerticalAlignment="Center"
+                                      Checked="OnSetOwnedFilterChanged"
+                                      Unchecked="OnSetOwnedFilterChanged"
+                                      Foreground="{StaticResource VaultText}"
+                                      ToolTip="In Physical view: only verified owned collector slots. In Arena view: only owned card names."/>
+                        </WrapPanel>
+                        <TextBlock x:Name="SetDetailsHeader" Grid.Row="1"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   TextWrapping="Wrap"
+                                   Text="Select a set to inspect its card checklist."/>
+                    </Grid>
                     <ListView Grid.Row="3" x:Name="SetSlotsList"
+                              Visibility="Collapsed"
                               MouseDoubleClick="OnCardRowDoubleClick"
                               Background="{StaticResource VaultPanel}" Foreground="{StaticResource VaultText}"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
                               ScrollViewer.CanContentScroll="True">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Collector #" Width="140" DisplayMemberBinding="{Binding CollectorNumber}"/>
-                                <GridViewColumn Header="Card" Width="410" DisplayMemberBinding="{Binding CardName}"/>
-                                <GridViewColumn Header="Status" Width="180" DisplayMemberBinding="{Binding Ownership}"/>
-                            </GridView>
-                        </ListView.View>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource VaultPanelRaised}"
+                                        BorderBrush="{StaticResource VaultLine}"
+                                        BorderThickness="0,0,0,1" Padding="13,10"
+                                        Margin="1,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="185"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="67" Height="90" CornerRadius="7"
+                                                ClipToBounds="True" Background="{StaticResource VaultPanel}"
+                                                BorderBrush="{StaticResource VaultAccentBorder}" BorderThickness="1">
+                                            <local:NativeCardArtImage ArtUrl="{Binding ArtworkUrl}"
+                                                Width="67" Height="90" Stretch="UniformToFill"
+                                                ToolTip="Representative catalog artwork; does not establish owned printing or Arena card style"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                                                    Margin="11,0,10,0">
+                                            <TextBlock Text="{Binding CardName}" FontSize="15"
+                                                       FontWeight="SemiBold" TextWrapping="Wrap"
+                                                       Foreground="{StaticResource VaultText}"/>
+                                            <TextBlock Text="{Binding CollectorNumber}"
+                                                       Foreground="{StaticResource VaultMuted}"
+                                                       FontSize="12" Margin="0,5,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding Ownership}"
+                                                   FontSize="13" VerticalAlignment="Center"
+                                                   HorizontalAlignment="Right"
+                                                   Foreground="{StaticResource VaultAccent}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
                     </ListView>
                 </Grid>
             </TabItem>

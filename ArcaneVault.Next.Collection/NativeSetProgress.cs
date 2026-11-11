@@ -16,7 +16,7 @@ public static class NativeSetProgress
         string Released,
         int TotalSlots,
         int OwnedSlots,
-        long VerifiedCopies, bool NameCoverage = false)
+        long VerifiedCopies, bool NameCoverage = false, string ArtworkUrl = "")
     {
         public string DisplaySetCode => SetCode.ToUpperInvariant();
         public double Percent => TotalSlots == 0 ? 0 : 100.0 * OwnedSlots / TotalSlots;
@@ -32,7 +32,7 @@ public static class NativeSetProgress
     public sealed record SetSlot(
         string CollectorNumber,
         string CardName,
-        long VerifiedCopies, bool NameCoverage = false)
+        long VerifiedCopies, bool NameCoverage = false, string ArtworkUrl = "")
     {
         public string Ownership => NameCoverage
             ? (VerifiedCopies > 0 ? $"Name-owned ({VerifiedCopies:N0})" : "Missing name")
@@ -55,6 +55,53 @@ public static class NativeSetProgress
         }.ToString());
         db.Open();
         return db;
+    }
+
+    private static bool HasCatalogArtwork(SqliteConnection db)
+    {
+        using var columns = db.CreateCommand();
+        columns.CommandText = "PRAGMA table_info(variants)";
+        using var rows = columns.ExecuteReader();
+        while (rows.Read())
+            if (rows.GetString(1).Equals("image", StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Use representative, official CARD artwork as a set tile preview.
+    /// This must never be described as a promotional set banner or set symbol.
+    /// Older local catalogs without image URLs retain text-only tiles.
+    /// Requests for thumbnails happen only when the UI virtualizes them.
+    /// </summary>
+    private static IReadOnlyList<SetRow> AddRepresentativeArt(
+        SqliteConnection db, IReadOnlyList<SetRow> sets, bool arena,
+        CancellationToken cancellation)
+    {
+        if (!HasCatalogArtwork(db)) return sets;
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = """
+            SELECT image FROM variants
+            WHERE setcode=$set COLLATE NOCASE AND length(trim(image)) > 0
+            """ + (arena
+                ? " AND arena=1 AND instr(',' || lower(replace(games,' ','')) || ',', ',arena,') > 0"
+                : " AND digital=0 AND instr(',' || lower(replace(games,' ','')) || ',', ',paper,') > 0") +
+            """
+            
+            ORDER BY CASE WHEN collector GLOB '[0-9]*' THEN 0 ELSE 1 END,
+                     CAST(collector AS INTEGER),collector COLLATE NOCASE
+            LIMIT 1
+            """;
+        var parameter = cmd.Parameters.Add("$set", SqliteType.Text);
+        var items = new List<SetRow>(sets.Count);
+        foreach (var set in sets)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            parameter.Value = set.SetCode;
+            string url = cmd.ExecuteScalar()?.ToString() ?? "";
+            items.Add(set with { ArtworkUrl = url });
+        }
+        return items;
     }
 
     private static Dictionary<string, Dictionary<string, long>> OwnedBySet(
@@ -130,8 +177,10 @@ public static class NativeSetProgress
         }
         if (matchedCopies != verification.ConfirmedCopies)
             throw new InvalidDataException("Set Progress did not conserve all verified owned copies.");
+        reader.Close();
+        var artSets = AddRepresentativeArt(db, sets, arena: false, cancellation: cancellation);
 
-        return new Result(sets
+        return new Result(artSets
             .OrderByDescending(s => s.Released, StringComparer.Ordinal)
             .ThenBy(s => s.SetName, StringComparer.OrdinalIgnoreCase)
             .ToArray(), slotsTotal, ownedSlotsTotal, matchedCopies);
@@ -195,7 +244,9 @@ public static class NativeSetProgress
             if (owned.ContainsKey(name)) covered++;
         }
         Finish();
-        return new Result(sets.OrderByDescending(x => x.Released, StringComparer.Ordinal)
+        reader.Close();
+        var artSets = AddRepresentativeArt(db, sets, arena: true, cancellation: cancellation);
+        return new Result(artSets.OrderByDescending(x => x.Released, StringComparer.Ordinal)
             .ThenBy(x => x.SetName, StringComparer.OrdinalIgnoreCase)
             .ToArray(), total, matched, 0);
     }
@@ -227,8 +278,10 @@ public static class NativeSetProgress
         var result = new List<SetSlot>();
         using var db = OpenReadOnly(catalogPath);
         using var cmd = db.CreateCommand();
-        cmd.CommandText = """
-            SELECT MIN(collector),name FROM variants
+        string artColumn = HasCatalogArtwork(db)
+            ? "MIN(NULLIF(image,''))" : "''";
+        cmd.CommandText = $"""
+            SELECT MIN(collector),name,{artColumn} FROM variants
             WHERE setcode=$set COLLATE NOCASE AND arena=1
               AND instr(',' || lower(replace(games,' ','')) || ',', ',arena,') > 0
               AND length(trim(name))>0
@@ -243,7 +296,8 @@ public static class NativeSetProgress
             string name = reader.GetString(1).Trim();
             result.Add(new SetSlot(
                 reader.IsDBNull(0) ? "" : reader.GetString(0),
-                name, owned.GetValueOrDefault(name), NameCoverage: true));
+                name, owned.GetValueOrDefault(name), NameCoverage: true,
+                ArtworkUrl: reader.IsDBNull(2) ? "" : reader.GetString(2)));
         }
         return result.AsReadOnly();
     }
@@ -282,8 +336,10 @@ public static class NativeSetProgress
         var result = new List<SetSlot>();
         using var db = OpenReadOnly(catalogPath);
         using var cmd = db.CreateCommand();
-        cmd.CommandText = """
-            SELECT collector,MIN(name),COUNT(DISTINCT name COLLATE NOCASE)
+        string artColumn = HasCatalogArtwork(db)
+            ? "MIN(NULLIF(image,''))" : "''";
+        cmd.CommandText = $"""
+            SELECT collector,MIN(name),COUNT(DISTINCT name COLLATE NOCASE),{artColumn}
             FROM variants
             WHERE setcode=$set COLLATE NOCASE
               AND digital=0
@@ -309,7 +365,8 @@ public static class NativeSetProgress
             }
             else if (reader.GetInt64(2) > 1)
                 name += " (multiple catalog names at this number)";
-            result.Add(new SetSlot(collector, name, copies));
+            result.Add(new SetSlot(collector, name, copies,
+                ArtworkUrl: reader.IsDBNull(3) ? "" : reader.GetString(3)));
         }
         if (ownedSlots is not null && ownedSlots.Count > result.Count)
             throw new InvalidDataException("Catalog slots do not contain every verified owned collector number.");
