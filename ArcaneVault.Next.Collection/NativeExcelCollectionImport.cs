@@ -103,7 +103,7 @@ public static class NativeExcelCollectionImport
             ["printingfinish"]="finish", ["treatment"]="finish"
         };
 
-    private static Dictionary<string, int> Headers(string[] values)
+    internal static Dictionary<string, int> Headers(string[] values)
     {
         var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < values.Length; i++)
@@ -122,9 +122,9 @@ public static class NativeExcelCollectionImport
         {
             "" or "unknown" or "unspecified" or "n/a" => "unspecified",
             "foil" or "yes" or "y" or "true" or "1" => "foil",
-            "nonfoil" or "non-foil" or "non foil" or "no" or "n" or "false" or "0" => "nonfoil",
+            "nonfoil" or "non-foil" or "non foil" or "regular" or "normal" or "standard" or "no" or "n" or "false" or "0" => "nonfoil",
             "etched" or "etched foil" => "etched",
-            var other => throw new InvalidDataException("Unsupported Excel finish value: " +
+            var other => throw new InvalidDataException("Unsupported collection finish value: " +
                 other[..Math.Min(other.Length, 60)])
         };
     }
@@ -133,8 +133,35 @@ public static class NativeExcelCollectionImport
     {
         if (!decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var value) ||
             value != decimal.Truncate(value) || value is < 1 or > 99_999)
-            throw new InvalidDataException($"Excel row {row}: quantity must be a whole number (1–99,999).");
+            throw new InvalidDataException($"Collection row {row}: quantity must be a whole number (1–99,999).");
         return (int)value;
+    }
+
+    /// <summary>
+    /// Shared workbook/CSV row validation so imports have exactly the same
+    /// printing, finish and quantity semantics regardless of file format.
+    /// </summary>
+    internal static Row ParseMappedRow(IReadOnlyDictionary<string, int> columns,
+        IReadOnlyList<string> values, int sourceRow)
+    {
+        string Value(string key) =>
+            columns.TryGetValue(key, out int col) && col < values.Count
+                ? values[col] ?? "" : "";
+        string name = Value("name").Trim();
+        string qtyText = Value("quantity").Trim();
+        if (name.Length is < 1 or > 255 || name.Any(char.IsControl))
+            throw new InvalidDataException($"Collection row {sourceRow} has an invalid card name.");
+        int quantity = Quantity(qtyText, sourceRow);
+        string set = Value("set").Trim();
+        string collector = Value("collector").Trim();
+        string idText = Value("id").Trim();
+        if (set.Length > 32 || collector.Length > 32 || idText.Length > 80)
+            throw new InvalidDataException($"Collection row {sourceRow} has oversized printing metadata.");
+        if (idText.Length > 0 &&
+            (!Guid.TryParse(idText, out var guid) || guid == Guid.Empty))
+            throw new InvalidDataException($"Collection row {sourceRow} has an invalid Scryfall ID.");
+        return new Row(sourceRow, name, quantity, set.ToLowerInvariant(),
+            collector, Finish(Value("finish")), idText);
     }
 
     /// <summary>Read the first visible Excel worksheet. No formulas are evaluated.</summary>
@@ -201,21 +228,11 @@ public static class NativeExcelCollectionImport
                     throw new InvalidDataException("Excel needs Name and Quantity headers within its first 25 rows.");
                 continue;
             }
-            string Value(string key) =>
-                columns.TryGetValue(key, out int col) ? values[col] ?? "" : "";
-            string name = Value("name").Trim();
-            string qtyText = Value("quantity").Trim();
-            if (name.Length == 0 && qtyText.Length == 0) continue;
-            if (name.Length is < 1 or > 255 || name.Any(char.IsControl))
-                throw new InvalidDataException($"Excel row {rowIndex} has an invalid card name.");
-            int qty = Quantity(qtyText, rowIndex);
-            string set = Value("set"), collector = Value("collector"), idText = Value("id");
-            if (set.Length > 32 || collector.Length > 32 || idText.Length > 80)
-                throw new InvalidDataException($"Excel row {rowIndex} has oversized printing metadata.");
-            if (idText.Length > 0 && (!Guid.TryParse(idText, out var guid) || guid == Guid.Empty))
-                throw new InvalidDataException($"Excel row {rowIndex} has an invalid Scryfall ID.");
-            collected.Add(new Row(rowIndex, name, qty, set.ToLowerInvariant(), collector,
-                Finish(Value("finish")), idText));
+            string name = columns.TryGetValue("name", out int n) ? values[n] : "";
+            string quantity = columns.TryGetValue("quantity", out int q) ? values[q] : "";
+            if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(quantity))
+                continue;
+            collected.Add(ParseMappedRow(columns, values, rowIndex));
         }
         if (columns is null || collected.Count == 0)
             throw new InvalidDataException("Excel contains no valid physical card rows.");
