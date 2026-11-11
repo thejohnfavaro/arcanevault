@@ -179,6 +179,26 @@ internal static class NativeVisualShellChecks
              collection.Contains("<RadialGradientBrush Center=", StringComparison.Ordinal) &&
              collection.Contains("Text=\"{Binding Format}\"", StringComparison.Ordinal),
              "Collection and deck-library visual parity must preserve virtualized owned rows and themed deck covers.");
+        string deckEditor = File.ReadAllText(Path.Combine(
+            dir, "NativeDeckEditorWindow.xaml"));
+        string deckEditorCode = File.ReadAllText(Path.Combine(
+            dir, "NativeDeckEditorWindow.xaml.cs"));
+        foreach (string name in new[] {
+            "AnalyticsPanel", "AnalyticsCharts", "AnalyticsText",
+            "ManaCurveBars", "ColorIdentityBars", "CardTypeBars",
+            "AverageManaText", "AnalyzeDeckButton"
+        })
+            Must(deckEditor.Contains("x:Name=\\\"" + name + "\\\"", StringComparison.Ordinal),
+                "Deck analytics chart control missing: " + name);
+        Must(deckEditor.Contains("x:Key=\\\"DeckChartBarTemplate\\\"", StringComparison.Ordinal) &&
+             deckEditor.Contains("Maximum=\\\"{Binding Maximum}\\\"", StringComparison.Ordinal) &&
+             deckEditor.Contains("Value=\\\"{Binding Count}\\\"", StringComparison.Ordinal) &&
+             deckEditor.Contains("Foreground=\\\"{Binding Fill}\\\"", StringComparison.Ordinal) &&
+             deckEditor.Contains("IsExpanded=\\\"False\\\"", StringComparison.Ordinal) &&
+             deckEditorCode.Contains("NativeDeckAnalyticsCharts.FromReport(report)", StringComparison.Ordinal) &&
+             deckEditorCode.Contains("InvalidateAnalytics()", StringComparison.Ordinal),
+            "Deck chart visuals must bind computed series and hide stale values.");
+
         string setSymbolCode = File.ReadAllText(
             Path.Combine(dir, "NativeSetSymbol.cs"));
         Must(setSymbolCode.Contains("svgs.scryfall.io/sets/", StringComparison.Ordinal) &&
