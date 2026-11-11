@@ -31,6 +31,45 @@ public partial class NativeDeckEditorWindow : Window
             .Select(x => new OwnedDisplay(x.Name, x.Owned)).ToArray();
     }
 
+    private void OnDraftChanged(object sender,
+        System.Windows.Controls.TextChangedEventArgs e) => RefreshDraftSummary();
+
+    private void OnFormatChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e) =>
+        Dispatcher.BeginInvoke(new Action(RefreshDraftSummary));
+
+    private void RefreshDraftSummary()
+    {
+        if (DeckSummaryText is null || DeckShortageText is null ||
+            MainboardBox is null || CommanderBox is null || FormatBox is null ||
+            OwnedPoolBox is null)
+            return;
+        var pool = OwnedPoolBox.SelectedIndex == 1
+            ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
+        try
+        {
+            var summary = NativeDeckOwnedPicker.Review(ownership, pool,
+                MainboardBox.Text, CommanderBox.Text, FormatBox.Text);
+            DeckSummaryText.Text = summary.Header;
+            string poolName = pool == NativeDeckOwnedPicker.Pool.Arena ? "Arena" : "Physical";
+            var lines = summary.Shortages.Take(6).Select(x =>
+                $"{x.Name}: need {x.Required}, owned {x.Owned} (missing {x.Missing})");
+            DeckShortageText.Text = summary.Shortages.Count == 0
+                ? $"All draft copies covered by {poolName} inventory."
+                : $"{poolName} shortages ({summary.Shortages.Count} cards):\n" +
+                  string.Join("\n", lines) +
+                  (summary.Shortages.Count > 6
+                      ? $"\n… plus {summary.Shortages.Count - 6} more card names."
+                      : "");
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException)
+        {
+            DeckSummaryText.Text = "Deck draft needs review";
+            DeckShortageText.Text = ex.Message;
+        }
+    }
+
     private void OnOwnedSearchChanged(object sender,
         System.Windows.Controls.TextChangedEventArgs e)
     {
@@ -43,7 +82,11 @@ public partial class NativeDeckEditorWindow : Window
     }
 
     private void OnOwnedPoolChanged(object sender,
-        System.Windows.Controls.SelectionChangedEventArgs e) => RefreshOwnedCards();
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        RefreshOwnedCards();
+        RefreshDraftSummary();
+    }
 
     private void OnOwnedCardDoubleClicked(object sender,
         System.Windows.Input.MouseButtonEventArgs e) => AddSelectedOwnedCard();
@@ -91,6 +134,7 @@ public partial class NativeDeckEditorWindow : Window
                 $"{selected.TotalCopies:N0} mainboard copies and {selected.Revisions:N0} revisions. " +
                 "The prior deck is appended to its revision history before changes are committed.";
         }
+        RefreshDraftSummary();
     }
 
     private void ApplyDeckImport(string text)
