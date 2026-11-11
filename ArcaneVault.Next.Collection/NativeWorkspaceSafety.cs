@@ -286,6 +286,32 @@ public static class NativeWorkspaceSafety
     /// entire old database as a new, independently restorable recovery point.
     /// The legacy Windows app and external catalog are never written.
     /// </summary>
+    /// <summary>
+    /// Append an Excel workbook's physical quantities to the active native
+    /// collection in ONE verified SQLite transaction and ONE recovery point.
+    /// The parsed rows are revalidated against the current catalog at commit.
+    /// </summary>
+    public static Replacement AddExcelPhysical(string nativePath, string? catalogPath,
+        IReadOnlyList<NativeExcelCollectionImport.Row> workbookRows,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        ArgumentNullException.ThrowIfNull(workbookRows);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var preview = NativeExcelCollectionImport.Prepare(workbookRows, catalogPath);
+            byte[] updated = NativeExcelCollectionImport.Add(
+                ReadPreservedBackup(path), preview);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "native-excel-physical-addition",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static Replacement AddVerifiedPhysical(string nativePath,
         string catalogPath, Guid printId, int quantity, string finish,
         string expectedCurrentBackupSha, CancellationToken cancellation = default)
