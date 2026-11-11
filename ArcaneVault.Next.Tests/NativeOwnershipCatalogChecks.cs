@@ -12,6 +12,7 @@ internal static class NativeOwnershipCatalogChecks
     private const string Fourth = "00000000-0000-4000-8000-000000000104";
     private const string Fifth = "00000000-0000-4000-8000-000000000105";
     private const string Sixth = "00000000-0000-4000-8000-000000000106";
+    private const string Digital = "00000000-0000-4000-8000-000000000108";
 
     private static void Must(bool ok, string description)
     {
@@ -47,7 +48,9 @@ internal static class NativeOwnershipCatalogChecks
                 new { name = "Mismatched Card", qty = 1, set = "wrong", number = "1",
                     finish = "nonfoil", scryfallId = Third },
                 new { name = "Only Physical", qty = 4, set = "tst", number = "5",
-                    finish = "nonfoil", scryfallId = Fourth }
+                    finish = "nonfoil", scryfallId = Fourth },
+                new { name = "Digital Only", qty = 1, set = "tst", number = "9",
+                    finish = "nonfoil", scryfallId = Digital }
             },
             deckLibrary = Array.Empty<object>(),
             preferredArtwork = new Dictionary<string, string>()
@@ -89,7 +92,8 @@ internal static class NativeOwnershipCatalogChecks
                 CREATE TABLE variants(
                     print_id TEXT PRIMARY KEY,name TEXT NOT NULL COLLATE NOCASE,
                     setcode TEXT NOT NULL,collector TEXT NOT NULL,
-                    rarity TEXT NOT NULL,arena INTEGER NOT NULL);
+                    rarity TEXT NOT NULL,arena INTEGER NOT NULL,
+                    games TEXT NOT NULL,digital INTEGER NOT NULL);
                 """;
             cmd.ExecuteNonQuery();
             using var tx = db.BeginTransaction();
@@ -102,25 +106,27 @@ internal static class NativeOwnershipCatalogChecks
                 ('Only Physical','Artifact',''),
                 ('Arena Exclusive','Sorcery','R'),
                 ('Zero Copies','Sorcery','U'),
-                ('Never Owned','Instant','U');
+                ('Never Owned','Instant','U'),
+                ('Digital Only','Artifact','');
                 """;
             insertCard.ExecuteNonQuery();
             using var insert = db.CreateCommand();
             insert.Transaction = tx;
             insert.CommandText = """
-                INSERT INTO variants(print_id,name,setcode,collector,rarity,arena)
-                VALUES ($id,$name,$set,$number,$rarity,$arena)
+                INSERT INTO variants(print_id,name,setcode,collector,rarity,arena,games,digital)
+                VALUES ($id,$name,$set,$number,$rarity,$arena,$games,$digital)
                 """;
-            foreach (var (id, name, set, number, rarity, arena) in new[]
+            foreach (var (id, name, set, number, rarity, onArena, games, digital) in new[]
             {
-                (First, "Sol Ring", "cmm", "396", "uncommon", 0),
-                (Second, "Sol Ring", "sld", "123", "rare", 0),
-                (Third, "Mismatched Card", "tst", "4", "common", 1),
-                (Fourth, "Only Physical", "tst", "5", "common", 0),
-                (Fifth, "Zero Copies", "tst", "6", "common", 1),
-                (Sixth, "Never Owned", "tst", "7", "common", 1),
+                (First, "Sol Ring", "cmm", "396", "uncommon", 0, "paper", 0),
+                (Second, "Sol Ring", "sld", "123", "rare", 0, "paper", 0),
+                (Third, "Mismatched Card", "tst", "4", "common", 1, "paper", 0),
+                (Fourth, "Only Physical", "tst", "5", "common", 0, "paper", 0),
+                (Fifth, "Zero Copies", "tst", "6", "common", 1, "paper", 0),
+                (Sixth, "Never Owned", "tst", "7", "common", 1, "paper", 0),
                 ("00000000-0000-4000-8000-000000000107", "Arena Exclusive",
-                    "tst", "8", "rare", 1)
+                    "tst", "8", "rare", 1, "paper", 0),
+                (Digital, "Digital Only", "tst", "9", "common", 1, "arena", 1)
             })
             {
                 insert.Parameters.Clear();
@@ -129,7 +135,9 @@ internal static class NativeOwnershipCatalogChecks
                 insert.Parameters.AddWithValue("$set", set);
                 insert.Parameters.AddWithValue("$number", number);
                 insert.Parameters.AddWithValue("$rarity", rarity);
-                insert.Parameters.AddWithValue("$arena", arena);
+                insert.Parameters.AddWithValue("$arena", onArena);
+                insert.Parameters.AddWithValue("$games", games);
+                insert.Parameters.AddWithValue("$digital", digital);
                 insert.ExecuteNonQuery();
             }
             tx.Commit();
@@ -141,7 +149,8 @@ internal static class NativeOwnershipCatalogChecks
 
         using var snapshot = CatalogSnapshot.Open(catalogPath);
         var all = snapshot.SearchFiltered("", new(), ownership: ownership);
-        Must(all.Rows.Count == 7 &&
+        Must(all.Rows.Count == 8 &&
+             all.Rows.Single(r => r.Name == "Digital Only").PhysicalOwned == 0 &&
              all.Rows.Single(r => r.Name == "Sol Ring" && r.SetCode == "cmm").PhysicalOwned == 3 &&
              all.Rows.Single(r => r.Name == "Sol Ring" && r.SetCode == "sld").PhysicalOwned == 0,
             "Full catalog results should be annotated with true per-printing ownership.");
@@ -174,14 +183,14 @@ internal static class NativeOwnershipCatalogChecks
         var notArena = snapshot.SearchFiltered("", new(
             Ownership: CatalogSnapshot.OwnershipMode.ArenaNotOwned),
             ownership: ownership);
-        Must(notArena.Rows.Count == 4 && notArena.Rows.All(r => r.ArenaOwned == 0),
+        Must(notArena.Rows.Count == 5 && notArena.Rows.All(r => r.ArenaOwned == 0),
             "Arena not-owned filter should exclude all positive owned names.");
 
         var combined = snapshot.SearchFiltered("", new(
             SetCode: "TST", ArenaOnly: true,
             Ownership: CatalogSnapshot.OwnershipMode.ArenaNotOwned),
             ownership: ownership);
-        Must(combined.Rows.Count == 3 &&
+        Must(combined.Rows.Count == 4 &&
              combined.Rows.All(r => r.SetCode == "tst"),
             "Ownership filters must compose with set and Arena-availability filters.");
         var truncated = snapshot.SearchFiltered("", new(
