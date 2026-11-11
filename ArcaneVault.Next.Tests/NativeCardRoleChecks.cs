@@ -93,8 +93,9 @@ internal static class NativeCardRoleChecks
         Must(combined.Rows.Count==1 && combined.Rows[0].Name=="Countering",
             "Role tags must compose with indexed color, set and Arena filters.");
         Must(catalog.SearchFiltered("",new(Role:"Ramp"),limit:1).Rows.Count==1 &&
-             !catalog.SearchFiltered("",new(Role:"Ramp"),limit:1).MayHaveMore,
-            "Role filter limit should count matching roles, not earlier mismatched rows.");
+             catalog.SearchFiltered("",new(Role:"Ramp"),limit:1).MayHaveMore &&
+             !catalog.SearchFiltered("Treasure",new(Role:"Ramp"),limit:1).MayHaveMore,
+            "Role filter limit should count matching roles, report further matches and respect name prefixes.");
         try
         {
             catalog.SearchFiltered("",new(Role:"Not A Role"));
