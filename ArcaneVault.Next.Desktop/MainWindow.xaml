@@ -14,9 +14,16 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
             <TextBlock FontSize="27" FontWeight="Bold" Text="Arcane Vault Next"/>
             <TextBlock FontSize="13" Foreground="#ADC0D1" Margin="0,4,0,0"
-                       Text="Native Windows workspace · One-click import from installed app (no export) · Editing stays locked"/>
+                       Text="Standalone Windows collection and Scryfall catalog · Verified native editing with rollback"/>
         </StackPanel>
         <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button x:Name="SyncCatalogButton" Content="Download / update Scryfall catalog"
+                    Click="OnSyncCatalogClicked" Padding="12,9" Margin="0,0,12,0"
+                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
+            <Button x:Name="CancelCatalogButton" Content="Cancel Scryfall sync"
+                    Click="OnCancelCatalogClicked" IsEnabled="False"
+                    Padding="12,9" Margin="0,0,12,0"
+                    Background="#60394A" Foreground="White" BorderBrush="#966274"/>
             <Button x:Name="OpenCatalogButton" Content="Open a read-only catalog snapshot"
                     Click="OnOpenCatalogClicked" Padding="12,9" Margin="0,0,12,0"
                     Background="#283F55" Foreground="White" BorderBrush="#65778B"/>

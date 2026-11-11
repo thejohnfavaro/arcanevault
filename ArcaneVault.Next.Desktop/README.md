@@ -2,6 +2,16 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Built-in Scryfall catalog download and refresh — AVN-027
+
+Use **Download / update Scryfall catalog** on the Arcane Vault Next main window. This feature requires an internet connection, but **does not require the old Arcane Vault application, an existing Scryfall database, a JSON backup, or WebView2**.
+
+The native Windows app fetches the **official Scryfall bulk-data manifest**, selects the English-first **default_cards** printing dataset (not `oracle_cards`, which lacks distinct printings), and downloads the bulk file over HTTPS with a recognizable User-Agent. Import accepts **gzipped JSONL** and legacy **JSON array** formats, streaming one printing at a time into a *new* local SQLite catalog under `%LOCALAPPDATA%\\ArcaneVaultNext\\native-catalog.sqlite`. The data may be **hundreds of MB**; allow ample disk space for download, staging and a retained older catalog. It does not request each card individually, scrape images or cache images during this operation.
+
+The catalog provides card names/details, exact printing IDs, set/collector/finish metadata and Set Progress. **Cards are never automatically marked owned during a catalog refresh.** All physical/Arena ownership, decks, art preferences and user data remain in the separate native workspace database. A data integrity check, minimum catalog-size guard, and separate readback must pass before the new catalog becomes active; an existing catalog is retained under a uniquely named `native-catalog.catalog-rollback-*.sqlite` file. If a download fails, is canceled, is malformed or is incomplete **before publication**, the existing catalog remains intact. The app also skips repeated imports when Scryfall's dataset timestamp has not changed.
+
+The **Cancel Scryfall sync** button cancels a running download or build and removes its scratch files. The installed legacy Windows catalog is never modified. Manual catalog selection and one-time legacy catalog copy remain available only as fallback routes.
+
 ## Native collection editing — Physical and Arena (AVN-024/025/026)
 
 You can now create a native workspace using **Start fresh collection**, then manage ownership directly in its **Physical Collection** and **Arena Collection** tabs. Open **Open native collection** to find these controls.
@@ -22,7 +32,7 @@ Use **Start fresh collection** in the native Windows app. This works even on a n
 - With an **existing native collection**, the confirmation dialog shows the current physical/Arena copies, deck/revision count and preferred-artwork entries. It states exactly what will be reset. Type **`START FRESH`** to enable the final button. The app atomically creates a completely empty active database and saves the entire former native database in a uniquely named `native-workspace.rollback-*.sqlite` recovery point.
 - **Cleared from the active collection:** all physical card ownership, Arena card ownership, deck library/history, favorite choices, preferred art, wildcard counts, and collection-specific/legacy settings. The **Scryfall catalog is retained separately** and is not wiped or changed; the original legacy Windows app, its user data, and old exports are not touched.
 - An already-empty native collection is a **no-op**; resetting it again does not generate needless backups. **Restore native recovery** can restore all original data, and the intervening empty collection is then also preserved as another recovery point.
-- **After starting empty:** You can add physical cards from a loaded Scryfall catalog and add Arena names manually. Native deck authoring, scanning and independent catalog downloads are not implemented yet. Do not delete recovery files.
+- **After starting empty:** You can add physical cards from a loaded Scryfall catalog and add Arena names manually. Native deck authoring and scanning are not implemented yet; the native catalog now downloads independently. Do not delete recovery files.
 
 ## Safe native collection refresh and recovery — AVN-022
 
