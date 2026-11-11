@@ -49,7 +49,10 @@ internal static class NativeArenaPresentationChecks
             Ownership: CatalogSnapshot.OwnershipMode.ArenaOwned), ownership: ownership);
         Must(owned.Rows.Count == 1 && owned.Rows[0].CollectorNumber == "111",
             "The three physical catalog versions must collapse to the base Arena card.");
-        Must(owned.Rows[0].ArenaOwned == 1 && owned.Rows[0].OwnershipLabel == "",
+        Must(owned.Rows[0].ArenaOwned == 1 && owned.Rows[0].OwnershipLabel == "" &&
+             owned.Rows[0].ArenaPresentation &&
+             owned.Rows[0].DisplaySetCode == "ARENA CARD" &&
+             owned.Rows[0].DisplayCollectorNumber == "",
             "Arena ownership count must remain correct without numbered badges.");
         var available = catalog.SearchFiltered("A Good", new(ArenaOnly: true),
             ownership: ownership);
