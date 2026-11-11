@@ -146,6 +146,7 @@ try
     NativeArenaImportChecks.Run(work);
     await NativeScryfallCatalogSyncChecks.RunAsync(work);
     NativeDeckEditingChecks.Run(work);
+    NativeDeckOwnedPickerChecks.Run();
     NativeDeckPreflightChecks.Run(work);
     NativeDeckInterchangeChecks.Run(work);
     NativeCatalogFilterChecks.Run(work);
