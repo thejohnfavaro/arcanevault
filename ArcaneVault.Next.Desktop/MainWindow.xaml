@@ -347,7 +347,7 @@
                                    VerticalAlignment="Center"/>
                     </Grid>
                     <ListView Grid.Row="1" x:Name="CardsList"
-                              MouseDoubleClick="OnCatalogCardDetailsClicked"
+                              MouseDoubleClick="OnCatalogCardRowDoubleClick"
                               Background="{StaticResource VaultPanel}"
                               BorderThickness="0"
                               ScrollViewer.CanContentScroll="True"
