@@ -128,7 +128,7 @@
                                    Style="{StaticResource VaultMutedText}"
                                    VerticalAlignment="Center"/>
                     </WrapPanel>
-                <ListView Grid.Row="1" x:Name="PhysicalList" MouseDoubleClick="OnDetailsClicked"
+                <ListView Grid.Row="1" x:Name="PhysicalList" MouseDoubleClick="OnCardRowDoubleClick"
                           Background="{StaticResource VaultPanel}" Foreground="{StaticResource VaultText}"
                           VirtualizingStackPanel.IsVirtualizing="True"
                           VirtualizingStackPanel.VirtualizationMode="Recycling"
@@ -165,7 +165,7 @@
                         <TextBlock VerticalAlignment="Center" Margin="17,0,0,0"
                                    Foreground="{StaticResource VaultMuted}" Text="Arena is name-only; no printing ID required."/>
                     </StackPanel>
-                <ListView Grid.Row="1" x:Name="ArenaList" MouseDoubleClick="OnDetailsClicked"
+                <ListView Grid.Row="1" x:Name="ArenaList" MouseDoubleClick="OnCardRowDoubleClick"
                           Background="{StaticResource VaultPanel}" Foreground="{StaticResource VaultText}"
                           VirtualizingStackPanel.IsVirtualizing="True"
                           VirtualizingStackPanel.VirtualizationMode="Recycling"
@@ -407,7 +407,7 @@
                                Margin="0,12,0,8" TextWrapping="Wrap"
                                Text="Select a set to inspect its collector-number checklist."/>
                     <ListView Grid.Row="3" x:Name="SetSlotsList"
-                              MouseDoubleClick="OnDetailsClicked"
+                              MouseDoubleClick="OnCardRowDoubleClick"
                               Background="{StaticResource VaultPanel}" Foreground="{StaticResource VaultText}"
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
