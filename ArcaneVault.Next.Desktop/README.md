@@ -2,6 +2,19 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Native UI refresh — old WebView visual identity without WebView (AVN-031)
+
+The WPF Windows preview now uses the **original Arcane Vault WebView theme** as its visual source: charcoal backgrounds (`#0D1017`), layered dark panels (`#171C28`/`#202737`), lavender accents (`#B59BFC`), purple active navigation and confirmation actions, a grouped **left sidebar**, rounded surfaces and clear selection/focus states. The original Arcane Vault logo/icon is reused from the repository; no new branding is invented. The app remains fully native WPF and independent of the old WebView for normal use.
+
+- **Main screen:** card-catalog home, grouped **Collection**, **Card Database** and **Data & Sync** commands; quick search in a visually richer, **still virtualized** card list. Existing actions, data checks, backup controls and confirmation flows are wired to the original handlers and unchanged.
+- **Collection:** dashboard-like ownership and printing-verification summary tiles, contextual physical editing controls, purple tab navigation, styled Arena editor and deck management panels.
+- **Deck Library:** deck-box-inspired entries show saved deck name, commander, folder, format, counts and revisions without making remote image requests on scroll. Creating, changing, duplicating, and deleting decks keep the prior rollback guarantees.
+- **Set Progress:** prominent set-code/symbol-style blocks, set name, release date, exact verified owned/total slots and native progress meters. The meter uses **verified collection slot ratios**, not guesses from card names, and list virtualization is retained.
+- **Card Details:** a card-shaped artwork area beside ownership, metadata and Oracle text. Only when you open details, the app may retrieve artwork from the **official `cards.scryfall.io` HTTPS CDN**, with a 15-second timeout, 8-MiB per-image cap, no redirects, and a bounded separate local cache. Already viewed artwork works offline; missing images show a native placeholder without affecting text. This is card-identity preview artwork, **not proof of the exact owned printing**. Card art never blocks or modifies collection storage.
+- **Editor and recovery dialogs:** shared native styles for buttons, text fields, tab headers, list selection, focus, accessible text, spacing and the same original dark/lavender colors. No feature is deleted just to make the UI cleaner.
+
+**Limitations:** This is a substantial **visual foundation**, not yet a screenshot-perfect 1:1 port of the former WebView. Image-rich catalog grids, deck cover selection, set promotional background artwork, theme switcher and detailed responsive/device QA remain follow-up polish. Scryfall image requests are optional/only on demand; the catalog and owned cards remain entirely local. Native WPF layout must still be tested at the user's actual display scaling and screen size before 1.0 release.
+
 ## Export a current, complete native collection backup — AVN-030
 
 The standalone native Windows application now has **Export native full backup** on its main window once a native collection exists. It saves the **current verified schema-2 JSON source**, including every successful native Arena/physical edit, saved deck and revision, preferred artwork, wildcard/settings fields, and any retained unknown legacy metadata. No old WebView application, prior external export, Scryfall catalog, or internet connection is needed.
