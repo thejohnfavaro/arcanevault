@@ -1,6 +1,7 @@
 <Window x:Class="ArcaneVault.Next.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
         Title="Arcane Vault — Native Windows" Width="1330" Height="850"
         MinWidth="965" MinHeight="655"
         Background="{StaticResource VaultBackground}"
@@ -22,6 +23,9 @@
                     <TextBlock Text="{Binding OwnershipLabel}" FontSize="10"
                                Foreground="{StaticResource VaultAccent}"
                                TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding RolesLabel}" FontSize="10"
+                               Foreground="{StaticResource VaultGood}"
+                               TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="{Binding SetCode}" FontSize="11"
                            Margin="5,5" Foreground="{StaticResource VaultAccent}"/>
@@ -29,29 +33,55 @@
                            Margin="5,5" Foreground="{StaticResource VaultMuted}"/>
             </Grid>
         </DataTemplate>
+        <!-- The image view deliberately uses a virtualized *vertical* panel.
+             Only rows visible to the user create image controls/downloads. -->
         <DataTemplate x:Key="CatalogTileTemplate">
-            <Border Width="172" Height="116" Margin="7" Padding="11"
+            <Border Margin="5,5" Padding="10"
                     Background="{StaticResource VaultPanelRaised}"
                     BorderBrush="{StaticResource VaultAccentBorder}"
-                    BorderThickness="1" CornerRadius="10">
+                    BorderThickness="1" CornerRadius="11">
                 <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <StackPanel>
-                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
-                                   TextWrapping="Wrap" MaxHeight="68" TextTrimming="CharacterEllipsis"
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="132" Height="184"
+                            Background="{StaticResource VaultBackground}"
+                            BorderBrush="{StaticResource VaultLine}"
+                            BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <TextBlock Text="No cached card image"
+                                       Foreground="{StaticResource VaultMuted}"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       Margin="8"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
+                            <local:NativeCardArtImage ArtUrl="{Binding ImageUrl}"
+                                                      Width="128" Height="178"/>
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="14,2,0,0">
+                        <TextBlock Text="{Binding Name}" FontSize="17"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap" MaxHeight="60"
                                    Foreground="{StaticResource VaultText}"/>
-                        <TextBlock Text="{Binding OwnershipLabel}" FontSize="10"
+                        <TextBlock Text="{Binding RolesLabel}" FontSize="12"
+                                   Foreground="{StaticResource VaultGood}"
+                                   TextWrapping="Wrap" Margin="0,10,0,0"
+                                   ToolTip="Heuristic utilization tags from Scryfall Oracle text; not official deck recommendations"/>
+                        <TextBlock Text="{Binding OwnershipLabel}" FontSize="11"
                                    Foreground="{StaticResource VaultAccent}"
-                                   TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Grid.Row="1">
-                        <TextBlock Text="{Binding SetCode}" FontSize="11"
-                                   Foreground="{StaticResource VaultAccent}"/>
-                        <TextBlock Text="  ·  #" Foreground="{StaticResource VaultMuted}"/>
-                        <TextBlock Text="{Binding CollectorNumber}" FontSize="11"
+                                   TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="{Binding SetCode}" FontSize="12"
+                                       Foreground="{StaticResource VaultAccent}"/>
+                            <TextBlock Text="  ·  #" Foreground="{StaticResource VaultMuted}"/>
+                            <TextBlock Text="{Binding CollectorNumber}" FontSize="12"
+                                       Foreground="{StaticResource VaultMuted}"/>
+                        </StackPanel>
+                        <TextBlock Text="Double-click for card details and full artwork"
+                                   FontSize="10.5" Margin="0,10,0,0"
                                    Foreground="{StaticResource VaultMuted}"/>
                     </StackPanel>
                 </Grid>
@@ -329,6 +359,34 @@
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Margin="0,0,12,7">
+                                <TextBlock Text="UTILIZATION TAG" Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <ComboBox x:Name="RoleFilterBox" Width="155" Height="30"
+                                          SelectedIndex="0"
+                                          SelectionChanged="OnCatalogFilterChanged"
+                                          ToolTip="Heuristics from cached Scryfall Oracle text; a card can have multiple tags">
+                                    <ComboBoxItem Content="All roles" Tag=""/>
+                                    <ComboBoxItem Content="Ramp" Tag="Ramp"/>
+                                    <ComboBoxItem Content="Removal" Tag="Removal"/>
+                                    <ComboBoxItem Content="Board Wipe" Tag="Board Wipe"/>
+                                    <ComboBoxItem Content="Discard" Tag="Discard"/>
+                                    <ComboBoxItem Content="Counterspell" Tag="Counterspell"/>
+                                    <ComboBoxItem Content="Card Draw" Tag="Card Draw"/>
+                                    <ComboBoxItem Content="Card Selection" Tag="Card Selection"/>
+                                    <ComboBoxItem Content="Lifegain" Tag="Lifegain"/>
+                                    <ComboBoxItem Content="Tutor" Tag="Tutor"/>
+                                    <ComboBoxItem Content="Stax" Tag="Stax"/>
+                                    <ComboBoxItem Content="Haste" Tag="Haste"/>
+                                    <ComboBoxItem Content="Protection" Tag="Protection"/>
+                                    <ComboBoxItem Content="Recursion" Tag="Recursion"/>
+                                    <ComboBoxItem Content="Sacrifice" Tag="Sacrifice"/>
+                                    <ComboBoxItem Content="Tokens" Tag="Tokens"/>
+                                    <ComboBoxItem Content="Graveyard Hate" Tag="Graveyard Hate"/>
+                                    <ComboBoxItem Content="Finisher" Tag="Finisher"/>
+                                    <ComboBoxItem Content="Equipment" Tag="Equipment"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="TYPE CONTAINS" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
                                 <TextBox x:Name="TypeFilterBox" Width="163" Height="30"
@@ -426,7 +484,7 @@
                                   ToolTip="Switch between detailed, dense and tile layouts">
                             <ComboBoxItem Content="Detailed list"/>
                             <ComboBoxItem Content="Compact list"/>
-                            <ComboBoxItem Content="Cards / tiles"/>
+                            <ComboBoxItem Content="Card art"/>
                         </ComboBox>
                     </StackPanel>
                 </Grid>
@@ -494,6 +552,10 @@
                                             <TextBlock Text="{Binding OwnershipLabel}"
                                                        Foreground="{StaticResource VaultAccent}"
                                                        FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding RolesLabel}"
+                                                       Foreground="{StaticResource VaultGood}"
+                                                       FontSize="11" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="Derived from Scryfall Oracle text and type"/>
                                         </StackPanel>
                                         <Border Grid.Column="1" CornerRadius="11"
                                                 HorizontalAlignment="Left"

@@ -1118,9 +1118,9 @@ public partial class MainWindow : Window
             catalogDetailedTemplate is null || catalogDetailedPanel is null) return;
         object? selectedPrinting = CardsList.SelectedItem;
         int mode = CatalogViewMode.SelectedIndex;
-        CardsList.ItemsPanel = mode == 2
-            ? (ItemsPanelTemplate)FindResource("CatalogTilePanel")
-            : catalogDetailedPanel;
+        // Card-art rows must use the virtualized vertical panel. The old
+        // WrapPanel materialized all 200 matches and would fetch offscreen art.
+        CardsList.ItemsPanel = catalogDetailedPanel;
         CardsList.ItemTemplate = mode switch
         {
             1 => (DataTemplate)FindResource("CatalogCompactTemplate"),
@@ -1130,8 +1130,8 @@ public partial class MainWindow : Window
         CatalogColumnHeaders.Visibility = mode == 2
             ? Visibility.Collapsed : Visibility.Visible;
         CardsList.SelectedItem = selectedPrinting;
-        // Tile mode intentionally renders only the bounded <=200 search matches.
-        // No image network requests occur until user explicitly opens card details.
+        // Card-art images are fetched only by visible recycled row containers
+        // through NativeCardArtImage's bounded Scryfall cache.
     }
 
     private void CancelPendingSearch()
@@ -1370,7 +1370,8 @@ public partial class MainWindow : Window
             ColorlessOnlyBox?.IsChecked == true,
             ArenaOnlyBox?.IsChecked == true,
             (CatalogSnapshot.OwnershipMode)Math.Clamp(
-                OwnershipFilterBox?.SelectedIndex ?? 0, 0, 4));
+                OwnershipFilterBox?.SelectedIndex ?? 0, 0, 4),
+            (RoleFilterBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "");
     }
 
     private async Task FilterAsync()

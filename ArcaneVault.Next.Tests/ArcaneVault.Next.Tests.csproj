@@ -8,6 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <Compile Include="..\ArcaneVault.Next.Desktop\CatalogSnapshot.cs" Link="CatalogSnapshot.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\NativeCardRoles.cs" Link="NativeCardRoles.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCatalogOwnership.cs" Link="NativeCatalogOwnership.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCardArtwork.cs" Link="NativeCardArtwork.cs" />
     <ProjectReference Include="..\ArcaneVault.Next.Domain\ArcaneVault.Next.Domain.csproj" />
