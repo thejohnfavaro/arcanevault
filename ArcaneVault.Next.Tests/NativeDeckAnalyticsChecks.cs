@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using ArcaneVault.Next.Desktop;
 using Microsoft.Data.Sqlite;
 using System.Security.Cryptography;
 
@@ -49,6 +50,27 @@ internal static class NativeDeckAnalyticsChecks
         var standard = NativeDeckAnalytics.Analyze(entries, "Leader", "60-card", path);
         Must(standard.TotalCards == 18 && standard.Creatures == 1,
              "Non-commander deck must not include optional leader.");
+        var bars = NativeDeckAnalyticsCharts.FromReport(result);
+        Must(bars.Curve.Count == 8 && bars.Curve[1].Count == 5 &&
+             bars.Curve[7].Label == "7+" &&
+             bars.Curve.All(x => x.Maximum == 5),
+             "Mana chart bars lost buckets or inconsistent scaling.");
+        Must(bars.Identity.Count == 7 &&
+             bars.Identity.Single(x => x.Label == "Multi").Count == 1 &&
+             bars.Identity.Sum(x => x.Count) == result.KnownCards,
+             "Color identity bars must be exclusive and match known deck copies.");
+        Must(bars.Types.Count == 8 &&
+             bars.Types.Single(x => x.Label == "Creatures").Count == 2 &&
+             bars.Types.Sum(x => x.Count) == result.KnownCards,
+             "Primary card type chart must count each known copy once.");
+        var emptyCharts = NativeDeckAnalyticsCharts.FromReport(
+            NativeDeckAnalytics.Analyze(Array.Empty<NativeDeckEditing.Entry>(),
+                "", "60-card", path));
+        Must(emptyCharts.Curve.All(x => x.Count == 0 && x.Maximum == 1) &&
+             emptyCharts.Identity.All(x => x.Count == 0 && x.Maximum == 1) &&
+             emptyCharts.Types.All(x => x.Count == 0 && x.Maximum == 1),
+             "Empty deck charts require a safe nonzero scale.");
+
         Must(originalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(path))),
              "Analytics unexpectedly wrote to the offline catalog.");
         bool rejected = false;
