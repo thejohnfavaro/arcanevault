@@ -370,6 +370,7 @@ public partial class MainWindow : Window
                 $"{saved.TotalPrintings:N0} printings now loaded directly from the native catalog";
             FilterStatus.Text = "Native catalog saved. It will reopen automatically next launch.";
             _ = FilterAsync();
+            if (nativeWorkspaceRequested) _ = OpenNativeCollectionAsync();
         }
         catch (Exception)
         {
@@ -1116,16 +1117,30 @@ public partial class MainWindow : Window
             ModeStatus.Text = $"Private native workspace: {bundle.workspace.OriginalFileName} · " +
                 $"imported {bundle.workspace.ImportedAtUtc} · editable native collection with verified recovery";
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             if (!closing)
+            {
                 FilterStatus.Text =
                     "Native workspace verification failed. Data was NOT reset; preserve the file and use backup preview.";
+                if (nativeWorkspaceRequested)
+                    NativeWorkspaceHost.Content = new TextBlock
+                    {
+                        Text = "Collection could not be loaded safely: " + ex.Message +
+                               "\n\nYour original native data was not reset. Use backup recovery or import a verified backup.",
+                        Foreground = (System.Windows.Media.Brush)FindResource("VaultWarning"),
+                        Margin = new Thickness(22),
+                        TextWrapping = TextWrapping.Wrap
+                    };
+            }
         }
         finally
         {
-            if (generation == nativeWorkspaceGeneration)
-                nativeWorkspaceLoading = false;
+            bool invalidatedWhileLoading = generation != nativeWorkspaceGeneration;
+            nativeWorkspaceLoading = false;
+            if (!closing && invalidatedWhileLoading && nativeWorkspaceRequested &&
+                System.IO.File.Exists(NativeWorkspace.DefaultPath))
+                _ = OpenNativeCollectionAsync(); // new catalog/backup won the race
             if (!closing)
             {
                 OpenNativeButton.IsEnabled =
@@ -1272,6 +1287,7 @@ public partial class MainWindow : Window
             ModeStatus.Text = $"{loaded.TotalPrintings:N0} catalog printings in isolated snapshot · Prefix search · First 200 rows only · No live edits";
             SearchBox.Text = "";
             _ = FilterAsync();
+            if (nativeWorkspaceRequested) _ = OpenNativeCollectionAsync();
         }
         catch (Exception)
         {
@@ -1415,6 +1431,8 @@ public partial class MainWindow : Window
         catalogSnapshot = null;
         syntheticMode = true;
         previous?.Dispose();
+        nativeWorkspaceRequested = false; // demo is a catalog-only mode
+        UpdateWorkspaceNavigation();
         ModeStatus.Text = "Synthetic mode · No catalog file open. Nothing is imported, saved, or synced.";
         SearchBox.Text = "";
         _ = FilterAsync();
