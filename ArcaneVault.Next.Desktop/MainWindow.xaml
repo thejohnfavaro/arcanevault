@@ -285,6 +285,82 @@
                                  Background="{StaticResource VaultPanelRaised}"
                                  Foreground="{StaticResource VaultText}"
                                  BorderBrush="{StaticResource VaultLine}"/>
+                        <WrapPanel Margin="0,13,0,4">
+                            <StackPanel Margin="0,0,12,7">
+                                <TextBlock Text="SET CODE" Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <TextBox x:Name="SetFilterBox" Width="90" Height="30"
+                                         TextChanged="OnCatalogFilterChanged"
+                                         ToolTip="Exact set abbreviation (e.g. MH3, CMM)"
+                                         Padding="7,5" Background="{StaticResource VaultPanelRaised}"
+                                         Foreground="{StaticResource VaultText}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,7">
+                                <TextBlock Text="RARITY" Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <ComboBox x:Name="RarityFilterBox" Width="135" Height="30"
+                                          SelectedIndex="0"
+                                          SelectionChanged="OnCatalogFilterChanged"
+                                          Background="{StaticResource VaultPanelRaised}"
+                                          Foreground="{StaticResource VaultText}">
+                                    <ComboBoxItem Content="All rarities" Tag=""/>
+                                    <ComboBoxItem Content="Common" Tag="common"/>
+                                    <ComboBoxItem Content="Uncommon" Tag="uncommon"/>
+                                    <ComboBoxItem Content="Rare" Tag="rare"/>
+                                    <ComboBoxItem Content="Mythic" Tag="mythic"/>
+                                    <ComboBoxItem Content="Special" Tag="special"/>
+                                    <ComboBoxItem Content="Bonus" Tag="bonus"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,7">
+                                <TextBlock Text="TYPE CONTAINS" Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <TextBox x:Name="TypeFilterBox" Width="163" Height="30"
+                                         TextChanged="OnCatalogFilterChanged"
+                                         ToolTip="Filter oracle card type line: Creature, Enchantment, Wizard, etc."
+                                         Padding="7,5" Background="{StaticResource VaultPanelRaised}"
+                                         Foreground="{StaticResource VaultText}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="ArenaOnlyBox" Content="On Arena"
+                                      VerticalAlignment="Bottom" Margin="0,0,0,12"
+                                      Foreground="{StaticResource VaultText}"
+                                      Checked="OnCatalogFilterChanged"
+                                      Unchecked="OnCatalogFilterChanged"
+                                      ToolTip="Only printings flagged by Scryfall as available in MTG Arena"/>
+                        </WrapPanel>
+                        <WrapPanel VerticalAlignment="Center">
+                            <TextBlock Text="COLOR IDENTITY" Style="{StaticResource VaultEyebrow}"
+                                       VerticalAlignment="Center" Margin="0,0,11,6"/>
+                            <CheckBox x:Name="ColorWBox" Content="W" Margin="0,0,10,6"
+                                      Checked="OnCatalogFilterChanged"
+                                      Unchecked="OnCatalogFilterChanged"/>
+                            <CheckBox x:Name="ColorUBox" Content="U" Margin="0,0,10,6"
+                                      Checked="OnCatalogFilterChanged"
+                                      Unchecked="OnCatalogFilterChanged"/>
+                            <CheckBox x:Name="ColorBBox" Content="B" Margin="0,0,10,6"
+                                      Checked="OnCatalogFilterChanged"
+                                      Unchecked="OnCatalogFilterChanged"/>
+                            <CheckBox x:Name="ColorRBox" Content="R" Margin="0,0,10,6"
+                                      Checked="OnCatalogFilterChanged"
+                                      Unchecked="OnCatalogFilterChanged"/>
+                            <CheckBox x:Name="ColorGBox" Content="G" Margin="0,0,10,6"
+                                      Checked="OnCatalogFilterChanged"
+                                      Unchecked="OnCatalogFilterChanged"/>
+                            <CheckBox x:Name="ColorlessOnlyBox" Content="Colorless"
+                                      Margin="0,0,13,6"
+                                      Checked="OnCatalogFilterChanged"
+                                      Unchecked="OnCatalogFilterChanged"/>
+                            <ComboBox x:Name="ColorMatchBox" SelectedIndex="0"
+                                      SelectionChanged="OnCatalogFilterChanged"
+                                      Width="127" Height="28" Margin="0,0,0,6"
+                                      Background="{StaticResource VaultPanelRaised}"
+                                      Foreground="{StaticResource VaultText}"
+                                      ToolTip="Includes all: W+U shows Azorius and more colors; Exact: only WU">
+                                <ComboBoxItem Content="Contains all"/>
+                                <ComboBoxItem Content="Exact colors"/>
+                                <ComboBoxItem Content="Contains any"/>
+                            </ComboBox>
+                        </WrapPanel>
                     </StackPanel>
                     <StackPanel Grid.Column="1"
                                 VerticalAlignment="Center">
