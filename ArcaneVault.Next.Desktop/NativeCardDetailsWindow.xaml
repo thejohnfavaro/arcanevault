@@ -72,6 +72,18 @@
                             Foreground="{StaticResource VaultText}"
                             BorderBrush="{StaticResource VaultAccentBorder}"
                             ToolTip="Explore official Scryfall printings; choose saved display artwork without changing ownership"/>
+                    <Button x:Name="BookmarkCardButton"
+                            Content="☆  Bookmark in My Shortlist"
+                            Click="OnBookmarkClicked"
+                            Padding="11,9" Margin="3,9,3,0"
+                            Background="{StaticResource VaultPanelRaised}"
+                            Foreground="{StaticResource VaultText}"
+                            BorderBrush="{StaticResource VaultLine}"
+                            ToolTip="Save or remove this card name from your planning shortlist; never changes owned copies"/>
+                    <TextBlock x:Name="BookmarkStatus"
+                               Foreground="{StaticResource VaultMuted}"
+                               TextWrapping="Wrap" FontSize="11"
+                               Margin="4,5,4,0"/>
                 </StackPanel>
             </Border>
 
