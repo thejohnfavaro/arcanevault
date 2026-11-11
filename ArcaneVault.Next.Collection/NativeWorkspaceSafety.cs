@@ -365,6 +365,64 @@ public static class NativeWorkspaceSafety
     /// Add or update the exact native deck with optimistic SHA + selected
     /// deck fingerprint validation and a complete automatic rollback copy.
     /// </summary>
+    /// <summary>Read the legacy-compatible preference without writing a backup.</summary>
+    public static NativePrintingArtwork.Preferred? GetPreferredArtwork(
+        string nativePath, string cardName)
+    {
+        if (string.IsNullOrWhiteSpace(nativePath) || !File.Exists(nativePath))
+            return null;
+        // Reject corrupt workspace metadata before trusting preference URLs.
+        _ = NativeWorkspace.Open(nativePath);
+        return NativePrintingArtwork.ReadPreferred(ReadPreservedBackup(nativePath), cardName);
+    }
+
+    /// <summary>
+    /// Save exactly one card's preferred Scryfall printing. The ID/name/image
+    /// are revalidated against the current official read-only catalog at the
+    /// moment of the SHA-guarded write; the existing legacy JSON preference
+    /// shape and all other backed-up data are preserved with a full rollback.
+    /// </summary>
+    public static Replacement SavePreferredArtwork(string nativePath,
+        string catalogPath, string cardName, Guid printId,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(catalogPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var verified = NativePrintingArtwork.Require(catalogPath, cardName, printId);
+            byte[] changed = NativePrintingArtwork.Choose(
+                ReadPreservedBackup(path), verified);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, changed, "native-preferred-artwork",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
+    /// <summary>Clear only this card's preference, never the cached images or holdings.</summary>
+    public static Replacement ResetPreferredArtwork(string nativePath,
+        string cardName, string expectedCurrentBackupSha,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] changed = NativePrintingArtwork.Reset(
+                ReadPreservedBackup(path), cardName);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, changed, "native-preferred-artwork-reset",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static Replacement SaveDeck(string nativePath,
         string name, string commander, string mainboard,
         NativeDeckEditing.DeckRow? selected, string expectedCurrentBackupSha,
