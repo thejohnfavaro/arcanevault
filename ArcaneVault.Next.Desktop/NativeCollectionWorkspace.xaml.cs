@@ -18,6 +18,8 @@ public partial class NativeCollectionWorkspace : UserControl
     private readonly CollectionCatalogReview.Result review;
     private readonly string? catalogPath;
     private readonly NativeSetProgress.Result? progress;
+    private NativeSetProgress.Result? arenaProgress;
+    private bool arenaProgressLoading;
     private int setQueryVersion;
     private bool closing;
     private readonly string? nativePath;
@@ -328,14 +330,18 @@ public partial class NativeCollectionWorkspace : UserControl
 
     private void OnFilterChanged(object sender, RoutedEventArgs e) => RefreshLists();
 
+    private bool ArenaSetScope => SetScopeBox?.SelectedIndex == 1;
+
     private void RefreshSetList()
     {
         if (SetSummaryList is null || ShowEmptySets is null ||
             SetSearch is null || SetDetailsHeader is null || SetSlotsList is null) return;
 
+        bool arena = ArenaSetScope;
+        var active = arena ? arenaProgress : progress;
         string query = SetSearch.Text.Trim();
         bool includeEmpty = ShowEmptySets.IsChecked == true;
-        var items = (progress?.Sets ?? Array.Empty<NativeSetProgress.SetRow>())
+        var items = (active?.Sets ?? Array.Empty<NativeSetProgress.SetRow>())
             .Where(x => (includeEmpty || x.OwnedSlots > 0) &&
                 (query.Length == 0 ||
                  x.SetCode.Contains(query, StringComparison.OrdinalIgnoreCase) ||
@@ -345,46 +351,89 @@ public partial class NativeCollectionWorkspace : UserControl
         SetSummaryList.ItemsSource = items;
         SetSlotsList.ItemsSource = null;
 
-        if (progress is null)
-            SetDetailsHeader.Text = "Load the local Scryfall catalog snapshot before opening the backup to calculate Set Progress.";
+        if (active is null)
+            SetDetailsHeader.Text = arena && arenaProgressLoading
+                ? "Loading Arena-available card names from the local catalog…"
+                : "Load the local Scryfall catalog before viewing this collection scope.";
         else if (items.Length == 0)
-            SetDetailsHeader.Text = "No matching sets with verified owned collector slots. Choose 'Include sets with 0 verified slots' to inspect the catalog.";
+            SetDetailsHeader.Text = arena
+                ? "No matching Arena name coverage. Include sets with 0 names to browse Arena-available sets."
+                : "No matching sets with verified owned collector slots. Include sets with 0 verified slots to inspect the catalog.";
         else
-            SetDetailsHeader.Text = $"Showing {items.Length:N0} sets. Select a set to inspect its catalog collector-number checklist.";
+            SetDetailsHeader.Text = arena
+                ? $"Showing {items.Length:N0} Arena sets. This is CARD-NAME coverage, not ownership of specific Arena styles or set printings; reprinted names may appear in multiple sets."
+                : $"Showing {items.Length:N0} sets. Select a set to inspect its verified paper collector-number checklist.";
     }
 
     private void OnSetFilterChanged(object sender, RoutedEventArgs e) => RefreshSetList();
 
+    private async void OnSetScopeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SetScopeBox is null || SetSearch is null) return;
+        setQueryVersion++;
+        if (ArenaSetScope && arenaProgress is null && !arenaProgressLoading &&
+            !string.IsNullOrWhiteSpace(catalogPath))
+        {
+            arenaProgressLoading = true;
+            RefreshSetList();
+            try
+            {
+                var snapshot = await Task.Run(() =>
+                    NativeSetProgress.BuildArena(backup.ArenaCards, catalogPath));
+                if (closing) return;
+                arenaProgress = snapshot;
+            }
+            catch (Exception ex)
+            {
+                if (!closing)
+                    SetDetailsHeader.Text =
+                        "Arena coverage unavailable: " + ex.Message + ". Collection unchanged.";
+            }
+            finally
+            {
+                arenaProgressLoading = false;
+            }
+        }
+        if (!closing) RefreshSetList();
+    }
+
     private async void OnSetSelected(object sender, SelectionChangedEventArgs e)
     {
         if (SetSummaryList is null || SetSlotsList is null ||
-            SetDetailsHeader is null || progress is null ||
-            string.IsNullOrWhiteSpace(catalogPath)) return;
+            SetDetailsHeader is null || string.IsNullOrWhiteSpace(catalogPath)) return;
 
         int version = ++setQueryVersion;
         SetSlotsList.ItemsSource = null;
         if (SetSummaryList.SelectedItem is not NativeSetProgress.SetRow selected) return;
+        bool arena = selected.NameCoverage;
 
-        SetDetailsHeader.Text =
-            $"{selected.SetName} ({selected.SetCode}) · loading numbered paper catalog slots…";
+        SetDetailsHeader.Text = arena
+            ? $"{selected.SetName} ({selected.SetCode}) · loading Arena-available card names…"
+            : $"{selected.SetName} ({selected.SetCode}) · loading verified paper slots…";
         try
         {
-            var slots = await Task.Run(() =>
-                NativeSetProgress.LoadSetSlots(review, catalogPath, selected.SetCode));
+            var slots = await Task.Run(() => arena
+                ? NativeSetProgress.LoadArenaSetNames(
+                    backup.ArenaCards, catalogPath, selected.SetCode)
+                : NativeSetProgress.LoadSetSlots(review, catalogPath, selected.SetCode));
             if (closing || version != setQueryVersion) return;
             if (slots.Count != selected.TotalSlots)
-                throw new InvalidDataException("Set denominator differs from its collector-number checklist.");
+                throw new InvalidDataException("Set counts differ from the catalog checklist.");
             SetSlotsList.ItemsSource = slots;
-            SetDetailsHeader.Text =
-                $"{selected.SetName} · {selected.SlotsLabel} verified slots " +
-                $"({selected.PercentLabel}), {selected.VerifiedCopies:N0} physical copies · " +
-                "double-click a card for offline details.";
+            SetDetailsHeader.Text = arena
+                ? $"{selected.SetName} · {selected.SlotsLabel} ({selected.PercentLabel}). " +
+                  "Arena quantities are name-only: a match does not verify a style or printing. " +
+                  "Collector numbers below are catalog references, not ownership evidence."
+                : $"{selected.SetName} · {selected.SlotsLabel} verified slots " +
+                  $"({selected.PercentLabel}), {selected.VerifiedCopies:N0} physical copies · " +
+                  "double-click a card for offline details.";
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             if (!closing && version == setQueryVersion)
                 SetDetailsHeader.Text =
-                    "Unable to display this catalog set. Backup data remains unchanged.";
+                    "Unable to display this catalog set: " + ex.Message +
+                    ". Backup data remains unchanged.";
         }
     }
 
