@@ -109,7 +109,7 @@ internal static class NativeVisualShellChecks
              "Set Progress visualization must bind exact percentages and preserve virtualization.");
         // Image view virtualizes rows instead of constructing every image at once.
         Must(main.Contains("CatalogTileRowTemplate", StringComparison.Ordinal) &&
-             main.Contains("UniformGrid Rows=\\\"1\\\"", StringComparison.Ordinal) &&
+             main.Contains("UniformGrid Rows=\"1\"", StringComparison.Ordinal) &&
              main.Contains("OnCatalogTileMouseDown", StringComparison.Ordinal) &&
              main.Contains("OnCatalogListSizeChanged", StringComparison.Ordinal),
              "Responsive catalog tile grid controls or handlers are missing.");
