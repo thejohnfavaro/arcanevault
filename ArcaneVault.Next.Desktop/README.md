@@ -2,6 +2,17 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Native saved Deck Library editor — AVN-028
+
+From **Open native collection**, select the **Deck Library** tab. The native Windows app can now **create, edit, and delete saved decks** without opening the installed legacy application, connecting WebView2 or exporting a backup.
+
+- **New deck:** enter a name, optional Commander (for non-Commander formats leave blank), and a mainboard with one line per card like `1 Sol Ring` or `12 Island`. Paste the mainboard lines, not the `About / Commander / Deck` headers. Card names including split card `//` are preserved. Repeated names in one pasted list combine case-insensitively. This is **not** a deck-legality, color-identity, Arena-availability or owned-card verification tool yet.
+- **Edit selected deck:** uses the exact persisted row and optimistic workspace SHA to prevent stale saves. A prior version is appended to the deck's **existing revision history** before saving; earlier revisions, stable deck IDs, favorite flags, folder, tags, artwork cover, linked Arena ID, and unknown future fields remain intact. Prior per-card metadata is retained for cards whose names stay in the edited list.
+- **Delete selected deck:** explicitly asks for confirmation and removes only that deck from the active library. All its older revisions remain recoverable in the complete previous native SQLite workspace.
+- **Every successful save/delete** retains a uniquely named full native recovery file under `%LOCALAPPDATA%\\ArcaneVaultNext`. Use **Restore native recovery** on the main screen to undo a change. A no-op, unsupported legacy entry, stale selection or invalid input cannot silently overwrite existing data. Deck changes **never** change physical or Arena ownership, preferred art, or the Scryfall catalog.
+
+**Limitations:** This first native editor is designed for a plain mainboard + optional commander, supports up to 500 lines / 1,000 mainboard copies, and does not yet offer drag-and-drop editing, sideboards, format legality or color identity warnings, deck artwork, import of a complete Arena export including headers, or revision-by-revision restore UI. Older malformed entries remain visible but are deliberately read-only until safely repaired. The installed original app remains untouched; this is still a separate Windows preview awaiting real-device verification.
+
 ## Built-in Scryfall catalog download and refresh — AVN-027
 
 Use **Download / update Scryfall catalog** on the Arcane Vault Next main window. This feature requires an internet connection, but **does not require the old Arcane Vault application, an existing Scryfall database, a JSON backup, or WebView2**.
@@ -22,7 +33,7 @@ You can now create a native workspace using **Start fresh collection**, then man
 - **Arena Collection → Edit / remove selected Arena card:** select one exact row, change its name and/or absolute quantity, or set quantity to **0** to remove it. Imported duplicate Arena names cannot be silently combined; an exact selected row can still be edited.
 - **Every successful edit** uses a version-checked, staged SQLite replacement and preserves the *entire previous native workspace* in a separately named recovery file. Choose **Restore native recovery** in the main window to undo. A stale selection, invalid quantity, ambiguous duplicate, or failed validation is rejected without updating the collection.
 
-After an edit, the viewer reloads physical/Arena totals, Card Details and Set Progress from the saved native collection. Existing deck library, revisions, artwork choices, annotations, unknown backup keys, legacy app data, and local Scryfall catalog are preserved. Editing does **not** write to the old Windows app or sync to Android. **This is not yet a fully shipped replacement**: native deck editing, standalone Scryfall catalog downloading, scanning and updater/installer work remain to be completed.
+After an edit, the viewer reloads physical/Arena totals, Card Details and Set Progress from the saved native collection. Existing deck library, revisions, artwork choices, annotations, unknown backup keys, legacy app data, and local Scryfall catalog are preserved. Editing does **not** write to the old Windows app or sync to Android. **This is not yet a fully shipped replacement**: native deck editing and Scryfall catalog syncing are available in the separate preview, but scanning, signed updater/installer and full user-device validation remain outstanding.
 
 ## Start a completely fresh native collection — AVN-023
 
