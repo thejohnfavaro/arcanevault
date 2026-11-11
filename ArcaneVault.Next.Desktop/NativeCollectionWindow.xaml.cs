@@ -172,7 +172,7 @@ public partial class NativeCollectionWindow : Window
     private void OnDeckSelected(object sender, SelectionChangedEventArgs e)
     {
         if (DeckLibraryList is null || EditDeckButton is null ||
-            DeleteDeckButton is null) return;
+            DeleteDeckButton is null || DuplicateDeckButton is null) return;
         bool editable = DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow row &&
             row.Editable && !deckBusy &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
@@ -180,6 +180,7 @@ public partial class NativeCollectionWindow : Window
         DeleteDeckButton.IsEnabled = !deckBusy &&
             DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
+        DuplicateDeckButton.IsEnabled = DeleteDeckButton.IsEnabled;
         if (DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow selected &&
             !selected.Editable)
             DeckLibraryStatus.Text =
@@ -225,6 +226,65 @@ public partial class NativeCollectionWindow : Window
         if (reopenNative is not null) await reopenNative();
     }
 
+    private async void OnDuplicateDeckClicked(object sender, RoutedEventArgs e)
+    {
+        if (deckBusy || closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha) ||
+            DeckLibraryList.SelectedItem is not NativeDeckEditing.DeckRow selected)
+        {
+            DeckLibraryStatus.Text = "Select the exact saved deck to duplicate.";
+            return;
+        }
+        if (MessageBox.Show(this,
+            $"Duplicate saved deck \"{selected.Name}\"?\n\n" +
+            "The copy will have its own ID and keep the same card list and metadata, " +
+            "but start without revision history or an Arena sync link. " +
+            "Physical/Arena ownership will not change. The complete previous " +
+            "native database is retained as a recovery file.",
+            "Confirm saved-deck duplication",
+            MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            return;
+
+        deckBusy = true;
+        AddDeckButton.IsEnabled = false;
+        EditDeckButton.IsEnabled = false;
+        DeleteDeckButton.IsEnabled = false;
+        DuplicateDeckButton.IsEnabled = false;
+        DeckLibraryStatus.Text = "Cloning saved deck with verified native rollback…";
+        try
+        {
+            var created = await Task.Run(() =>
+                NativeWorkspaceSafety.DuplicateDeck(
+                    nativePath, selected, expectedBackupSha));
+            if (closing) return;
+            MessageBox.Show(this,
+                "Saved deck copied to an independent new deck entry.\n\n" +
+                "The complete prior native collection was saved at:\n" +
+                created.RecoveryPath,
+                "Deck copy verified", MessageBoxButton.OK, MessageBoxImage.Information);
+            Close();
+            if (reopenNative is not null) await reopenNative();
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+                DeckLibraryStatus.Text = "Unable to duplicate selected deck: " +
+                    ex.Message + ". No automatic data reset was performed.";
+        }
+        finally
+        {
+            deckBusy = false;
+            if (!closing)
+            {
+                AddDeckButton.IsEnabled = !string.IsNullOrWhiteSpace(expectedBackupSha);
+                var selectedDeck = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+                EditDeckButton.IsEnabled = selectedDeck?.Editable == true;
+                DeleteDeckButton.IsEnabled = selectedDeck is not null;
+                DuplicateDeckButton.IsEnabled = selectedDeck is not null;
+            }
+        }
+    }
+
     private async void OnDeleteDeckClicked(object sender, RoutedEventArgs e)
     {
         if (deckBusy || closing || string.IsNullOrWhiteSpace(nativePath) ||
@@ -248,6 +308,7 @@ public partial class NativeCollectionWindow : Window
         AddDeckButton.IsEnabled = false;
         EditDeckButton.IsEnabled = false;
         DeleteDeckButton.IsEnabled = false;
+        DuplicateDeckButton.IsEnabled = false;
         DeckLibraryStatus.Text = "Deleting selected native deck with verified rollback…";
         try
         {
@@ -276,6 +337,7 @@ public partial class NativeCollectionWindow : Window
                 var stillSelectedDeck = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
                 EditDeckButton.IsEnabled = stillSelectedDeck?.Editable == true;
                 DeleteDeckButton.IsEnabled = stillSelectedDeck is not null;
+                DuplicateDeckButton.IsEnabled = stillSelectedDeck is not null;
             }
         }
     }
