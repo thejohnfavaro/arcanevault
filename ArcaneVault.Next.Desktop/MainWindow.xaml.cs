@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     private CatalogSnapshot? catalogSnapshot;
     private CommanderBrowserWindow? edhLabWindow;
     private NativeCollectionWindow? collectionWindow;
+    private NativeDeckLibraryWindow? deckLibraryWindow;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
     private CancellationTokenSource? catalogSyncCancellation;
@@ -47,6 +48,7 @@ public partial class MainWindow : Window
             catalogSyncCancellation?.Cancel();
             edhLabWindow?.Close();
             collectionWindow?.Close();
+            deckLibraryWindow?.Close();
             CancelPendingSearch();
             catalogSnapshot?.Dispose();
         };
@@ -60,6 +62,7 @@ public partial class MainWindow : Window
     private async Task InitializeNativeAsync()
     {
         OpenNativeButton.IsEnabled = System.IO.File.Exists(NativeWorkspace.DefaultPath);
+        OpenDeckLibraryButton.IsEnabled = OpenNativeButton.IsEnabled;
         RestoreRecoveryButton.IsEnabled =
             NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
         ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
@@ -513,6 +516,8 @@ public partial class MainWindow : Window
 
             collectionWindow?.Close();
             collectionWindow = null;
+            deckLibraryWindow?.Close();
+            deckLibraryWindow = null;
             await OpenNativeCollectionAsync();
             if (closing) return;
 
@@ -559,6 +564,7 @@ public partial class MainWindow : Window
                 MigrateLegacyButton.IsEnabled = true;
                 ImportNativeButton.IsEnabled = !nativeExists;
                 OpenNativeButton.IsEnabled = nativeExists;
+                OpenDeckLibraryButton.IsEnabled = nativeExists;
                 RestoreRecoveryButton.IsEnabled =
                     NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
                 CollectionBackupButton.IsEnabled = true;
@@ -621,6 +627,8 @@ public partial class MainWindow : Window
             if (closing) return;
             collectionWindow?.Close();
             collectionWindow = null;
+            deckLibraryWindow?.Close();
+            deckLibraryWindow = null;
             await OpenNativeCollectionAsync();
             if (!closing)
                 MessageBox.Show(this,
@@ -695,10 +703,43 @@ public partial class MainWindow : Window
             {
                 OpenNativeButton.IsEnabled =
                     System.IO.File.Exists(NativeWorkspace.DefaultPath);
+                OpenDeckLibraryButton.IsEnabled = OpenNativeButton.IsEnabled;
                 ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
                 MigrateLegacyButton.IsEnabled = true;
             }
         }
+    }
+
+    private void OnOpenDeckLibraryClicked(object sender, RoutedEventArgs e)
+    {
+        if (deckLibraryWindow is not null)
+        {
+            deckLibraryWindow.Activate();
+            return;
+        }
+        if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Start a new native collection before using Deck Library.";
+            return;
+        }
+        var editor = new NativeDeckLibraryWindow(NativeWorkspace.DefaultPath, () =>
+        {
+            // A collection viewer already open has the prior native SHA.
+            // Close it so it cannot display or edit stale snapshot data.
+            collectionWindow?.Close();
+            collectionWindow = null;
+            RestoreRecoveryButton.IsEnabled =
+                NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
+            FilterStatus.Text = "Saved native deck changes. Previous collection retained for recovery.";
+        })
+        { Owner = this };
+        deckLibraryWindow = editor;
+        editor.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(deckLibraryWindow, editor))
+                deckLibraryWindow = null;
+        };
+        editor.Show();
     }
 
     private async void OnOpenNativeClicked(object sender, RoutedEventArgs e) =>

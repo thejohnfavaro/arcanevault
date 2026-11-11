@@ -42,6 +42,9 @@
             <Button x:Name="OpenNativeButton" Content="Open native collection"
                     Click="OnOpenNativeClicked" Padding="12,9" Margin="0,0,12,0"
                     IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+            <Button x:Name="OpenDeckLibraryButton" Content="Open deck library"
+                    Click="OnOpenDeckLibraryClicked" Padding="12,9" Margin="0,0,12,0"
+                    IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
             <Button x:Name="RestoreRecoveryButton" Content="Restore native recovery"
                     Click="OnRestoreRecoveryClicked" Padding="12,9" Margin="0,0,12,0"
                     IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
