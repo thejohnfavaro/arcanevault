@@ -437,7 +437,7 @@
                                         Height="196" Margin="6,6" ClipToBounds="True">
                                     <Grid ClipToBounds="True">
                                         <!-- Entire tile is an art banner; image cache only loads visible rows. -->
-                                        <local:NativeCardArtImage ArtUrl="{Binding ArtworkUrl}"
+                                        <local:NativeCardArtImage ArtUrl="{Binding BannerArtworkUrl}"
                                             Stretch="UniformToFill" DecodeWidth="600" Opacity="0.9"/>
                                         <Border>
                                             <Border.Background>
