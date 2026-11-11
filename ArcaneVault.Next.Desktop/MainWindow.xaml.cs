@@ -729,7 +729,8 @@ public partial class MainWindow : Window
                     workspace.Collection, activeCatalog?.ReadOnlySnapshotPath);
                 var progress = activeCatalog is null ? null :
                     NativeSetProgress.Build(verification, activeCatalog.ReadOnlySnapshotPath);
-                return (workspace, verification, progress);
+                var decks = NativeWorkspaceSafety.ListDecks(NativeWorkspace.DefaultPath);
+                return (workspace, verification, progress, decks);
             });
             if (closing || version != modeVersion ||
                 !ReferenceEquals(activeCatalog, catalogSnapshot)) return;
@@ -739,7 +740,8 @@ public partial class MainWindow : Window
                 bundle.progress, nativeWorkspace: true,
                 nativePath: bundle.workspace.DatabasePath,
                 expectedBackupSha: bundle.workspace.BackupSha256,
-                reopenNative: OpenNativeCollectionAsync)
+                reopenNative: OpenNativeCollectionAsync,
+                nativeDecks: bundle.decks)
             { Owner = this };
             collectionWindow = view;
             view.Closed += (_, _) =>
@@ -752,7 +754,7 @@ public partial class MainWindow : Window
                 $"Native collection: {bundle.workspace.Collection.PhysicalCopies:N0} physical + " +
                 $"{bundle.workspace.Collection.ArenaCopies:N0} Arena copies · restored from local SQLite";
             ModeStatus.Text = $"Private native workspace: {bundle.workspace.OriginalFileName} · " +
-                $"imported {bundle.workspace.ImportedAtUtc} · read-only / source preserved";
+                $"imported {bundle.workspace.ImportedAtUtc} · editable native collection with verified recovery";
         }
         catch (Exception)
         {
