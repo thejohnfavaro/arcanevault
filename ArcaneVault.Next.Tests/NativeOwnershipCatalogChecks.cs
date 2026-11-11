@@ -74,7 +74,7 @@ internal static class NativeOwnershipCatalogChecks
             "A missing catalog ID cannot be treated as a verified printing.");
         Must(ownership.ForPrinting(Fifth, "Zero Copies", "tst", "6").Arena == 0,
             "Zero Arena quantities cannot count as owned.");
-        Must(ownership.ForPrinting(First, "Sol Ring", "cmm", "396").Label.Contains("Physical 3"),
+        Must(ownership.ForPrinting(First, "Sol Ring", "cmm", "396").Label == "Arena 3 · Unresolved name 7",
             "Owned status label should summarize concrete positive quantities.");
 
         string catalogPath = Path.Combine(work, "catalog-ownership-filter.sqlite");
