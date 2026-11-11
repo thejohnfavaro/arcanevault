@@ -88,6 +88,45 @@ public partial class NativeDeckEditorWindow : Window
         RefreshDraftSummary();
     }
 
+    private async void OnAnalyzeDeckClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        IReadOnlyList<NativeDeckEditing.Entry> entries;
+        try
+        {
+            entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
+        {
+            AnalyticsText.Text = "Deck analytics unavailable: " + ex.Message;
+            return;
+        }
+        // Capture draft before awaiting: results describe exactly the analyzed text.
+        string commander = CommanderBox.Text;
+        string format = FormatBox.Text;
+        AnalyzeDeckButton.IsEnabled = false;
+        AnalyticsText.Text = "Analyzing offline Scryfall metadata…";
+        try
+        {
+            var report = await Task.Run(() => NativeDeckAnalytics.Analyze(
+                entries, commander, format, catalogPath));
+            AnalyticsText.Text = report.CoverageSummary + "\\n" +
+                report.Summary + "\\n" + report.CurveSummary + "\\n" +
+                report.ColorSummary;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            Microsoft.Data.Sqlite.SqliteException or IOException or
+            UnauthorizedAccessException or ArgumentException)
+        {
+            AnalyticsText.Text = "Analytics unavailable: " + ex.Message +
+                " (the deck and collection were not modified).";
+        }
+        finally
+        {
+            AnalyzeDeckButton.IsEnabled = true;
+        }
+    }
+
     private void OnOwnedCardDoubleClicked(object sender,
         System.Windows.Input.MouseButtonEventArgs e) => AddSelectedOwnedCard();
 
