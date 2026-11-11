@@ -21,12 +21,15 @@ public partial class NativeCollectionWindow : Window
     private readonly string? nativePath;
     private readonly string? expectedBackupSha;
     private readonly Func<Task>? reopenNative;
+    private readonly IReadOnlyList<NativeDeckEditing.DeckRow> deckRows;
+    private bool deckBusy;
 
     public NativeCollectionWindow(NativeBackupView backup,
         CollectionCatalogReview.Result review, string? catalogPath,
         NativeSetProgress.Result? progress, bool nativeWorkspace = false,
         string? nativePath = null, string? expectedBackupSha = null,
-        Func<Task>? reopenNative = null)
+        Func<Task>? reopenNative = null,
+        IReadOnlyList<NativeDeckEditing.DeckRow>? nativeDecks = null)
     {
         this.backup = backup ?? throw new ArgumentNullException(nameof(backup));
         this.review = review ?? throw new ArgumentNullException(nameof(review));
@@ -35,7 +38,16 @@ public partial class NativeCollectionWindow : Window
         this.nativePath = nativePath;
         this.expectedBackupSha = expectedBackupSha;
         this.reopenNative = reopenNative;
+        deckRows = nativeDecks ?? Array.Empty<NativeDeckEditing.DeckRow>();
         InitializeComponent();
+        DeckLibraryList.ItemsSource = deckRows;
+        AddDeckButton.IsEnabled = nativeWorkspace &&
+            !string.IsNullOrWhiteSpace(nativePath) &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha);
+        DeckLibraryStatus.Text = nativeWorkspace
+            ? $"Saved decks: {deckRows.Count:N0}. Select a deck to edit or delete. " +
+              "Saved deck cards do not change ownership; no format legality is implied."
+            : "Read-only backup preview: create or open a native workspace to edit its saved decks.";
         AddPhysicalButton.IsEnabled = nativeWorkspace &&
             !string.IsNullOrWhiteSpace(nativePath) &&
             !string.IsNullOrWhiteSpace(expectedBackupSha) &&
@@ -51,7 +63,7 @@ public partial class NativeCollectionWindow : Window
         {
             Title = "Arcane Vault Next — Native Collection";
             DataSourceLabel.Text =
-                "Native SQLite — physical and Arena ownership changes each retain a complete recovery point; decks are read-only";
+                "Native SQLite — physical, Arena and saved-deck edits each preserve a complete rollback";
         }
         Closed += (_, _) => { closing = true; setQueryVersion++; };
         TotalsText.Text =
@@ -154,6 +166,117 @@ public partial class NativeCollectionWindow : Window
             if (!closing && version == setQueryVersion)
                 SetDetailsHeader.Text =
                     "Unable to display this catalog set. Backup data remains unchanged.";
+        }
+    }
+
+    private void OnDeckSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (DeckLibraryList is null || EditDeckButton is null ||
+            DeleteDeckButton is null) return;
+        bool editable = DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow row &&
+            row.Editable && !deckBusy &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha);
+        EditDeckButton.IsEnabled = editable;
+        DeleteDeckButton.IsEnabled = !deckBusy &&
+            DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha);
+        if (DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow selected &&
+            !selected.Editable)
+            DeckLibraryStatus.Text =
+                "This imported deck contains unsupported or ambiguous entries. " +
+                "It is shown read-only; you may delete it with recovery protection, " +
+                "but cannot edit it until its entries are repaired.";
+    }
+
+    private async void OnAddDeckClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha))
+        {
+            DeckLibraryStatus.Text = "Create a native collection before saving a deck.";
+            return;
+        }
+        var dialog = new NativeDeckEditorWindow(nativePath, expectedBackupSha)
+        { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        Close();
+        if (reopenNative is not null) await reopenNative();
+    }
+
+    private async void OnEditDeckClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha) ||
+            DeckLibraryList.SelectedItem is not NativeDeckEditing.DeckRow selected)
+        {
+            DeckLibraryStatus.Text = "Select a saved native deck first.";
+            return;
+        }
+        if (!selected.Editable)
+        {
+            DeckLibraryStatus.Text = "This imported deck contains unsupported entries; " +
+                "editing is blocked to prevent data loss.";
+            return;
+        }
+        var dialog = new NativeDeckEditorWindow(
+            nativePath, expectedBackupSha, selected) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        Close();
+        if (reopenNative is not null) await reopenNative();
+    }
+
+    private async void OnDeleteDeckClicked(object sender, RoutedEventArgs e)
+    {
+        if (deckBusy || closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha) ||
+            DeckLibraryList.SelectedItem is not NativeDeckEditing.DeckRow selected)
+        {
+            DeckLibraryStatus.Text = "Select a saved native deck first.";
+            return;
+        }
+        if (MessageBox.Show(this,
+            $"Delete saved deck \"{selected.Name}\" and its {selected.Revisions:N0} " +
+            "revision(s) from the ACTIVE native library?\n\n" +
+            "This does not remove physical or Arena cards. The complete previous " +
+            "native workspace, including the deleted deck and all its revisions, " +
+            "will be saved as a recovery point.",
+            "Confirm selected deck deletion",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
+
+        deckBusy = true;
+        AddDeckButton.IsEnabled = false;
+        EditDeckButton.IsEnabled = false;
+        DeleteDeckButton.IsEnabled = false;
+        DeckLibraryStatus.Text = "Deleting selected native deck with verified rollback…";
+        try
+        {
+            var updated = await Task.Run(() => NativeWorkspaceSafety.DeleteDeck(
+                nativePath, selected, expectedBackupSha));
+            if (closing) return;
+            MessageBox.Show(this, "Deck deleted from the active native library.\n\n" +
+                "The complete prior collection was saved at:\n" + updated.RecoveryPath,
+                "Deck deletion verified", MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            Close();
+            if (reopenNative is not null) await reopenNative();
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+                DeckLibraryStatus.Text = "Deck deletion failed or could not be verified. " +
+                    "Existing collection data was not intentionally reset. " + ex.Message;
+        }
+        finally
+        {
+            deckBusy = false;
+            if (!closing)
+            {
+                AddDeckButton.IsEnabled = !string.IsNullOrWhiteSpace(expectedBackupSha);
+                var stillSelectedDeck = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+                EditDeckButton.IsEnabled = stillSelectedDeck?.Editable == true;
+                DeleteDeckButton.IsEnabled = stillSelectedDeck is not null;
+            }
         }
     }
 
@@ -293,7 +416,7 @@ public partial class NativeCollectionWindow : Window
             name = arena.Name;
             ownership = $"Arena: {arena.Quantity} copies · name-only ownership, not set-verified";
         }
-        else if (CollectionTabs.SelectedIndex == 2 &&
+        else if (CollectionTabs.SelectedIndex == 3 &&
                  SetSlotsList.SelectedItem is NativeSetProgress.SetSlot slot)
         {
             name = slot.CardName;

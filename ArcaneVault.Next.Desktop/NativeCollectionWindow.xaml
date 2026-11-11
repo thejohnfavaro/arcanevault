@@ -13,7 +13,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
-            <TextBlock Text="Physical &amp; Arena Collection" FontSize="26" FontWeight="SemiBold"/>
+            <TextBlock Text="Physical, Arena &amp; Deck Library" FontSize="26" FontWeight="SemiBold"/>
             <TextBlock x:Name="DataSourceLabel" Text="Read-only exported backup preview — not an import"
                        Foreground="#B4C8D8" Margin="0,5,0,0"/>
         </StackPanel>
@@ -94,6 +94,59 @@
                         </GridView>
                     </ListView.View>
                 </ListView>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Deck Library">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <WrapPanel Grid.Row="0" Margin="0,0,0,12">
+                        <Button x:Name="AddDeckButton" Content="New deck"
+                                Click="OnAddDeckClicked" Padding="14,8"
+                                IsEnabled="False" Margin="0,0,10,0"
+                                Background="#9A4E2D" Foreground="White"
+                                BorderBrush="#B97650"/>
+                        <Button x:Name="EditDeckButton" Content="Edit selected deck"
+                                Click="OnEditDeckClicked" Padding="14,8"
+                                IsEnabled="False" Margin="0,0,10,0"
+                                Background="#283F55" Foreground="White"
+                                BorderBrush="#65778B"/>
+                        <Button x:Name="DeleteDeckButton" Content="Delete selected deck"
+                                Click="OnDeleteDeckClicked" Padding="14,8"
+                                IsEnabled="False" Margin="0,0,10,0"
+                                Background="#60394A" Foreground="White"
+                                BorderBrush="#966274"/>
+                    </WrapPanel>
+                    <ListView Grid.Row="1" x:Name="DeckLibraryList"
+                              SelectionChanged="OnDeckSelected"
+                              Background="#172231" Foreground="#EAF0F6"
+                              VirtualizingStackPanel.IsVirtualizing="True"
+                              VirtualizingStackPanel.VirtualizationMode="Recycling"
+                              ScrollViewer.CanContentScroll="True">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Deck" Width="240"
+                                                DisplayMemberBinding="{Binding Name}"/>
+                                <GridViewColumn Header="Commander" Width="230"
+                                                DisplayMemberBinding="{Binding Commander}"/>
+                                <GridViewColumn Header="Folder" Width="120"
+                                                DisplayMemberBinding="{Binding Folder}"/>
+                                <GridViewColumn Header="Card names" Width="92"
+                                                DisplayMemberBinding="{Binding EntryCount}"/>
+                                <GridViewColumn Header="Copies" Width="68"
+                                                DisplayMemberBinding="{Binding TotalCopies}"/>
+                                <GridViewColumn Header="Revisions" Width="80"
+                                                DisplayMemberBinding="{Binding Revisions}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                    <TextBlock Grid.Row="2" x:Name="DeckLibraryStatus"
+                               Foreground="#B7CBDC" TextWrapping="Wrap"
+                               Margin="0,11,0,0"
+                               Text="Saved decks are distinct from ownership. Format legality is not yet validated."/>
                 </Grid>
             </TabItem>
             <TabItem Header="Set Progress">

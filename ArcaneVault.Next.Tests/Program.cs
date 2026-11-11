@@ -144,6 +144,7 @@ try
     NativePhysicalQuantityChecks.Run(work);
     NativeArenaEditingChecks.Run(work);
     await NativeScryfallCatalogSyncChecks.RunAsync(work);
+    NativeDeckEditingChecks.Run(work);
     LegacyStorageImportChecks.Run(work);
     CollectionCatalogReviewChecks.Run(work);
     NativeSetProgressChecks.Run(work);

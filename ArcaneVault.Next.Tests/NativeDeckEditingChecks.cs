@@ -1,0 +1,231 @@
+using ArcaneVault.Next.Collection;
+using Microsoft.Data.Sqlite;
+using System.Security.Cryptography;
+using System.Text.Json;
+
+internal static class NativeDeckEditingChecks
+{
+    private static void Must(bool value, string reason)
+    {
+        if (!value) throw new InvalidOperationException("Native saved deck editor: " + reason);
+    }
+
+    private static void Reject(Action action)
+    {
+        try { action(); }
+        catch (InvalidDataException) { return; }
+        catch (ArgumentException) { return; }
+        throw new InvalidOperationException("Native saved deck editor accepted an invalid change.");
+    }
+
+    private static byte[] Source() => JsonSerializer.SerializeToUtf8Bytes(new
+    {
+        schema = 2,
+        cards = new object[]
+        {
+            new { name = "Arena Card", qty = 4, note = "Owned unchanged" }
+        },
+        physicalCards = new object[]
+        {
+            new { name = "Sol Ring", qty = 2, set = "TST", number = "21",
+                scryfallId = "00000000-0000-4000-8000-000000000771",
+                finish = "foil", location = "Deckbox A" },
+            new { name = "Unresolved", qty = 1, set = "", number = "",
+                scryfallId = "", finish = "nonfoil" }
+        },
+        deckLibrary = new object[]
+        {
+            new {
+                id = "deck_legacy_1", name = "Legacy Commander",
+                commander = "Test Commander",
+                entries = new object[]
+                {
+                    new { name = "Sol Ring", qty = 1, role = "mana rock" },
+                    new { name = "Island", qty = 12 },
+                    new { name = "Split // Back", qty = 1 }
+                },
+                updated = "2026-11-01T00:00:00Z",
+                favorite = true,
+                folder = "EDH",
+                tags = new[] { "blue", "casual" },
+                coverCard = "Sol Ring",
+                arenaDeckId = "arena-special-identifier",
+                unknownFuture = new { nested = new[] { 4, 2 } },
+                revisions = new object[]
+                {
+                    new {
+                        name = "Earlier",
+                        commander = "Test Commander",
+                        entries = new[] { new { name = "Island", qty = 12 } },
+                        savedAt = "2026-10-01T00:00:00Z",
+                        label = "Original history"
+                    }
+                }
+            },
+            new { id = "deck_legacy_2", name = "Second Deck",
+                commander = "Other Commander",
+                entries = new [] { new { name = "Forest", qty = 20 } },
+                revisions = Array.Empty<object>(), favorite = false }
+        },
+        preferredArtwork = new { selected = new { image = "test-art.png" } },
+        favorites = new[] { "Sol Ring" },
+        collectionHistory = new[] { new { action = "Import" } },
+        legacyStorage = new { secretField = "Do not change" }
+    });
+
+    public static void Run(string work)
+    {
+        string path = Path.Combine(work, "native-saved-deck-editor.sqlite");
+        string exportPath = Path.Combine(work, "deck-fixture-original.json");
+        byte[] source = Source();
+        File.WriteAllBytes(exportPath, source);
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(exportPath));
+
+        var initial = NativeWorkspace.ImportNewBytes(source, "full-deck-fixture", path);
+        var list = NativeWorkspaceSafety.ListDecks(path);
+        Must(list.Count == 2 && list[0].Name == "Legacy Commander" &&
+             list[0].Commander == "Test Commander" &&
+             list[0].TotalCopies == 14 && list[0].EntryCount == 3 &&
+             list[0].Revisions == 1 && list[0].Folder == "EDH" &&
+             list[0].Editable && list[1].Editable,
+             "Existing deck library metadata did not survive reading the native workspace.");
+
+        var mainboard = NativeDeckEditing.ParseMainboard(
+            "1 Sol Ring\n11 Island\n2 island\n1 Split // Back\n");
+        Must(mainboard.Count == 3 && mainboard[1].Quantity == 13 &&
+             mainboard[2].Name == "Split // Back",
+             "Duplicate case-insensitive land lines or split card names were parsed incorrectly.");
+
+        Reject(() => NativeDeckEditing.ParseMainboard("Sol Ring"));
+        Reject(() => NativeDeckEditing.ParseMainboard("0 Island"));
+        Reject(() => NativeDeckEditing.ParseMainboard("251 Forest"));
+        Reject(() => NativeDeckEditing.ParseMainboard("1 \n"));
+        Reject(() => NativeDeckEditing.ParseMainboard(
+            string.Join("\n", Enumerable.Repeat("2 Plains", 501))));
+
+        var updated = NativeWorkspaceSafety.SaveDeck(path,
+            "Legacy Commander Revised", "Test Commander",
+            "1 Sol Ring\n13 Island\n1 Split // Back\n1 Counterspell",
+            list[0], initial.BackupSha256);
+        Must(updated.Current.Collection.Decks == 2 &&
+             updated.Current.Collection.DeckRevisions == 2 &&
+             updated.Current.Collection.PhysicalCopies == 3 &&
+             updated.Current.Collection.ArenaCopies == 4 &&
+             updated.Current.Collection.PreferredArtworks == 1,
+             "Deck update changed unrelated sections or failed to append a revision.");
+        var afterUpdate = NativeWorkspaceSafety.ListDecks(path);
+        Must(afterUpdate[0].Name == "Legacy Commander Revised" &&
+             afterUpdate[0].TotalCopies == 16 &&
+             afterUpdate[0].EntryCount == 4 &&
+             afterUpdate[0].Revisions == 2 &&
+             afterUpdate[1].Name == "Second Deck",
+             "Deck update did not preserve other saved decks or its card list.");
+
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = path, Mode = SqliteOpenMode.ReadOnly,
+                 Pooling = false }.ToString()))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT backup FROM manifest WHERE id=1";
+            using var json = JsonDocument.Parse((byte[])cmd.ExecuteScalar()!);
+            var root = json.RootElement;
+            var deck = root.GetProperty("deckLibrary")[0];
+            Must(deck.GetProperty("id").GetString() == "deck_legacy_1" &&
+                 deck.GetProperty("favorite").GetBoolean() &&
+                 deck.GetProperty("folder").GetString() == "EDH" &&
+                 deck.GetProperty("tags").GetArrayLength() == 2 &&
+                 deck.GetProperty("arenaDeckId").GetString() == "arena-special-identifier" &&
+                 deck.GetProperty("unknownFuture").GetProperty("nested")[1].GetInt32() == 2 &&
+                 deck.GetProperty("entries")[0].GetProperty("role").GetString() == "mana rock" &&
+                 deck.GetProperty("revisions")[0].GetProperty("label").GetString() == "Original history" &&
+                 deck.GetProperty("revisions")[1].GetProperty("name").GetString() == "Legacy Commander" &&
+                 root.GetProperty("legacyStorage").GetProperty("secretField").GetString() == "Do not change" &&
+                 root.GetProperty("physicalCards")[0].GetProperty("location").GetString() == "Deckbox A" &&
+                 root.GetProperty("cards")[0].GetProperty("note").GetString() == "Owned unchanged",
+                 "Deck update discarded legacy metadata, earlier revisions, unknown fields or card annotations.");
+        }
+
+        int priorRollbackCount = NativeWorkspaceSafety.RecoveryPaths(path).Count;
+        byte[] nativeHash = SHA256.HashData(File.ReadAllBytes(path));
+        Reject(() => NativeWorkspaceSafety.SaveDeck(path,
+            "Legacy Commander Revised", "Test Commander",
+            "1 Sol Ring\n13 Island\n1 Split // Back\n1 Counterspell",
+            afterUpdate[0], updated.Current.BackupSha256));
+        Reject(() => NativeWorkspaceSafety.SaveDeck(path,
+            "Incorrect stale deck", "Test Commander", "1 Sol Ring",
+            list[0], updated.Current.BackupSha256));
+        Reject(() => NativeWorkspaceSafety.SaveDeck(path,
+            "Another name", "", "1 Island", afterUpdate[0], initial.BackupSha256));
+        Must(nativeHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(path))) &&
+             NativeWorkspaceSafety.RecoveryPaths(path).Count == priorRollbackCount,
+             "No-op/stale deck edits changed native collection or added unnecessary rollback.");
+
+        var added = NativeWorkspaceSafety.SaveDeck(path,
+            "Fresh Modern Deck", "", "4 Llanowar Elves\n2 Forest",
+            null, updated.Current.BackupSha256);
+        var afterAdd = NativeWorkspaceSafety.ListDecks(path);
+        Must(added.Current.Collection.Decks == 3 &&
+             added.Current.Collection.DeckRevisions == 2 &&
+             afterAdd.Count == 3 &&
+             afterAdd[2].Name == "Fresh Modern Deck" &&
+             afterAdd[2].Commander == "" &&
+             afterAdd[2].TotalCopies == 6 &&
+             afterAdd[2].Id.StartsWith("deck_native_", StringComparison.Ordinal) &&
+             afterAdd[2].Revisions == 0,
+             "New commander-optional saved deck did not get stable ID and correct card counts.");
+
+        var deleted = NativeWorkspaceSafety.DeleteDeck(path,
+            afterAdd[0], added.Current.BackupSha256);
+        var afterDelete = NativeWorkspaceSafety.ListDecks(path);
+        Must(deleted.Current.Collection.Decks == 2 &&
+             deleted.Current.Collection.DeckRevisions == 0 &&
+             afterDelete.Count == 2 &&
+             afterDelete[0].Name == "Second Deck" &&
+             afterDelete[1].Name == "Fresh Modern Deck" &&
+             NativeWorkspace.Open(deleted.RecoveryPath).Collection.DeckRevisions == 2,
+             "Delete failed to remove the selected deck and its revisions while preserving recovery.");
+
+        var restored = NativeWorkspaceSafety.Restore(path,
+            updated.RecoveryPath, deleted.Current.BackupSha256);
+        var recoveryRows = NativeWorkspaceSafety.ListDecks(path);
+        Must(restored.Current.BackupSha256 == initial.BackupSha256 &&
+             recoveryRows.Count == 2 &&
+             recoveryRows[0].Name == "Legacy Commander" &&
+             recoveryRows[0].Revisions == 1 &&
+             recoveryRows[0].TotalCopies == 14 &&
+             restored.Current.Collection.PhysicalCopies == 3 &&
+             restored.Current.Collection.ArenaCopies == 4 &&
+             sourceHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(exportPath))) &&
+             File.Exists(restored.RecoveryPath),
+             "Native deck save/delete recovery did not restore the full original deck library.");
+
+        // Unknown/unsupported imported deck entry payloads must not be
+        // rewritten or silently normalized during an edit.
+        byte[] malformed = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schema = 2,
+            cards = Array.Empty<object>(),
+            physicalCards = Array.Empty<object>(),
+            deckLibrary = new object[]
+            {
+                new { id = "legacy-weird", name = "Legacy unknown entries",
+                    commander = "Any", entries = new object[]
+                    { new { name = "Example", qty = "unknown", future = "preserve" } },
+                    revisions = new[] { new { label = "original" } }
+                }
+            },
+            preferredArtwork = new { }
+        });
+        string weird = Path.Combine(work, "native-deck-unsupported.sqlite");
+        var unusual = NativeWorkspace.ImportNewBytes(malformed, "unsupported-old", weird);
+        var weirdDeck = NativeWorkspaceSafety.ListDecks(weird)[0];
+        Must(!weirdDeck.Editable && weirdDeck.Revisions == 1,
+            "Unsupported legacy deck list should display but prohibit rewriting.");
+        Reject(() => NativeWorkspaceSafety.SaveDeck(weird,
+            "Rename unsafe row", "Any", "1 Example",
+            weirdDeck, unusual.BackupSha256));
+
+        Console.WriteLine("PASS: native deck read/create/edit/delete, commander-optional lists, per-deck revisions, unknown metadata conservation, stale/no-op rejection, SQLite rollback and original restore");
+    }
+}
