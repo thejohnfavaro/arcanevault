@@ -100,9 +100,14 @@ try {
     New-Item -ItemType Directory -Path $toolsFolder -Force | Out-Null
     Copy-Item 'tools/NativeWindowsAcceptance.ps1' (Join-Path $toolsFolder 'NativeWindowsAcceptance.ps1')
 
-    @{ version = $version; sourceSha = $sha; channel = 'preview' } |
-        ConvertTo-Json -Compress |
-        Set-Content (Join-Path $publish 'native-version.json') -Encoding UTF8
+    # Windows PowerShell 5.1's "Set-Content -Encoding UTF8" emits an
+    # EF BB BF BOM, which older native updater builds reject as JSON.
+    # Write UTF-8 without a BOM on all supported PowerShell versions.
+    $manifestPath = Join-Path $publish 'native-version.json'
+    $manifestJson = @{ version = $version; sourceSha = $sha; channel = 'preview' } |
+        ConvertTo-Json -Compress
+    [System.IO.File]::WriteAllText($manifestPath, $manifestJson,
+        ([System.Text.UTF8Encoding]::new($false)))
 
     $zip = Join-Path $package 'ArcaneVaultNative-win-x64.zip'
     Compress-Archive -Path (Join-Path $publish '*') -DestinationPath $zip -CompressionLevel Optimal
@@ -117,6 +122,14 @@ try {
         if (-not (Test-Path (Join-Path $verifyDir $file))) {
             throw "Archive does not contain $file"
         }
+    }
+    # Verify raw bytes too: ConvertFrom-Json tolerates a BOM, but older
+    # native updater versions do not.
+    $manifestRaw = [System.IO.File]::ReadAllBytes((Join-Path $verifyDir 'native-version.json'))
+    if ($manifestRaw.Length -ge 3 -and
+        $manifestRaw[0] -eq 0xEF -and $manifestRaw[1] -eq 0xBB -and
+        $manifestRaw[2] -eq 0xBF) {
+        throw 'Native update JSON unexpectedly contains UTF-8 BOM.'
     }
     $manifest = Get-Content -Raw (Join-Path $verifyDir 'native-version.json') | ConvertFrom-Json
     if ($manifest.version -ne $version -or $manifest.sourceSha -ne $sha -or

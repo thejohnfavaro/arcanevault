@@ -240,7 +240,16 @@ public static class NativeUpdateService
         string file = Path.Combine(stage, ManifestName);
         if (!File.Exists(file) || new FileInfo(file).Length > 4096)
             throw new InvalidDataException("Native update version manifest is missing or oversized.");
-        using var manifest = JsonDocument.Parse(File.ReadAllBytes(file));
+        // Windows PowerShell 5.1's -Encoding UTF8 writes EF BB BF. Some
+        // previously published preview packages contain that UTF-8 BOM.
+        // The strict JSON byte parser rejects it, though the JSON is valid.
+        // Skip only the standard UTF-8 BOM; retain all identity checks.
+        byte[] manifestBytes = File.ReadAllBytes(file);
+        ReadOnlyMemory<byte> jsonBytes = manifestBytes;
+        if (manifestBytes.Length >= 3 && manifestBytes[0] == 0xEF &&
+            manifestBytes[1] == 0xBB && manifestBytes[2] == 0xBF)
+            jsonBytes = manifestBytes.AsMemory(3);
+        using var manifest = JsonDocument.Parse(jsonBytes);
         var root = manifest.RootElement;
         if (root.ValueKind != JsonValueKind.Object ||
             !root.TryGetProperty("version", out var v) ||
