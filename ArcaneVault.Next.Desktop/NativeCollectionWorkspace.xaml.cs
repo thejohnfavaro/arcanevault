@@ -20,6 +20,9 @@ public partial class NativeCollectionWorkspace : UserControl
     private readonly NativeSetProgress.Result? progress;
     private NativeSetProgress.Result? arenaProgress;
     private bool arenaProgressLoading;
+    private sealed record SetTileRow(IReadOnlyList<NativeSetProgress.SetRow> Cards);
+    private NativeSetProgress.SetRow? selectedSetRow;
+    private int setColumns;
     private int setQueryVersion;
     private bool closing;
     private readonly string? nativePath;
@@ -332,7 +335,7 @@ public partial class NativeCollectionWorkspace : UserControl
 
     private bool ArenaSetScope => SetScopeBox?.SelectedIndex == 1;
 
-    private void RefreshSetList()
+    private void RefreshSetList(bool preserveDetails = false)
     {
         if (SetSummaryList is null || ShowEmptySets is null ||
             SetSearch is null || SetDetailsHeader is null || SetSlotsList is null) return;
@@ -347,9 +350,16 @@ public partial class NativeCollectionWorkspace : UserControl
                  x.SetCode.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                  x.SetName.Contains(query, StringComparison.OrdinalIgnoreCase)))
             .ToArray();
-        setQueryVersion++;
-        SetSummaryList.ItemsSource = items;
-        SetSlotsList.ItemsSource = null;
+        if (!preserveDetails)
+        {
+            setQueryVersion++;
+            selectedSetRow = null;
+            SetSlotsList.ItemsSource = null;
+        }
+        int cols = SetColumnsForWidth(SetSummaryList.ActualWidth);
+        setColumns = cols;
+        SetSummaryList.ItemsSource = items.Chunk(cols)
+            .Select(group => new SetTileRow(group)).ToArray();
 
         if (active is null)
             SetDetailsHeader.Text = arena && arenaProgressLoading
@@ -363,6 +373,25 @@ public partial class NativeCollectionWorkspace : UserControl
             SetDetailsHeader.Text = arena
                 ? $"Showing {items.Length:N0} Arena sets. This is CARD-NAME coverage, not ownership of specific Arena styles or set printings; reprinted names may appear in multiple sets."
                 : $"Showing {items.Length:N0} sets. Select a set to inspect its verified paper collector-number checklist.";
+    }
+
+    private static int SetColumnsForWidth(double width) =>
+        width >= 1240 ? 3 : width >= 760 ? 2 : 1;
+
+    private void OnSetSummarySizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (SetSummaryList is null || SetSearch is null) return;
+        int columns = SetColumnsForWidth(SetSummaryList.ActualWidth);
+        if (columns != setColumns) RefreshSetList(preserveDetails: true);
+    }
+
+    private async void OnSetTileClicked(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement
+            { DataContext: NativeSetProgress.SetRow selected }) return;
+        e.Handled = true;
+        selectedSetRow = selected;
+        await LoadSetDetailsAsync(selected);
     }
 
     private void OnSetFilterChanged(object sender, RoutedEventArgs e) => RefreshSetList();
@@ -397,14 +426,13 @@ public partial class NativeCollectionWorkspace : UserControl
         if (!closing) RefreshSetList();
     }
 
-    private async void OnSetSelected(object sender, SelectionChangedEventArgs e)
+    private async Task LoadSetDetailsAsync(NativeSetProgress.SetRow selected)
     {
-        if (SetSummaryList is null || SetSlotsList is null ||
-            SetDetailsHeader is null || string.IsNullOrWhiteSpace(catalogPath)) return;
+        if (SetSlotsList is null || SetDetailsHeader is null ||
+            string.IsNullOrWhiteSpace(catalogPath)) return;
 
         int version = ++setQueryVersion;
         SetSlotsList.ItemsSource = null;
-        if (SetSummaryList.SelectedItem is not NativeSetProgress.SetRow selected) return;
         bool arena = selected.NameCoverage;
 
         SetDetailsHeader.Text = arena
