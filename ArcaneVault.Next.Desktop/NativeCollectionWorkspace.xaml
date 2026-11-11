@@ -384,7 +384,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="3*"/>
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                    <WrapPanel Grid.Row="0" Margin="0,0,0,9">
                         <TextBlock Text="COLLECTION" VerticalAlignment="Center" Margin="0,0,8,0"
                                    Foreground="{StaticResource VaultMuted}"/>
                         <ComboBox x:Name="SetScopeBox" Width="230" Height="38"
@@ -400,10 +400,10 @@
                         <TextBox x:Name="SetSearch" Width="220" Padding="8,5"
                                  Background="{StaticResource VaultPanelRaised}" Foreground="White" BorderBrush="{StaticResource VaultLine}"
                                  TextChanged="OnSetFilterChanged" Margin="0,0,18,0"/>
-                        <CheckBox x:Name="ShowEmptySets" Content="Include sets with 0 verified slots"
+                        <CheckBox x:Name="ShowEmptySets" Content="Include sets with no progress"
                                   IsChecked="False" VerticalAlignment="Center"
                                   Checked="OnSetFilterChanged" Unchecked="OnSetFilterChanged"/>
-                    </StackPanel>
+                    </WrapPanel>
                     <ListView Grid.Row="1" x:Name="SetSummaryList"
                               SizeChanged="OnSetSummarySizeChanged"
                               Background="{StaticResource VaultPanel}"
