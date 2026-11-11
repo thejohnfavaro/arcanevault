@@ -140,8 +140,8 @@ public partial class NativeCollectionWindow : Window
             string.IsNullOrWhiteSpace(expectedBackupSha)) return;
         var picker = new OpenFileDialog
         {
-            Title = "Import physical MTG collection quantities from Excel",
-            Filter = "Excel workbooks (*.xlsx)|*.xlsx",
+            Title = "Import physical MTG collection quantities from CSV or Excel",
+            Filter = "Collection files (*.csv;*.xlsx)|*.csv;*.xlsx|CSV files (*.csv)|*.csv|Excel workbooks (*.xlsx)|*.xlsx",
             CheckFileExists = true,
             Multiselect = false,
             InitialDirectory = Environment.GetFolderPath(
@@ -150,48 +150,51 @@ public partial class NativeCollectionWindow : Window
         if (picker.ShowDialog(this) != true) return;
         excelBusy = true;
         ImportExcelButton.IsEnabled = false;
-        StatusText.Text = "Reading Excel workbook and verifying exact paper printings…";
+        StatusText.Text = "Reading collection file and verifying exact paper printings…";
         try
         {
             var (rows, preview) = await Task.Run(() =>
             {
-                var source = NativeExcelCollectionImport.Read(picker.FileName);
+                var source = System.IO.Path.GetExtension(picker.FileName).Equals(
+                    ".csv", StringComparison.OrdinalIgnoreCase)
+                    ? NativeCsvCollectionImport.Read(picker.FileName)
+                    : NativeExcelCollectionImport.Read(picker.FileName);
                 var summary = NativeExcelCollectionImport.Prepare(source, catalogPath);
                 return (source, summary);
             });
             if (closing) return;
             var sample = preview.Items.Where(x => !x.Verified).Take(8)
-                .Select(x => $"Excel row {x.Source.SpreadsheetRow}: {x.Name} — {x.Status}");
+                .Select(x => $"Source row {x.Source.SpreadsheetRow}: {x.Name} — {x.Status}");
             string details = string.Join("\n", sample);
             string prompt =
-                $"Excel file: {System.IO.Path.GetFileName(picker.FileName)}\n" +
+                $"Collection file: {System.IO.Path.GetFileName(picker.FileName)}\n" +
                 $"{preview.Items.Count:N0} rows, {preview.Copies:N0} copies\n" +
                 $"Catalog-verified: {preview.VerifiedRows:N0} rows / {preview.VerifiedCopies:N0} copies\n" +
                 $"Unresolved: {preview.UnresolvedRows:N0} rows / {preview.UnresolvedCopies:N0} copies\n\n" +
                 (details.Length > 0 ? details + "\n\n" : "") +
                 "This ADDs quantities to the current physical collection. " +
                 "It does NOT replace, remove, or synchronize any existing inventory. " +
-                "Reimporting the same workbook will ADD the same quantities again.\n\n" +
+                "Reimporting the same file will ADD the same quantities again.\n\n" +
                 "Unresolved rows remain visible but do not count toward verified Set Progress. " +
                 "Missing finish is preserved as unspecified, never guessed as foil/nonfoil.\n\n" +
                 "The complete previous native collection will be saved as a recovery point. " +
-                "Add these Excel quantities now?";
-            if (MessageBox.Show(this, prompt, "Review Excel collection import",
+                "Add these collection quantities now?";
+            if (MessageBox.Show(this, prompt, "Review physical collection import",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
             {
-                StatusText.Text = "Excel import canceled; existing collection unchanged.";
+                StatusText.Text = "Import canceled; existing collection unchanged.";
                 return;
             }
 
-            StatusText.Text = "Importing Excel quantities into a verified native recovery transaction…";
+            StatusText.Text = "Importing physical quantities into a verified native recovery transaction…";
             var outcome = await Task.Run(() => NativeWorkspaceSafety.AddExcelPhysical(
                 nativePath, catalogPath, rows, expectedBackupSha));
             if (closing) return;
             MessageBox.Show(this,
-                $"Excel import completed: {preview.Copies:N0} copies added.\n\n" +
+                $"Collection import completed: {preview.Copies:N0} copies added.\n\n" +
                 "The complete previous native collection is preserved here:\n" +
                 outcome.RecoveryPath,
-                "Excel collection imported", MessageBoxButton.OK, MessageBoxImage.Information);
+                "Physical collection imported", MessageBoxButton.OK, MessageBoxImage.Information);
             Close();
             if (reopenNative is not null) await reopenNative();
         }
@@ -199,11 +202,11 @@ public partial class NativeCollectionWindow : Window
         {
             if (!closing)
             {
-                StatusText.Text = "Excel import stopped: " + ex.Message;
+                StatusText.Text = "Collection import stopped: " + ex.Message;
                 MessageBox.Show(this,
-                    "Excel import could not be verified. The active collection " +
+                    "Collection import could not be verified. The active collection " +
                     "was not intentionally changed.\n\n" + ex.Message,
-                    "Excel import stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    "Collection import stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
         finally
