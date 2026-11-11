@@ -150,6 +150,7 @@ try
     NativeDeckInterchangeChecks.Run(work);
     NativeCatalogFilterChecks.Run(work);
     NativeOwnershipCatalogChecks.Run(work);
+    NativeArenaPresentationChecks.Run(work);
     NativePrintingArtworkChecks.Run(work);
     NativePhysicalValuationChecks.Run(work);
     NativeShortlistChecks.Run(work);
