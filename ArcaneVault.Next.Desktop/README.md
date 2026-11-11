@@ -2,6 +2,14 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Stored deck format and safe duplication — AVN-029
+
+The native **Deck Library** now stores an explicit deck format in saved deck JSON. The editor offers **Commander**, **Arena Brawl**, **60-card**, or a free-form format name. Imported decks that lack a format display a safe inferred label (Commander if the saved commander is present, otherwise 60-card) without altering the original until you save a change.
+
+Use **Duplicate selected deck** to make an independent copy with a new native deck ID, the same saved card quantities and compatible metadata, but a blank revision history and no Arena deck-sync binding. The original deck, imported IDs, history, card annotations, custom folder/tags and other collections remain unchanged. Every successful copy uses the verified native SQLite save-and-rollback process; the copy can be undone with **Restore native recovery**.
+
+**Limitation:** format is *stored metadata*, not automatic legality verification. This does not yet enforce Commander color identity, rotation, card limits or Arena availability. Those are Windows 1.0 acceptance milestones.
+
 ## Native saved Deck Library editor — AVN-028
 
 From **Open native collection**, select the **Deck Library** tab. The native Windows app can now **create, edit, and delete saved decks** without opening the installed legacy application, connecting WebView2 or exporting a backup.
