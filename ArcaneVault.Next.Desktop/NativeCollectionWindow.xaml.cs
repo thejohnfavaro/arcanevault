@@ -735,8 +735,8 @@ public partial class NativeCollectionWindow : Window
             catalogPath, nativePath, set, collector) { Owner = this };
         details.Closed += async (_, _) =>
         {
-            if (!details.PreferenceChanged || closing) return;
-            // A preference write advances the native optimistic SHA. Reopen
+            if ((!details.PreferenceChanged && !details.ShortlistChanged) || closing) return;
+            // Artwork or shortlist writes advance the optimistic SHA. Reopen
             // this collection from verified SQLite before permitting edits.
             Close();
             if (reopenNative is not null) await reopenNative();

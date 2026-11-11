@@ -423,6 +423,41 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    /// <summary>
+    /// Read legacy WebView favorites from the complete verified native backup.
+    /// No write or automatic migration of the installed WebView profile.
+    /// </summary>
+    public static IReadOnlyList<string> ListShortlist(string nativePath)
+    {
+        _ = NativeWorkspace.Open(nativePath);
+        return NativeShortlist.Read(ReadPreservedBackup(nativePath));
+    }
+
+    /// <summary>
+    /// Bookmark/unbookmark one card name using the original schema-2 favorites
+    /// array. Optimistic SHA plus atomically swapped SQLite and full recovery
+    /// point prevent stale dialogs from overwriting other collection changes.
+    /// </summary>
+    public static Replacement SetShortlistCard(string nativePath, string name,
+        bool bookmarked, string expectedCurrentBackupSha,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] updated = NativeShortlist.Set(
+                ReadPreservedBackup(path), name, bookmarked);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated,
+                bookmarked ? "native-shortlist-add" : "native-shortlist-remove",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static Replacement SaveDeck(string nativePath,
         string name, string commander, string mainboard,
         NativeDeckEditing.DeckRow? selected, string expectedCurrentBackupSha,

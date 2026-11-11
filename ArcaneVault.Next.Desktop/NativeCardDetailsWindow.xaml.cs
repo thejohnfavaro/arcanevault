@@ -14,6 +14,10 @@ public partial class NativeCardDetailsWindow : Window
     private readonly string? selectedCollector;
     private readonly string? defaultArtworkUrl;
     private int artworkVersion;
+    private bool bookmarkBusy;
+    private bool bookmarkSaved;
+
+    public bool ShortlistChanged { get; private set; }
 
     /// <summary>Set only after the gallery's SHA-guarded native write succeeds.</summary>
     public bool PreferenceChanged { get; private set; }
@@ -30,6 +34,8 @@ public partial class NativeCardDetailsWindow : Window
         defaultArtworkUrl = info?.ArtworkUrl;
         InitializeComponent();
         OpenArtworkGalleryButton.IsEnabled = !string.IsNullOrWhiteSpace(catalogPath);
+        BookmarkCardButton.IsEnabled = !string.IsNullOrWhiteSpace(nativePath) &&
+            File.Exists(nativePath);
         CardName.Text = name;
         Ownership.Text = ownership;
         if (info is null)
@@ -62,8 +68,85 @@ public partial class NativeCardDetailsWindow : Window
             : "No usable format legalities in the local catalog. Refresh official card data to try again.";
 
         ArtworkStatus.Text = "No cached artwork yet. Card details remain available offline.";
-        Loaded += async (_, _) => await ShowPreferredArtworkAsync();
+        Loaded += async (_, _) =>
+        {
+            _ = RefreshBookmarkAsync();
+            await ShowPreferredArtworkAsync();
+        };
         Closed += (_, _) => artworkCancellation.Cancel();
+    }
+
+    private async Task RefreshBookmarkAsync()
+    {
+        if (string.IsNullOrWhiteSpace(nativePath) ||
+            !File.Exists(nativePath))
+        {
+            BookmarkCardButton.IsEnabled = false;
+            BookmarkStatus.Text =
+                "Start a native collection before saving a shortlist bookmark.";
+            return;
+        }
+        try
+        {
+            var names = await Task.Run(() =>
+                NativeWorkspaceSafety.ListShortlist(nativePath));
+            if (artworkCancellation.IsCancellationRequested) return;
+            bookmarkSaved = names.Any(n => n.Equals(
+                CardName.Text, StringComparison.OrdinalIgnoreCase));
+            BookmarkCardButton.Content = bookmarkSaved
+                ? "★  Remove from My Shortlist" : "☆  Bookmark in My Shortlist";
+            BookmarkCardButton.IsEnabled = !bookmarkBusy;
+            BookmarkStatus.Text = bookmarkSaved
+                ? "Saved as a planning bookmark; this does not mean you own the card."
+                : "A shortlist bookmark does not change your collection.";
+        }
+        catch (Exception ex)
+        {
+            if (artworkCancellation.IsCancellationRequested) return;
+            BookmarkCardButton.IsEnabled = false;
+            BookmarkStatus.Text = "Shortlist unavailable: " + ex.Message;
+        }
+    }
+
+    private async void OnBookmarkClicked(object sender, RoutedEventArgs e)
+    {
+        if (bookmarkBusy || artworkCancellation.IsCancellationRequested ||
+            string.IsNullOrWhiteSpace(nativePath)) return;
+        bookmarkBusy = true;
+        BookmarkCardButton.IsEnabled = false;
+        try
+        {
+            bool next = await Task.Run(() =>
+            {
+                var workspace = NativeWorkspace.Open(nativePath);
+                var names = NativeWorkspaceSafety.ListShortlist(nativePath);
+                bool isSaved = names.Any(n => n.Equals(
+                    CardName.Text, StringComparison.OrdinalIgnoreCase));
+                NativeWorkspaceSafety.SetShortlistCard(
+                    nativePath, CardName.Text, !isSaved, workspace.BackupSha256);
+                return !isSaved;
+            });
+            if (artworkCancellation.IsCancellationRequested) return;
+            bookmarkSaved = next;
+            ShortlistChanged = true;
+            BookmarkStatus.Text = next
+                ? "Bookmarked with a full recovery point. Ownership unchanged."
+                : "Bookmark removed with a full recovery point. Ownership unchanged.";
+        }
+        catch (Exception ex)
+        {
+            if (!artworkCancellation.IsCancellationRequested)
+                MessageBox.Show(this,
+                    "Could not change the bookmark:\n" + ex.Message +
+                    "\n\nIf another window modified the native collection, reopen Card Details.",
+                    "My Shortlist", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            bookmarkBusy = false;
+            if (!artworkCancellation.IsCancellationRequested)
+                await RefreshBookmarkAsync();
+        }
     }
 
     private async Task ShowPreferredArtworkAsync()

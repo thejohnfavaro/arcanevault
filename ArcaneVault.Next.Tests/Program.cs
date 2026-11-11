@@ -151,6 +151,7 @@ try
     NativeOwnershipCatalogChecks.Run(work);
     NativePrintingArtworkChecks.Run(work);
     NativePhysicalValuationChecks.Run(work);
+    NativeShortlistChecks.Run(work);
     NativeExcelImportChecks.Run(work);
     NativeCsvImportChecks.Run(work);
     NativeFormatLegalityChecks.Run(work);
