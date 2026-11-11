@@ -38,6 +38,58 @@ public partial class MainWindow : Window
     private ItemsPanelTemplate? catalogDetailedPanel;
     private bool syntheticMode;
     private int modeVersion;
+    private object[] catalogFlatCards = Array.Empty<object>();
+    private CatalogSnapshot.PrintingRow? selectedTilePrinting;
+    private int activeTileColumns;
+
+    private CatalogSnapshot.PrintingRow? SelectedCatalogPrinting()
+        => CatalogViewMode.SelectedIndex == 2
+            ? selectedTilePrinting
+            : CardsList.SelectedItem as CatalogSnapshot.PrintingRow;
+
+    private void SetCatalogResults(IEnumerable<object> rows)
+    {
+        catalogFlatCards = rows.ToArray();
+        selectedTilePrinting = null;
+        activeTileColumns = 0;
+        ApplyCatalogLayout();
+    }
+
+    private void ApplyCatalogLayout()
+    {
+        if (CardsList is null || CatalogViewMode is null) return;
+        if (CatalogViewMode.SelectedIndex != 2)
+        {
+            CardsList.ItemsSource = catalogFlatCards;
+            return;
+        }
+        int columns = CatalogTileLayout.ColumnsForWidth(CardsList.ActualWidth);
+        if (columns == activeTileColumns &&
+            CardsList.ItemsSource is IReadOnlyList<CatalogTileRow>) return;
+        activeTileColumns = columns;
+        CardsList.ItemsSource = CatalogTileLayout.BuildRows(catalogFlatCards, columns);
+    }
+
+    private void OnCatalogListSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (CatalogViewMode?.SelectedIndex == 2 &&
+            CatalogTileLayout.ColumnsForWidth(e.NewSize.Width) != activeTileColumns)
+            ApplyCatalogLayout();
+    }
+
+    private void OnCatalogTileMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: CatalogSnapshot.PrintingRow card })
+            return;
+        selectedTilePrinting = card;
+        // ListView selection belongs to a virtualized row; this remembers the
+        // exact printing selected inside the row for details and shortlist.
+        if (e.ClickCount >= 2)
+        {
+            e.Handled = true;
+            OnCatalogCardDetailsClicked(sender, new RoutedEventArgs());
+        }
+    }
 
     public MainWindow()
     {
@@ -49,7 +101,7 @@ public partial class MainWindow : Window
         sampleCards = Enumerable.Range(1, 25_000).Select(i =>
             new SampleCard($"Sample Card {i:D5}", $"S{i % 60:D2}", $"#{i % 450 + 1:D3}")).ToArray();
         // A new real workspace must never appear populated with demo entries.
-        CardsList.ItemsSource = Array.Empty<SampleCard>();
+        SetCatalogResults(Array.Empty<object>());
         FilterStatus.Text = "No catalog selected · No sample cards are owned";
         Loaded += async (_, _) => await InitializeNativeAsync();
         Closed += (_, _) =>
@@ -926,7 +978,7 @@ public partial class MainWindow : Window
     private async void OnAddShortlistClicked(object sender, RoutedEventArgs e)
     {
         if (closing || catalogSnapshot is null ||
-            CardsList.SelectedItem is not CatalogSnapshot.PrintingRow selection)
+            SelectedCatalogPrinting() is not CatalogSnapshot.PrintingRow selection)
         {
             FilterStatus.Text = "Select a real Scryfall catalog card to save it to My Shortlist.";
             return;
@@ -1065,7 +1117,8 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnCatalogCardRowDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not ListView list ||
+        if (CatalogViewMode.SelectedIndex == 2 ||
+            sender is not ListView list ||
             NativeCardRowActivation.SelectClickedRow(list, e.OriginalSource) is not
                 CatalogSnapshot.PrintingRow) return;
         e.Handled = true;
@@ -1076,7 +1129,7 @@ public partial class MainWindow : Window
     {
         var snapshot = catalogSnapshot;
         if (closing || snapshot is null ||
-            CardsList.SelectedItem is not CatalogSnapshot.PrintingRow selected)
+            SelectedCatalogPrinting() is not CatalogSnapshot.PrintingRow selected)
         {
             FilterStatus.Text = "Select a catalog printing to view its card details.";
             return;
@@ -1116,22 +1169,27 @@ public partial class MainWindow : Window
     {
         if (CardsList is null || CatalogColumnHeaders is null ||
             catalogDetailedTemplate is null || catalogDetailedPanel is null) return;
-        object? selectedPrinting = CardsList.SelectedItem;
+        var previouslySelected = SelectedCatalogPrinting();
         int mode = CatalogViewMode.SelectedIndex;
-        // Card-art rows must use the virtualized vertical panel. The old
-        // WrapPanel materialized all 200 matches and would fetch offscreen art.
+
+        // Preserve row virtualization in all modes. Card-art mode groups several
+        // cards into each virtualized row, instead of using a nonvirtual WrapPanel.
         CardsList.ItemsPanel = catalogDetailedPanel;
         CardsList.ItemTemplate = mode switch
         {
             1 => (DataTemplate)FindResource("CatalogCompactTemplate"),
-            2 => (DataTemplate)FindResource("CatalogTileTemplate"),
+            2 => (DataTemplate)FindResource("CatalogTileRowTemplate"),
             _ => catalogDetailedTemplate
         };
         CatalogColumnHeaders.Visibility = mode == 2
             ? Visibility.Collapsed : Visibility.Visible;
-        CardsList.SelectedItem = selectedPrinting;
-        // Card-art images are fetched only by visible recycled row containers
-        // through NativeCardArtImage's bounded Scryfall cache.
+        activeTileColumns = 0;
+        ApplyCatalogLayout();
+        if (mode != 2 && previouslySelected is not null)
+            CardsList.SelectedItem = previouslySelected;
+        else if (mode == 2)
+            selectedTilePrinting = previouslySelected;
+        // Cached Scryfall artwork controls exist only in the visible tile rows.
     }
 
     private void CancelPendingSearch()
@@ -1394,7 +1452,7 @@ public partial class MainWindow : Window
                 {
                     if (closing || version != modeVersion ||
                         !ReferenceEquals(searchCancellation, cts)) return;
-                    CardsList.ItemsSource = Array.Empty<SampleCard>();
+                    SetCatalogResults(Array.Empty<object>());
                     FilterStatus.Text = "No Scryfall catalog loaded — native ownership is separate";
                     return;
                 }
@@ -1406,7 +1464,7 @@ public partial class MainWindow : Window
                     .ToArray(), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
-                CardsList.ItemsSource = list;
+                SetCatalogResults(list.Cast<object>());
                 FilterStatus.Text = $"{list.Length:N0} synthetic rows · {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F1} ms";
             }
             else
@@ -1416,7 +1474,7 @@ public partial class MainWindow : Window
                         ownership: ownership), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
-                CardsList.ItemsSource = results.Rows;
+                SetCatalogResults(results.Rows.Cast<object>());
                 FilterStatus.Text = $"{results.Rows.Count:N0} printings · SQL {results.SqlMilliseconds:F1} ms" +
                     (results.MayHaveMore ? " · First 200 matching results" : "") +
                     (ownership is not null
