@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using System.IO;
 using System.Windows;
 
 namespace ArcaneVault.Next.Desktop;
