@@ -428,7 +428,9 @@ public sealed class CatalogSnapshot : IDisposable
                 filters.Ownership is OwnershipMode.ArenaOwned or OwnershipMode.ArenaNotOwned;
             cmd.CommandText += "\nWHERE " + string.Join(" AND ", where) +
                 (arenaScope
-                    ? "\nORDER BY v.name COLLATE NOCASE,v.digital DESC,v.setcode,v.collector"
+                    ? "\nORDER BY v.name COLLATE NOCASE," +
+                      (HasPaperPrintingMetadata ? "v.digital DESC," : "") +
+                      "v.setcode,v.collector"
                     : "\nORDER BY v.name COLLATE NOCASE,v.setcode,v.collector");
             if (!arenaScope && filters.Ownership == OwnershipMode.All &&
                 filters.Role.Length == 0)
