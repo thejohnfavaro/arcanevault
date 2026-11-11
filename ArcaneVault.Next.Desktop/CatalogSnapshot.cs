@@ -15,12 +15,14 @@ public sealed class CatalogSnapshot : IDisposable
         int PhysicalOwned = 0, int ArenaOwned = 0, int UnresolvedName = 0,
         string ImageUrl = "", string RolesLabel = "")
     {
+        // Presentation only: preserve the original set code for identity and filters.
+        public string DisplaySetCode => SetCode.ToUpperInvariant();
+
         public string OwnershipLabel =>
             PhysicalOwned == 0 && ArenaOwned == 0 && UnresolvedName == 0
                 ? ""
                 : string.Join(" · ", new[]
                 {
-                    PhysicalOwned > 0 ? $"Physical {PhysicalOwned}" : "",
                     ArenaOwned > 0 ? $"Arena {ArenaOwned}" : "",
                     UnresolvedName > 0 ? $"Unresolved name {UnresolvedName}" : ""
                 }.Where(x => x.Length > 0));
