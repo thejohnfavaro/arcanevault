@@ -50,6 +50,33 @@ internal static class NativeDeckOwnedPickerChecks
         Must(invalid, "Malformed draft must be rejected instead of rewritten.");
         Must(NativeDeckOwnedPicker.Search(owned, NativeDeckOwnedPicker.Pool.Physical, "")
             .Count == 2, "Ownership search mutated or introduced inventory lines.");
+        var physicalDraft = NativeDeckOwnedPicker.Review(owned,
+            NativeDeckOwnedPicker.Pool.Physical,
+            "2 Sol Ring\n1 Forest\n1 Not Owned", "Sol Ring", "Commander");
+        Must(physicalDraft.MainboardCopies == 4 &&
+             physicalDraft.TotalWithCommander == 5 &&
+             physicalDraft.MissingCopies == 1 &&
+             physicalDraft.Shortages.Single().Name == "Not Owned",
+             "Commander must be counted separately without mixing owned pools.");
+        var arenaDraft = NativeDeckOwnedPicker.Review(owned,
+            NativeDeckOwnedPicker.Pool.Arena,
+            "2 Sol Ring\n1 Arena Exclusive", "", "Arena Brawl");
+        Must(arenaDraft.TotalWithCommander == 3 &&
+             arenaDraft.MissingCopies == 1 &&
+             arenaDraft.Shortages.Single().Name == "Sol Ring",
+             "Arena shortage must use only Arena inventory.");
+        var regularDraft = NativeDeckOwnedPicker.Review(owned,
+            NativeDeckOwnedPicker.Pool.Physical,
+            "1 Sol Ring", "Missing Commander", "60-card");
+        Must(regularDraft.TotalWithCommander == 1 &&
+             regularDraft.MissingCopies == 0,
+             "A non-Commander format must not count the optional leader field.");
+        bool malformed = false;
+        try {
+            NativeDeckOwnedPicker.Review(owned,
+                NativeDeckOwnedPicker.Pool.Physical, "invalid", "", "60-card");
+        } catch (InvalidDataException) { malformed = true; }
+        Must(malformed, "Invalid draft text must not yield misleading shortage totals.");
         Console.WriteLine("PASS: native deck owned-card picker (pool isolation, aggregates, safe add)");
     }
 }
