@@ -15,6 +15,179 @@ public partial class NativeDeckEditorWindow : Window
     private readonly NativeBackupView ownership;
     private readonly string? catalogPath;
     private bool busy;
+    private int draftVersion;
+    private sealed record OwnedDisplay(string Name, long Owned)
+    {
+        public string Display => $"{Name}  ·  {Owned:N0} owned";
+    }
+
+    private void RefreshOwnedCards()
+    {
+        if (OwnedCardsList is null || OwnedPoolBox is null || OwnedSearchBox is null)
+            return;
+        var pool = OwnedPoolBox.SelectedIndex == 1
+            ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
+        OwnedCardsList.ItemsSource = NativeDeckOwnedPicker.Search(
+            ownership, pool, OwnedSearchBox.Text)
+            .Select(x => new OwnedDisplay(x.Name, x.Owned)).ToArray();
+    }
+
+    private void InvalidateAnalytics()
+    {
+        draftVersion++;
+        if (AnalyticsCharts is null || AnalyticsText is null) return;
+        AnalyticsCharts.Visibility = Visibility.Collapsed;
+        AnalyticsText.Text = "Deck changed. Select Analyze deck to refresh the charts.";
+    }
+
+    private void OnDraftChanged(object sender,
+        System.Windows.Controls.TextChangedEventArgs e)
+    {
+        InvalidateAnalytics();
+        RefreshDraftSummary();
+    }
+
+    private void OnFormatChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e) =>
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            InvalidateAnalytics();
+            RefreshDraftSummary();
+        }));
+
+    private void RefreshDraftSummary()
+    {
+        if (DeckSummaryText is null || DeckShortageText is null ||
+            MainboardBox is null || CommanderBox is null || FormatBox is null ||
+            OwnedPoolBox is null)
+            return;
+        var pool = OwnedPoolBox.SelectedIndex == 1
+            ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
+        try
+        {
+            var summary = NativeDeckOwnedPicker.Review(ownership, pool,
+                MainboardBox.Text, CommanderBox.Text, FormatBox.Text);
+            DeckSummaryText.Text = summary.Header;
+            string poolName = pool == NativeDeckOwnedPicker.Pool.Arena ? "Arena" : "Physical";
+            var lines = summary.Shortages.Take(6).Select(x =>
+                $"{x.Name}: need {x.Required}, owned {x.Owned} (missing {x.Missing})");
+            DeckShortageText.Text = summary.Shortages.Count == 0
+                ? $"All draft copies covered by {poolName} inventory."
+                : $"{poolName} shortages ({summary.Shortages.Count} cards):\n" +
+                  string.Join("\n", lines) +
+                  (summary.Shortages.Count > 6
+                      ? $"\n… plus {summary.Shortages.Count - 6} more card names."
+                      : "");
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException)
+        {
+            DeckSummaryText.Text = "Deck draft needs review";
+            DeckShortageText.Text = ex.Message;
+        }
+    }
+
+    private void OnOwnedSearchChanged(object sender,
+        System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (OwnedSearchBox?.Text.Length > 255)
+        {
+            StatusText.Text = "Owned-card search must be 255 characters or fewer.";
+            return;
+        }
+        RefreshOwnedCards();
+    }
+
+    private void OnOwnedPoolChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        RefreshOwnedCards();
+        RefreshDraftSummary();
+    }
+
+    private async void OnAnalyzeDeckClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || !AnalyzeDeckButton.IsEnabled) return;
+        AnalyticsPanel.IsExpanded = true;
+        IReadOnlyList<NativeDeckEditing.Entry> entries;
+        try
+        {
+            entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
+        {
+            AnalyticsCharts.Visibility = Visibility.Collapsed;
+            AnalyticsText.Text = "Deck analytics unavailable: " + ex.Message;
+            return;
+        }
+
+        // Snapshot the draft before crossing the async boundary. Late results
+        // must never be shown for a different deck or format.
+        int version = draftVersion;
+        string mainboard = MainboardBox.Text;
+        string commander = CommanderBox.Text;
+        string format = FormatBox.Text;
+        AnalyzeDeckButton.IsEnabled = false;
+        AnalyticsCharts.Visibility = Visibility.Collapsed;
+        AnalyticsText.Text = "Analyzing offline Scryfall metadata…";
+        try
+        {
+            var report = await Task.Run(() => NativeDeckAnalytics.Analyze(
+                entries, commander, format, catalogPath));
+            if (version != draftVersion ||
+                MainboardBox.Text != mainboard ||
+                CommanderBox.Text != commander ||
+                FormatBox.Text != format)
+            {
+                AnalyticsText.Text = "Deck changed during analysis. Select Analyze deck again.";
+                return;
+            }
+            var charts = NativeDeckAnalyticsCharts.FromReport(report);
+            ManaCurveBars.ItemsSource = charts.Curve;
+            ColorIdentityBars.ItemsSource = charts.Identity;
+            CardTypeBars.ItemsSource = charts.Types;
+            AverageManaText.Text = report.AverageNonlandManaValue.HasValue
+                ? $"Average nonland mana value: {report.AverageNonlandManaValue.Value:F2}"
+                : "Average nonland mana value: unavailable";
+            AnalyticsText.Text = report.CoverageSummary +
+                (report.UnknownCards > 0
+                    ? " · Unknown copies excluded from the charts."
+                    : " · All deck copies matched offline metadata.");
+            AnalyticsCharts.Visibility = Visibility.Visible;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            Microsoft.Data.Sqlite.SqliteException or IOException or
+            UnauthorizedAccessException or ArgumentException or OverflowException)
+        {
+            AnalyticsCharts.Visibility = Visibility.Collapsed;
+            AnalyticsText.Text = "Analytics unavailable: " + ex.Message +
+                " (the deck and collection were not modified).";
+        }
+        finally
+        {
+            AnalyzeDeckButton.IsEnabled = true;
+        }
+    }
+
+    private void OnOwnedCardDoubleClicked(object sender,
+        System.Windows.Input.MouseButtonEventArgs e) => AddSelectedOwnedCard();
+
+    private void OnAddOwnedClicked(object sender, RoutedEventArgs e) => AddSelectedOwnedCard();
+
+    private void AddSelectedOwnedCard()
+    {
+        if (busy || OwnedCardsList.SelectedItem is not OwnedDisplay card) return;
+        try
+        {
+            MainboardBox.Text = NativeDeckOwnedPicker.AddOne(MainboardBox.Text, card.Name);
+            StatusText.Text = $"Added 1 {card.Name} to the unsaved draft. " +
+                "Collection quantities are unchanged; save still requires preflight review.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or OverflowException)
+        {
+            StatusText.Text = "Could not add card: " + ex.Message;
+        }
+    }
 
     public NativeDeckEditorWindow(string nativePath, string expectedSha,
         NativeBackupView ownership, string? catalogPath,
@@ -26,6 +199,9 @@ public partial class NativeDeckEditorWindow : Window
         this.catalogPath = catalogPath;
         original = selected;
         InitializeComponent();
+        OwnedPoolBox.SelectedIndex = selected?.Format.Equals("Arena Brawl",
+            StringComparison.OrdinalIgnoreCase) == true ? 1 : 0;
+        RefreshOwnedCards();
         FormatBox.Text = selected?.Format ?? "60-card";
         FolderBox.Text = selected?.Folder ?? "Unfiled";
         FavoriteDeckBox.IsChecked = selected?.Favorite ?? false;
@@ -39,6 +215,7 @@ public partial class NativeDeckEditorWindow : Window
                 $"{selected.TotalCopies:N0} mainboard copies and {selected.Revisions:N0} revisions. " +
                 "The prior deck is appended to its revision history before changes are committed.";
         }
+        RefreshDraftSummary();
     }
 
     private void ApplyDeckImport(string text)

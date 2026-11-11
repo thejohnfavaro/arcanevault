@@ -1,9 +1,32 @@
 <Window x:Class="ArcaneVault.Next.Desktop.NativeDeckEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Arcane Vault Next — Saved deck editor" Width="795" Height="745"
-        MinWidth="650" MinHeight="560" WindowStartupLocation="CenterOwner"
+        Title="Arcane Vault Next — Saved deck editor" Width="1100" Height="850"
+        MinWidth="850" MinHeight="630" WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False" Background="#0D1017" Foreground="#F0F1F6">
+    <Window.Resources>
+        <DataTemplate x:Key="DeckChartBarTemplate">
+            <Grid Margin="0,2,0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="92"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="34"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding Label}"
+                           FontSize="11" VerticalAlignment="Center"
+                           Foreground="#DBE2EE" TextTrimming="CharacterEllipsis"/>
+                <ProgressBar Grid.Column="1" Height="12" Minimum="0"
+                             Maximum="{Binding Maximum}" Value="{Binding Count}"
+                             Foreground="{Binding Fill}" Background="#283043"
+                             BorderThickness="0" VerticalAlignment="Center"
+                             IsHitTestVisible="False"/>
+                <TextBlock Grid.Column="2" Text="{Binding Count}"
+                           Margin="6,0,0,0" FontSize="11"
+                           VerticalAlignment="Center" HorizontalAlignment="Right"
+                           Foreground="#EDF2F7"/>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
     <Grid Margin="22">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -34,12 +57,12 @@
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="Commander (optional)" Margin="0,0,0,6"/>
-                <TextBox x:Name="CommanderBox" Padding="10,8" FontSize="14"
+                <TextBox x:Name="CommanderBox" TextChanged="OnDraftChanged" Padding="10,8" FontSize="14"
                          Background="#202737" Foreground="White" BorderBrush="#514276"/>
             </StackPanel>
             <StackPanel Grid.Column="4">
                 <TextBlock Text="Deck format" Margin="0,0,0,6"/>
-                <ComboBox x:Name="FormatBox" IsEditable="True"
+                <ComboBox x:Name="FormatBox" IsEditable="True" SelectionChanged="OnFormatChanged"
                           Padding="6,7" FontSize="13"
                           Background="#D7E4EB" Foreground="#0D1017">
                     <ComboBoxItem Content="Commander"/>
@@ -63,19 +86,72 @@
                       ToolTip="Show this deck first in the saved library"/>
         </StackPanel>
         <Grid Grid.Row="4">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Mainboard — one card per line, e.g. 1 Sol Ring or 12 Island"
-                       Margin="0,0,0,8" Foreground="#E5BF79"/>
-            <TextBox Grid.Row="1" x:Name="MainboardBox"
-                     AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
-                     VerticalScrollBarVisibility="Auto"
-                     HorizontalScrollBarVisibility="Auto"
-                     FontSize="14" FontFamily="Consolas"
-                     Padding="12" Background="#171C28"
-                     Foreground="#F2F5FA" BorderBrush="#514276"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Mainboard — e.g. 1 Sol Ring or 12 Island"
+                           Margin="0,0,0,8" Foreground="#E5BF79"/>
+                <TextBox Grid.Row="1" x:Name="MainboardBox" TextChanged="OnDraftChanged"
+                         AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         FontSize="14" FontFamily="Consolas"
+                         Padding="12" Background="#171C28"
+                         Foreground="#F2F5FA" BorderBrush="#514276"/>
+            </Grid>
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Add from owned cards" Foreground="#E5BF79"
+                           Margin="0,0,0,8"/>
+                <ComboBox Grid.Row="1" x:Name="OwnedPoolBox"
+                          SelectionChanged="OnOwnedPoolChanged"
+                          Background="#D7E4EB" Foreground="#0D1017"
+                          Margin="0,0,0,8">
+                    <ComboBoxItem Content="Physical collection"/>
+                    <ComboBoxItem Content="Arena collection"/>
+                </ComboBox>
+                <TextBox Grid.Row="2" x:Name="OwnedSearchBox"
+                         TextChanged="OnOwnedSearchChanged"
+                         Padding="9,7" Margin="0,0,0,8"
+                         ToolTip="Filter owned card names; shows up to 200 matches"
+                         Background="#202737" Foreground="White"
+                         BorderBrush="#514276"/>
+                <ListBox Grid.Row="3" x:Name="OwnedCardsList"
+                         DisplayMemberPath="Display"
+                         MouseDoubleClick="OnOwnedCardDoubleClicked"
+                         Background="#171C28" Foreground="#F2F5FA"
+                         BorderBrush="#514276"/>
+                <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Add card (+1)" Click="OnAddOwnedClicked"
+                            Padding="9,7" Margin="0,0,7,0"
+                            Background="#202737" Foreground="White" BorderBrush="#514276"/>
+                    <Button x:Name="AnalyzeDeckButton" Content="Analyze deck"
+                            Click="OnAnalyzeDeckClicked" Padding="9,7"
+                            Background="#473A70" Foreground="White" BorderBrush="#7663B3"/>
+                </StackPanel>
+                <TextBlock Grid.Row="5" x:Name="DeckSummaryText" Margin="0,12,0,5"
+                           TextWrapping="Wrap" Foreground="#E5BF79"
+                           Text="Deck totals will appear here."/>
+                <TextBlock Grid.Row="6" x:Name="DeckShortageText"
+                           TextWrapping="Wrap" Foreground="#C9A9A9"
+                           MaxHeight="118"
+                           ToolTip="Only the selected ownership pool is counted; missing copies are not auto-added."/>
+            </Grid>
         </Grid>
 
         <WrapPanel Grid.Row="5" Margin="0,10,0,0">
@@ -92,9 +168,68 @@
                     Padding="11,8" Margin="0,0,8,4"
                     Background="#202737" Foreground="White" BorderBrush="#514276"/>
         </WrapPanel>
-        <TextBlock x:Name="StatusText" Grid.Row="6" Margin="0,13,0,13"
-                   Foreground="#9DA9BD" TextWrapping="Wrap"
-                   Text="Every successful save retains the complete previous native collection as a recovery file."/>
+        <Grid Grid.Row="6" Margin="0,10,0,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Expander x:Name="AnalyticsPanel" Grid.Row="0"
+                      IsExpanded="False" MaxHeight="310"
+                      Background="#171C28" BorderBrush="#514276"
+                      BorderThickness="1" Padding="8">
+                <Expander.Header>
+                    <TextBlock Text="Deck analytics · mana curve / color identity / card types"
+                               FontWeight="SemiBold" Foreground="#E5BF79"/>
+                </Expander.Header>
+                <StackPanel Margin="6,8,6,4">
+                    <TextBlock x:Name="AnalyticsText" TextWrapping="Wrap"
+                               Foreground="#B8D8D0" FontSize="12"
+                               Text="Select Analyze deck to load offline deck statistics."/>
+                    <ScrollViewer MaxHeight="226" Margin="0,10,0,0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <Grid x:Name="AnalyticsCharts" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="MANA CURVE" Foreground="#E5BF79"
+                                           FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <ItemsControl x:Name="ManaCurveBars"
+                                              ItemTemplate="{StaticResource DeckChartBarTemplate}"/>
+                                <TextBlock x:Name="AverageManaText" Margin="0,7,0,0"
+                                           FontSize="11" Foreground="#B5C1D3"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="COLOR IDENTITY" Foreground="#E5BF79"
+                                           FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <ItemsControl x:Name="ColorIdentityBars"
+                                              ItemTemplate="{StaticResource DeckChartBarTemplate}"/>
+                                <TextBlock Text="Exclusive identity groups, by copies"
+                                           Margin="0,7,0,0" FontSize="11"
+                                           Foreground="#B5C1D3" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="CARD TYPES" Foreground="#E5BF79"
+                                           FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <ItemsControl x:Name="CardTypeBars"
+                                              ItemTemplate="{StaticResource DeckChartBarTemplate}"/>
+                                <TextBlock Text="One primary type per card copy"
+                                           Margin="0,7,0,0" FontSize="11"
+                                           Foreground="#B5C1D3" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </StackPanel>
+            </Expander>
+            <TextBlock x:Name="StatusText" Grid.Row="1" Margin="0,6,0,0"
+                       Foreground="#9DA9BD" TextWrapping="Wrap"
+                       Text="Every successful save retains the complete previous native collection as a recovery file."/>
+        </Grid>
         <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Cancel" IsCancel="True"
                     Padding="18,10" Margin="0,0,12,0"
