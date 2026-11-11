@@ -461,6 +461,92 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    public sealed record FullBackupExport(
+        string FilePath, string BackupSha256, long Bytes,
+        long PhysicalCopies, long ArenaCopies, int Decks, int Revisions,
+        int PreferredArtwork);
+
+    /// <summary>
+    /// Export an exact, verified schema-2 backup of the CURRENT native
+    /// workspace, including native inventory/deck edits and unknown legacy
+    /// fields. Never overwrites an existing destination or the old app.
+    /// </summary>
+    public static FullBackupExport ExportFullBackup(string nativePath,
+        string destinationPath, string expectedCurrentBackupSha,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string source = Path.GetFullPath(nativePath);
+            string destination = Path.GetFullPath(destinationPath);
+            if (!destination.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Full backups must be saved as a .json file.");
+            if (!Directory.Exists(Path.GetDirectoryName(destination)!))
+                throw new DirectoryNotFoundException(
+                    "Choose an existing folder for your full backup.");
+            string oldProfile = Path.GetFullPath(Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ArcaneVault")).TrimEnd(Path.DirectorySeparatorChar) +
+                Path.DirectorySeparatorChar;
+            if (destination.StartsWith(oldProfile, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(
+                    "Never export directly into the installed legacy app profile.");
+            if (File.Exists(destination) || Directory.Exists(destination))
+                throw new InvalidDataException(
+                    "That backup filename already exists. Choose a new filename; no file was overwritten.");
+
+            CheckCurrent(source, expectedCurrentBackupSha);
+            var workspace = NativeWorkspace.Open(source, cancellation);
+            byte[] bytes = ReadPreservedBackup(source);
+            string digest = Convert.ToHexString(SHA256.HashData(bytes));
+            if (digest != workspace.BackupSha256)
+                throw new InvalidDataException("Native backup checksum does not match the verified workspace.");
+            var content = NativeBackupReader.Read(bytes);
+            if (content.PhysicalCopies != workspace.Collection.PhysicalCopies ||
+                content.ArenaCopies != workspace.Collection.ArenaCopies ||
+                content.Decks != workspace.Collection.Decks ||
+                content.DeckRevisions != workspace.Collection.DeckRevisions ||
+                content.PreferredArtworks != workspace.Collection.PreferredArtworks ||
+                !content.PhysicalCards.SequenceEqual(workspace.Collection.PhysicalCards) ||
+                !content.ArenaCards.SequenceEqual(workspace.Collection.ArenaCards))
+                throw new InvalidDataException(
+                    "Native full backup does not match current persisted collection.");
+
+            string staged = destination + "." + Guid.NewGuid().ToString("N") + ".partial";
+            try
+            {
+                cancellation.ThrowIfCancellationRequested();
+                using (var output = new FileStream(staged, FileMode.CreateNew,
+                    FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.WriteThrough))
+                {
+                    output.Write(bytes);
+                    output.Flush(flushToDisk: true);
+                }
+                cancellation.ThrowIfCancellationRequested();
+                if (!Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(staged)))
+                    .Equals(digest, StringComparison.Ordinal))
+                    throw new InvalidDataException("Staged exported backup checksum failed.");
+
+                // Another native edit in this process cannot interleave the
+                // UpdateGate, and a changed external writer fails closed here.
+                CheckCurrent(source, expectedCurrentBackupSha);
+                cancellation.ThrowIfCancellationRequested();
+                File.Move(staged, destination, overwrite: false);
+                return new FullBackupExport(destination, digest, bytes.LongLength,
+                    content.PhysicalCopies, content.ArenaCopies, content.Decks,
+                    content.DeckRevisions, content.PreferredArtworks);
+            }
+            finally
+            {
+                if (File.Exists(staged)) File.Delete(staged);
+            }
+        }
+    }
+
     public static IReadOnlyList<string> RecoveryPaths(string nativePath)
     {
         string path = Path.GetFullPath(nativePath);
