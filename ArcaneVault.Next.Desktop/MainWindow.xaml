@@ -532,6 +532,7 @@
                     </Grid>
                     <ListView Grid.Row="1" x:Name="CardsList"
                               SizeChanged="OnCatalogListSizeChanged"
+                              HorizontalContentAlignment="Stretch"
                               MouseDoubleClick="OnCatalogCardRowDoubleClick"
                               Background="{StaticResource VaultPanel}"
                               BorderThickness="0"
