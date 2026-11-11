@@ -279,6 +279,13 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    // Compatibility for the first XLSX-only release and its regression tests.
+    public static Replacement AddExcelPhysical(string nativePath, string? catalogPath,
+        IReadOnlyList<NativeExcelCollectionImport.Row> workbookRows,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default) =>
+        AddPhysicalImport(nativePath, catalogPath, workbookRows,
+            expectedCurrentBackupSha, cancellation);
+
     /// <summary>
     /// Add copies of one explicitly selected catalog-verified paper printing to
     /// the native collection. The expected checksum protects against stale UI
@@ -287,11 +294,11 @@ public static class NativeWorkspaceSafety
     /// The legacy Windows app and external catalog are never written.
     /// </summary>
     /// <summary>
-    /// Append an Excel workbook's physical quantities to the active native
+    /// Append validated CSV or XLSX physical quantities to the active native
     /// collection in ONE verified SQLite transaction and ONE recovery point.
     /// The parsed rows are revalidated against the current catalog at commit.
     /// </summary>
-    public static Replacement AddExcelPhysical(string nativePath, string? catalogPath,
+    public static Replacement AddPhysicalImport(string nativePath, string? catalogPath,
         IReadOnlyList<NativeExcelCollectionImport.Row> workbookRows,
         string expectedCurrentBackupSha, CancellationToken cancellation = default)
     {

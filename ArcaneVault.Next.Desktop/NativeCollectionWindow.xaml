@@ -111,7 +111,7 @@
                                 Click="OnAdjustPhysicalClicked" IsEnabled="False"
                                 Style="{StaticResource VaultDangerButton}"
                                 Padding="14,9" Margin="0,0,12,0"/>
-                        <Button x:Name="ImportExcelButton" Content="Import Excel (.xlsx)"
+                        <Button x:Name="ImportExcelButton" Content="Import CSV / Excel"
                                 Click="OnImportExcelClicked" IsEnabled="False"
                                 Style="{StaticResource VaultPrimaryButton}"
                                 Padding="14,9" Margin="0,0,12,0"/>

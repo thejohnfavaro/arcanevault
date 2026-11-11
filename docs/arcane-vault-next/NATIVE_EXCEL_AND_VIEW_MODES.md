@@ -4,9 +4,30 @@
 
 The native **Card Catalog** can switch among **Detailed list**, **Compact list** and **Cards/Tiles**, while retaining the selected printing. Detailed and Compact retain virtualized scrolling. Tiles operate on a maximum of 200 results returned by the local catalog query; they are styled text cards, not an image-downloading grid. Image retrieval remains on-demand when opening Card Details, protecting responsiveness and bandwidth. The **Physical Collection** supports Detailed and Compact table views without altering ownership.
 
-## Excel importer
+## CSV and Excel importer
 
-In **My Collection → Physical Collection**, choose **Import Excel (.xlsx)**. The importer reads the first visible worksheet and accepts these commonly used column names:
+**Windows native v0.9.4 and later:** Open **My Collection → Physical Collection → Import CSV / Excel**. Choose either a normal text `.csv` collection export or an `.xlsx` workbook. Both files go through the exact same physical-printing preview, Scryfall catalog verification, additive native edit, and full recovery transaction.
+
+CSV accepts UTF-8 (with or without a BOM), embedded commas and newlines in double-quoted fields, doubled double-quotes, and comma or semicolon separators. `Name,Quantity` is enough for unresolved card inventory; for exact set-progress matching include `Set Code` + `Collector Number` or a Scryfall printing ID. Examples:
+
+```csv
+Name,Quantity,Set Code,Collector Number,Finish,Scryfall ID
+"Sol Ring",2,cmm,396,nonfoil,
+"Blasphemous Act",1,,,,
+```
+
+```csv
+Card Name;Qty;Set;Collector #;Foil
+"Sol Ring";2;cmm;396;No
+```
+
+Import limits: file below 35 MB, up to 60,000 card rows; quantity must be a whole number from 1 to 99,999. Binary `.xls` is not supported. Unsupported or malformed headers, quantities, UTF-8, quotation marks or finish values stop the import **before** any native collection change. Unknown extra CSV columns are ignored, not saved as fabricated metadata.
+
+The import preview explains that **adding the same file a second time adds the same quantities twice**. Imported name-only cards remain unresolved and do not increment verified Set Progress. Work from a private full backup when importing a large new export.
+
+### Excel importer
+
+In **My Collection → Physical Collection**, choose **Import CSV / Excel** and select an `.xlsx` workbook to use the original Excel path. The importer reads the first visible worksheet and accepts these commonly used column names:
 
 | Column | Accepted header examples | Required |
 | --- | --- | --- |
