@@ -119,6 +119,17 @@ internal static class NativeVisualShellChecks
              main.Contains("OnShowCatalogClicked", StringComparison.Ordinal) &&
              mainCode.Contains("nativeWorkspaceView.NavigateTo(section)", StringComparison.Ordinal),
             "Card Catalog and Deck Library sidebar navigation must preserve in-shell routing.");
+        string collectionCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
+        string detailsCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCardDetailsWindow.xaml.cs"));
+        string galleryCode = File.ReadAllText(
+            Path.Combine(dir, "NativePrintingGalleryWindow.xaml.cs"));
+        Must(collectionCode.Contains("arenaScope: arenaScope, selectedArtworkUrl: arenaArt",
+                 StringComparison.Ordinal) &&
+             detailsCode.Contains("arenaOnly: arenaScope", StringComparison.Ordinal) &&
+             galleryCode.Contains("arenaOnly: arenaOnly", StringComparison.Ordinal),
+            "Arena Collection, Card Details and artwork gallery must preserve the Arena printing scope.");
         Must(collection.Contains("Value=\"{Binding Percent, Mode=OneWay}\"", StringComparison.Ordinal) &&
              collection.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
                  StringComparison.Ordinal),
