@@ -16,7 +16,7 @@ All ownership modes compose with set code, rarity, type/subtype, color identity,
 
 ## Exact physical ownership rule
 
-The physical holdings index is built strictly from a **verified native schema-2 workspace**. A positive physical line must have a valid Scryfall print ID. The ID must equal the catalog variant's print ID and its supplied card name, set and collector number must match. Multiple physical finishes of the same verified printing contribute to its owned-copy total.
+The physical holdings index is built strictly from a **verified native schema-2 workspace**. A positive physical line must have a valid Scryfall print ID. The ID must equal the catalog variant's print ID, the variant must be flagged for **paper** in the official Scryfall metadata (not a digital-only card), and its supplied card name, set and collector number must match. If an older catalog lacks paper/digital metadata, physical ownership filters refuse to guess and ask for an official catalog sync. Multiple physical finishes of the same verified printing contribute to its owned-copy total.
 
 A row with no print UUID remains **unresolved** even when it contains a plausible set/collector hint. It may be mentioned as `Unresolved name N` on candidate card rows, but it is **never** added to an arbitrary set or credited to exact edition progress. A row with a syntactically valid ID but conflicting set/name metadata also cannot mark a catalog printing as verified-owned.
 
