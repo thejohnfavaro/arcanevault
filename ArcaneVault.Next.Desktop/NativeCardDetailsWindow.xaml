@@ -65,6 +65,13 @@
                                Foreground="{StaticResource VaultMuted}"
                                FontSize="11" Margin="4,12,4,0"
                                Text="Checking cached Scryfall artwork…"/>
+                    <Button x:Name="OpenArtworkGalleryButton" Content="Browse printings &amp; artwork"
+                            Click="OnOpenArtworkGalleryClicked"
+                            Padding="11,9" Margin="3,12,3,0"
+                            Background="{StaticResource VaultAccentSurface}"
+                            Foreground="{StaticResource VaultText}"
+                            BorderBrush="{StaticResource VaultAccentBorder}"
+                            ToolTip="Explore official Scryfall printings; choose saved display artwork without changing ownership"/>
                 </StackPanel>
             </Border>
 
@@ -196,7 +203,7 @@
                 Padding="0,12,0,0">
             <TextBlock Foreground="{StaticResource VaultMuted}"
                        FontSize="11" TextWrapping="Wrap"
-                       Text="Artwork is a cached card identity preview and may differ from your exact owned printing. Card information is read-only; this dialog never changes inventory."/>
+                       Text="Art may be a different printing from the one you own. Saving a preferred image changes display only and creates a complete, recoverable native backup."/>
         </Border>
     </Grid>
 </Window>
