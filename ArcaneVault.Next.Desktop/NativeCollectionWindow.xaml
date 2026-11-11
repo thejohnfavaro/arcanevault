@@ -100,6 +100,8 @@
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <WrapPanel Grid.Row="0" Margin="0,4,0,12">
@@ -124,11 +126,46 @@
                             <ComboBoxItem Content="Detailed"/>
                             <ComboBoxItem Content="Compact"/>
                         </ComboBox>
-                        <TextBlock Text="Verified set and collector number • foil variants stay separate"
+                        <TextBlock Text="Exact print/finish values • missing quotes are not $0"
                                    Style="{StaticResource VaultMutedText}"
                                    VerticalAlignment="Center"/>
                     </WrapPanel>
-                <ListView Grid.Row="1" x:Name="PhysicalList" MouseDoubleClick="OnCardRowDoubleClick"
+                    <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                        <TextBlock x:Name="PhysicalValuationSummary" FontWeight="SemiBold"
+                                   FontSize="15" Foreground="{StaticResource VaultText}"
+                                   TextWrapping="Wrap"
+                                   Text="Valuation not calculated yet."/>
+                        <TextBlock x:Name="PhysicalValuationTimestamp" Margin="0,4,0,0"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   FontSize="11.5" TextWrapping="Wrap"
+                                   Text="Prices are indicative USD estimates from the official cached Scryfall bulk snapshot."/>
+                    </StackPanel>
+                    <WrapPanel Grid.Row="2" Margin="0,0,0,10">
+                        <TextBlock Text="SORT PHYSICAL" Style="{StaticResource VaultEyebrow}"
+                                   Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="PhysicalPriceSort" SelectedIndex="0"
+                                  SelectionChanged="OnPhysicalSortChanged"
+                                  Width="190" Height="32" Margin="0,0,13,0"
+                                  Background="{StaticResource VaultPanelRaised}"
+                                  Foreground="{StaticResource VaultText}">
+                            <ComboBoxItem Content="Original inventory order"/>
+                            <ComboBoxItem Content="Unit price: high to low"/>
+                            <ComboBoxItem Content="Unit price: low to high"/>
+                            <ComboBoxItem Content="Line value: high to low"/>
+                            <ComboBoxItem Content="Line value: low to high"/>
+                        </ComboBox>
+                        <Button x:Name="RecalculatePricesButton"
+                                Content="Recalculate cached prices"
+                                Click="OnRecalculatePricesClicked"
+                                Padding="12,7" Margin="0,0,12,0"
+                                Background="{StaticResource VaultPanelRaised}"
+                                Foreground="{StaticResource VaultText}"
+                                BorderBrush="{StaticResource VaultLine}"/>
+                        <TextBlock Text="For new quotes, run Full Scryfall Sync in the main window"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   VerticalAlignment="Center" FontSize="11"/>
+                    </WrapPanel>
+                <ListView Grid.Row="3" x:Name="PhysicalList" MouseDoubleClick="OnCardRowDoubleClick"
                           Background="{StaticResource VaultPanel}" Foreground="{StaticResource VaultText}"
                           VirtualizingStackPanel.IsVirtualizing="True"
                           VirtualizingStackPanel.VirtualizationMode="Recycling"
@@ -139,7 +176,10 @@
                             <GridViewColumn Header="Qty" Width="50" DisplayMemberBinding="{Binding Quantity}"/>
                             <GridViewColumn Header="Set / #" Width="135" DisplayMemberBinding="{Binding SetAndNumber}"/>
                             <GridViewColumn Header="Finish" Width="95" DisplayMemberBinding="{Binding Finish}"/>
-                            <GridViewColumn Header="Printing verification" Width="300" DisplayMemberBinding="{Binding Status}"/>
+                            <GridViewColumn Header="Unit USD" Width="105" DisplayMemberBinding="{Binding UnitLabel}"/>
+                            <GridViewColumn Header="Line USD" Width="105" DisplayMemberBinding="{Binding LineLabel}"/>
+                            <GridViewColumn Header="Price status" Width="260" DisplayMemberBinding="{Binding PriceStatus}"/>
+                            <GridViewColumn Header="Printing verification" Width="260" DisplayMemberBinding="{Binding Status}"/>
                         </GridView>
                     </ListView.View>
                 </ListView>
