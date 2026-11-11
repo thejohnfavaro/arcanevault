@@ -27,6 +27,9 @@ public partial class NativeCollectionWindow : Window
     private bool deckBusy;
     private GridView? physicalDetailedView;
     private bool excelBusy;
+    private bool valuationBusy;
+    private NativePhysicalValuation.Result? valuation;
+    private int valuationVersion;
 
     public NativeCollectionWindow(NativeBackupView backup,
         CollectionCatalogReview.Result review, string? catalogPath,
@@ -73,7 +76,13 @@ public partial class NativeCollectionWindow : Window
             DataSourceLabel.Text =
                 "Native SQLite — physical, Arena and saved-deck edits each preserve a complete rollback";
         }
-        Closed += (_, _) => { closing = true; setQueryVersion++; };
+        Closed += (_, _) =>
+        {
+            closing = true;
+            setQueryVersion++;
+            valuationVersion++;
+        };
+        Loaded += async (_, _) => await CalculateValuationAsync();
         TotalsText.Text =
             $"Physical: {backup.PhysicalCopies:N0} copies · {backup.PhysicalCards.Count:N0} lines · " +
             $"{backup.DistinctPhysicalNames:N0} names  |  " +
@@ -97,22 +106,84 @@ public partial class NativeCollectionWindow : Window
 
         var search = SearchBox.Text.Trim();
         var unresolved = MissingOnly.IsChecked == true;
-        var physical = review.Rows.Where(x =>
-            (!unresolved || !x.Confirmed) &&
+        // Wrap exact original row references for price display; editing always
+        // resolves the same source ordinal, regardless of price sort order.
+        IEnumerable<NativePhysicalValuation.Line> physical =
+            valuation?.Lines ?? review.Rows.Select((row, ordinal) =>
+                new NativePhysicalValuation.Line(
+                    ordinal, row, null, null, "Prices not calculated yet")).ToArray();
+        physical = physical.Where(x =>
+            (!unresolved || !x.Source.Confirmed) &&
             (search.Length == 0 ||
              x.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-             x.Original.SetCode.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-             x.Original.CollectorNumber.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-             x.Status.Contains(search, StringComparison.OrdinalIgnoreCase)))
-            .ToArray();
+             x.Source.Original.SetCode.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+             x.Source.Original.CollectorNumber.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+             x.Status.Contains(search, StringComparison.OrdinalIgnoreCase)));
+        int sort = PhysicalPriceSort?.SelectedIndex ?? 0;
+        physical = sort switch
+        {
+            1 => physical.OrderBy(x => !x.UnitUsd.HasValue)
+                .ThenByDescending(x => x.UnitUsd).ThenBy(x => x.Ordinal),
+            2 => physical.OrderBy(x => !x.UnitUsd.HasValue)
+                .ThenBy(x => x.UnitUsd).ThenBy(x => x.Ordinal),
+            3 => physical.OrderBy(x => !x.LineUsd.HasValue)
+                .ThenByDescending(x => x.LineUsd).ThenBy(x => x.Ordinal),
+            4 => physical.OrderBy(x => !x.LineUsd.HasValue)
+                .ThenBy(x => x.LineUsd).ThenBy(x => x.Ordinal),
+            _ => physical.OrderBy(x => x.Ordinal)
+        };
+        var shownPhysical = physical.ToArray();
         var arena = backup.ArenaCards.Where(x =>
             search.Length == 0 || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
             .ToArray();
-        PhysicalList.ItemsSource = physical;
+        PhysicalList.ItemsSource = shownPhysical;
         ArenaList.ItemsSource = arena;
-        StatusText.Text = $"{physical.Length:N0} physical lines and {arena.Length:N0} Arena names shown. " +
-            "Double-click a card for offline details. Arena ownership has no printing IDs. " +
-            "Set Progress counts only verified paper collector-number slots; missing/invalid print IDs never count.";
+        StatusText.Text = $"{shownPhysical.Length:N0} physical lines and {arena.Length:N0} Arena names shown. " +
+            "Prices are read-only Scryfall estimates; missing data is not zero. " +
+            "Double-click for offline details. Only verified paper printings count in Set Progress.";
+    }
+
+    private void OnPhysicalSortChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PhysicalList is null) return; // InitializeComponent triggers selection.
+        RefreshLists();
+    }
+
+    private async void OnRecalculatePricesClicked(object sender, RoutedEventArgs e)
+        => await CalculateValuationAsync();
+
+    private async Task CalculateValuationAsync()
+    {
+        if (closing || valuationBusy || PhysicalValuationSummary is null) return;
+        valuationBusy = true;
+        int generation = ++valuationVersion;
+        RecalculatePricesButton.IsEnabled = false;
+        PhysicalValuationSummary.Text = "Calculating verified physical printing and finish prices…";
+        try
+        {
+            var result = await Task.Run(() =>
+                NativePhysicalValuation.Calculate(review, catalogPath));
+            if (closing || generation != valuationVersion) return;
+            valuation = result;
+            PhysicalValuationSummary.Text = result.Summary;
+            PhysicalValuationTimestamp.Text = result.SnapshotStatus +
+                " • Estimated resale/market reference only; not a live shop quote or offer.";
+            RefreshLists();
+        }
+        catch (Exception ex)
+        {
+            if (!closing && generation == valuationVersion)
+            {
+                PhysicalValuationSummary.Text = "Valuation unavailable; ownership was not changed.";
+                PhysicalValuationTimestamp.Text =
+                    "Could not safely calculate cached prices: " + ex.Message;
+            }
+        }
+        finally
+        {
+            valuationBusy = false;
+            if (!closing) RecalculatePricesButton.IsEnabled = true;
+        }
     }
 
     private void OnPhysicalViewModeChanged(object sender, SelectionChangedEventArgs e)
@@ -129,6 +200,12 @@ public partial class NativeCollectionWindow : Window
             { Header = "Qty", Width = 55, DisplayMemberBinding = new System.Windows.Data.Binding("Quantity") });
             compact.Columns.Add(new GridViewColumn
             { Header = "Set / #", Width = 115, DisplayMemberBinding = new System.Windows.Data.Binding("SetAndNumber") });
+            compact.Columns.Add(new GridViewColumn
+            { Header = "Unit USD", Width = 90,
+              DisplayMemberBinding = new System.Windows.Data.Binding("UnitLabel") });
+            compact.Columns.Add(new GridViewColumn
+            { Header = "Line USD", Width = 95,
+              DisplayMemberBinding = new System.Windows.Data.Binding("LineLabel") });
             PhysicalList.View = compact;
         }
         else PhysicalList.View = physicalDetailedView;
@@ -562,7 +639,7 @@ public partial class NativeCollectionWindow : Window
             return;
         }
         if (CollectionTabs.SelectedIndex != 0 ||
-            PhysicalList.SelectedItem is not CollectionCatalogReview.PrintingRow selected)
+            PhysicalList.SelectedItem is not NativePhysicalValuation.Line displayed)
         {
             StatusText.Text = "Switch to Physical Collection and select the exact row to adjust.";
             return;
@@ -570,14 +647,10 @@ public partial class NativeCollectionWindow : Window
 
         // The displayed row is an element of the original, ordered review.
         // Reference equality disambiguates even duplicate name/finish lines.
-        int ordinal = -1;
-        for (int i = 0; i < review.Rows.Count; i++)
-            if (ReferenceEquals(review.Rows[i], selected))
-            {
-                ordinal = i;
-                break;
-            }
+        var selected = displayed.Source;
+        int ordinal = displayed.Ordinal;
         if (ordinal < 0 || ordinal >= backup.PhysicalCards.Count ||
+            !ReferenceEquals(review.Rows[ordinal], selected) ||
             backup.PhysicalCards[ordinal] != selected.Original)
         {
             StatusText.Text = "Selected row is stale. Close and reopen this collection.";
@@ -610,12 +683,14 @@ public partial class NativeCollectionWindow : Window
         string name;
         string ownership;
         if (CollectionTabs.SelectedIndex == 0 &&
-            PhysicalList.SelectedItem is CollectionCatalogReview.PrintingRow physical)
+            PhysicalList.SelectedItem is NativePhysicalValuation.Line priced)
         {
+            var physical = priced.Source;
             name = physical.Name;
             ownership = $"Physical: {physical.Quantity} copies · {physical.SetAndNumber} · " +
                         $"{physical.Finish} · {physical.Status}" +
-                        (physical.Confirmed ? $" · verified set {physical.ConfirmedSet}" : "");
+                        (physical.Confirmed ? $" · verified set {physical.ConfirmedSet}" : "") +
+                        $" · Unit {priced.UnitLabel}, line {priced.LineLabel} ({priced.PriceStatus})";
         }
         else if (CollectionTabs.SelectedIndex == 1 &&
                  ArenaList.SelectedItem is NativeArenaRow arena)
@@ -644,8 +719,9 @@ public partial class NativeCollectionWindow : Window
         }
         string? set = null, collector = null;
         if (CollectionTabs.SelectedIndex == 0 &&
-            PhysicalList.SelectedItem is CollectionCatalogReview.PrintingRow owned)
+            PhysicalList.SelectedItem is NativePhysicalValuation.Line pricedOwned)
         {
+            var owned = pricedOwned.Source;
             set = owned.Confirmed ? owned.ConfirmedSet : owned.Original.SetCode;
             collector = owned.Confirmed ? owned.CatalogCollector : owned.Original.CollectorNumber;
         }
