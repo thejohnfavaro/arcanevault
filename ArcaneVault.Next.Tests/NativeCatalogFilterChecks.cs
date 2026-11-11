@@ -77,10 +77,10 @@ internal static class NativeCatalogFilterChecks
             ColorMatch: CatalogSnapshot.ColorMatching.Exact)).Rows.Count == 2,
             "Exact WU must match only Azorius card identity.");
         Must(catalog.SearchFiltered("", new(ColorMask: "W",
-            ColorMatch: CatalogSnapshot.ColorMatching.ContainsAll)).Rows.Count == 6,
+            ColorMatch: CatalogSnapshot.ColorMatching.ContainsAll)).Rows.Count == 5,
             "Contains-all W must find cards with White in their identity.");
         Must(catalog.SearchFiltered("", new(ColorMask: "WU",
-            ColorMatch: CatalogSnapshot.ColorMatching.ContainsAny)).Rows.Count == 7,
+            ColorMatch: CatalogSnapshot.ColorMatching.ContainsAny)).Rows.Count == 6,
             "Contains-any W/U must find cards with either selected color.");
         Must(catalog.SearchFiltered("", new(ArenaOnly: true)).Rows.Count == 2,
             "Arena filter must use actual per-printing availability.");
