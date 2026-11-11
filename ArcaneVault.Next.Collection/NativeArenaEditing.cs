@@ -94,6 +94,68 @@ public static class NativeArenaEditing
         return Validated(root, view, expectedRows, checked(view.ArenaCopies + count));
     }
 
+    /// <summary>
+    /// Add a whole CSV/XLSX import as one validated arena-name-only transaction.
+    /// Duplicate names in a file are consolidated case-insensitively; existing
+    /// rows retain their original spelling and unknown annotations. Never infer
+    /// an Arena printing or replace physical collection/decks/art.
+    /// </summary>
+    public static byte[] AddImport(byte[] backup,
+        IReadOnlyList<NativeExcelCollectionImport.Row> imported)
+    {
+        ArgumentNullException.ThrowIfNull(imported);
+        if (imported.Count == 0)
+            throw new InvalidDataException("Arena import contains no rows.");
+        var byName = new Dictionary<string, (string Name, long Quantity)>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var item in imported)
+        {
+            string name = ValidName(item.Name);
+            ValidQuantity(item.Quantity, allowZero: false);
+            if (byName.TryGetValue(name, out var previous))
+                byName[name] = (previous.Name, checked(previous.Quantity + item.Quantity));
+            else
+                byName.Add(name, (name, item.Quantity));
+        }
+        if (byName.Values.Any(x => x.Quantity > 99_999))
+            throw new InvalidDataException("Arena import exceeds 99,999 copies for a card name.");
+
+        var root = Parsed(backup, out var view, out var arena);
+        var existing = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < view.ArenaCards.Count; i++)
+        {
+            if (!existing.TryAdd(view.ArenaCards[i].Name, i))
+                if (byName.ContainsKey(view.ArenaCards[i].Name))
+                    throw new InvalidDataException(
+                        "Existing Arena rows contain duplicate names targeted by this import. Resolve them first.");
+        }
+        long added = 0;
+        int expectedRows = view.ArenaCards.Count;
+        foreach (var item in byName.Values)
+        {
+            added = checked(added + item.Quantity);
+            if (existing.TryGetValue(item.Name, out int index))
+            {
+                long combined = view.ArenaCards[index].Quantity + item.Quantity;
+                if (combined > 99_999)
+                    throw new InvalidDataException(
+                        $"Arena card '{item.Name}' would exceed 99,999 copies.");
+                ((JsonObject)arena[index]!)["qty"] = (int)combined;
+            }
+            else
+            {
+                if (++expectedRows > 150_000)
+                    throw new InvalidDataException("Arena inventory row limit reached.");
+                arena.Add(new JsonObject
+                {
+                    ["name"] = item.Name,
+                    ["qty"] = (int)item.Quantity
+                });
+            }
+        }
+        return Validated(root, view, expectedRows, checked(view.ArenaCopies + added));
+    }
+
     public static byte[] EditRow(byte[] backup, int arenaOrdinal,
         NativeArenaRow expectedRow, string newCardName, int newQuantity)
     {
