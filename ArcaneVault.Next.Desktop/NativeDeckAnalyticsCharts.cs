@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using System.IO;
 using System.Windows.Media;
 
 namespace ArcaneVault.Next.Desktop;
