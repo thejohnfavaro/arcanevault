@@ -159,6 +159,7 @@ try
     NativeUpdateChecks.Run(work);
     NativeFullBackupExportChecks.Run(work);
     NativeVisualShellChecks.Run();
+    NativeReleaseNotesChecks.Run();
     LegacyStorageImportChecks.Run(work);
     CollectionCatalogReviewChecks.Run(work);
     NativeSetProgressChecks.Run(work);
