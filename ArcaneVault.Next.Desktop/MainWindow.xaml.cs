@@ -1169,7 +1169,7 @@ public partial class MainWindow : Window
     {
         if (CardsList is null || CatalogColumnHeaders is null ||
             catalogDetailedTemplate is null || catalogDetailedPanel is null) return;
-        var previouslySelected = SelectedCatalogPrinting();
+        var previouslySelected = CardsList.SelectedItem as CatalogSnapshot.PrintingRow ?? selectedTilePrinting;
         int mode = CatalogViewMode.SelectedIndex;
 
         // Preserve row virtualization in all modes. Card-art mode groups several
