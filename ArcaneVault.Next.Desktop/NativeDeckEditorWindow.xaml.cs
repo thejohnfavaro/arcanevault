@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using ArcaneVault.Next.Domain;
 using System.IO;
 using System.Windows;
 
@@ -9,13 +10,18 @@ public partial class NativeDeckEditorWindow : Window
     private readonly string nativePath;
     private readonly string expectedSha;
     private readonly NativeDeckEditing.DeckRow? original;
+    private readonly NativeBackupView ownership;
+    private readonly string? catalogPath;
     private bool busy;
 
     public NativeDeckEditorWindow(string nativePath, string expectedSha,
+        NativeBackupView ownership, string? catalogPath,
         NativeDeckEditing.DeckRow? selected = null)
     {
         this.nativePath = nativePath;
         this.expectedSha = expectedSha;
+        this.ownership = ownership ?? throw new ArgumentNullException(nameof(ownership));
+        this.catalogPath = catalogPath;
         original = selected;
         InitializeComponent();
         FormatBox.Text = selected?.Format ?? "60-card";
@@ -41,7 +47,6 @@ public partial class NativeDeckEditorWindow : Window
         IReadOnlyList<NativeDeckEditing.Entry> entries;
         try
         {
-            // Validate locally before asking the user to confirm the edit.
             entries = NativeDeckEditing.ParseMainboard(mainboard);
             if (name.Length is < 1 or > 120 || name.Any(char.IsControl) ||
                 commander.Length > 255 || commander.Any(char.IsControl) ||
@@ -54,24 +59,48 @@ public partial class NativeDeckEditorWindow : Window
             return;
         }
 
-        int copies = entries.Sum(entry => entry.Quantity);
-        string action = original is null ? "CREATE" : "UPDATE";
-        if (MessageBox.Show(this,
-            $"{action} \"{name}\" ({format}) with {copies:N0} mainboard copies across " +
-            $"{entries.Count:N0} distinct card names" +
-            (commander.Length > 0 ? $", Commander: {commander}" : ", no commander") +
-            "?\n\nThis only changes the saved Deck Library. Physical/Arena ownership " +
-            "does not change. The full previous native database is preserved " +
-            "as a recovery file. Format legality has NOT been validated.",
-            "Confirm native deck save", MessageBoxButton.YesNo,
-            MessageBoxImage.Question) != MessageBoxResult.Yes)
-            return;
-
         busy = true;
         SaveDeckButton.IsEnabled = false;
-        StatusText.Text = "Verifying and saving the native deck with automatic recovery…";
+        StatusText.Text = "Reviewing the saved cards against native ownership and local Scryfall metadata…";
         try
         {
+            // Runs without changing the native database. Reads local catalog in
+            // read-only mode and treats unavailable metadata as unverified.
+            var report = await Task.Run(() => NativeDeckPreflight.Check(
+                ownership, entries, commander, format, catalogPath));
+
+            int copies = entries.Sum(entry => entry.Quantity);
+            string action = original is null ? "CREATE" : "UPDATE";
+            var details = report.Findings.Take(18)
+                .Select(f => "• " + f.Severity + ": " + f.Message);
+            int omitted = Math.Max(0, report.Findings.Count - 18);
+            string reportText = string.Join("\n", details);
+            if (omitted > 0) reportText += $"\n…plus {omitted} additional review notes.";
+            string prompt =
+                $"{action} \"{name}\" ({format}) with {copies:N0} mainboard copies across " +
+                $"{entries.Count:N0} distinct card names" +
+                (commander.Length > 0 ? $", Commander: {commander}" : ", no commander") +
+                $"?\n\nRead-only deck preflight: {report.Summary}\n" +
+                (report.CatalogChecked
+                    ? "Metadata from the offline Scryfall catalog.\n"
+                    : "Catalog legality checks unavailable.\n") +
+                (reportText.Length > 0 ? "\n" + reportText + "\n" : "") +
+                "\nReview is advisory, not a guarantee of Arena or tournament legality. " +
+                "Save anyway? Your physical/Arena inventory will NOT change. " +
+                "The complete previous native database will be retained for recovery.";
+
+            // Explicit consent is required even when warnings are present.
+            if (MessageBox.Show(this, prompt, "Review native deck and save",
+                MessageBoxButton.YesNo,
+                report.Warnings > 0 ? MessageBoxImage.Warning :
+                MessageBoxImage.Question) != MessageBoxResult.Yes)
+            {
+                StatusText.Text = "Save canceled after review. " + report.Summary +
+                    ". No collection data changed.";
+                return;
+            }
+
+            StatusText.Text = "Verifying and saving the native deck with automatic recovery…";
             var saved = await Task.Run(() =>
                 NativeWorkspaceSafety.SaveDeck(nativePath, name, commander,
                     mainboard, original, expectedSha, format: format));
@@ -85,9 +114,10 @@ public partial class NativeDeckEditorWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = "Save was not confirmed. No automatic reset was performed. " + ex.Message;
+            StatusText.Text = "Review or save did not finish. No automatic reset was performed. " +
+                ex.Message;
             MessageBox.Show(this, StatusText.Text,
-                "Deck save stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "Deck action stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {

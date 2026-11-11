@@ -16,7 +16,7 @@
         <TextBlock x:Name="HeaderText" Grid.Row="0" Text="Create saved deck"
                    FontWeight="SemiBold" FontSize="24" Margin="0,0,0,12"/>
         <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="#B5B7CB"
-                   Margin="0,0,0,16" Text="Save a local deck independently from ownership. The Commander field is optional for non-Commander formats. This editor does not yet verify format legality, deck size, color identity, or whether listed cards are owned."/>
+                   Margin="0,0,0,16" Text="Save a local deck independently from ownership. The Commander field is optional for non-Commander formats. Saving shows a read-only preflight of known deck-size, color-identity, copy-count, cached legality and owned-card warnings. Incomplete catalogs and Brawl's live ban list remain unverified; warnings never block a deliberate save."/>
         <Grid Grid.Row="2" Margin="0,0,0,14">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
