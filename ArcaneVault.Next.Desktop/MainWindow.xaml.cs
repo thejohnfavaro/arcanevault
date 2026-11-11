@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private NativeCatalogOwnership? catalogOwnership;
     private CommanderBrowserWindow? edhLabWindow;
     private NativeCollectionWindow? collectionWindow;
+    private NativeShortlistWindow? shortlistWindow;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
     private CancellationTokenSource? catalogSyncCancellation;
@@ -57,6 +58,7 @@ public partial class MainWindow : Window
             catalogSyncCancellation?.Cancel();
             edhLabWindow?.Close();
             collectionWindow?.Close();
+            shortlistWindow?.Close();
             CancelPendingSearch();
             catalogSnapshot?.Dispose();
         };
@@ -891,6 +893,91 @@ public partial class MainWindow : Window
                 ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
                 MigrateLegacyButton.IsEnabled = true;
             }
+        }
+    }
+
+    private async void OnOpenShortlistClicked(object sender, RoutedEventArgs e)
+    {
+        if (shortlistWindow is not null)
+        {
+            shortlistWindow.Activate();
+            return;
+        }
+        if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text =
+                "My Shortlist belongs to a native collection. Start Fresh or import a full backup first.";
+            return;
+        }
+        var view = new NativeShortlistWindow(NativeWorkspace.DefaultPath,
+            catalogSnapshot?.ReadOnlySnapshotPath) { Owner = this };
+        shortlistWindow = view;
+        view.Closed += async (_, _) =>
+        {
+            if (ReferenceEquals(shortlistWindow, view)) shortlistWindow = null;
+            if (closing || !view.ShortlistChanged || collectionWindow is null)
+                return;
+            collectionWindow.Close(); // invalidate stale collection edit SHA
+            await OpenNativeCollectionAsync();
+        };
+        view.Show();
+    }
+
+    private async void OnAddShortlistClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || catalogSnapshot is null ||
+            CardsList.SelectedItem is not CatalogSnapshot.PrintingRow selection)
+        {
+            FilterStatus.Text = "Select a real Scryfall catalog card to save it to My Shortlist.";
+            return;
+        }
+        if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Create or import your native collection before saving bookmarks.";
+            return;
+        }
+
+        AddShortlistButton.IsEnabled = false;
+        try
+        {
+            var result = await Task.Run(() =>
+            {
+                var workspace = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
+                var existing = NativeWorkspaceSafety.ListShortlist(workspace.DatabasePath);
+                if (existing.Any(n => n.Equals(selection.Name,
+                    StringComparison.OrdinalIgnoreCase)))
+                    return (Already: true, Saved: false);
+                NativeWorkspaceSafety.SetShortlistCard(workspace.DatabasePath,
+                    selection.Name, true, workspace.BackupSha256);
+                return (Already: false, Saved: true);
+            });
+            if (closing) return;
+            FilterStatus.Text = result.Already
+                ? $"☆ {selection.Name} is already in My Shortlist."
+                : $"★ {selection.Name} bookmarked in the native collection with a full rollback. " +
+                  "No owned quantity changed.";
+            if (result.Saved)
+            {
+                if (shortlistWindow is not null)
+                    await shortlistWindow.RefreshFromWorkspaceAsync();
+                if (collectionWindow is not null)
+                {
+                    collectionWindow.Close();
+                    await OpenNativeCollectionAsync();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+                MessageBox.Show(this,
+                    "Bookmark not saved: " + ex.Message +
+                    "\n\nIf the collection changed in another window, reopen it before retrying.",
+                    "My Shortlist", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            if (!closing) AddShortlistButton.IsEnabled = true;
         }
     }
 
