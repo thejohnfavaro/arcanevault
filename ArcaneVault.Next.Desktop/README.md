@@ -2,6 +2,16 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Export a current, complete native collection backup — AVN-030
+
+The standalone native Windows application now has **Export native full backup** on its main window once a native collection exists. It saves the **current verified schema-2 JSON source**, including every successful native Arena/physical edit, saved deck and revision, preferred artwork, wildcard/settings fields, and any retained unknown legacy metadata. No old WebView application, prior external export, Scryfall catalog, or internet connection is needed.
+
+Choose a destination and **new** filename (the app never overwrites an existing full backup), then confirm the unencrypted full export. The save is staged to a temporary sibling file, flushed and SHA-256 verified, and published without replacing existing files. The native SQLite collection, original Windows app profile, and all local recovery copies remain untouched.
+
+An exported JSON backup can be used later with **Import backup once** on a fresh native workspace, or archived independently. If you already have an active native workspace, use **Restore native recovery** for existing automatic recovery points; importing a second full backup does not silently overwrite or merge the active collection.
+
+Keep exported full backups in private storage. They may include deck lists, inventory, artwork preferences and retained legacy settings, and are **not encrypted**. A backup export is separate from, and does not replace, a full test of recovery on your Windows machine.
+
 ## Stored deck format and safe duplication — AVN-029
 
 The native **Deck Library** now stores an explicit deck format in saved deck JSON. The editor offers **Commander**, **Arena Brawl**, **60-card**, or a free-form format name. Imported decks that lack a format display a safe inferred label (Commander if the saved commander is present, otherwise 60-card) without altering the original until you save a change.
