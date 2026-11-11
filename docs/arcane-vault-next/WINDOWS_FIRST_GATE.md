@@ -14,6 +14,12 @@
 
 All of the following must be validated: shipping Windows version installs/launches and updates without data loss; real full backup/restore (disposable profile) passes quantity/printing/deck/artwork comparison; core native card catalog, physical collection, Arena inventory, card details and Set Progress are functional; unresolved printings are visible rather than guessed; performance and stability have been measured; recovery route documented and tested. At that point, EDH Lab can be reprioritized.
 
+## In-progress slice: AVN-030 — portable native full backup export
+
+The native Windows main window now has **Export native full backup**. It reads the currently verified native SQLite workspace, exports its exact preserved schema-2 JSON including recent native card/deck edits, revisions and unknown legacy fields, and publishes it to a user-chosen **new** filename only after SHA verification. Export cannot overwrite prior files, mutate the installed legacy app profile, or change active native ownership. Tests round-trip the exported JSON into an independent native SQLite workspace and reject existing filenames, stale source SHAs and cancellation. This supplies a user-controlled portable recovery artifact in addition to automatic SQLite rollbacks.
+
+Full user-device export→reimport parity and recovery demonstration remain required for 1.0. Release packaging/updater and format/ownership validation remain open.
+
 ## In-progress slice: AVN-029 — explicit saved format and independent deck duplication
 
 Deck Library now supports explicitly storing a free-form format label (Commander, Arena Brawl, 60-card, or custom). Existing legacy decks lacking a format display an inferred label without modifying their source; an edit preserves old revisions and appends a prior-version snapshot. **Duplicate selected deck** clones only the chosen deck into a unique new ID, clears its revision history and Arena sync binding, and preserves folder/tags/cover/card annotations; original deck and physical/Arena ownership stay untouched. Format legality and ownership are **not** inferred or enforced. All mutations remain SHA-guarded with a whole-database recovery point. This increment builds upon the already merged and tested AVN-028 instead of replacing it.
