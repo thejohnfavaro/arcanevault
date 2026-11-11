@@ -9,14 +9,16 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBlock x:Name="HeaderText" Grid.Row="0" Text="Create saved deck"
                    FontWeight="SemiBold" FontSize="24" Margin="0,0,0,12"/>
         <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="#B5B7CB"
-                   Margin="0,0,0,16" Text="Save a local deck independently from ownership. The Commander field is optional for non-Commander formats. Saving shows a read-only preflight of known deck-size, color-identity, copy-count, cached legality and owned-card warnings. Incomplete catalogs and Brawl's live ban list remain unverified; warnings never block a deliberate save."/>
+                   Margin="0,0,0,16" Text="Save a local deck independently from ownership. Import Arena-style text or a decklist .txt, organize by folder and favorite, then review the usual deck-size, color-identity, copy-count, cached legality and owned-card warnings before saving. Sideboards and multiple commanders are not silently discarded."/>
         <Grid Grid.Row="2" Margin="0,0,0,14">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
@@ -47,7 +49,20 @@
                 </ComboBox>
             </StackPanel>
         </Grid>
-        <Grid Grid.Row="3">
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12"
+                    VerticalAlignment="Center">
+            <TextBlock Text="Folder" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBox x:Name="FolderBox" Width="235" Padding="10,7"
+                     Text="Unfiled"
+                     Background="#202737" Foreground="White" BorderBrush="#514276"
+                     ToolTip="Deck-library folder name (up to 64 characters)"/>
+            <CheckBox x:Name="FavoriteDeckBox" Content="★ Favorite"
+                      VerticalAlignment="Center" Margin="23,0,0,0"
+                      Foreground="#E5BF79"
+                      ToolTip="Show this deck first in the saved library"/>
+        </StackPanel>
+        <Grid Grid.Row="4">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -62,10 +77,25 @@
                      Padding="12" Background="#171C28"
                      Foreground="#F2F5FA" BorderBrush="#514276"/>
         </Grid>
-        <TextBlock x:Name="StatusText" Grid.Row="4" Margin="0,13,0,13"
+
+        <WrapPanel Grid.Row="5" Margin="0,10,0,0">
+            <Button Content="Import .txt" Click="OnImportTextClicked"
+                    Padding="11,8" Margin="0,0,8,4"
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
+            <Button Content="Paste Arena list" Click="OnPasteDeckClicked"
+                    Padding="11,8" Margin="0,0,8,4"
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
+            <Button Content="Copy Arena list" Click="OnCopyDeckClicked"
+                    Padding="11,8" Margin="0,0,8,4"
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
+            <Button Content="Export .txt" Click="OnExportTextClicked"
+                    Padding="11,8" Margin="0,0,8,4"
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
+        </WrapPanel>
+        <TextBlock x:Name="StatusText" Grid.Row="6" Margin="0,13,0,13"
                    Foreground="#9DA9BD" TextWrapping="Wrap"
                    Text="Every successful save retains the complete previous native collection as a recovery file."/>
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Cancel" IsCancel="True"
                     Padding="18,10" Margin="0,0,12,0"
                     Background="#202737" Foreground="White" BorderBrush="#514276"/>
