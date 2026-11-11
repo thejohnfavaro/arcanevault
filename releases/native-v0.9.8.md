@@ -9,7 +9,7 @@ Native Windows x64 prerelease: restores physical/Arena owned/unowned browsing in
 - Regression fixtures for reprint false positives, foil/nonfoil of the same physical printing, unresolved/no-ID physical rows, mismatched name/set/collector metadata, name-based Arena ownership, combined Scryfall filters and immutable SQLite files.
 
 ## Changed
-- Physical owned requires a matching, valid **Scryfall printing UUID** plus agreement with supplied card name/set/collector data. A different edition sharing the same name is **not** automatically marked physically owned.
+- Physical owned requires a matching, valid **Scryfall printing UUID**, a genuine **paper (not digital-only)** catalog printing and agreement with supplied card name/set/collector data. A different edition sharing the same name is **not** automatically marked physically owned.
 - Arena ownership remains **card-name based** in the native schema. The On Arena metadata filter is independent and can be combined with Arena name-owned status.
 - The label **Physical not verified owned** is intentional: unresolved physical holdings may exist for that name, but the app will not guess which specific printing they represent.
 - The existing 200-result cap applies **after** ownership matching, so rare owned printings are not silently excluded by the first 200 unowned rows.
