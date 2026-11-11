@@ -170,6 +170,15 @@ internal static class NativeVisualShellChecks
              collection.Contains("x:Name=\"SetBannerImage\"", StringComparison.Ordinal) &&
              collection.Contains("Width=\"0\" Height=\"0\" Opacity=\"0\"", StringComparison.Ordinal),
              "Set tile artwork must fill via ImageBrush without participating in layout size, preserving 196px height.");
+        Must(collection.Contains("x:Name=\"PhysicalList\"", StringComparison.Ordinal) &&
+             collection.Contains("Header=\"Card / Printing\"", StringComparison.Ordinal) &&
+             collection.Contains("Header=\"Arena Card\"", StringComparison.Ordinal) &&
+             collection.Contains("AlternationCount=\"2\"", StringComparison.Ordinal) &&
+             collection.Contains("ItemsControl.AlternationIndex", StringComparison.Ordinal) &&
+             collection.Contains("x:Name=\"DeckLibraryList\"", StringComparison.Ordinal) &&
+             collection.Contains("<RadialGradientBrush Center=", StringComparison.Ordinal) &&
+             collection.Contains("Text=\"{Binding Format}\"", StringComparison.Ordinal),
+             "Collection and deck-library visual parity must preserve virtualized owned rows and themed deck covers.");
         string setSymbolCode = File.ReadAllText(
             Path.Combine(dir, "NativeSetSymbol.cs"));
         Must(setSymbolCode.Contains("svgs.scryfall.io/sets/", StringComparison.Ordinal) &&

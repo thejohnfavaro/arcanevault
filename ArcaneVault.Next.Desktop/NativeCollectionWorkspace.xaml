@@ -166,13 +166,55 @@
                     </WrapPanel>
                 <ListView Grid.Row="3" x:Name="PhysicalList" MouseDoubleClick="OnCardRowDoubleClick"
                           Background="{StaticResource VaultPanel}" Foreground="{StaticResource VaultText}"
+                          AlternationCount="2"
                           VirtualizingStackPanel.IsVirtualizing="True"
                           VirtualizingStackPanel.VirtualizationMode="Recycling"
                           ScrollViewer.CanContentScroll="True">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="8,5"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Background" Value="#111923"/>
+                            <Setter Property="BorderBrush" Value="#28394B"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                            <Style.Triggers>
+                                <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                                    <Setter Property="Background" Value="#1B2532"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#35485A"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource VaultAccentBorder}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.ItemContainerStyle>
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="Card" Width="285" DisplayMemberBinding="{Binding Name}"/>
-                            <GridViewColumn Header="Qty" Width="50" DisplayMemberBinding="{Binding Quantity}"/>
+                            <GridViewColumn Header="Card / Printing" Width="285">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="3,3,0,3">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                                                       TextTrimming="CharacterEllipsis" Foreground="{StaticResource VaultText}"/>
+                                            <TextBlock Text="{Binding SetAndNumber}" FontSize="11"
+                                                       Foreground="{StaticResource VaultMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Owned" Width="67">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource VaultAccentSurface}"
+                                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                                BorderThickness="1" CornerRadius="9" Padding="8,3"
+                                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Quantity}" FontWeight="Bold"
+                                                       Foreground="{StaticResource VaultAccent}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
                             <GridViewColumn Header="Set / #" Width="135" DisplayMemberBinding="{Binding SetAndNumber}"/>
                             <GridViewColumn Header="Finish" Width="95" DisplayMemberBinding="{Binding Finish}"/>
                             <GridViewColumn Header="Unit USD" Width="105" DisplayMemberBinding="{Binding UnitLabel}"/>
@@ -212,13 +254,50 @@
                     </StackPanel>
                 <ListView Grid.Row="1" x:Name="ArenaList" MouseDoubleClick="OnCardRowDoubleClick"
                           Background="{StaticResource VaultPanel}" Foreground="{StaticResource VaultText}"
+                          AlternationCount="2"
                           VirtualizingStackPanel.IsVirtualizing="True"
                           VirtualizingStackPanel.VirtualizationMode="Recycling"
                           ScrollViewer.CanContentScroll="True">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="9,7"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Background" Value="#111923"/>
+                            <Setter Property="BorderBrush" Value="#28394B"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                            <Style.Triggers>
+                                <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                                    <Setter Property="Background" Value="#1B2532"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#35485A"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource VaultAccentBorder}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.ItemContainerStyle>
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="Card" Width="470" DisplayMemberBinding="{Binding Name}"/>
-                            <GridViewColumn Header="Owned" Width="100" DisplayMemberBinding="{Binding Quantity}"/>
+                            <GridViewColumn Header="Arena Card" Width="470">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                                                   Foreground="{StaticResource VaultText}" TextTrimming="CharacterEllipsis"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Owned" Width="100">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource VaultAccentSurface}"
+                                                BorderBrush="{StaticResource VaultAccentBorder}" BorderThickness="1"
+                                                CornerRadius="9" Padding="8,3" HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding Quantity}" FontWeight="Bold"
+                                                       Foreground="{StaticResource VaultAccent}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -275,10 +354,16 @@
                               ScrollViewer.CanContentScroll="True">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="{StaticResource VaultPanelRaised}"
-                                        BorderBrush="{StaticResource VaultLine}"
+                                <Border BorderBrush="{StaticResource VaultAccentBorder}"
                                         BorderThickness="1" CornerRadius="12"
                                         Margin="7,6" Padding="14">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#253343" Offset="0"/>
+                                            <GradientStop Color="#192431" Offset="0.65"/>
+                                            <GradientStop Color="#121C29" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="91"/>
@@ -299,20 +384,30 @@
                                                     <GradientStop Color="#141A28" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
-                                            <Grid>
-                                                <Border Background="#55000000"
-                                                        Width="9" HorizontalAlignment="Left"
-                                                        Margin="0,0,0,0"/>
-                                                <TextBlock Text="✦" FontSize="37"
-                                                           Foreground="{StaticResource VaultAccent}"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           Opacity="0.74"/>
-                                                <TextBlock Text="DECK" FontWeight="Bold" FontSize="10"
-                                                           Foreground="#D8C6FF"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Bottom"
-                                                           Margin="0,0,0,10"/>
+                                            <Grid ClipToBounds="True">
+                                                <Grid.Background>
+                                                    <RadialGradientBrush Center="0.7,0.35" GradientOrigin="0.6,0.4" RadiusX="0.8" RadiusY="0.8">
+                                                        <GradientStop Color="#875B86" Offset="0"/>
+                                                        <GradientStop Color="#3D375D" Offset="0.52"/>
+                                                        <GradientStop Color="#101B2A" Offset="1"/>
+                                                    </RadialGradientBrush>
+                                                </Grid.Background>
+                                                <Border Width="7" HorizontalAlignment="Left" Background="#A9E38B54"/>
+                                                <Ellipse Width="94" Height="94" Margin="20,-30,-28,0"
+                                                         HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                         Fill="#245F9DCE" Stroke="#5499C1DA" StrokeThickness="2"/>
+                                                <Ellipse Width="64" Height="64" Margin="0,0,0,10"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                         Stroke="#9ACDA0D8" StrokeThickness="2"/>
+                                                <TextBlock Text="✦" FontSize="35" FontWeight="Bold"
+                                                           Foreground="#F5E8F5" HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                                <Border Height="27" VerticalAlignment="Bottom" Background="#D80C1623">
+                                                    <TextBlock Text="{Binding Format}" FontSize="10"
+                                                               FontWeight="Bold" Foreground="White"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                </Border>
                                             </Grid>
                                         </Border>
                                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
