@@ -20,7 +20,11 @@ public static class NativeDeckEditing
     public sealed record DeckRow(
         int Ordinal, string Id, string Name, string Commander,
         string Folder, int EntryCount, int TotalCopies, int Revisions,
-        bool Editable, string MainboardText, string SourceSha256, string Format = "");
+        bool Editable, string MainboardText, string SourceSha256,
+        string Format = "", bool Favorite = false)
+    {
+        public string FavoriteLabel => Favorite ? "★ Favorite" : "";
+    }
 
     private static string Hash(string json) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
@@ -99,6 +103,9 @@ public static class NativeDeckEditing
             string id = GetString(deck, "id");
             string folder = GetString(deck, "folder");
             string format = GetString(deck, "format");
+            bool favorite = deck["favorite"] is JsonValue favoriteValue &&
+                bool.TryParse(favoriteValue.ToJsonString(), out bool storedFavorite) &&
+                storedFavorite;
             if (format.Length == 0)
                 format = string.IsNullOrWhiteSpace(commander) ? "60-card" : "Commander";
             var entries = deck["entries"] as JsonArray ??
@@ -133,7 +140,7 @@ public static class NativeDeckEditing
             items.Add(new DeckRow(i, id, name, commander,
                 string.IsNullOrWhiteSpace(folder) ? "Unfiled" : folder,
                 entries.Count, copies, revisions, editable,
-                string.Join("\n", mainboard), Hash(json), format));
+                string.Join("\n", mainboard), Hash(json), format, favorite));
         }
         return items.AsReadOnly();
     }
@@ -213,7 +220,7 @@ public static class NativeDeckEditing
             ["savedAt"] = DateTimeOffset.UtcNow.ToString("O"),
             ["label"] = "Before native deck edit"
         };
-        foreach (string key in new[] { "coverCard", "folder", "tags" })
+        foreach (string key in new[] { "coverCard", "folder", "tags", "favorite" })
             if (deck[key] is not null)
                 previous[key] = deck[key]!.DeepClone();
         return previous;
@@ -226,7 +233,8 @@ public static class NativeDeckEditing
     /// </summary>
     public static byte[] Save(byte[] backup,
         string name, string commander, string mainboardText,
-        DeckRow? selected = null, string? format = null)
+        DeckRow? selected = null, string? format = null,
+        string? folder = null, bool? favorite = null)
     {
         ArgumentNullException.ThrowIfNull(backup);
         string safeName = CheckedText(name, nameof(name), 120, true);
@@ -234,6 +242,9 @@ public static class NativeDeckEditing
         string safeFormat = CheckedText(format ?? selected?.Format ??
             (safeCommander.Length > 0 ? "Commander" : "60-card"),
             nameof(format), 60, true);
+        string safeFolder = CheckedText(
+            folder ?? selected?.Folder ?? "Unfiled", nameof(folder), 64, true);
+        bool safeFavorite = favorite ?? selected?.Favorite ?? false;
         var entries = ParseMainboard(mainboardText);
         var before = NativeBackupReader.Read(backup);
         var currentRows = Describe(backup, out var root, out var library);
@@ -254,8 +265,8 @@ public static class NativeDeckEditing
                 ["format"] = safeFormat,
                 ["entries"] = EntriesForSave(entries, null),
                 ["updated"] = DateTimeOffset.UtcNow.ToString("O"),
-                ["favorite"] = false,
-                ["folder"] = "Unfiled",
+                ["favorite"] = safeFavorite,
+                ["folder"] = safeFolder,
                 ["tags"] = new JsonArray(),
                 ["coverCard"] = "",
                 ["revisions"] = new JsonArray()
@@ -276,7 +287,9 @@ public static class NativeDeckEditing
             if (parsedOld.Name == safeName &&
                 parsedOld.Commander == safeCommander &&
                 parsedOld.MainboardText == newText &&
-                parsedOld.Format == safeFormat)
+                parsedOld.Format == safeFormat &&
+                parsedOld.Folder == safeFolder &&
+                parsedOld.Favorite == safeFavorite)
                 throw new InvalidDataException("The deck has no changes; nothing was saved.");
 
             var history = row["revisions"] as JsonArray;
@@ -294,6 +307,8 @@ public static class NativeDeckEditing
             row["name"] = safeName;
             row["commander"] = safeCommander;
             row["format"] = safeFormat;
+            row["folder"] = safeFolder;
+            row["favorite"] = safeFavorite;
             row["entries"] = EntriesForSave(entries, previousEntries);
             row["updated"] = DateTimeOffset.UtcNow.ToString("O");
         }

@@ -1,6 +1,8 @@
 using ArcaneVault.Next.Collection;
 using ArcaneVault.Next.Domain;
+using Microsoft.Win32;
 using System.IO;
+using System.Text;
 using System.Windows;
 
 namespace ArcaneVault.Next.Desktop;
@@ -25,6 +27,8 @@ public partial class NativeDeckEditorWindow : Window
         original = selected;
         InitializeComponent();
         FormatBox.Text = selected?.Format ?? "60-card";
+        FolderBox.Text = selected?.Folder ?? "Unfiled";
+        FavoriteDeckBox.IsChecked = selected?.Favorite ?? false;
         if (selected is not null)
         {
             HeaderText.Text = "Edit saved deck";
@@ -37,12 +41,144 @@ public partial class NativeDeckEditorWindow : Window
         }
     }
 
+    private void ApplyDeckImport(string text)
+    {
+        if (busy) return;
+        try
+        {
+            var imported = NativeDeckTextExchange.Parse(text);
+            string printWarning = imported.RemovedPrintingAnnotations
+                ? "This text lists Arena set/collector annotations. The native deck editor " +
+                  "stores card names and quantities, NOT those exact printing choices.\n\n"
+                : "";
+            string commanderWarning = imported.Commander.Length == 0
+                ? "No Commander section detected; the current Commander field will be kept.\n\n"
+                : $"Commander: {imported.Commander}\n\n";
+            string prompt =
+                $"Import {imported.MainboardCopies:N0} mainboard copies across " +
+                $"{imported.CardNames:N0} card names?\n\n" +
+                commanderWarning + printWarning +
+                "This replaces the TEXT currently visible in the deck editor; " +
+                "it does not save or modify your collection until you press Review and save deck.\n\n" +
+                "Continue?";
+            if (MessageBox.Show(this, prompt, "Review imported decklist",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+            MainboardBox.Text = imported.MainboardText;
+            if (imported.Commander.Length > 0)
+                CommanderBox.Text = imported.Commander;
+            StatusText.Text = $"Loaded {imported.SourceKind}: " +
+                $"{imported.CardNames:N0} card names, {imported.MainboardCopies:N0} copies. " +
+                "Not saved yet; review the selected format and press Review and save deck.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
+        {
+            StatusText.Text = "Deck import rejected: " + ex.Message;
+            MessageBox.Show(this, ex.Message,
+                "Decklist needs review", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void OnPasteDeckClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        try
+        {
+            if (!Clipboard.ContainsText())
+                throw new InvalidDataException("Clipboard has no plain-text decklist.");
+            ApplyDeckImport(Clipboard.GetText());
+        }
+        catch (Exception ex) when (ex is InvalidDataException or System.Runtime.InteropServices.COMException)
+        {
+            StatusText.Text = "Unable to paste decklist: " + ex.Message;
+        }
+    }
+
+    private void OnImportTextClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        var picker = new OpenFileDialog
+        {
+            Title = "Import a plain-text or MTG Arena decklist",
+            Filter = "Decklist text (*.txt)|*.txt|All files (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (picker.ShowDialog(this) != true) return;
+        try
+        {
+            var info = new FileInfo(picker.FileName);
+            if (!info.Exists || info.Length is < 1 or > 256_000)
+                throw new InvalidDataException("Decklist files must be smaller than 256 KB.");
+            ApplyDeckImport(File.ReadAllText(info.FullName, Encoding.UTF8));
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            StatusText.Text = "Unable to read decklist: " + ex.Message;
+        }
+    }
+
+    private void OnCopyDeckClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        try
+        {
+            string exported = NativeDeckTextExchange.Export(MainboardBox.Text, CommanderBox.Text);
+            Clipboard.SetText(exported);
+            StatusText.Text = "Copied a name/quantity Arena-style decklist. " +
+                "This export does not include printings, sideboards, deck history or ownership.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or
+            System.Runtime.InteropServices.COMException)
+        {
+            StatusText.Text = "Could not copy decklist: " + ex.Message;
+        }
+    }
+
+    private void OnExportTextClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        string exported;
+        try { exported = NativeDeckTextExchange.Export(MainboardBox.Text, CommanderBox.Text); }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
+        {
+            StatusText.Text = "Cannot export decklist: " + ex.Message;
+            return;
+        }
+        string filename = new string(
+            (DeckNameBox.Text.Trim().Length == 0 ? "ArcaneVaultDeck" : DeckNameBox.Text.Trim())
+            .Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch).ToArray());
+        var picker = new SaveFileDialog
+        {
+            Title = "Export current deck as Arena-style text",
+            FileName = filename + ".txt",
+            Filter = "Decklist text (*.txt)|*.txt",
+            AddExtension = true,
+            DefaultExt = ".txt",
+            OverwritePrompt = true
+        };
+        if (picker.ShowDialog(this) != true) return;
+        try
+        {
+            // Export only; never touch the authoritative native SQLite deck library.
+            File.WriteAllText(picker.FileName, exported, new UTF8Encoding(false));
+            StatusText.Text = "Exported decklist text. Exact card printings, deck history " +
+                "and organization remain only in your full native backup.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusText.Text = "Could not write decklist: " + ex.Message;
+        }
+    }
+
     private async void OnSaveDeckClicked(object sender, RoutedEventArgs e)
     {
         if (busy) return;
         string name = DeckNameBox.Text.Trim();
         string commander = CommanderBox.Text.Trim();
         string format = FormatBox.Text.Trim();
+        string folder = FolderBox.Text.Trim();
+        bool favorite = FavoriteDeckBox.IsChecked == true;
         string mainboard = MainboardBox.Text;
         IReadOnlyList<NativeDeckEditing.Entry> entries;
         try
@@ -50,7 +186,8 @@ public partial class NativeDeckEditorWindow : Window
             entries = NativeDeckEditing.ParseMainboard(mainboard);
             if (name.Length is < 1 or > 120 || name.Any(char.IsControl) ||
                 commander.Length > 255 || commander.Any(char.IsControl) ||
-                format.Length is < 1 or > 60 || format.Any(char.IsControl))
+                format.Length is < 1 or > 60 || format.Any(char.IsControl) ||
+                folder.Length is < 1 or > 64 || folder.Any(char.IsControl))
                 throw new InvalidDataException("Invalid deck or commander name.");
         }
         catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
@@ -78,7 +215,8 @@ public partial class NativeDeckEditorWindow : Window
             if (omitted > 0) reportText += $"\n…plus {omitted} additional review notes.";
             string prompt =
                 $"{action} \"{name}\" ({format}) with {copies:N0} mainboard copies across " +
-                $"{entries.Count:N0} distinct card names" +
+                $"{entries.Count:N0} distinct card names · Folder: {folder}" +
+                (favorite ? " · ★ Favorite" : "") +
                 (commander.Length > 0 ? $", Commander: {commander}" : ", no commander") +
                 $"?\n\nRead-only deck preflight: {report.Summary}\n" +
                 (report.CatalogChecked
@@ -103,7 +241,8 @@ public partial class NativeDeckEditorWindow : Window
             StatusText.Text = "Verifying and saving the native deck with automatic recovery…";
             var saved = await Task.Run(() =>
                 NativeWorkspaceSafety.SaveDeck(nativePath, name, commander,
-                    mainboard, original, expectedSha, format: format));
+                    mainboard, original, expectedSha, format: format,
+                    folder: folder, favorite: favorite));
             MessageBox.Show(this,
                 $"Deck saved. Library now contains {saved.Current.Collection.Decks:N0} decks " +
                 $"and {saved.Current.Collection.DeckRevisions:N0} revisions.\n\n" +

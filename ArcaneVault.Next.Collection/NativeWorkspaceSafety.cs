@@ -368,7 +368,8 @@ public static class NativeWorkspaceSafety
     public static Replacement SaveDeck(string nativePath,
         string name, string commander, string mainboard,
         NativeDeckEditing.DeckRow? selected, string expectedCurrentBackupSha,
-        CancellationToken cancellation = default, string? format = null)
+        CancellationToken cancellation = default, string? format = null,
+        string? folder = null, bool? favorite = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
         lock (UpdateGate)
@@ -377,7 +378,7 @@ public static class NativeWorkspaceSafety
             string path = Path.GetFullPath(nativePath);
             CheckCurrent(path, expectedCurrentBackupSha);
             var changed = NativeDeckEditing.Save(ReadPreservedBackup(path),
-                name, commander, mainboard, selected, format);
+                name, commander, mainboard, selected, format, folder, favorite);
             cancellation.ThrowIfCancellationRequested();
             return Refresh(path, changed, "native-deck-library-save",
                 expectedCurrentBackupSha, cancellation);
