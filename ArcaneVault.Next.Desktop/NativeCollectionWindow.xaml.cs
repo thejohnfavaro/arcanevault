@@ -642,7 +642,29 @@ public partial class NativeCollectionWindow : Window
             try { info = CollectionCatalogReview.ReadDetails(catalogPath, name); }
             catch (Exception) { /* Missing or stale catalog must not affect the backup view. */ }
         }
-        var details = new NativeCardDetailsWindow(name, ownership, info) { Owner = this };
+        string? set = null, collector = null;
+        if (CollectionTabs.SelectedIndex == 0 &&
+            PhysicalList.SelectedItem is CollectionCatalogReview.PrintingRow owned)
+        {
+            set = owned.Confirmed ? owned.ConfirmedSet : owned.Original.SetCode;
+            collector = owned.Confirmed ? owned.CatalogCollector : owned.Original.CollectorNumber;
+        }
+        else if (CollectionTabs.SelectedIndex == 3 &&
+                 SetSlotsList.SelectedItem is NativeSetProgress.SetSlot setSlot)
+        {
+            set = (SetSummaryList.SelectedItem as NativeSetProgress.SetRow)?.SetCode;
+            collector = setSlot.CollectorNumber;
+        }
+        var details = new NativeCardDetailsWindow(name, ownership, info,
+            catalogPath, nativePath, set, collector) { Owner = this };
+        details.Closed += async (_, _) =>
+        {
+            if (!details.PreferenceChanged || closing) return;
+            // A preference write advances the native optimistic SHA. Reopen
+            // this collection from verified SQLite before permitting edits.
+            Close();
+            if (reopenNative is not null) await reopenNative();
+        };
         details.Show();
     }
 }
