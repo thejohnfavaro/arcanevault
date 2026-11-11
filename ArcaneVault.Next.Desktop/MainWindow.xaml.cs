@@ -1233,6 +1233,40 @@ public partial class MainWindow : Window
         if (sampleCards is null) return; // can fire inside InitializeComponent
         await FilterAsync();
     }
+    private void OnCatalogFilterChanged(object sender, RoutedEventArgs e)
+    {
+        if (sampleCards is null || SearchBox is null) return;
+        if (sender == ColorlessOnlyBox && ColorlessOnlyBox.IsChecked == true)
+        {
+            // Mutually exclusive choices: colorless isn't a sixth mana color.
+            foreach (var box in new[] { ColorWBox, ColorUBox, ColorBBox, ColorRBox, ColorGBox })
+                box.IsChecked = false;
+        }
+        else if (sender is CheckBox box && box.IsChecked == true &&
+                 (sender == ColorWBox || sender == ColorUBox || sender == ColorBBox ||
+                  sender == ColorRBox || sender == ColorGBox) && ColorlessOnlyBox is not null)
+            ColorlessOnlyBox.IsChecked = false;
+        _ = FilterAsync();
+    }
+
+    private CatalogSnapshot.SearchOptions SelectedCatalogFilters()
+    {
+        string colors =
+            (ColorWBox?.IsChecked == true ? "W" : "") +
+            (ColorUBox?.IsChecked == true ? "U" : "") +
+            (ColorBBox?.IsChecked == true ? "B" : "") +
+            (ColorRBox?.IsChecked == true ? "R" : "") +
+            (ColorGBox?.IsChecked == true ? "G" : "");
+        return new CatalogSnapshot.SearchOptions(
+            SetFilterBox?.Text ?? "",
+            (RarityFilterBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "",
+            TypeFilterBox?.Text ?? "",
+            colors,
+            (CatalogSnapshot.ColorMatching)Math.Clamp(
+                ColorMatchBox?.SelectedIndex ?? 0, 0, 2),
+            ColorlessOnlyBox?.IsChecked == true,
+            ArenaOnlyBox?.IsChecked == true);
+    }
 
     private async Task FilterAsync()
     {
@@ -1241,6 +1275,7 @@ public partial class MainWindow : Window
         searchCancellation = cts;
         var token = cts.Token;
         var filter = SearchBox.Text.Trim();
+        var filters = SelectedCatalogFilters();
         var active = catalogSnapshot;
         var version = modeVersion;
         try
@@ -1269,7 +1304,8 @@ public partial class MainWindow : Window
             }
             else
             {
-                var results = await Task.Run(() => active.SearchPrefix(filter, cancellationToken: token), token);
+                var results = await Task.Run(() =>
+                    active.SearchFiltered(filter, filters, cancellationToken: token), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
                 CardsList.ItemsSource = results.Rows;
@@ -1279,6 +1315,11 @@ public partial class MainWindow : Window
         }
         catch (OperationCanceledException) { }
         catch (ObjectDisposedException) { } // old snapshot closed after switching modes
+        catch (InvalidDataException ex)
+        {
+            if (!closing && version == modeVersion && ReferenceEquals(searchCancellation, cts))
+                FilterStatus.Text = ex.Message;
+        }
         catch (Exception)
         {
             if (!closing && version == modeVersion && ReferenceEquals(searchCancellation, cts))
