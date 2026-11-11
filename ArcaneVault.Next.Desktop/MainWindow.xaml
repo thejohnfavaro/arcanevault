@@ -348,8 +348,8 @@
                                    Margin="0,0,0,7"/>
                         <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged"
                                  ToolTip="Search catalog names by prefix, with up to 200 printings per query"
-                                 FontSize="15" Height="42"
-                                 Padding="14,10"
+                                 FontSize="15" Height="44"
+                                 Padding="14,7"
                                  Background="{StaticResource VaultPanelRaised}"
                                  Foreground="{StaticResource VaultText}"
                                  BorderBrush="{StaticResource VaultLine}"/>
@@ -357,16 +357,16 @@
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="SET CODE" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
-                                <TextBox x:Name="SetFilterBox" Width="90" Height="30"
+                                <TextBox x:Name="SetFilterBox" Width="90" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
                                          ToolTip="Exact set abbreviation (e.g. MH3, CMM)"
-                                         Padding="7,5" Background="{StaticResource VaultPanelRaised}"
+                                         Padding="7,4" Background="{StaticResource VaultPanelRaised}"
                                          Foreground="{StaticResource VaultText}"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="RARITY" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
-                                <ComboBox x:Name="RarityFilterBox" Width="135" Height="30"
+                                <ComboBox x:Name="RarityFilterBox" Width="135" Height="36"
                                           SelectedIndex="0"
                                           SelectionChanged="OnCatalogFilterChanged"
                                           Background="{StaticResource VaultPanelRaised}"
@@ -383,7 +383,7 @@
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="UTILIZATION TAG" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
-                                <ComboBox x:Name="RoleFilterBox" Width="155" Height="30"
+                                <ComboBox x:Name="RoleFilterBox" Width="155" Height="36"
                                           SelectedIndex="0"
                                           SelectionChanged="OnCatalogFilterChanged"
                                           ToolTip="Heuristics from cached Scryfall Oracle text; a card can have multiple tags">
@@ -411,10 +411,10 @@
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="TYPE CONTAINS" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
-                                <TextBox x:Name="TypeFilterBox" Width="163" Height="30"
+                                <TextBox x:Name="TypeFilterBox" Width="163" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
                                          ToolTip="Filter oracle card type line: Creature, Enchantment, Wizard, etc."
-                                         Padding="7,5" Background="{StaticResource VaultPanelRaised}"
+                                         Padding="7,4" Background="{StaticResource VaultPanelRaised}"
                                          Foreground="{StaticResource VaultText}"/>
                             </StackPanel>
                             <CheckBox x:Name="ArenaOnlyBox" Content="On Arena"
@@ -427,7 +427,7 @@
                                 <TextBlock Text="COLLECTION OWNERSHIP"
                                            Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
-                                <ComboBox x:Name="OwnershipFilterBox" Width="227" Height="30"
+                                <ComboBox x:Name="OwnershipFilterBox" Width="227" Height="36"
                                           SelectedIndex="1"
                                           SelectionChanged="OnCatalogFilterChanged"
                                           Background="{StaticResource VaultPanelRaised}"
