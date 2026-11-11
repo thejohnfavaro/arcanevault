@@ -178,7 +178,7 @@ public static class NativeSetProgress
         if (matchedCopies != verification.ConfirmedCopies)
             throw new InvalidDataException("Set Progress did not conserve all verified owned copies.");
         reader.Close();
-        var artSets = AddRepresentativeArt(db, sets, arena: false, cancellation);
+        var artSets = AddRepresentativeArt(db, sets, arena: false, cancellation: cancellation);
 
         return new Result(artSets
             .OrderByDescending(s => s.Released, StringComparer.Ordinal)
@@ -245,7 +245,7 @@ public static class NativeSetProgress
         }
         Finish();
         reader.Close();
-        var artSets = AddRepresentativeArt(db, sets, arena: true, cancellation);
+        var artSets = AddRepresentativeArt(db, sets, arena: true, cancellation: cancellation);
         return new Result(artSets.OrderByDescending(x => x.Released, StringComparer.Ordinal)
             .ThenBy(x => x.SetName, StringComparer.OrdinalIgnoreCase)
             .ToArray(), total, matched, 0);
