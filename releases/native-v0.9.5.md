@@ -8,6 +8,8 @@ This Windows x64 native preview fixes a Card Details formatting bug. It does **n
 - A compact summary with the number of cached formats and legal/banned/restricted counts.
 
 ## Changed
+- Double-clicking an actual card row now opens Card Details from the Card Catalog, Physical Collection, Arena Collection, or Set Progress collector checklist. The existing **View selected card / Card details** buttons remain available. Empty list space and column headers do not open stale selections.
+- **Release status:** this is an iterative **0.9.5 preview**, **not a near-complete 1.0**. See [native feature parity gap audit](../docs/arcane-vault-next/NATIVE_PARITY_GAP_AUDIT.md) and [blocking issue #62](https://github.com/thejohnfavaro/arcanevault/issues/62) for legacy features not yet restored.
 - Card Details now displays type, rarity, mana value, and color identity on readable lines rather than appending serialized metadata to a single field.
 - Format status entries live in a bounded scrolling panel; Oracle text and card art remain prominent.
 - Missing or corrupt legality JSON produces an explanatory message rather than a raw JSON object or an unhandled exception.
