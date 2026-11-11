@@ -27,6 +27,8 @@ public partial class MainWindow : Window
     private NativeCollectionWindow? collectionWindow;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
+    private CancellationTokenSource? catalogSyncCancellation;
+    private bool catalogSyncBusy;
     private bool syntheticMode;
     private int modeVersion;
 
@@ -42,6 +44,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             closing = true;
+            catalogSyncCancellation?.Cancel();
             edhLabWindow?.Close();
             collectionWindow?.Close();
             CancelPendingSearch();
@@ -88,6 +91,134 @@ public partial class MainWindow : Window
 
         if (!closing && System.IO.File.Exists(NativeWorkspace.DefaultPath))
             await OpenNativeCollectionAsync();
+    }
+
+    /// <summary>
+    /// First-party native Scryfall sync: download one official bulk file,
+    /// build an isolated SQLite database and publish only after validation.
+    /// No legacy Windows app, export or card-by-card scraping is involved.
+    /// </summary>
+    private async void OnSyncCatalogClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || catalogSyncBusy) return;
+
+        if (MessageBox.Show(this,
+            "Arcane Vault Next will download Scryfall's English-first DEFAULT CARDS " +
+            "bulk dataset (all default printing IDs), which may require hundreds " +
+            "of MB of disk space and a substantial download.\n\n" +
+            "The new catalog is built in a separate database. If an existing " +
+            "native catalog is replaced, its entire previous version will be " +
+            "preserved as a catalog recovery file. Physical/Arena ownership " +
+            "and all deck data will NOT be modified.\n\n" +
+            "Download/check for updates now?",
+            "Official Scryfall bulk catalog", MessageBoxButton.YesNo,
+            MessageBoxImage.Information) != MessageBoxResult.Yes) return;
+
+        catalogSyncBusy = true;
+        var cts = new CancellationTokenSource();
+        catalogSyncCancellation = cts;
+        SyncCatalogButton.IsEnabled = false;
+        CancelCatalogButton.IsEnabled = true;
+        OpenCatalogButton.IsEnabled = false;
+        SaveNativeCatalogButton.IsEnabled = false;
+        FilterStatus.Text = "Checking official Scryfall bulk data…";
+
+        var status = new Progress<NativeScryfallCatalogSync.Progress>(stage =>
+        {
+            if (!closing && ReferenceEquals(catalogSyncCancellation, cts))
+                FilterStatus.Text = stage.Message;
+        });
+        try
+        {
+            System.IO.Directory.CreateDirectory(NativeWorkspace.RootDirectory);
+            var result = await Task.Run(() =>
+                NativeScryfallCatalogSync.SyncAsync(
+                    NativeWorkspace.CatalogPath, progress: status, cancellation: cts.Token));
+
+            if (closing) return;
+            if (!result.Updated)
+            {
+                FilterStatus.Text =
+                    $"Scryfall catalog already current: {result.Printings:N0} printings " +
+                    $"and {result.CardNames:N0} unique card names; no files changed.";
+                if (catalogSnapshot is not null) return;
+            }
+
+            // Queries and native collection windows must be re-created from
+            // the new verified catalog, never left with stale SQLite references.
+            var fresh = await Task.Run(() =>
+                CatalogSnapshot.OpenPersistent(NativeWorkspace.CatalogPath));
+            if (closing) { fresh.Dispose(); return; }
+
+            CancelPendingSearch();
+            edhLabWindow?.Close();
+            collectionWindow?.Close();
+            collectionWindow = null;
+            var previous = catalogSnapshot;
+            catalogSnapshot = fresh;
+            syntheticMode = false;
+            modeVersion++;
+            previous?.Dispose();
+            EdhLabButton.IsEnabled = false; // EDH Lab remains backlog
+            SearchBox.Text = "";
+            SaveNativeCatalogButton.IsEnabled = false;
+            ModeStatus.Text =
+                $"Native Scryfall catalog: {result.Printings:N0} printings / " +
+                $"{result.CardNames:N0} card names · bulk updated {result.BulkUpdatedAt}";
+            FilterStatus.Text = result.Updated
+                ? "Official Scryfall catalog rebuilt and verified. Saved native collection unchanged."
+                : "Existing native Scryfall catalog loaded and verified.";
+            _ = FilterAsync();
+            if (System.IO.File.Exists(NativeWorkspace.DefaultPath))
+                await OpenNativeCollectionAsync();
+            if (!closing && result.RecoveryPath is not null)
+                MessageBox.Show(this,
+                    "Catalog updated successfully. The previous complete native " +
+                    "catalog was preserved here:\n" + result.RecoveryPath +
+                    "\n\nPhysical and Arena inventory were not changed.",
+                    "Scryfall catalog refresh complete",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!closing)
+                FilterStatus.Text = "Scryfall download/index canceled. Existing native catalog was not replaced.";
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+            {
+                FilterStatus.Text = "Scryfall catalog update was not confirmed; native ownership was not changed.";
+                MessageBox.Show(this,
+                    "The catalog update did not finish successfully. If a catalog already " +
+                    "existed, keep its recovery files. No native ownership data was edited.\n\n" +
+                    ex.Message,
+                    "Scryfall sync failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(catalogSyncCancellation, cts))
+                catalogSyncCancellation = null;
+            cts.Dispose();
+            catalogSyncBusy = false;
+            if (!closing)
+            {
+                SyncCatalogButton.IsEnabled = true;
+                CancelCatalogButton.IsEnabled = false;
+                OpenCatalogButton.IsEnabled = true;
+                SaveNativeCatalogButton.IsEnabled = catalogSnapshot is not null &&
+                    !System.IO.File.Exists(NativeWorkspace.CatalogPath);
+            }
+        }
+    }
+
+    private void OnCancelCatalogClicked(object sender, RoutedEventArgs e)
+    {
+        if (!catalogSyncBusy || catalogSyncCancellation is null) return;
+        CancelCatalogButton.IsEnabled = false;
+        FilterStatus.Text = "Canceling Scryfall sync and cleaning up staged files…";
+        catalogSyncCancellation.Cancel();
     }
 
     private async void OnSaveNativeCatalogClicked(object sender, RoutedEventArgs e)
