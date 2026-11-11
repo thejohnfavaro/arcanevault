@@ -182,6 +182,10 @@ internal static class NativeOwnershipCatalogChecks
              arena.Rows.Any(r => r.Name == "Arena Exclusive"),
             "Arena ownership must show only Arena-available printings for owned card names.");
         Must(arena.Rows.All(r => r.Name != "Only Physical") &&
+             arena.Rows.Select(r => r.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() ==
+                 arena.Rows.Count,
+            "Arena inventory results must be one representative image per owned name.");
+        Must(arena.Rows.All(r => r.Name != "Only Physical") &&
              !arena.Rows.Any(r => r.SetCode == "cmm"),
              "Paper-only cards and paper-only reprints must not appear in Arena ownership search.");
 
@@ -198,6 +202,12 @@ internal static class NativeOwnershipCatalogChecks
         Must(combined.Rows.Count == 4 &&
              combined.Rows.All(r => r.SetCode == "tst"),
             "Ownership filters must compose with set and Arena-availability filters.");
+        var arenaBrowse = snapshot.SearchFiltered("", new(ArenaOnly: true), ownership: ownership);
+        Must(arenaBrowse.Rows.Count == 6 &&
+             arenaBrowse.Rows.Select(x => x.Name)
+                 .Distinct(StringComparer.OrdinalIgnoreCase).Count() == arenaBrowse.Rows.Count &&
+             !arenaBrowse.Rows.Any(x => x.SetCode == "cmm"),
+            "On Arena must collapse repeated Arena-eligible printings by card name.");
         var truncated = snapshot.SearchFiltered("", new(
             Ownership: CatalogSnapshot.OwnershipMode.PhysicalNotVerified),
             limit: 1, ownership: ownership);
