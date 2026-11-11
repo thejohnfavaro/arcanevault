@@ -31,6 +31,8 @@ permissions:
 jobs:
   net10-wpf-spike:
     runs-on: windows-latest
+    permissions:
+      contents: write
     timeout-minutes: 25
     steps:
       - name: Checkout source
@@ -64,6 +66,171 @@ jobs:
         shell: pwsh
         run: |
           $source = "preview/ArcaneVaultNextStandalone"
+          [xml]$project = Get-Content "ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj"
+          $version = [string]$project.Project.PropertyGroup.Version
+          if ($version -notmatch '^\d+\.\d+\.\d+
+          if (-not (Test-Path $exe)) { throw "Standalone executable missing: $exe" }
+          New-Item -ItemType Directory -Path native-package -Force | Out-Null
+          $archive = "native-package/ArcaneVaultNext-NativePortable-win-x64.zip"
+          Compress-Archive -Path "$source/*" -DestinationPath $archive -CompressionLevel Optimal
+          $hash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path "$archive.sha256" -Value "$hash  ArcaneVaultNext-NativePortable-win-x64.zip"
+          Copy-Item -Path $archive -Destination "native-package/ArcaneVaultNative-win-x64.zip"
+          Set-Content -Path "native-package/ArcaneVaultNative-win-x64.zip.sha256" -Value "$hash  ArcaneVaultNative-win-x64.zip"
+          @(
+            "Arcane Vault Native Portable - TEST BUILD, NOT 1.0"
+            "Source commit: $env:GITHUB_SHA"
+            "Source: https://github.com/$env:GITHUB_REPOSITORY/commit/$env:GITHUB_SHA"
+            "Workflow: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            "OS: Windows x64; .NET Desktop runtime bundled"
+            "Data location: %LOCALAPPDATA%\\ArcaneVaultNext"
+            "Keep the installed legacy Arcane Vault and a private full backup."
+            "No updater, installer, or real-device acceptance is implied."
+          ) | Set-Content -Path native-package/BUILD-IDENTITY.txt
+          $unpacked = Join-Path $env:RUNNER_TEMP "ArcaneVaultNextNativeZipCheck-$env:GITHUB_RUN_ID"
+          Expand-Archive -Path $archive -DestinationPath $unpacked -Force
+          if (-not (Test-Path (Join-Path $unpacked "ArcaneVault.Next.Desktop.exe"))) {
+            throw "Portable archive is missing its executable after extraction."
+          }
+          $installedManifest = Get-Content -Raw (Join-Path $unpacked "native-version.json") | ConvertFrom-Json
+          if ($installedManifest.version -ne $version -or
+              $installedManifest.sourceSha -ne $env:GITHUB_SHA -or
+              $installedManifest.channel -ne "preview") {
+            throw "Extracted native package identity does not match the source commit/version."
+          }
+          $secondHash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $secondHash) { throw "Portable archive SHA-256 changed unexpectedly." }
+      - name: Publish migration preview as a self-contained diagnostic EXE
+        run: dotnet publish ArcaneVault.Next.Migration/ArcaneVault.Next.Migration.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o preview/MigrationPreview
+      - name: Upload opt-in offline migration diagnostic (not an application release)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ArcaneVaultNext-MigrationPreview-AVN005
+          path: preview/MigrationPreview/**
+          retention-days: 14
+          if-no-files-found: error
+      - name: Upload self-contained native Windows bundle (not a signed installer)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ArcaneVaultNext-NativeStandalone
+          path: preview/ArcaneVaultNextStandalone/**
+          retention-days: 14
+          if-no-files-found: error
+      - name: Upload checksummed native portable test build (not a 1.0 release)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ArcaneVaultNext-NativePortable-TestBuild
+          path: native-package/**
+          retention-days: 30
+          if-no-files-found: error
+      - name: Upload native UI prototype (not an application release)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ArcaneVaultNext-NativeUI-SPIKE
+          path: preview/ArcaneVaultNextNative/**
+          retention-days: 14
+          if-no-files-found: error
+      # Publish only after the native regression suite and ZIP identity checks.
+      # A native preview release is always marked prerelease; never label it 1.0.
+      - name: Publish versioned native preview release (main branch only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content "ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj"
+          $version = [string]$project.Project.PropertyGroup.Version
+          if ($version -notmatch '^\d+\.\d+\.\d+) { throw "Invalid native version: $version" }
+          $manifest = @{
+            version = $version
+            sourceSha = $env:GITHUB_SHA
+            channel = "preview"
+          } | ConvertTo-Json -Compress
+          Set-Content -Path (Join-Path $source "native-version.json") -Value $manifest -Encoding utf8
+          $exe = Join-Path $source "ArcaneVault.Next.Desktop.exe"
+          if (-not (Test-Path $exe)) { throw "Standalone executable missing: $exe" }
+          New-Item -ItemType Directory -Path native-package -Force | Out-Null
+          $archive = "native-package/ArcaneVaultNext-NativePortable-win-x64.zip"
+          Compress-Archive -Path "$source/*" -DestinationPath $archive -CompressionLevel Optimal
+          $hash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path "$archive.sha256" -Value "$hash  ArcaneVaultNext-NativePortable-win-x64.zip"
+          @(
+            "Arcane Vault Native Portable - TEST BUILD, NOT 1.0"
+            "Source commit: $env:GITHUB_SHA"
+            "Source: https://github.com/$env:GITHUB_REPOSITORY/commit/$env:GITHUB_SHA"
+            "Workflow: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            "OS: Windows x64; .NET Desktop runtime bundled"
+            "Data location: %LOCALAPPDATA%\\ArcaneVaultNext"
+            "Keep the installed legacy Arcane Vault and a private full backup."
+            "No updater, installer, or real-device acceptance is implied."
+          ) | Set-Content -Path native-package/BUILD-IDENTITY.txt
+          $unpacked = Join-Path $env:RUNNER_TEMP "ArcaneVaultNextNativeZipCheck-$env:GITHUB_RUN_ID"
+          Expand-Archive -Path $archive -DestinationPath $unpacked -Force
+          if (-not (Test-Path (Join-Path $unpacked "ArcaneVault.Next.Desktop.exe"))) {
+            throw "Portable archive is missing its executable after extraction."
+          }
+          $secondHash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $secondHash) { throw "Portable archive SHA-256 changed unexpectedly." }
+      - name: Publish migration preview as a self-contained diagnostic EXE
+        run: dotnet publish ArcaneVault.Next.Migration/ArcaneVault.Next.Migration.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o preview/MigrationPreview
+      - name: Upload opt-in offline migration diagnostic (not an application release)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ArcaneVaultNext-MigrationPreview-AVN005
+          path: preview/MigrationPreview/**
+          retention-days: 14
+          if-no-files-found: error
+      - name: Upload self-contained native Windows bundle (not a signed installer)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ArcaneVaultNext-NativeStandalone
+          path: preview/ArcaneVaultNextStandalone/**
+          retention-days: 14
+          if-no-files-found: error
+      - name: Upload checksummed native portable test build (not a 1.0 release)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ArcaneVaultNext-NativePortable-TestBuild
+          path: native-package/**
+          retention-days: 30
+          if-no-files-found: error
+      - name: Upload native UI prototype (not an application release)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ArcaneVaultNext-NativeUI-SPIKE
+          path: preview/ArcaneVaultNextNative/**
+          retention-days: 14
+          if-no-files-found: error
+) {
+            throw "Invalid native version $version"
+          }
+          $tag = "native-v$version"
+          gh release view $tag --repo "$env:GITHUB_REPOSITORY" 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Native preview $tag already exists; skipping immutable version."
+            exit 0
+          }
+          $notes = "releases/native-v$version.md"
+          if (-not (Test-Path $notes)) {
+            throw "Missing native preview release notes $notes"
+          }
+          $content = Get-Content $notes -Raw
+          foreach ($section in @('Added','Changed','Fixed','Removed')) {
+            if ($content -notmatch "(?m)^## $section\s*$") {
+              throw "Native preview notes are missing ## $section"
+            }
+          }
+          gh release create $tag native-package/ArcaneVaultNative-win-x64.zip native-package/ArcaneVaultNative-win-x64.zip.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "Arcane Vault Native Windows v$version (Preview)" --notes-file $notes --prerelease
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to publish native preview $tag"
+          }
+) { throw "Invalid native version: $version" }
+          $manifest = @{
+            version = $version
+            sourceSha = $env:GITHUB_SHA
+            channel = "preview"
+          } | ConvertTo-Json -Compress
+          Set-Content -Path (Join-Path $source "native-version.json") -Value $manifest -Encoding utf8
           $exe = Join-Path $source "ArcaneVault.Next.Desktop.exe"
           if (-not (Test-Path $exe)) { throw "Standalone executable missing: $exe" }
           New-Item -ItemType Directory -Path native-package -Force | Out-Null
