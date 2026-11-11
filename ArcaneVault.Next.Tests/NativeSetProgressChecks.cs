@@ -23,7 +23,11 @@ internal static class NativeSetProgressChecks
         File.WriteAllText(backupFile, JsonSerializer.Serialize(new
         {
             schema = 2,
-            cards = new[] { new { name = "Arena Separate", qty = 4 } },
+            cards = new[] {
+                new { name = "Arena Separate", qty = 4 },
+                new { name = "Card A", qty = 2 },
+                new { name = "Digital Only", qty = 1 }
+            },
             physicalCards = new object[] {
                 new { name = "Card A", qty = 2, set = "ZXQ", number = "001", finish = "foil", scryfallId = idA },
                 new { name = "Card A", qty = 1, set = "ZXQ", number = "001", finish = "etched", scryfallId = idA },
@@ -60,6 +64,18 @@ internal static class NativeSetProgressChecks
                     ('00000000-0000-4000-8000-000000000109','No Copies','NNN','1','paper',0,'No Ownership Set','2025-05-01');
                 CREATE TABLE ownership(name TEXT,qty INTEGER);
                 INSERT INTO ownership VALUES('Do not import ownership',987);
+                """;
+            sql.ExecuteNonQuery();
+            sql.CommandText = """
+                ALTER TABLE variants ADD COLUMN arena INTEGER NOT NULL DEFAULT 0;
+                UPDATE variants SET arena=1
+                WHERE instr(',' || lower(games) || ',', ',arena,') > 0;
+                -- A second Arena style of the same card within this set must
+                -- NOT inflate distinct card-name coverage.
+                INSERT INTO variants VALUES
+                    ('00000000-0000-4000-8000-000000000110',
+                     'Card A','ZXQ','099','arena',1,
+                     'Zeta Set','2026-01-01',1);
                 """;
             sql.ExecuteNonQuery();
         }
@@ -109,6 +125,31 @@ internal static class NativeSetProgressChecks
             "Only verified physical print IDs count; name-only hint cannot mark slot owned.");
         Must(NativeSetProgress.LoadSetSlots(review, catalog, "ZXQ' OR 1=1 --").Count == 0,
             "Set drilldown is required to parameterize SQL.");
+
+        // Arena mode is a separate *name coverage* metric. An Arena-owned
+        // name is not a verified set-specific printing or physical slot.
+        var arenaScope = NativeSetProgress.BuildArena(backup.ArenaCards, catalog);
+        Must(arenaScope.Sets.Count == 1 &&
+             arenaScope.Sets[0].NameCoverage &&
+             arenaScope.Sets[0].SetCode == "ZXQ" &&
+             arenaScope.Sets[0].TotalSlots == 3 &&
+             arenaScope.Sets[0].OwnedSlots == 2 &&
+             arenaScope.Sets[0].Percent > 66 &&
+             arenaScope.Sets[0].Percent < 67,
+            "Arena set progress must count distinct available card names, not printings or copied styles.");
+        var arenaNames = NativeSetProgress.LoadArenaSetNames(
+            backup.ArenaCards, catalog, "ZXQ");
+        Must(arenaNames.Count == 3 &&
+             arenaNames.Count(x => x.VerifiedCopies > 0) == 2 &&
+             arenaNames.All(x => x.NameCoverage) &&
+             arenaNames.Single(x => x.CardName == "Card A").Ownership.StartsWith("Name-owned",
+                 StringComparison.Ordinal) &&
+             NativeSetProgress.LoadArenaSetNames(
+                 backup.ArenaCards, catalog, "ZXQ' OR 1=1 --").Count == 0,
+            "Arena checklist must use name-only quantities and parameterized set filtering.");
+        Must(progress.ConfirmedOwnedCopies == 8 &&
+             progress.Sets.Single(x => x.SetCode == "ZXQ").OwnedSlots == 2,
+            "Arena name coverage must never change verified physical set ownership.");
 
         Must(sourceHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(backupFile))) &&
              catalogHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))) &&

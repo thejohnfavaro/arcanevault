@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using ArcaneVault.Next.Domain;
 
 namespace ArcaneVault.Next.Collection;
 
@@ -15,20 +16,27 @@ public static class NativeSetProgress
         string Released,
         int TotalSlots,
         int OwnedSlots,
-        long VerifiedCopies)
+        long VerifiedCopies, bool NameCoverage = false)
     {
         public string DisplaySetCode => SetCode.ToUpperInvariant();
         public double Percent => TotalSlots == 0 ? 0 : 100.0 * OwnedSlots / TotalSlots;
         public string PercentLabel => $"{Percent:0.0}%";
-        public string SlotsLabel => $"{OwnedSlots:N0} / {TotalSlots:N0}";
+        public string SlotsLabel => NameCoverage
+            ? $"{OwnedSlots:N0} / {TotalSlots:N0} Arena card names"
+            : $"{OwnedSlots:N0} / {TotalSlots:N0}";
+        public string CopiesLabel => NameCoverage
+            ? $"{OwnedSlots:N0} names covered"
+            : $"{VerifiedCopies:N0} copies";
     }
 
     public sealed record SetSlot(
         string CollectorNumber,
         string CardName,
-        long VerifiedCopies)
+        long VerifiedCopies, bool NameCoverage = false)
     {
-        public string Ownership => VerifiedCopies > 0 ? $"Owned ({VerifiedCopies:N0})" : "Missing";
+        public string Ownership => NameCoverage
+            ? (VerifiedCopies > 0 ? $"Name-owned ({VerifiedCopies:N0})" : "Missing name")
+            : (VerifiedCopies > 0 ? $"Owned ({VerifiedCopies:N0})" : "Missing");
     }
 
     public sealed record Result(
@@ -127,6 +135,117 @@ public static class NativeSetProgress
             .OrderByDescending(s => s.Released, StringComparer.Ordinal)
             .ThenBy(s => s.SetName, StringComparer.OrdinalIgnoreCase)
             .ToArray(), slotsTotal, ownedSlotsTotal, matchedCopies);
+    }
+
+    /// <summary>
+    /// Arena set-name COVERAGE, not set printing ownership. Arena inventory
+    /// contains names and quantities only, so a matching card name is credited
+    /// once within each set of Arena-available card names. The same reprinted
+    /// name may cover several sets, but never establishes owning those printings.
+    /// Physical verified slot accounting remains completely separate.
+    /// </summary>
+    public static Result BuildArena(IReadOnlyList<NativeArenaRow> arenaCards,
+        string catalogPath, CancellationToken cancellation = default)
+    {
+        ArgumentNullException.ThrowIfNull(arenaCards);
+        var owned = ArenaNames(arenaCards);
+        var sets = new List<SetRow>();
+        int total = 0, matched = 0;
+        using var db = OpenReadOnly(catalogPath);
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = """
+            SELECT setcode,MAX(NULLIF(setname,'')),
+                   MIN(CASE WHEN length(release)=10 THEN release END),
+                   name
+            FROM variants
+            WHERE arena=1
+              AND instr(',' || lower(replace(games,' ','')) || ',', ',arena,') > 0
+              AND length(trim(setcode))>0 AND length(trim(name))>0
+            GROUP BY setcode COLLATE NOCASE,name COLLATE NOCASE
+            ORDER BY setcode COLLATE NOCASE,name COLLATE NOCASE
+            """;
+        using var reader = cmd.ExecuteReader();
+        string? currentSet = null, currentName = null, currentRelease = null;
+        int names = 0, covered = 0;
+        void Finish()
+        {
+            if (string.IsNullOrWhiteSpace(currentSet) || names == 0) return;
+            total = checked(total + names);
+            matched = checked(matched + covered);
+            sets.Add(new SetRow(currentSet, currentName ?? currentSet,
+                currentRelease ?? "", names, covered, 0, NameCoverage: true));
+        }
+        while (reader.Read())
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var set = reader.GetString(0).Trim();
+            var title = reader.IsDBNull(1) ? set : reader.GetString(1);
+            var release = reader.IsDBNull(2) ? "" : reader.GetString(2);
+            var name = reader.GetString(3).Trim();
+            if (!set.Equals(currentSet, StringComparison.OrdinalIgnoreCase))
+            {
+                Finish();
+                currentSet = set;
+                currentName = title;
+                currentRelease = release;
+                names = 0;
+                covered = 0;
+            }
+            names++;
+            if (owned.ContainsKey(name)) covered++;
+        }
+        Finish();
+        return new Result(sets.OrderByDescending(x => x.Released, StringComparer.Ordinal)
+            .ThenBy(x => x.SetName, StringComparer.OrdinalIgnoreCase)
+            .ToArray(), total, matched, 0);
+    }
+
+    private static Dictionary<string, long> ArenaNames(IReadOnlyList<NativeArenaRow> cards)
+    {
+        var result = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in cards)
+        {
+            if (row.Quantity <= 0 || string.IsNullOrWhiteSpace(row.Name)) continue;
+            string name = row.Name.Trim();
+            result[name] = checked(result.GetValueOrDefault(name) + row.Quantity);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// A name-based Arena availability checklist. The collector number is
+    /// a catalog reference only and is NEVER evidence of an owned printing.
+    /// </summary>
+    public static IReadOnlyList<SetSlot> LoadArenaSetNames(
+        IReadOnlyList<NativeArenaRow> arenaCards, string catalogPath,
+        string setCode, CancellationToken cancellation = default)
+    {
+        ArgumentNullException.ThrowIfNull(arenaCards);
+        if (string.IsNullOrWhiteSpace(setCode))
+            throw new InvalidDataException("Select an Arena-available set.");
+        var owned = ArenaNames(arenaCards);
+        var result = new List<SetSlot>();
+        using var db = OpenReadOnly(catalogPath);
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = """
+            SELECT MIN(collector),name FROM variants
+            WHERE setcode=$set COLLATE NOCASE AND arena=1
+              AND instr(',' || lower(replace(games,' ','')) || ',', ',arena,') > 0
+              AND length(trim(name))>0
+            GROUP BY name COLLATE NOCASE
+            ORDER BY name COLLATE NOCASE
+            """;
+        cmd.Parameters.AddWithValue("$set", setCode.Trim());
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string name = reader.GetString(1).Trim();
+            result.Add(new SetSlot(
+                reader.IsDBNull(0) ? "" : reader.GetString(0),
+                name, owned.GetValueOrDefault(name), NameCoverage: true));
+        }
+        return result.AsReadOnly();
     }
 
     /// <summary>
