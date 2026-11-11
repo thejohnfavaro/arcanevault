@@ -142,6 +142,7 @@ try
     NativeFreshStartChecks.Run(work);
     NativePhysicalEditingChecks.Run(work);
     NativePhysicalQuantityChecks.Run(work);
+    NativeArenaEditingChecks.Run(work);
     LegacyStorageImportChecks.Run(work);
     CollectionCatalogReviewChecks.Run(work);
     NativeSetProgressChecks.Run(work);
