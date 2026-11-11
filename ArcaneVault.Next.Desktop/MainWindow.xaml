@@ -428,7 +428,7 @@
                                            Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
                                 <ComboBox x:Name="OwnershipFilterBox" Width="227" Height="30"
-                                          SelectedIndex="0"
+                                          SelectedIndex="1"
                                           SelectionChanged="OnCatalogFilterChanged"
                                           Background="{StaticResource VaultPanelRaised}"
                                           Foreground="{StaticResource VaultText}"
@@ -498,7 +498,7 @@
                                 ToolTip="Bookmark this card name in your native collection; no physical or Arena ownership is added"/>
                         <TextBlock Text="CATALOG VIEW" Style="{StaticResource VaultEyebrow}"
                                    Margin="0,12,0,5"/>
-                        <ComboBox x:Name="CatalogViewMode" SelectedIndex="0"
+                        <ComboBox x:Name="CatalogViewMode" SelectedIndex="2"
                                   SelectionChanged="OnCatalogViewModeChanged"
                                   Background="{StaticResource VaultPanelRaised}"
                                   Foreground="{StaticResource VaultText}"
