@@ -245,7 +245,7 @@ public sealed class CatalogSnapshot : IDisposable
         if (set.Length > 20 || type.Length > 80)
             throw new ArgumentException("Catalog filter exceeds its supported length.");
         bool needsCard = filters.ColorlessOnly || color.Length > 0 || type.Length > 0;
-        if ((needsCard || filters.ArenaOnly) && !HasFullMetadata)
+        if ((needsCard || filters.ArenaOnly || rarity.Length > 0) && !HasFullMetadata)
             throw new InvalidDataException(
                 "This older catalog does not contain the metadata needed for that filter. " +
                 "Sync the current native Scryfall catalog.");
