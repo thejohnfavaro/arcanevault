@@ -110,8 +110,8 @@ public partial class NativeDeckEditorWindow : Window
         {
             var report = await Task.Run(() => NativeDeckAnalytics.Analyze(
                 entries, commander, format, catalogPath));
-            AnalyticsText.Text = report.CoverageSummary + "\\n" +
-                report.Summary + "\\n" + report.CurveSummary + "\\n" +
+            AnalyticsText.Text = report.CoverageSummary + "\n" +
+                report.Summary + "\n" + report.CurveSummary + "\n" +
                 report.ColorSummary;
         }
         catch (Exception ex) when (ex is InvalidDataException or
