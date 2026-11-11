@@ -71,16 +71,26 @@ internal static class NativePrintingArtworkChecks
                  'arena',1,'2024-01-01'),
                 ('00000000-0000-4000-8000-000000000904','Sol Ring','tst','11',
                  'Test Set','https://evil.example/stolen.jpg',
-                 'paper',0,'2024-02-01');
+                 'paper',0,'2024-02-01'),
+                ('00000000-0000-4000-8000-000000000905','Sol Ring','ana','12',
+                 'Arena Styles','https://cards.scryfall.io/normal/front/5/5/arena.jpg',
+                 'arena',1,'2022-01-01');
                 """;
             cmd.ExecuteNonQuery();
         }
         string catalogHash = Hash(catalogPath);
         var gallery = NativePrintingArtwork.Read(catalogPath, "Sol Ring");
-        Must(gallery.Printings.Count == 3 && !gallery.Truncated &&
+        Must(gallery.Printings.Count == 4 && !gallery.Truncated &&
              gallery.Printings[0].Id.ToString("D") == Preferred &&
              gallery.Printings.Any(p => !NativePrintingArtwork.TrustedImage(p.ImageUrl)),
             "Gallery must show exact printings ordered newest first, even with unavailable artwork.");
+        var arenaStyles = NativePrintingArtwork.Read(catalogPath, "Sol Ring",
+            arenaOnly: true);
+        Must(arenaStyles.Printings.Count == 1 &&
+             arenaStyles.Printings.Single().SetCode == "ana" &&
+             arenaStyles.Printings.Single().ImageUrl.EndsWith("/arena.jpg",
+                 StringComparison.Ordinal),
+            "Arena artwork gallery must exclude all paper-only variants and images.");
         Must(NativePrintingArtwork.Read(catalogPath, "Sol Ring", 1).Truncated,
             "Gallery must disclose truncated printing lists.");
         Must(NativePrintingArtwork.Require(catalogPath, "Sol Ring",
