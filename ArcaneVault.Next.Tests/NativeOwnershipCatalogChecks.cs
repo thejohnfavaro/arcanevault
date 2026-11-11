@@ -74,7 +74,7 @@ internal static class NativeOwnershipCatalogChecks
             "A missing catalog ID cannot be treated as a verified printing.");
         Must(ownership.ForPrinting(Fifth, "Zero Copies", "tst", "6").Arena == 0,
             "Zero Arena quantities cannot count as owned.");
-        Must(ownership.ForPrinting(First, "Sol Ring", "cmm", "396").Label == "Arena 3 · Unresolved name 7",
+        Must(ownership.ForPrinting(First, "Sol Ring", "cmm", "396").Label == "Unresolved name 7",
             "Owned status label should summarize concrete positive quantities.");
 
         string catalogPath = Path.Combine(work, "catalog-ownership-filter.sqlite");
@@ -176,15 +176,20 @@ internal static class NativeOwnershipCatalogChecks
             "Physical-not-verified must not treat name-only copies as a known edition.");
         var arena = snapshot.SearchFiltered("", new(
             Ownership: CatalogSnapshot.OwnershipMode.ArenaOwned), ownership: ownership);
-        Must(arena.Rows.Count == 3 &&
-             arena.Rows.Count(r => r.Name == "Sol Ring") == 2 &&
+        Must(arena.Rows.Count == 2 &&
+             arena.Rows.Count(r => r.Name == "Sol Ring") == 1 &&
+             arena.Rows.Single(r => r.Name == "Sol Ring").SetCode == "sld" &&
              arena.Rows.Any(r => r.Name == "Arena Exclusive"),
-            "Arena ownership must remain name-based for each eligible catalog printing.");
+            "Arena ownership must show only Arena-available printings for owned card names.");
+        Must(arena.Rows.All(r => r.Name != "Only Physical") &&
+             !arena.Rows.Any(r => r.SetCode == "cmm"),
+             "Paper-only cards and paper-only reprints must not appear in Arena ownership search.");
+
         var notArena = snapshot.SearchFiltered("", new(
             Ownership: CatalogSnapshot.OwnershipMode.ArenaNotOwned),
             ownership: ownership);
-        Must(notArena.Rows.Count == 5 && notArena.Rows.All(r => r.ArenaOwned == 0),
-            "Arena not-owned filter should exclude all positive owned names.");
+        Must(notArena.Rows.Count == 4 && notArena.Rows.All(r => r.ArenaOwned == 0 && r.Name != "Sol Ring"),
+            "Arena not-owned filter should show only Arena-available unowned names.");
 
         var combined = snapshot.SearchFiltered("", new(
             SetCode: "TST", ArenaOnly: true,
