@@ -197,7 +197,7 @@ public partial class NativeCollectionWindow : Window
             DeckLibraryStatus.Text = "Create a native collection before saving a deck.";
             return;
         }
-        var dialog = new NativeDeckEditorWindow(nativePath, expectedBackupSha)
+        var dialog = new NativeDeckEditorWindow(nativePath, expectedBackupSha, backup, catalogPath)
         { Owner = this };
         if (dialog.ShowDialog() != true) return;
         Close();
@@ -220,7 +220,7 @@ public partial class NativeCollectionWindow : Window
             return;
         }
         var dialog = new NativeDeckEditorWindow(
-            nativePath, expectedBackupSha, selected) { Owner = this };
+            nativePath, expectedBackupSha, backup, catalogPath, selected) { Owner = this };
         if (dialog.ShowDialog() != true) return;
         Close();
         if (reopenNative is not null) await reopenNative();
