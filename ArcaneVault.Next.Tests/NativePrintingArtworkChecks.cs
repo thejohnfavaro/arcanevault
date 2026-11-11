@@ -90,7 +90,8 @@ internal static class NativePrintingArtworkChecks
         string catalogHash = Hash(catalogPath);
         var gallery = NativePrintingArtwork.Read(catalogPath, "Sol Ring");
         Must(gallery.Printings.Count == 7 && !gallery.Truncated &&
-             gallery.Printings[0].Id.ToString("D") == Preferred &&
+             gallery.Printings[0].SetCode == "trk" &&
+             gallery.Printings.Any(p => p.Id.ToString("D") == Preferred) &&
              gallery.Printings.Any(p => !NativePrintingArtwork.TrustedImage(p.ImageUrl)),
             "Gallery must show exact printings ordered newest first, even with unavailable artwork.");
         var arenaStyles = NativePrintingArtwork.Read(catalogPath, "Sol Ring",
