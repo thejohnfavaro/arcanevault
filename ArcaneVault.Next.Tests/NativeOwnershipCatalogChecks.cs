@@ -119,7 +119,7 @@ internal static class NativeOwnershipCatalogChecks
             foreach (var (id, name, set, number, rarity, onArena, games, digital) in new[]
             {
                 (First, "Sol Ring", "cmm", "396", "uncommon", 0, "paper", 0),
-                (Second, "Sol Ring", "sld", "123", "rare", 0, "paper", 0),
+                (Second, "Sol Ring", "sld", "123", "rare", 1, "paper,arena", 0),
                 (Third, "Mismatched Card", "tst", "4", "common", 1, "paper", 0),
                 (Fourth, "Only Physical", "tst", "5", "common", 0, "paper", 0),
                 (Fifth, "Zero Copies", "tst", "6", "common", 1, "paper", 0),
