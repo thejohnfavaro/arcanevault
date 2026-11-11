@@ -1,0 +1,127 @@
+<Window x:Class="ArcaneVault.Next.Desktop.NativeDeckLibraryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Arcane Vault Next — Deck Library" Width="1150" Height="755"
+        MinWidth="860" MinHeight="580"
+        WindowStartupLocation="CenterOwner" Background="#101620" Foreground="#EAF0F6">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="Native Deck Library"
+                   FontSize="25" FontWeight="SemiBold" Margin="0,0,0,9"/>
+        <TextBlock Grid.Row="1" Foreground="#AAC4D4" TextWrapping="Wrap"
+                   Margin="0,0,0,16"
+                   Text="Create, edit, copy and delete decks in your native SQLite collection. Card legality and ownership are not yet checked. Every successful change preserves a complete recovery database."/>
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="43*"/>
+                <ColumnDefinition Width="14"/>
+                <ColumnDefinition Width="57*"/>
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Saved decks" FontWeight="SemiBold"
+                           Margin="0,0,0,8" FontSize="15"/>
+                <ListView x:Name="DeckList" Grid.Row="1"
+                          Background="#172231" Foreground="#EAF0F6"
+                          ScrollViewer.CanContentScroll="True"
+                          VirtualizingStackPanel.IsVirtualizing="True"
+                          VirtualizingStackPanel.VirtualizationMode="Recycling">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Deck" Width="190"
+                                            DisplayMemberBinding="{Binding Name}"/>
+                            <GridViewColumn Header="Format" Width="100"
+                                            DisplayMemberBinding="{Binding Format}"/>
+                            <GridViewColumn Header="Cards / versions" Width="150"
+                                            DisplayMemberBinding="{Binding Summary}"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+                <WrapPanel Grid.Row="2" Margin="0,11,0,0">
+                    <Button x:Name="LoadButton" Content="Edit selected" Click="OnLoadSelected"
+                            Padding="12,9" Margin="0,0,9,9" Background="#283F55" Foreground="White"/>
+                    <Button x:Name="DuplicateButton" Content="Duplicate" Click="OnDuplicate"
+                            Padding="12,9" Margin="0,0,9,9" Background="#283F55" Foreground="White"/>
+                    <Button x:Name="DeleteButton" Content="Delete" Click="OnDelete"
+                            Padding="12,9" Margin="0,0,9,9" Background="#663A49" Foreground="White"/>
+                </WrapPanel>
+            </Grid>
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,8">
+                    <TextBlock x:Name="EditorTitle" Text="New deck" FontSize="15"
+                               FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Button Content="New draft" Click="OnNew" Padding="11,7"
+                            Margin="18,0,0,0" Background="#283F55" Foreground="White"/>
+                </StackPanel>
+                <Grid Grid.Row="1" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Deck name" Margin="0,0,0,5"/>
+                        <TextBox x:Name="NameBox" TextChanged="OnFormChanged"
+                                 Padding="9,8" Background="#202C3B"
+                                 Foreground="White" BorderBrush="#526377"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Format" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="FormatBox" IsEditable="True"
+                                  SelectionChanged="OnFormatChanged"
+                                  Margin="0" Padding="6,7"
+                                  Foreground="#101620" Background="#D7E4EB">
+                            <ComboBoxItem Content="Commander"/>
+                            <ComboBoxItem Content="Arena Brawl"/>
+                            <ComboBoxItem Content="60-card"/>
+                            <ComboBoxItem Content="Other"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Grid>
+                <StackPanel Grid.Row="2" Margin="0,0,0,11">
+                    <TextBlock Text="Commander (optional for 60-card decks)" Margin="0,0,0,5"/>
+                    <TextBox x:Name="CommanderBox" TextChanged="OnFormChanged"
+                             Padding="9,8" Foreground="White" Background="#202C3B"
+                             BorderBrush="#526377"/>
+                </StackPanel>
+                <TextBlock Grid.Row="3" Margin="0,0,0,8" TextWrapping="Wrap"
+                           Foreground="#A9C4D2"
+                           Text="Deck card list — one card per line: quantity, then exact card name (e.g., 2 Sol Ring). The commander is a separate field and is not duplicated here."/>
+                <TextBox x:Name="CardsBox" Grid.Row="4" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap"
+                         FontFamily="Consolas" FontSize="13"
+                         TextChanged="OnFormChanged" Padding="11,11"
+                         Foreground="#EAF0F6" Background="#172231"
+                         BorderBrush="#526377"/>
+                <StackPanel Grid.Row="5" Orientation="Horizontal"
+                            Margin="0,11,0,0" HorizontalAlignment="Right">
+                    <Button x:Name="SaveButton" Content="Save deck"
+                            Click="OnSave" Padding="18,10"
+                            Background="#9A4E2D" Foreground="White"
+                            BorderBrush="#B97650"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+        <TextBlock x:Name="StatusText" Grid.Row="3" Margin="0,13,0,0"
+                   Foreground="#B8CEDB" TextWrapping="Wrap"
+                   Text="Loading native deck library…"/>
+    </Grid>
+</Window>
