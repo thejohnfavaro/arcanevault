@@ -1195,7 +1195,8 @@ public partial class MainWindow : Window
                 var verification = CollectionCatalogReview.Examine(
                     workspace.Collection, activeCatalog?.ReadOnlySnapshotPath);
                 var progress = activeCatalog is null ? null :
-                    NativeSetProgress.Build(verification, activeCatalog.ReadOnlySnapshotPath);
+                    NativeSetProgressCache.Physical(verification,
+                        NativeWorkspace.CatalogPath, workspace.BackupSha256);
                 var decks = NativeWorkspaceSafety.ListDecks(NativeWorkspace.DefaultPath);
                 return (workspace, verification, progress, decks);
             });
