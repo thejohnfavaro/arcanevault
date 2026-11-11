@@ -11,7 +11,19 @@ namespace ArcaneVault.Next.Desktop;
 /// </summary>
 public sealed class CatalogSnapshot : IDisposable
 {
-    public sealed record PrintingRow(string Name, string SetCode, string CollectorNumber);
+    public sealed record PrintingRow(string Name, string SetCode, string CollectorNumber,
+        int PhysicalOwned = 0, int ArenaOwned = 0, int UnresolvedName = 0)
+    {
+        public string OwnershipLabel =>
+            PhysicalOwned == 0 && ArenaOwned == 0 && UnresolvedName == 0
+                ? ""
+                : string.Join(" · ", new[]
+                {
+                    PhysicalOwned > 0 ? $"Physical {PhysicalOwned}" : "",
+                    ArenaOwned > 0 ? $"Arena {ArenaOwned}" : "",
+                    UnresolvedName > 0 ? $"Unresolved name {UnresolvedName}" : ""
+                }.Where(x => x.Length > 0));
+    }
     public sealed record SearchResult(IReadOnlyList<PrintingRow> Rows, double SqlMilliseconds, bool MayHaveMore);
 
     private readonly string snapshotPath;
@@ -21,17 +33,23 @@ public sealed class CatalogSnapshot : IDisposable
     public bool HasFullMetadata { get; }
 
     public enum ColorMatching { ContainsAll, Exact, ContainsAny }
+    public enum OwnershipMode
+    {
+        All, PhysicalVerified, PhysicalNotVerified, ArenaOwned, ArenaNotOwned
+    }
 
     /// <summary>All filters are read-only local catalog predicates. ColorMask
     /// uses canonical MTG color-identity symbols WUBRG, not mana cost.</summary>
     public sealed record SearchOptions(
         string SetCode = "", string Rarity = "", string TypeContains = "",
         string ColorMask = "", ColorMatching ColorMatch = ColorMatching.ContainsAll,
-        bool ColorlessOnly = false, bool ArenaOnly = false)
+        bool ColorlessOnly = false, bool ArenaOnly = false,
+        OwnershipMode Ownership = OwnershipMode.All)
     {
         public bool IsDefault =>
             SetCode.Length == 0 && Rarity.Length == 0 && TypeContains.Length == 0 &&
-            ColorMask.Length == 0 && !ColorlessOnly && !ArenaOnly;
+            ColorMask.Length == 0 && !ColorlessOnly && !ArenaOnly &&
+            Ownership == OwnershipMode.All;
     }
 
     private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true,
@@ -173,7 +191,9 @@ public sealed class CatalogSnapshot : IDisposable
             catch (UnauthorizedAccessException) { }
     }
 
-    public SearchResult SearchPrefix(string input, int limit = 200, CancellationToken cancellationToken = default)
+    public SearchResult SearchPrefix(string input, int limit = 200,
+        CancellationToken cancellationToken = default,
+        NativeCatalogOwnership? ownership = null)
     {
         if (limit is < 1 or > 200)
             throw new ArgumentOutOfRangeException(nameof(limit), "Query limit must be 1–200.");
@@ -190,7 +210,7 @@ public sealed class CatalogSnapshot : IDisposable
             // ESCAPE ensures user-entered %, _, and \ are literal, not wildcards.
             // Prefix-only queries can use the existing NOCASE name index.
             cmd.CommandText = """
-                SELECT name, setcode, collector FROM variants
+                SELECT print_id, name, setcode, collector FROM variants
                 WHERE name LIKE $prefix ESCAPE '\'
                 ORDER BY name COLLATE NOCASE, setcode, collector
                 LIMIT $limit
@@ -206,7 +226,15 @@ public sealed class CatalogSnapshot : IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (rows.Count < limit)
-                    rows.Add(new PrintingRow(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
+                {
+                    string name = reader.GetString(1);
+                    string set = reader.GetString(2);
+                    string number = reader.GetString(3);
+                    var counts = ownership?.ForPrinting(reader.GetString(0), name, set, number);
+                    rows.Add(new PrintingRow(name, set, number,
+                        counts?.VerifiedPhysical ?? 0, counts?.Arena ?? 0,
+                        counts?.UnresolvedName ?? 0));
+                }
                 else { hasExtra = true; break; }
             }
             return new SearchResult(rows, Stopwatch.GetElapsedTime(started).TotalMilliseconds, hasExtra);
@@ -219,13 +247,17 @@ public sealed class CatalogSnapshot : IDisposable
     /// Scryfall catalog is never written to or modified.
     /// </summary>
     public SearchResult SearchFiltered(string input, SearchOptions filters,
-        int limit = 200, CancellationToken cancellationToken = default)
+        int limit = 200, CancellationToken cancellationToken = default,
+        NativeCatalogOwnership? ownership = null)
     {
         ArgumentNullException.ThrowIfNull(filters);
         if (limit is < 1 or > 200)
             throw new ArgumentOutOfRangeException(nameof(limit));
+        if (filters.Ownership != OwnershipMode.All && ownership is null)
+            throw new InvalidDataException(
+                "Load or create a native collection to filter owned and unverified printings.");
         if (filters.IsDefault)
-            return SearchPrefix(input, limit, cancellationToken);
+            return SearchPrefix(input, limit, cancellationToken, ownership);
         input = (input ?? "").Trim();
         if (input.Length > 160) input = input[..160];
 
@@ -263,11 +295,11 @@ public sealed class CatalogSnapshot : IDisposable
             cmd.Parameters.AddWithValue("$prefix", EscapeLike(input) + "%");
             if (needsCard)
                 cmd.CommandText = """
-                    SELECT v.name,v.setcode,v.collector FROM variants v
+                    SELECT v.print_id,v.name,v.setcode,v.collector FROM variants v
                     INNER JOIN cards c ON c.name = v.name COLLATE NOCASE
                     """;
             else cmd.CommandText =
-                "SELECT v.name,v.setcode,v.collector FROM variants v\n";
+                "SELECT v.print_id,v.name,v.setcode,v.collector FROM variants v\n";
 
             if (set.Length > 0)
             {
@@ -307,8 +339,12 @@ public sealed class CatalogSnapshot : IDisposable
             }
 
             cmd.CommandText += "\nWHERE " + string.Join(" AND ", where) +
-                "\nORDER BY v.name COLLATE NOCASE,v.setcode,v.collector LIMIT $limit";
-            cmd.Parameters.AddWithValue("$limit", limit + 1);
+                "\nORDER BY v.name COLLATE NOCASE,v.setcode,v.collector";
+            if (filters.Ownership == OwnershipMode.All)
+            {
+                cmd.CommandText += " LIMIT $limit";
+                cmd.Parameters.AddWithValue("$limit", limit + 1);
+            }
             var rows = new List<PrintingRow>(limit);
             bool hasExtra = false;
             var started = Stopwatch.GetTimestamp();
@@ -316,10 +352,24 @@ public sealed class CatalogSnapshot : IDisposable
             while (reader.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (rows.Count < limit)
-                    rows.Add(new PrintingRow(reader.GetString(0),
-                        reader.GetString(1), reader.GetString(2)));
-                else { hasExtra = true; break; }
+                string name = reader.GetString(1);
+                string setCode = reader.GetString(2);
+                string collector = reader.GetString(3);
+                var counts = ownership?.ForPrinting(reader.GetString(0),
+                    name, setCode, collector);
+                bool matches = filters.Ownership switch
+                {
+                    OwnershipMode.PhysicalVerified => counts?.VerifiedPhysical > 0,
+                    OwnershipMode.PhysicalNotVerified => counts?.VerifiedPhysical == 0,
+                    OwnershipMode.ArenaOwned => counts?.Arena > 0,
+                    OwnershipMode.ArenaNotOwned => counts?.Arena == 0,
+                    _ => true
+                };
+                if (!matches) continue;
+                if (rows.Count >= limit) { hasExtra = true; break; }
+                rows.Add(new PrintingRow(name, setCode, collector,
+                    counts?.VerifiedPhysical ?? 0, counts?.Arena ?? 0,
+                    counts?.UnresolvedName ?? 0));
             }
             return new SearchResult(rows,
                 Stopwatch.GetElapsedTime(started).TotalMilliseconds, hasExtra);
