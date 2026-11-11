@@ -1317,7 +1317,10 @@ public partial class MainWindow : Window
             snapshot.ReadOnlySnapshotPath,
             System.IO.File.Exists(NativeWorkspace.DefaultPath)
                 ? NativeWorkspace.DefaultPath : null,
-            selected.SetCode, selected.CollectorNumber)
+            selected.SetCode, selected.CollectorNumber,
+            arenaScope: ArenaOnlyBox.IsChecked == true ||
+                OwnershipFilterBox.SelectedIndex is 3 or 4,
+            selectedArtworkUrl: selected.ImageUrl)
         { Owner = this };
         dialog.Show();
     }
