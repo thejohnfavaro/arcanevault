@@ -288,8 +288,8 @@ public sealed class CatalogSnapshot : IDisposable
         if (filters.Ownership != OwnershipMode.All && ownership is null)
             throw new InvalidDataException(
                 "Load or create a native collection to filter owned and unverified printings.");
-        if (filters.Ownership is OwnershipMode.PhysicalVerified or
-                OwnershipMode.PhysicalNotVerified && !HasPaperPrintingMetadata)
+        if ((filters.Ownership is OwnershipMode.PhysicalVerified or
+                 OwnershipMode.PhysicalNotVerified) && !HasPaperPrintingMetadata)
             throw new InvalidDataException(
                 "This catalog lacks Scryfall paper/digital printing metadata; refresh the native catalog before filtering physical ownership.");
         if (filters.IsDefault)
