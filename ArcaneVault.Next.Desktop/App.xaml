@@ -144,6 +144,128 @@
             </Setter>
         </Style>
 
+        <!-- Native ComboBox popup and item surfaces must share the app's dark
+             palette. Windows' stock popup otherwise renders a white background
+             with inherited white text (white-on-white). Editable ComboBoxes keep
+             their system text editor, but receive contrasting popup item colors. -->
+        <Style TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                        <Border x:Name="ItemSurface"
+                                Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Content"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemSurface" Property="Background"
+                                        Value="{StaticResource VaultAccentSurface}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemSurface" Property="Background"
+                                        Value="{StaticResource VaultAccentBorder}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ItemSurface" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type ComboBox}">
+            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="9,5"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="MaxDropDownHeight" Value="340"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Style.Triggers>
+                <Trigger Property="IsEditable" Value="False">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type ComboBox}">
+                                <Grid>
+                                    <Border x:Name="ComboSurface"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            CornerRadius="7"/>
+                                    <ToggleButton x:Name="Toggle"
+                                                  Focusable="False"
+                                                  IsChecked="{Binding IsDropDownOpen,
+                                                      RelativeSource={RelativeSource TemplatedParent},
+                                                      Mode=TwoWay}">
+                                        <ToggleButton.Template>
+                                            <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                                <Grid Background="Transparent">
+                                                    <Path Data="M 0,0 L 4,4 L 8,0"
+                                                          HorizontalAlignment="Right"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,12,0"
+                                                          Stroke="{StaticResource VaultText}"
+                                                          StrokeThickness="1.5"/>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </ToggleButton.Template>
+                                    </ToggleButton>
+                                    <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                      Margin="10,0,27,0"
+                                                      VerticalAlignment="Center"
+                                                      IsHitTestVisible="False"
+                                                      RecognizesAccessKey="True"/>
+                                    <Popup x:Name="PART_Popup"
+                                           Placement="Bottom"
+                                           AllowsTransparency="True"
+                                           Focusable="False"
+                                           StaysOpen="False"
+                                           IsOpen="{Binding IsDropDownOpen,
+                                               RelativeSource={RelativeSource TemplatedParent},
+                                               Mode=TwoWay}">
+                                        <Border x:Name="DropDownSurface"
+                                                MinWidth="{Binding ActualWidth,
+                                                    RelativeSource={RelativeSource TemplatedParent}}"
+                                                MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                                Background="{StaticResource VaultPanelRaised}"
+                                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                                BorderThickness="1"
+                                                CornerRadius="6">
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled"
+                                                          CanContentScroll="True">
+                                                <ItemsPresenter/>
+                                            </ScrollViewer>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                        <Setter TargetName="ComboSurface"
+                                                Property="BorderBrush"
+                                                Value="{StaticResource VaultAccent}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="ComboSurface" Property="Opacity" Value="0.5"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style TargetType="{x:Type CheckBox}">
             <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
