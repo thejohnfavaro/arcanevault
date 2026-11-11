@@ -68,10 +68,7 @@ public static class NativePrintingArtwork
             FROM variants WHERE name=$name COLLATE NOCASE
             """ + (arenaOnly
                 ? " AND instr(',' || lower(replace(games,' ','')) || ',', ',arena,') > 0"
-                : "") + """
-            ORDER BY release DESC,setcode COLLATE NOCASE,collector
-            LIMIT $limit
-            """;
+                : "") + "\nORDER BY release DESC,setcode COLLATE NOCASE,collector\nLIMIT $limit";
         cmd.Parameters.AddWithValue("$name", name.Trim());
         cmd.Parameters.AddWithValue("$limit", limit + 1);
         var result = new List<Printing>(limit);
