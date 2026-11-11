@@ -114,6 +114,11 @@
                                 IsEnabled="False" Margin="0,0,10,0"
                                 Background="#283F55" Foreground="White"
                                 BorderBrush="#65778B"/>
+                        <Button x:Name="DuplicateDeckButton" Content="Duplicate selected deck"
+                                Click="OnDuplicateDeckClicked" Padding="14,8"
+                                IsEnabled="False" Margin="0,0,10,0"
+                                Background="#283F55" Foreground="White"
+                                BorderBrush="#65778B"/>
                         <Button x:Name="DeleteDeckButton" Content="Delete selected deck"
                                 Click="OnDeleteDeckClicked" Padding="14,8"
                                 IsEnabled="False" Margin="0,0,10,0"
@@ -132,6 +137,8 @@
                                                 DisplayMemberBinding="{Binding Name}"/>
                                 <GridViewColumn Header="Commander" Width="230"
                                                 DisplayMemberBinding="{Binding Commander}"/>
+                                <GridViewColumn Header="Format" Width="110"
+                                                DisplayMemberBinding="{Binding Format}"/>
                                 <GridViewColumn Header="Folder" Width="120"
                                                 DisplayMemberBinding="{Binding Folder}"/>
                                 <GridViewColumn Header="Card names" Width="92"

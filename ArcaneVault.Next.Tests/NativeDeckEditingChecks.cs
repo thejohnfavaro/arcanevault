@@ -226,6 +226,99 @@ internal static class NativeDeckEditingChecks
             "Rename unsafe row", "Any", "1 Example",
             weirdDeck, unusual.BackupSha256));
 
-        Console.WriteLine("PASS: native deck read/create/edit/delete, commander-optional lists, per-deck revisions, unknown metadata conservation, stale/no-op rejection, SQLite rollback and original restore");
+        // AVN-029: format is explicit stored metadata, not a claim that the
+        // list is legal. On old backups, inferred display format is stable.
+        string formatPath = Path.Combine(work, "native-deck-format-duplicate.sqlite");
+        var baseline = NativeWorkspace.ImportNewBytes(source,
+            "format-duplicate-fixture", formatPath);
+        var originalRows = NativeWorkspaceSafety.ListDecks(formatPath);
+        Must(originalRows[0].Format == "Commander" &&
+             originalRows[1].Format == "Commander",
+             "Imported legacy commander decks should default to Commander format.");
+
+        var formatted = NativeWorkspaceSafety.SaveDeck(formatPath,
+            originalRows[0].Name, originalRows[0].Commander,
+            originalRows[0].MainboardText, originalRows[0],
+            baseline.BackupSha256, format: "Arena Brawl");
+        var formattedRows = NativeWorkspaceSafety.ListDecks(formatPath);
+        Must(formatted.Current.Collection.Decks == 2 &&
+             formatted.Current.Collection.DeckRevisions == 2 &&
+             formattedRows[0].Id == "deck_legacy_1" &&
+             formattedRows[0].Format == "Arena Brawl" &&
+             formattedRows[1].Format == "Commander",
+             "Changing just stored format must retain all original deck identity and history.");
+
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = formatPath, Mode = SqliteOpenMode.ReadOnly,
+                 Pooling = false }.ToString()))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT backup FROM manifest WHERE id=1";
+            using var doc = JsonDocument.Parse((byte[])cmd.ExecuteScalar()!);
+            var updatedDeck = doc.RootElement.GetProperty("deckLibrary")[0];
+            Must(updatedDeck.GetProperty("format").GetString() == "Arena Brawl" &&
+                 updatedDeck.GetProperty("revisions")[1].GetProperty("name").GetString() ==
+                     "Legacy Commander" &&
+                 updatedDeck.GetProperty("arenaDeckId").GetString() ==
+                     "arena-special-identifier",
+                "Format edit discarded existing deck history or external metadata.");
+        }
+
+        Reject(() => NativeWorkspaceSafety.SaveDeck(formatPath,
+            formattedRows[0].Name, formattedRows[0].Commander,
+            formattedRows[0].MainboardText, formattedRows[0],
+            formatted.Current.BackupSha256, format: "Arena Brawl"));
+
+        int oldCopies = NativeWorkspaceSafety.RecoveryPaths(formatPath).Count;
+        Reject(() => NativeWorkspaceSafety.DuplicateDeck(
+            formatPath, originalRows[0], formatted.Current.BackupSha256));
+        Reject(() => NativeWorkspaceSafety.DuplicateDeck(
+            formatPath, formattedRows[0], baseline.BackupSha256));
+        Must(NativeWorkspaceSafety.RecoveryPaths(formatPath).Count == oldCopies,
+             "Stale selection or SHA on duplication made an unnecessary rollback.");
+
+        var cloned = NativeWorkspaceSafety.DuplicateDeck(formatPath,
+            formattedRows[0], formatted.Current.BackupSha256);
+        var clonedRows = NativeWorkspaceSafety.ListDecks(formatPath);
+        Must(cloned.Current.Collection.Decks == 3 &&
+             cloned.Current.Collection.DeckRevisions == 2 &&
+             clonedRows[2].Id != clonedRows[0].Id &&
+             clonedRows[2].Id.StartsWith("deck_native_", StringComparison.Ordinal) &&
+             clonedRows[2].Name == "Legacy Commander — Copy" &&
+             clonedRows[2].Format == "Arena Brawl" &&
+             clonedRows[2].Revisions == 0 &&
+             clonedRows[2].MainboardText == clonedRows[0].MainboardText &&
+             cloned.Current.Collection.PhysicalCopies == baseline.Collection.PhysicalCopies &&
+             cloned.Current.Collection.ArenaCopies == baseline.Collection.ArenaCopies,
+             "Deck duplication changed source deck, owned cards, copied revisions or lost format.");
+
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = formatPath, Mode = SqliteOpenMode.ReadOnly,
+                 Pooling = false }.ToString()))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT backup FROM manifest WHERE id=1";
+            using var doc = JsonDocument.Parse((byte[])cmd.ExecuteScalar()!);
+            var rows = doc.RootElement.GetProperty("deckLibrary");
+            Must(rows[0].GetProperty("arenaDeckId").GetString() ==
+                     "arena-special-identifier" &&
+                 rows[2].GetProperty("arenaDeckId").GetString() == "" &&
+                 rows[2].GetProperty("revisions").GetArrayLength() == 0 &&
+                 rows[2].GetProperty("folder").GetString() == "EDH" &&
+                 rows[2].GetProperty("unknownFuture").GetProperty("nested")[1].GetInt32() == 2,
+                 "Duplicate should clear Arena link/history yet retain copied deck metadata.");
+        }
+
+        var recoveredCopy = NativeWorkspaceSafety.Restore(formatPath,
+            cloned.RecoveryPath, cloned.Current.BackupSha256);
+        Must(recoveredCopy.Current.Collection.Decks == 2 &&
+             NativeWorkspaceSafety.ListDecks(formatPath)[0].Format == "Arena Brawl" &&
+             File.Exists(recoveredCopy.RecoveryPath) &&
+             NativeWorkspace.Open(recoveredCopy.RecoveryPath).Collection.Decks == 3,
+             "Recovery did not reverse duplication while keeping newer state.");
+
+        Console.WriteLine("PASS: native deck CRUD, explicit stored format, independent duplicate ID, unchanged metadata and recovery");
     }
 }
