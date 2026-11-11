@@ -116,6 +116,7 @@ public partial class NativeCollectionWorkspace : UserControl
     private void Close()
     {
         closing = true;
+        IsEnabled = false; // never allow stale collection edits during a SHA refresh
         setQueryVersion++;
         valuationVersion++;
     }
@@ -246,7 +247,7 @@ public partial class NativeCollectionWorkspace : UserControl
             InitialDirectory = Environment.GetFolderPath(
                 Environment.SpecialFolder.MyDocuments)
         };
-        if (picker.ShowDialog(this) != true) return;
+        if (picker.ShowDialog(Window.GetWindow(this)) != true) return;
         excelBusy = true;
         ImportExcelButton.IsEnabled = false;
         StatusText.Text = "Reading collection file and verifying exact paper printings…";
