@@ -149,6 +149,7 @@ try
     NativeDeckInterchangeChecks.Run(work);
     NativeCatalogFilterChecks.Run(work);
     NativeOwnershipCatalogChecks.Run(work);
+    NativePrintingArtworkChecks.Run(work);
     NativeExcelImportChecks.Run(work);
     NativeCsvImportChecks.Run(work);
     NativeFormatLegalityChecks.Run(work);
