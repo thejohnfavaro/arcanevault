@@ -197,28 +197,103 @@
                     </WrapPanel>
                     <ListView Grid.Row="1" x:Name="DeckLibraryList"
                               SelectionChanged="OnDeckSelected"
-                              Background="{StaticResource VaultPanel}" Foreground="{StaticResource VaultText}"
+                              Background="{StaticResource VaultPanel}"
+                              Foreground="{StaticResource VaultText}"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
                               ScrollViewer.CanContentScroll="True">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Deck" Width="240"
-                                                DisplayMemberBinding="{Binding Name}"/>
-                                <GridViewColumn Header="Commander" Width="230"
-                                                DisplayMemberBinding="{Binding Commander}"/>
-                                <GridViewColumn Header="Format" Width="110"
-                                                DisplayMemberBinding="{Binding Format}"/>
-                                <GridViewColumn Header="Folder" Width="120"
-                                                DisplayMemberBinding="{Binding Folder}"/>
-                                <GridViewColumn Header="Card names" Width="92"
-                                                DisplayMemberBinding="{Binding EntryCount}"/>
-                                <GridViewColumn Header="Copies" Width="68"
-                                                DisplayMemberBinding="{Binding TotalCopies}"/>
-                                <GridViewColumn Header="Revisions" Width="80"
-                                                DisplayMemberBinding="{Binding Revisions}"/>
-                            </GridView>
-                        </ListView.View>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource VaultPanelRaised}"
+                                        BorderBrush="{StaticResource VaultLine}"
+                                        BorderThickness="1" CornerRadius="12"
+                                        Margin="7,6" Padding="14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="91"/>
+                                            <ColumnDefinition Width="17"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="156"/>
+                                        </Grid.ColumnDefinitions>
+                                        <!-- Lightweight deck-box cover visual; no image request
+                                             during virtualized deck-list scrolling. -->
+                                        <Border Grid.Column="0" Width="85" Height="109"
+                                                CornerRadius="9" ClipToBounds="True"
+                                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                                BorderThickness="1">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#4A3362" Offset="0"/>
+                                                    <GradientStop Color="#24203C" Offset="0.58"/>
+                                                    <GradientStop Color="#141A28" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <Grid>
+                                                <Border Background="#55000000"
+                                                        Width="9" HorizontalAlignment="Left"
+                                                        Margin="0,0,0,0"/>
+                                                <TextBlock Text="✦" FontSize="37"
+                                                           Foreground="{StaticResource VaultAccent}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Opacity="0.74"/>
+                                                <TextBlock Text="DECK" FontWeight="Bold" FontSize="10"
+                                                           Foreground="#D8C6FF"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Bottom"
+                                                           Margin="0,0,0,10"/>
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource VaultText}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Commander}"
+                                                       FontSize="12" Foreground="{StaticResource VaultMuted}"
+                                                       Margin="0,7,0,8"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <WrapPanel>
+                                                <Border Background="{StaticResource VaultAccentSurface}"
+                                                        BorderBrush="{StaticResource VaultAccentBorder}"
+                                                        BorderThickness="1" CornerRadius="11"
+                                                        Padding="9,4" Margin="0,0,9,0">
+                                                    <TextBlock Text="{Binding Format}"
+                                                               Foreground="{StaticResource VaultAccent}"
+                                                               FontSize="11"/>
+                                                </Border>
+                                                <Border Background="#272E3D" CornerRadius="11"
+                                                        Padding="9,4">
+                                                    <TextBlock Text="{Binding Folder}" FontSize="11"
+                                                               Foreground="{StaticResource VaultMuted}"/>
+                                                </Border>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                        <Grid Grid.Column="3" Margin="12,4,0,4"
+                                              VerticalAlignment="Center">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <StackPanel Grid.Row="0" Orientation="Horizontal">
+                                                <TextBlock Text="{Binding TotalCopies}" FontSize="21"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource VaultText}"/>
+                                                <TextBlock Text=" copies" FontSize="11"
+                                                           Margin="5,8,0,0" Foreground="{StaticResource VaultMuted}"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Row="1" Margin="0,4,0,0"
+                                                       Foreground="{StaticResource VaultMuted}" FontSize="11"
+                                                       Text="{Binding EntryCount, StringFormat={}{0} unique names}"/>
+                                            <TextBlock Grid.Row="2" Margin="0,4,0,0"
+                                                       Foreground="{StaticResource VaultWarning}" FontSize="11"
+                                                       Text="{Binding Revisions, StringFormat={}{0} saved revisions}"/>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
                     </ListView>
                     <TextBlock Grid.Row="2" x:Name="DeckLibraryStatus"
                                Foreground="{StaticResource VaultMuted}" TextWrapping="Wrap"
@@ -245,20 +320,75 @@
                     </StackPanel>
                     <ListView Grid.Row="1" x:Name="SetSummaryList"
                               SelectionChanged="OnSetSelected"
-                              Background="{StaticResource VaultPanel}" Foreground="{StaticResource VaultText}"
+                              Background="{StaticResource VaultPanel}"
+                              Foreground="{StaticResource VaultText}"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
                               ScrollViewer.CanContentScroll="True">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Set" Width="70" DisplayMemberBinding="{Binding SetCode}"/>
-                                <GridViewColumn Header="Set name" Width="215" DisplayMemberBinding="{Binding SetName}"/>
-                                <GridViewColumn Header="Released" Width="110" DisplayMemberBinding="{Binding Released}"/>
-                                <GridViewColumn Header="Owned slots" Width="100" DisplayMemberBinding="{Binding SlotsLabel}"/>
-                                <GridViewColumn Header="Progress" Width="100" DisplayMemberBinding="{Binding PercentLabel}"/>
-                                <GridViewColumn Header="Verified copies" Width="115" DisplayMemberBinding="{Binding VerifiedCopies}"/>
-                            </GridView>
-                        </ListView.View>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource VaultPanelRaised}"
+                                        BorderBrush="{StaticResource VaultLine}"
+                                        BorderThickness="1" CornerRadius="12"
+                                        Margin="6,4" Padding="12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="74"/>
+                                            <ColumnDefinition Width="14"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="110"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Width="70" Height="78"
+                                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                                BorderThickness="1" CornerRadius="9">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#38314F" Offset="0"/>
+                                                    <GradientStop Color="#1B2634" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="✦" FontSize="29"
+                                                           TextAlignment="Center"
+                                                           Foreground="{StaticResource VaultAccent}"/>
+                                                <TextBlock Text="{Binding SetCode}" FontSize="11"
+                                                           FontWeight="Bold" TextAlignment="Center"
+                                                           Foreground="#D9C9FF"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding SetName}" FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource VaultText}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Released}"
+                                                       FontSize="11" Foreground="{StaticResource VaultMuted}"
+                                                       Margin="0,4,0,9"/>
+                                            <ProgressBar Minimum="0" Maximum="100" Height="7"
+                                                         Value="{Binding Percent}"
+                                                         Background="{StaticResource VaultLine}"
+                                                         Foreground="{StaticResource VaultAccent}"/>
+                                            <TextBlock Text="{Binding SlotsLabel}"
+                                                       FontSize="11" Foreground="{StaticResource VaultMuted}"
+                                                       Margin="0,6,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="3"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding PercentLabel}"
+                                                       FontSize="21" FontWeight="Bold"
+                                                       HorizontalAlignment="Right"
+                                                       Foreground="{StaticResource VaultAccent}"/>
+                                            <TextBlock Text="{Binding VerifiedCopies, StringFormat={}{0} copies}"
+                                                       FontSize="11" Foreground="{StaticResource VaultMuted}"
+                                                       Margin="0,5,0,0"
+                                                       HorizontalAlignment="Right"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
                     </ListView>
                     <TextBlock x:Name="SetDetailsHeader" Grid.Row="2" Foreground="{StaticResource VaultWarning}"
                                Margin="0,12,0,8" TextWrapping="Wrap"
