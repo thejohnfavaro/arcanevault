@@ -147,6 +147,7 @@ try
     NativeDeckEditingChecks.Run(work);
     NativeDeckPreflightChecks.Run(work);
     NativeExcelImportChecks.Run(work);
+    NativeCsvImportChecks.Run(work);
     NativeUpdateChecks.Run(work);
     NativeFullBackupExportChecks.Run(work);
     NativeVisualShellChecks.Run();
