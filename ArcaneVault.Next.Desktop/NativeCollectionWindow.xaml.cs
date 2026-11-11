@@ -45,7 +45,7 @@ public partial class NativeCollectionWindow : Window
         deckRows = nativeDecks ?? Array.Empty<NativeDeckEditing.DeckRow>();
         InitializeComponent();
         physicalDetailedView = PhysicalList.View as GridView;
-        DeckLibraryList.ItemsSource = deckRows;
+        RefreshDeckRows();
         AddDeckButton.IsEnabled = nativeWorkspace &&
             !string.IsNullOrWhiteSpace(nativePath) &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
@@ -279,6 +279,28 @@ public partial class NativeCollectionWindow : Window
                 SetDetailsHeader.Text =
                     "Unable to display this catalog set. Backup data remains unchanged.";
         }
+    }
+
+    private void OnDeckFilterChanged(object sender, RoutedEventArgs e) => RefreshDeckRows();
+
+    private void RefreshDeckRows()
+    {
+        if (DeckLibraryList is null) return;
+        string query = DeckSearchBox?.Text.Trim() ?? "";
+        bool favorites = FavoriteDecksOnly?.IsChecked == true;
+        var selected = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+        var filtered = deckRows
+            .Where(x => (!favorites || x.Favorite) &&
+                (query.Length == 0 ||
+                 x.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                 x.Commander.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                 x.Folder.Contains(query, StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(x => x.Favorite)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        DeckLibraryList.ItemsSource = filtered;
+        if (selected is not null && filtered.Contains(selected))
+            DeckLibraryList.SelectedItem = selected;
     }
 
     private void OnDeckSelected(object sender, SelectionChangedEventArgs e)
