@@ -74,23 +74,34 @@ internal static class NativePrintingArtworkChecks
                  'paper',0,'2024-02-01'),
                 ('00000000-0000-4000-8000-000000000905','Sol Ring','ana','12',
                  'Arena Styles','https://cards.scryfall.io/normal/front/5/5/arena.jpg',
-                 'arena',1,'2022-01-01');
+                 'arena',1,'2022-01-01'),
+                ('00000000-0000-4000-8000-000000000906','Sol Ring','trk','111',
+                 'Shared Set','https://cards.scryfall.io/normal/front/6/6/base.jpg',
+                 'paper,arena',0,'2026-11-13'),
+                ('00000000-0000-4000-8000-000000000907','Sol Ring','trk','428',
+                 'Shared Set','https://cards.scryfall.io/normal/front/7/7/paper-alt.jpg',
+                 'paper,arena',0,'2026-11-13'),
+                ('00000000-0000-4000-8000-000000000908','Sol Ring','trk','438',
+                 'Shared Set','https://cards.scryfall.io/normal/front/8/8/paper-showcase.jpg',
+                 'paper,arena',0,'2026-11-13');
                 """;
             cmd.ExecuteNonQuery();
         }
         string catalogHash = Hash(catalogPath);
         var gallery = NativePrintingArtwork.Read(catalogPath, "Sol Ring");
-        Must(gallery.Printings.Count == 4 && !gallery.Truncated &&
+        Must(gallery.Printings.Count == 7 && !gallery.Truncated &&
              gallery.Printings[0].Id.ToString("D") == Preferred &&
              gallery.Printings.Any(p => !NativePrintingArtwork.TrustedImage(p.ImageUrl)),
             "Gallery must show exact printings ordered newest first, even with unavailable artwork.");
         var arenaStyles = NativePrintingArtwork.Read(catalogPath, "Sol Ring",
             arenaOnly: true);
-        Must(arenaStyles.Printings.Count == 1 &&
-             arenaStyles.Printings.Single().SetCode == "ana" &&
-             arenaStyles.Printings.Single().ImageUrl.EndsWith("/arena.jpg",
-                 StringComparison.Ordinal),
-            "Arena artwork gallery must exclude all paper-only variants and images.");
+        Must(arenaStyles.Printings.Count == 2 &&
+             arenaStyles.Printings.Any(x => x.SetCode == "ana" &&
+                 x.ImageUrl.EndsWith("/arena.jpg", StringComparison.Ordinal)) &&
+             arenaStyles.Printings.Single(x => x.SetCode == "trk")
+                 .CollectorNumber == "111" &&
+             !arenaStyles.Printings.Any(x => x.CollectorNumber is "428" or "438"),
+            "Arena gallery must show the base shared art, not collector-only paper alternatives; independently digital styles are retained.");
         Must(NativePrintingArtwork.Read(catalogPath, "Sol Ring", 1).Truncated,
             "Gallery must disclose truncated printing lists.");
         Must(NativePrintingArtwork.Require(catalogPath, "Sol Ring",
