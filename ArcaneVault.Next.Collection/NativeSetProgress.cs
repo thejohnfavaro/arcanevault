@@ -17,6 +17,7 @@ public static class NativeSetProgress
         int OwnedSlots,
         long VerifiedCopies)
     {
+        public string DisplaySetCode => SetCode.ToUpperInvariant();
         public double Percent => TotalSlots == 0 ? 0 : 100.0 * OwnedSlots / TotalSlots;
         public string PercentLabel => $"{Percent:0.0}%";
         public string SlotsLabel => $"{OwnedSlots:N0} / {TotalSlots:N0}";

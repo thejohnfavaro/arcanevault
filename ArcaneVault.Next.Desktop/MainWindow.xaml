@@ -27,7 +27,7 @@
                                Foreground="{StaticResource VaultGood}"
                                TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="{Binding SetCode}" FontSize="11"
+                <TextBlock Grid.Column="1" Text="{Binding DisplaySetCode}" FontSize="11"
                            Margin="5,5" Foreground="{StaticResource VaultAccent}"/>
                 <TextBlock Grid.Column="2" Text="{Binding CollectorNumber}" FontSize="11"
                            Margin="5,5" Foreground="{StaticResource VaultMuted}"/>
@@ -88,7 +88,7 @@
                                            Margin="0,4,0,0"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
                                             Margin="0,7,0,0">
-                                    <TextBlock Text="{Binding SetCode}" FontSize="11"
+                                    <TextBlock Text="{Binding DisplaySetCode}" FontSize="11"
                                                Foreground="{StaticResource VaultMuted}"/>
                                     <TextBlock Text="  ·  #" Foreground="{StaticResource VaultMuted}"/>
                                     <TextBlock Text="{Binding CollectorNumber}" FontSize="11"
@@ -587,7 +587,7 @@
                                                 Background="{StaticResource VaultAccentSurface}"
                                                 BorderBrush="{StaticResource VaultAccentBorder}"
                                                 BorderThickness="1">
-                                            <TextBlock Text="{Binding SetCode}" FontSize="11"
+                                            <TextBlock Text="{Binding DisplaySetCode}" FontSize="11"
                                                        Foreground="{StaticResource VaultAccent}"
                                                        FontWeight="SemiBold"/>
                                         </Border>

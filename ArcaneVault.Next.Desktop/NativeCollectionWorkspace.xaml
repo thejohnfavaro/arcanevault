@@ -421,7 +421,7 @@
                                                 <TextBlock Text="✦" FontSize="29"
                                                            TextAlignment="Center"
                                                            Foreground="{StaticResource VaultAccent}"/>
-                                                <TextBlock Text="{Binding SetCode}" FontSize="11"
+                                                <TextBlock Text="{Binding DisplaySetCode}" FontSize="11"
                                                            FontWeight="Bold" TextAlignment="Center"
                                                            Foreground="#D9C9FF"/>
                                             </StackPanel>

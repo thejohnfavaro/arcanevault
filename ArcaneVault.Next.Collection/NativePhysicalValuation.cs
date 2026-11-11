@@ -19,7 +19,9 @@ public static class NativePhysicalValuation
     {
         public string Name => Source.Name;
         public int Quantity => Source.Quantity;
-        public string SetAndNumber => Source.SetAndNumber;
+        public string SetAndNumber => string.IsNullOrWhiteSpace(Source.Original.SetCode)
+            ? Source.SetAndNumber
+            : $"{Source.Original.SetCode.ToUpperInvariant()} #{Source.Original.CollectorNumber}".Trim();
         public string Finish => Source.Finish;
         public string Status => Source.Status;
         public string UnitLabel => UnitUsd.HasValue ? UnitUsd.Value.ToString("C2", Us) : "—";
