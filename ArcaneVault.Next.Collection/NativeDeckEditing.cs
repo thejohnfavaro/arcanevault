@@ -1,0 +1,315 @@
+using ArcaneVault.Next.Domain;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+
+namespace ArcaneVault.Next.Collection;
+
+/// <summary>
+/// Edits ONLY the deckLibrary array in a preserved full native schema-2
+/// document. All card ownership, printing identities, preferences and
+/// opaque/legacy fields remain intact. Saves go through version-checked
+/// SQLite replacement with a complete previous-workspace recovery point.
+/// </summary>
+public static class NativeDeckEditing
+{
+    public sealed record Entry(string Name, int Quantity);
+
+    public sealed record DeckRow(
+        int Ordinal, string Id, string Name, string Commander,
+        string Folder, int EntryCount, int TotalCopies, int Revisions,
+        bool Editable, string MainboardText, string SourceSha256);
+
+    private static string Hash(string json) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
+
+    private static string CheckedText(string value, string field, int max, bool required)
+    {
+        if (value is null) throw new ArgumentNullException(field);
+        string text = value.Trim();
+        if ((required && text.Length == 0) || text.Length > max ||
+            text.Any(c => char.IsControl(c)))
+            throw new ArgumentException(
+                field + " must be " + (required ? "1–" : "0–") +
+                max + " characters without control characters.", field);
+        return text;
+    }
+
+    /// <summary>
+    /// A mainboard is plain "count card name" lines. Names are preserved,
+    /// including split cards. Duplicate lines combine only within the
+    /// explicitly edited mainboard; no owned inventory is inferred or changed.
+    /// </summary>
+    public static IReadOnlyList<Entry> ParseMainboard(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (text.Length > 64_000)
+            throw new InvalidDataException("The deck list is larger than the supported text limit.");
+
+        var names = new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
+        int lines = 0, total = 0;
+        foreach (var raw in text.Split('\n'))
+        {
+            string line = raw.Trim();
+            if (line.Length == 0) continue;
+            if (++lines > 500)
+                throw new InvalidDataException("Deck lists may contain at most 500 nonempty lines.");
+            var match = Regex.Match(line, @"^([0-9]{1,4})\s+(.+)$",
+                RegexOptions.CultureInvariant);
+            if (!match.Success ||
+                !int.TryParse(match.Groups[1].Value, out int quantity) ||
+                quantity is < 1 or > 250)
+                throw new InvalidDataException(
+                    "Enter mainboard entries as '1 Card Name' (1–250 each). Invalid line: " +
+                    line[..Math.Min(90, line.Length)]);
+            string name = CheckedText(match.Groups[2].Value, "Card name", 255, true);
+            total = checked(total + quantity);
+            if (total > 1_000)
+                throw new InvalidDataException("Deck list exceeds 1,000 card copies.");
+            if (names.TryGetValue(name, out var prior))
+            {
+                int combined = checked(prior.Quantity + quantity);
+                if (combined > 250)
+                    throw new InvalidDataException("Too many copies of " + name);
+                names[name] = prior with { Quantity = combined };
+            }
+            else
+                names.Add(name, new Entry(name, quantity));
+        }
+        return names.Values.ToArray();
+    }
+
+    private static IReadOnlyList<DeckRow> Describe(byte[] backup,
+        out JsonObject root, out JsonArray library)
+    {
+        NativeBackupReader.Read(backup);
+        root = JsonNode.Parse(backup) as JsonObject ??
+            throw new InvalidDataException("Invalid full native backup.");
+        library = root["deckLibrary"] as JsonArray ??
+            throw new InvalidDataException("Missing native deck library.");
+        var items = new List<DeckRow>(library.Count);
+        for (int i = 0; i < library.Count; i++)
+        {
+            if (library[i] is not JsonObject deck)
+                throw new InvalidDataException("A saved deck is not a JSON object.");
+            string name = GetString(deck, "name");
+            string commander = GetString(deck, "commander");
+            string id = GetString(deck, "id");
+            string folder = GetString(deck, "folder");
+            var entries = deck["entries"] as JsonArray ??
+                throw new InvalidDataException("A saved deck is missing its card list.");
+            int revisions = (deck["revisions"] as JsonArray)?.Count ?? 0;
+            var mainboard = new List<string>(entries.Count);
+            bool editable = entries.Count <= 500;
+            int copies = 0;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in entries)
+            {
+                if (entry is not JsonObject card ||
+                    !int.TryParse(GetStringOrNumber(card, "qty"), out int qty) ||
+                    qty is < 1 or > 250)
+                {
+                    editable = false;
+                    continue;
+                }
+                string cardName = GetString(card, "name");
+                if (string.IsNullOrWhiteSpace(cardName) || cardName.Length > 255 ||
+                    !seen.Add(cardName))
+                {
+                    editable = false;
+                    continue;
+                }
+                copies = checked(copies + qty);
+                if (copies > 1_000) editable = false;
+                mainboard.Add(qty + " " + cardName);
+            }
+
+            string json = deck.ToJsonString();
+            items.Add(new DeckRow(i, id, name, commander,
+                string.IsNullOrWhiteSpace(folder) ? "Unfiled" : folder,
+                entries.Count, copies, revisions, editable,
+                string.Join("\n", mainboard), Hash(json)));
+        }
+        return items.AsReadOnly();
+    }
+
+    private static string GetString(JsonObject obj, string key)
+    {
+        try { return obj[key]?.GetValue<string>() ?? ""; }
+        catch (InvalidOperationException) { return ""; }
+        catch (FormatException) { return ""; }
+    }
+
+    private static string GetStringOrNumber(JsonObject obj, string key)
+    {
+        try
+        {
+            if (obj[key] is JsonValue v)
+                return v.ToJsonString().Trim('"');
+        }
+        catch (InvalidOperationException) { }
+        return "";
+    }
+
+    public static IReadOnlyList<DeckRow> List(byte[] preservedBackup)
+    {
+        ArgumentNullException.ThrowIfNull(preservedBackup);
+        return Describe(preservedBackup, out _, out _);
+    }
+
+    private static JsonArray EntriesForSave(IReadOnlyList<Entry> entries,
+        JsonArray? original)
+    {
+        var prior = new Dictionary<string, JsonObject>(StringComparer.OrdinalIgnoreCase);
+        if (original is not null)
+            foreach (var node in original)
+                if (node is JsonObject row)
+                {
+                    var name = GetString(row, "name");
+                    if (!string.IsNullOrWhiteSpace(name) && !prior.ContainsKey(name))
+                        prior[name] = row;
+                }
+
+        var result = new JsonArray();
+        foreach (var entry in entries)
+        {
+            // Preserve any future metadata attached to an unchanged card name.
+            // Only name and qty are edited; deleted rows are explicit.
+            JsonObject payload = prior.TryGetValue(entry.Name, out var old)
+                ? (JsonObject)old.DeepClone() : new JsonObject();
+            payload["name"] = entry.Name;
+            payload["qty"] = entry.Quantity;
+            result.Add(payload);
+        }
+        return result;
+    }
+
+    private static void VerifyOtherSections(NativeBackupView before,
+        NativeBackupView after, int expectedDeckCount, int expectedRevisions)
+    {
+        if (after.Decks != expectedDeckCount || after.DeckRevisions != expectedRevisions ||
+            before.PhysicalCopies != after.PhysicalCopies ||
+            before.ArenaCopies != after.ArenaCopies ||
+            before.PreferredArtworks != after.PreferredArtworks ||
+            !before.PhysicalCards.SequenceEqual(after.PhysicalCards) ||
+            !before.ArenaCards.SequenceEqual(after.ArenaCards))
+            throw new InvalidDataException(
+                "Saving a deck would modify unrelated ownership or artwork data.");
+    }
+
+    private static JsonObject PreviousRevision(JsonObject deck)
+    {
+        var previous = new JsonObject
+        {
+            ["name"] = GetString(deck, "name"),
+            ["commander"] = GetString(deck, "commander"),
+            ["entries"] = deck["entries"]?.DeepClone() ?? new JsonArray(),
+            ["savedAt"] = DateTimeOffset.UtcNow.ToString("O"),
+            ["label"] = "Before native deck edit"
+        };
+        foreach (string key in new[] { "coverCard", "folder", "tags" })
+            if (deck[key] is not null)
+                previous[key] = deck[key]!.DeepClone();
+        return previous;
+    }
+
+    /// <summary>
+    /// Add a saved deck or edit precisely one selected row with an unchanged
+    /// fingerprint. Imported legacy IDs, revisions, deck cover, tags, folder,
+    /// linked Arena IDs and other unknown fields are preserved on an update.
+    /// </summary>
+    public static byte[] Save(byte[] backup,
+        string name, string commander, string mainboardText,
+        DeckRow? selected = null)
+    {
+        ArgumentNullException.ThrowIfNull(backup);
+        string safeName = CheckedText(name, nameof(name), 120, true);
+        string safeCommander = CheckedText(commander, nameof(commander), 255, false);
+        var entries = ParseMainboard(mainboardText);
+        var before = NativeBackupReader.Read(backup);
+        var currentRows = Describe(backup, out var root, out var library);
+        int expectedCount = library.Count, expectedRevisions = before.DeckRevisions;
+
+        if (selected is null)
+        {
+            if (library.Count >= 150_000)
+                throw new InvalidDataException("Maximum supported saved decks reached.");
+            var id = "deck_native_" + Guid.NewGuid().ToString("N");
+            if (currentRows.Any(x => x.Id == id))
+                throw new InvalidDataException("The new deck identifier collided with an existing deck.");
+            library.Add(new JsonObject
+            {
+                ["id"] = id,
+                ["name"] = safeName,
+                ["commander"] = safeCommander,
+                ["entries"] = EntriesForSave(entries, null),
+                ["updated"] = DateTimeOffset.UtcNow.ToString("O"),
+                ["favorite"] = false,
+                ["folder"] = "Unfiled",
+                ["tags"] = new JsonArray(),
+                ["coverCard"] = "",
+                ["revisions"] = new JsonArray()
+            });
+            expectedCount++;
+        }
+        else
+        {
+            if (selected.Ordinal < 0 || selected.Ordinal >= library.Count ||
+                currentRows[selected.Ordinal].SourceSha256 != selected.SourceSha256 ||
+                !currentRows[selected.Ordinal].Editable)
+                throw new InvalidDataException(
+                    "The selected deck changed or cannot be edited safely. Reopen the library.");
+
+            var row = (JsonObject)library[selected.Ordinal]!;
+            var parsedOld = currentRows[selected.Ordinal];
+            string newText = string.Join("\n", entries.Select(e => e.Quantity + " " + e.Name));
+            if (parsedOld.Name == safeName &&
+                parsedOld.Commander == safeCommander &&
+                parsedOld.MainboardText == newText)
+                throw new InvalidDataException("The deck has no changes; nothing was saved.");
+
+            var history = row["revisions"] as JsonArray;
+            if (history is null)
+            {
+                history = new JsonArray();
+                row["revisions"] = history;
+            }
+            if (history.Count >= 10_000)
+                throw new InvalidDataException(
+                    "Deck revision history is too large to append safely.");
+            history.Add(PreviousRevision(row));
+            expectedRevisions++;
+            var previousEntries = row["entries"] as JsonArray;
+            row["name"] = safeName;
+            row["commander"] = safeCommander;
+            row["entries"] = EntriesForSave(entries, previousEntries);
+            row["updated"] = DateTimeOffset.UtcNow.ToString("O");
+        }
+
+        byte[] output = JsonSerializer.SerializeToUtf8Bytes(root);
+        var after = NativeBackupReader.Read(output);
+        VerifyOtherSections(before, after, expectedCount, expectedRevisions);
+        return output;
+    }
+
+    public static byte[] Delete(byte[] backup, DeckRow selected)
+    {
+        ArgumentNullException.ThrowIfNull(backup);
+        ArgumentNullException.ThrowIfNull(selected);
+        var before = NativeBackupReader.Read(backup);
+        var rows = Describe(backup, out var root, out var library);
+        if (selected.Ordinal < 0 || selected.Ordinal >= library.Count ||
+            rows[selected.Ordinal].SourceSha256 != selected.SourceSha256)
+            throw new InvalidDataException(
+                "The selected deck changed since it was displayed.");
+        int revisions = rows[selected.Ordinal].Revisions;
+        library.RemoveAt(selected.Ordinal);
+        byte[] output = JsonSerializer.SerializeToUtf8Bytes(root);
+        var after = NativeBackupReader.Read(output);
+        VerifyOtherSections(before, after, before.Decks - 1,
+            before.DeckRevisions - revisions);
+        return output;
+    }
+}
