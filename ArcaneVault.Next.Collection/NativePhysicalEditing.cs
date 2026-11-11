@@ -182,7 +182,7 @@ public static class NativePhysicalEditing
     }
     /// <summary>
     /// Modify ONLY the specifically selected native physical row. Unlike adding
-    /// copies, reductions may also target name-only/unresolved legacy rows:
+    /// copies, edits may target name-only/unresolved legacy rows:
     /// deleting one user's selected line needs no guessed printing identity.
     /// The ordinal AND complete original row AND workspace SHA must match.
     /// Zero removes that ONE line rather than storing a zero-quantity tombstone.
@@ -203,10 +203,7 @@ public static class NativePhysicalEditing
             throw new InvalidDataException("Selected physical row changed since it was displayed.");
         if (newQuantity == oldRow.Quantity)
             throw new InvalidDataException("Quantity is unchanged; no recovery point was created.");
-        if (newQuantity > oldRow.Quantity)
-            throw new InvalidDataException(
-                "Use Add physical printing to increase verified inventory quantities.");
-        
+
         var json = JsonNode.Parse(completeBackup) as JsonObject ??
             throw new InvalidDataException("Invalid full backup root.");
         var physical = json["physicalCards"] as JsonArray ??

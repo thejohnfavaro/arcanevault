@@ -38,11 +38,11 @@ public partial class NativeAdjustPhysicalWindow : Window
     {
         if (busy) return;
         if (!int.TryParse(NewQuantityBox.Text.Trim(), out int quantity) ||
-            quantity < 0 || quantity >= original.Quantity)
+            quantity is < 0 or > 99_999 || quantity == original.Quantity)
         {
             StatusText.Text =
-                $"Enter a new quantity from 0 through {original.Quantity - 1:N0}. " +
-                "Use Add physical printing for increases.";
+                "Enter a different quantity from 0 through 99,999. " +
+                "Zero removes only the selected row.";
             return;
         }
         if (quantity == 0 && ConfirmRemoveBox.Text != "REMOVE")
@@ -52,7 +52,7 @@ public partial class NativeAdjustPhysicalWindow : Window
         }
         string change = quantity == 0
             ? "REMOVE this exact ownership row"
-            : $"reduce this row from {original.Quantity:N0} to {quantity:N0} copies";
+            : $"change this row from {original.Quantity:N0} to {quantity:N0} copies";
         if (MessageBox.Show(this,
             $"Confirm: {change}?\n\n" +
             $"{original.Name}\n{original.SetAndNumber} · {original.Finish}\n" +
@@ -60,7 +60,7 @@ public partial class NativeAdjustPhysicalWindow : Window
             "Only the selected physical row is changed. The previous complete " +
             "native collection will be saved as a separate recovery point. " +
             "The installed Windows app is NOT updated.",
-            quantity == 0 ? "Confirm physical row removal" : "Confirm quantity reduction",
+            quantity == 0 ? "Confirm physical row removal" : "Confirm quantity change",
             MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
             return;
 
