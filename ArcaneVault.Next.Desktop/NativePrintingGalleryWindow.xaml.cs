@@ -29,6 +29,7 @@ public partial class NativePrintingGalleryWindow : Window
     private readonly string? nativePath;
     private readonly string initialSet;
     private readonly string initialCollector;
+    private readonly bool arenaOnly;
     private List<Choice> choices = new();
     private NativePrintingArtwork.Preferred? preferred;
     private string? expectedSha;
@@ -38,7 +39,8 @@ public partial class NativePrintingGalleryWindow : Window
     public bool PreferenceChanged { get; private set; }
 
     public NativePrintingGalleryWindow(string name, string catalogPath,
-        string? nativePath, string? selectedSet = null, string? selectedCollector = null)
+        string? nativePath, string? selectedSet = null, string? selectedCollector = null,
+        bool arenaOnly = false)
     {
         InitializeComponent();
         cardName = name;
@@ -46,6 +48,12 @@ public partial class NativePrintingGalleryWindow : Window
         this.nativePath = nativePath;
         initialSet = selectedSet ?? "";
         initialCollector = selectedCollector ?? "";
+        this.arenaOnly = arenaOnly;
+        if (arenaOnly)
+        {
+            Title = "Arcane Vault — Arena Card Styles";
+            OwnedOnly.Visibility = Visibility.Collapsed;
+        }
         CardHeading.Text = name;
         Loaded += async (_, _) => await LoadGalleryAsync();
         Closed += (_, _) =>
@@ -62,7 +70,7 @@ public partial class NativePrintingGalleryWindow : Window
         {
             var data = await Task.Run(() =>
             {
-                var gallery = NativePrintingArtwork.Read(catalogPath, cardName, 400);
+                var gallery = NativePrintingArtwork.Read(catalogPath, cardName, 400, arenaOnly: arenaOnly);
                 NativeCatalogOwnership? ownership = null;
                 NativePrintingArtwork.Preferred? saved = null;
                 string? sha = null;
@@ -87,17 +95,19 @@ public partial class NativePrintingGalleryWindow : Window
             preferred = data.saved;
             expectedSha = data.sha;
 
-            bool anyOwned = choices.Any(x => x.PhysicalOwned > 0);
+            bool anyOwned = !arenaOnly && choices.Any(x => x.PhysicalOwned > 0);
             bool preferredUnowned = choices.Any(x => x.IsPreferred && x.PhysicalOwned == 0);
             OwnedOnly.IsEnabled = anyOwned;
             OwnedOnly.IsChecked = anyOwned && !preferredUnowned;
             UpdateList();
             GalleryStatus.Text =
-                $"{choices.Count:N0} cached Scryfall printings" +
+                $"{choices.Count:N0} cached Scryfall " + (arenaOnly ? "Arena-available card styles" : "printings") +
                 (data.Truncated ? " (first 400; refine the official catalog to see more)" : "") +
                 (expectedSha is null
                     ? " · Browse only: create/open your native collection to save a preference."
-                    : " · Only confirmed paper printing IDs count as owned.");
+                    : arenaOnly
+                        ? " · Only styles flagged for Arena are listed; name ownership does not identify a style."
+                        : " · Only confirmed paper printing IDs count as owned.");
             ResetPreferenceButton.IsEnabled = preferred is not null && expectedSha is not null;
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException
@@ -117,15 +127,15 @@ public partial class NativePrintingGalleryWindow : Window
     {
         if (loading && choices.Count == 0) return;
         var selected = (PrintingsList.SelectedItem as Choice)?.Printing.Id;
-        var filtered = (OwnedOnly.IsChecked == true
+        var filtered = (!arenaOnly && OwnedOnly.IsChecked == true
                 ? choices.Where(x => x.PhysicalOwned > 0) : choices)
             .ToArray();
         PrintingsList.ItemsSource = filtered;
         Choice? initial = filtered.FirstOrDefault(x => x.Printing.Id == selected)
-            ?? filtered.FirstOrDefault(x => x.IsPreferred)
             ?? filtered.FirstOrDefault(x =>
                 x.Printing.SetCode.Equals(initialSet, StringComparison.OrdinalIgnoreCase) &&
                 x.Printing.CollectorNumber.Equals(initialCollector, StringComparison.OrdinalIgnoreCase))
+            ?? filtered.FirstOrDefault(x => x.IsPreferred)
             ?? filtered.FirstOrDefault(x => x.PhysicalOwned > 0)
             ?? filtered.FirstOrDefault();
         if (initial is not null)
@@ -138,7 +148,9 @@ public partial class NativePrintingGalleryWindow : Window
             ArtPreview.Source = null;
             ArtPreview.Visibility = Visibility.Collapsed;
             ArtPlaceholder.Visibility = Visibility.Visible;
-            PreviewInfo.Text = "No verified owned printings in this catalog view.";
+            PreviewInfo.Text = arenaOnly
+                ? "No Arena-available styles in the current catalog for this card."
+                : "No verified owned printings in this catalog view.";
             SavePreferenceButton.IsEnabled = false;
         }
     }
