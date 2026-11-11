@@ -46,7 +46,8 @@ internal static class NativeVisualShellChecks
 
         var sourceWindows = new[]
         {
-            "MainWindow", "NativeCollectionWindow", "NativeCardDetailsWindow",
+            "MainWindow", "NativeCollectionWindow", "NativeCollectionWorkspace",
+            "NativeCardDetailsWindow",
             "NativeDeckEditorWindow", "NativeAddPrintingWindow",
             "NativeAdjustPhysicalWindow", "NativeArenaEditorWindow",
             "NativeFreshStartWindow", "CommanderBrowserWindow"
@@ -79,14 +80,21 @@ internal static class NativeVisualShellChecks
         }
 
         string main = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
-        string collection = File.ReadAllText(Path.Combine(dir, "NativeCollectionWindow.xaml"));
+        string collection = File.ReadAllText(Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
+        string backupPreview = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWindow.xaml"));
+        string backupPreviewCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWindow.xaml.cs"));
+        string mainCode = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs"));
         foreach (string name in new[]
         {
             "OpenNativeButton", "StartFreshButton", "SyncCatalogButton",
             "CancelCatalogButton", "OpenCatalogButton", "SaveNativeCatalogButton",
             "MigrateLegacyButton", "ImportNativeButton",
             "ExportFullBackupButton", "RestoreRecoveryButton",
-            "CollectionBackupButton", "SearchBox", "CardsList", "ModeStatus"
+            "CollectionBackupButton", "SearchBox", "CardsList", "ModeStatus",
+            "CatalogNavigationButton", "DeckLibraryNavigationButton",
+            "NativeWorkspaceHost"
         })
             Must(main.Contains("x:Name=\"" + name + "\"", StringComparison.Ordinal),
                 "WebView-inspired main shell lost functional control " + name);
@@ -103,6 +111,14 @@ internal static class NativeVisualShellChecks
             Must(collection.Contains("x:Name=\"" + name + "\"", StringComparison.Ordinal),
                 "Native collection visual shell lost functional control " + name);
 
+        Must(backupPreview.Contains("x:Name=\"PreviewHost\"", StringComparison.Ordinal) &&
+             backupPreviewCode.Contains("new NativeCollectionWorkspace(", StringComparison.Ordinal) &&
+             mainCode.Contains("new NativeCollectionWorkspace(", StringComparison.Ordinal),
+            "Standalone backup preview and embedded native shell must share one collection control.");
+        Must(main.Contains("OnOpenDeckLibraryClicked", StringComparison.Ordinal) &&
+             main.Contains("OnShowCatalogClicked", StringComparison.Ordinal) &&
+             mainCode.Contains("nativeWorkspaceView.NavigateTo(section)", StringComparison.Ordinal),
+            "Card Catalog and Deck Library sidebar navigation must preserve in-shell routing.");
         Must(collection.Contains("Value=\"{Binding Percent}\"", StringComparison.Ordinal) &&
              collection.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
                  StringComparison.Ordinal),
@@ -133,6 +149,7 @@ internal static class NativeVisualShellChecks
 
         Console.WriteLine(
             "PASS: native WebView-inspired visual resources, XAML names/handlers, " +
-            "virtualized views, exact Set Progress binding and official-only card artwork URLs");
+            "embedded collection/deck navigation, shared backup preview, virtualized views, " +
+            "exact Set Progress binding and official-only card artwork URLs");
     }
 }
