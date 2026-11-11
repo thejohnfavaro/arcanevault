@@ -86,7 +86,7 @@ internal static class NativeArenaEditingChecks
         byte[] currentHash = SHA256.HashData(File.ReadAllBytes(path));
         int rollbackCount = NativeWorkspaceSafety.RecoveryPaths(path).Count;
         Reject(() => NativeWorkspaceSafety.AddArenaCopies(path, "A", 1,
-            fourth.Current.BackupSha256 == "invalid" ? "invalid" : "stale"));
+            "stale-sha"));
         Reject(() => NativeWorkspaceSafety.AddArenaCopies(path, "    ", 1,
             fourth.Current.BackupSha256));
         Reject(() => NativeWorkspaceSafety.AddArenaCopies(path, "Arena Card", 0,
@@ -145,7 +145,7 @@ internal static class NativeArenaEditingChecks
         Must(NativeWorkspaceSafety.RecoveryPaths(path).Count == 4,
             "Each successful Arena add/edit/remove must retain one verified rollback.");
         var restored = NativeWorkspaceSafety.Restore(path,
-            first.RecoveryPath, removed.Current.BackupSha256);
+            second.RecoveryPath, removed.Current.BackupSha256);
         Must(restored.Current.BackupSha256 == first.BackupSha256 &&
              restored.Current.Collection.ArenaCopies == 5 &&
              restored.Current.Collection.ArenaCards.Count == 2 &&
