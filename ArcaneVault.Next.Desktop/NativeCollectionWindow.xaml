@@ -207,6 +207,18 @@
                                 IsEnabled="False" Margin="0,0,10,0"
                                 Background="#382438" Foreground="White"
                                 BorderBrush="#79516C"/>
+                        <TextBox x:Name="DeckSearchBox" Width="160" Height="35"
+                                 ToolTip="Search saved deck names, commanders and folders"
+                                 TextChanged="OnDeckFilterChanged"
+                                 Background="{StaticResource VaultPanelRaised}"
+                                 Foreground="{StaticResource VaultText}" Padding="8,6"
+                                 Margin="4,0,10,0"/>
+                        <CheckBox x:Name="FavoriteDecksOnly" Content="★ Favorites"
+                                  Foreground="{StaticResource VaultText}"
+                                  VerticalAlignment="Center"
+                                  Checked="OnDeckFilterChanged"
+                                  Unchecked="OnDeckFilterChanged"
+                                  Margin="0,0,10,0"/>
                     </WrapPanel>
                     <ListView Grid.Row="1" x:Name="DeckLibraryList"
                               SelectionChanged="OnDeckSelected"
@@ -259,10 +271,16 @@
                                             </Grid>
                                         </Border>
                                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}" FontSize="17"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="{StaticResource VaultText}"
-                                                       TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding FavoriteLabel}"
+                                                           Foreground="{StaticResource VaultWarning}"
+                                                           FontSize="12" Margin="0,1,8,0"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Name}" FontSize="17"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource VaultText}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
                                             <TextBlock Text="{Binding Commander}"
                                                        FontSize="12" Foreground="{StaticResource VaultMuted}"
                                                        Margin="0,7,0,8"
