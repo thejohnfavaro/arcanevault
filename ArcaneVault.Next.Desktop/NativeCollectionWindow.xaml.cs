@@ -4,6 +4,7 @@ using System.IO;
 using ArcaneVault.Next.Domain;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace ArcaneVault.Next.Desktop;
 
@@ -569,6 +570,17 @@ public partial class NativeCollectionWindow : Window
         Close();
         if (reopenNative is not null)
             await reopenNative();
+    }
+
+    private void OnCardRowDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        // This applies only to actual physical, Arena, or set-slot card rows.
+        // Empty list space and column headers must never open stale selection.
+        if (sender is not ListView list ||
+            NativeCardRowActivation.SelectClickedRow(list, e.OriginalSource) is null)
+            return;
+        e.Handled = true;
+        OnDetailsClicked(sender, e);
     }
 
     private void OnDetailsClicked(object sender, RoutedEventArgs e)
