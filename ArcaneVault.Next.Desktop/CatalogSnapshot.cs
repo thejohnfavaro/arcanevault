@@ -23,7 +23,7 @@ public sealed class CatalogSnapshot : IDisposable
                 ? ""
                 : string.Join(" · ", new[]
                 {
-                    ArenaOwned > 0 ? $"Arena {ArenaOwned}" : "",
+                    
                     UnresolvedName > 0 ? $"Unresolved name {UnresolvedName}" : ""
                 }.Where(x => x.Length > 0));
     }
@@ -350,7 +350,9 @@ public sealed class CatalogSnapshot : IDisposable
             throw new ArgumentException("Catalog filter exceeds its supported length.");
         bool needsCard = filters.ColorlessOnly || color.Length > 0 || type.Length > 0 ||
             HasRoleMetadata || filters.Role.Length > 0;
-        if ((needsCard || filters.ArenaOnly || rarity.Length > 0) && !HasFullMetadata)
+        if ((needsCard || filters.ArenaOnly ||
+             filters.Ownership is OwnershipMode.ArenaOwned or OwnershipMode.ArenaNotOwned ||
+             rarity.Length > 0) && !HasFullMetadata)
             throw new InvalidDataException(
                 "This older catalog does not contain the metadata needed for that filter. " +
                 "Sync the current native Scryfall catalog.");
@@ -387,7 +389,9 @@ public sealed class CatalogSnapshot : IDisposable
                 where.Add("v.rarity = $rarity COLLATE NOCASE");
                 cmd.Parameters.AddWithValue("$rarity", rarity);
             }
-            if (filters.ArenaOnly)
+            // Arena name ownership does not make every paper reprint available.
+            if (filters.ArenaOnly ||
+                filters.Ownership is OwnershipMode.ArenaOwned or OwnershipMode.ArenaNotOwned)
                 where.Add("v.arena = 1");
             if (type.Length > 0)
             {
