@@ -78,6 +78,15 @@ internal static class NativeUpdateChecks
             "Only newer, official, complete native preview releases can be selected.");
         Must(NativeUpdateService.SelectLatest(json, new Version(0, 9, 2)) is null,
             "Must not reinstall older versions or incorrectly treat untrusted releases as updates.");
+        var crowded = new List<object>();
+        for (int i = 0; i < 98; i++)
+            crowded.Add(new { tag_name = "windows-v5.1." + i, draft = false,
+                prerelease = false });
+        crowded.Add(Release("0.9.1"));
+        var legacyHeavy = NativeUpdateService.SelectLatest(
+            JsonSerializer.Serialize(crowded), installedVersion);
+        Must(legacyHeavy?.Tag == "native-v0.9.1",
+            "The native preview channel must remain separate from legacy Windows releases.");
         Must(NativeUpdateService.ParseChecksum(
             new string('a', 64) + "  " + NativeUpdateService.ZipName) == new string('a', 64),
             "Official sha256sum format must be parsed.");
@@ -108,10 +117,21 @@ internal static class NativeUpdateChecks
             "An app-only update must leave workspace, catalog and rollback byte-identical.");
 
         string oldExeHash = Sha(installed.ExecutablePath);
+        var reused = NativeUpdateService.InstallVerifiedArchive(
+            zip, Sha(zip), new Version(0, 9, 1), root);
+        Must(reused.ExecutablePath == installed.ExecutablePath &&
+             Sha(installed.ExecutablePath) == oldExeHash,
+            "An identical, previously staged version should be safely reusable.");
+        string tamperZip = Zip(upgrade, "tamper-fixture.zip", "0.9.5");
+        var tamperInstall = NativeUpdateService.InstallVerifiedArchive(
+            tamperZip, Sha(tamperZip), new Version(0, 9, 5), root);
+        File.AppendAllText(tamperInstall.ExecutablePath, "tampered");
+        string tamperedHash = Sha(tamperInstall.ExecutablePath);
         Reject(() => NativeUpdateService.InstallVerifiedArchive(
-            zip, Sha(zip), new Version(0, 9, 1), root));
-        Must(Sha(installed.ExecutablePath) == oldExeHash,
-            "An existing version must not be overwritten.");
+            tamperZip, Sha(tamperZip), new Version(0, 9, 5), root));
+        Must(Sha(tamperInstall.ExecutablePath) == tamperedHash &&
+             Sha(installed.ExecutablePath) == oldExeHash,
+            "An altered staged version must never be overwritten or silently reused.");
 
         string invalidDest = Path.Combine(work, "invalid-installations");
         Reject(() => NativeUpdateService.InstallVerifiedArchive(
