@@ -25,12 +25,25 @@ public partial class NativeCardDetailsWindow : Window
         }
         else
         {
+            string rarity = string.IsNullOrWhiteSpace(info.Rarity)
+                ? "Unknown rarity"
+                : System.Globalization.CultureInfo.InvariantCulture.TextInfo
+                    .ToTitleCase(info.Rarity.Replace('_', ' '));
             CardMetadata.Text =
-                $"{info.TypeLine}  ·  {info.Rarity}  ·  Mana value {info.ManaValue:G}  · " +
-                $"Color identity: {(string.IsNullOrEmpty(info.ColorIdentity) ? "Colorless" : info.ColorIdentity)}" +
-                $"\nCached legalities: {info.Legalities}";
+                $"{info.TypeLine}\n" +
+                $"{rarity}  ·  Mana value {info.ManaValue:G}\n" +
+                $"Color identity: {(string.IsNullOrWhiteSpace(info.ColorIdentity) ? "Colorless" : info.ColorIdentity)}";
             OracleText.Text = info.OracleText;
         }
+        // Convert cached Scryfall format status codes to readable rows without
+        // changing the SQLite catalog, deck validator, or stored JSON.
+        var formatLegality = NativeFormatLegality.Parse(info?.Legalities);
+        LegalitySummary.Text = "FORMAT LEGALITIES  ·  " + formatLegality.Summary;
+        LegalityRows.ItemsSource = formatLegality.Rows;
+        LegalityNotice.Text = formatLegality.Available
+            ? "Cached Scryfall snapshot · current format bans may have changed"
+            : "No usable format legalities in the local catalog. Refresh official card data to try again.";
+
         ArtworkStatus.Text = "No cached artwork yet. Card details remain available offline.";
         Loaded += async (_, _) => await LoadArtworkAsync(info?.ArtworkUrl);
         Closed += (_, _) => artworkCancellation.Cancel();

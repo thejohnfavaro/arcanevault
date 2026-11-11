@@ -92,6 +92,81 @@
                         <TextBlock x:Name="CardMetadata"
                                    Foreground="{StaticResource VaultText}"
                                    TextWrapping="Wrap" FontSize="12.5"/>
+                        <!-- The Scryfall database stores format legalities as JSON.
+                             Never render its raw serialization to the user. -->
+                        <Expander IsExpanded="True" Margin="0,13,0,0"
+                                  Foreground="{StaticResource VaultText}">
+                            <Expander.Header>
+                                <TextBlock x:Name="LegalitySummary"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource VaultAccent}"
+                                           FontSize="12"
+                                           Text="FORMAT LEGALITIES"/>
+                            </Expander.Header>
+                            <StackPanel Margin="0,9,0,0">
+                                <TextBlock x:Name="LegalityNotice"
+                                           Text="Cached Scryfall data · verify current bans before play"
+                                           Foreground="{StaticResource VaultMuted}"
+                                           TextWrapping="Wrap"
+                                           FontSize="11" Margin="0,0,0,8"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              MaxHeight="156">
+                                    <ItemsControl x:Name="LegalityRows">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="2"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{StaticResource VaultPanelRaised}"
+                                                        BorderBrush="{StaticResource VaultLine}"
+                                                        BorderThickness="1" CornerRadius="6"
+                                                        Padding="8,6" Margin="0,0,9,7">
+                                                    <DockPanel LastChildFill="True">
+                                                        <TextBlock Text="{Binding StatusText}"
+                                                                   DockPanel.Dock="Right"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="11.5"
+                                                                   Margin="8,0,0,0">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground"
+                                                                            Value="{StaticResource VaultMuted}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="legal">
+                                                                            <Setter Property="Foreground"
+                                                                                    Value="{StaticResource VaultGood}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="banned">
+                                                                            <Setter Property="Foreground" Value="#F0A9C4"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="restricted">
+                                                                            <Setter Property="Foreground"
+                                                                                    Value="{StaticResource VaultWarning}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="unknown">
+                                                                            <Setter Property="Foreground"
+                                                                                    Value="{StaticResource VaultWarning}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   Foreground="{StaticResource VaultText}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ToolTip="{Binding Name}"
+                                                                   FontSize="11.5"/>
+                                                    </DockPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </Expander>
                     </StackPanel>
                 </Border>
                 <Border Grid.Row="2" Style="{StaticResource VaultPanelCard}"
