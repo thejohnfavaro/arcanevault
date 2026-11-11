@@ -43,11 +43,15 @@ public partial class NativeCollectionWindow : Window
         AdjustPhysicalButton.IsEnabled = nativeWorkspace &&
             !string.IsNullOrWhiteSpace(nativePath) &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
+        AddArenaButton.IsEnabled = nativeWorkspace &&
+            !string.IsNullOrWhiteSpace(nativePath) &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha);
+        EditArenaButton.IsEnabled = AddArenaButton.IsEnabled;
         if (nativeWorkspace)
         {
             Title = "Arcane Vault Next — Native Collection";
             DataSourceLabel.Text =
-                "Native SQLite — verified printing additions and selected-row reductions/removals retain recovery; other edits are locked";
+                "Native SQLite — physical and Arena ownership changes each retain a complete recovery point; decks are read-only";
         }
         Closed += (_, _) => { closing = true; setQueryVersion++; };
         TotalsText.Text =
@@ -151,6 +155,63 @@ public partial class NativeCollectionWindow : Window
                 SetDetailsHeader.Text =
                     "Unable to display this catalog set. Backup data remains unchanged.";
         }
+    }
+
+    private async void OnAddArenaClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha))
+        {
+            StatusText.Text = "Arena additions require an active native collection.";
+            return;
+        }
+
+        var editor = new NativeArenaEditorWindow(nativePath, expectedBackupSha)
+        { Owner = this };
+        if (editor.ShowDialog() != true) return;
+
+        Close();
+        if (reopenNative is not null)
+            await reopenNative();
+    }
+
+    private async void OnEditArenaClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha))
+        {
+            StatusText.Text = "Arena edits require an active native collection.";
+            return;
+        }
+        if (CollectionTabs.SelectedIndex != 1 ||
+            ArenaList.SelectedItem is not NativeArenaRow selected)
+        {
+            StatusText.Text = "Select the exact Arena row to edit or remove.";
+            return;
+        }
+
+        // Preserve identity through filtered views and duplicate name-only
+        // legacy entries. Do not infer the row ordinal from display ordering.
+        int ordinal = -1;
+        for (int i = 0; i < backup.ArenaCards.Count; i++)
+            if (ReferenceEquals(backup.ArenaCards[i], selected))
+            {
+                ordinal = i;
+                break;
+            }
+
+        if (ordinal < 0)
+        {
+            StatusText.Text = "The selected Arena entry is stale. Reopen the native collection.";
+            return;
+        }
+        var editor = new NativeArenaEditorWindow(nativePath,
+            expectedBackupSha, ordinal, selected) { Owner = this };
+        if (editor.ShowDialog() != true) return;
+
+        Close();
+        if (reopenNative is not null)
+            await reopenNative();
     }
 
     private async void OnAddPhysicalClicked(object sender, RoutedEventArgs e)
