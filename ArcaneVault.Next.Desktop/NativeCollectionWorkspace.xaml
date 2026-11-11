@@ -385,6 +385,17 @@
                         <RowDefinition Height="3*"/>
                     </Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="COLLECTION" VerticalAlignment="Center" Margin="0,0,8,0"
+                                   Foreground="{StaticResource VaultMuted}"/>
+                        <ComboBox x:Name="SetScopeBox" Width="230" Height="38"
+                                  SelectedIndex="0" SelectionChanged="OnSetScopeChanged"
+                                  Background="{StaticResource VaultPanelRaised}"
+                                  Foreground="{StaticResource VaultText}"
+                                  Margin="0,0,18,0"
+                                  ToolTip="Physical tracks verified printing slots; Arena tracks card-name availability only">
+                            <ComboBoxItem Content="Physical · verified printings"/>
+                            <ComboBoxItem Content="Arena · card-name coverage"/>
+                        </ComboBox>
                         <TextBlock Text="Find a set" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBox x:Name="SetSearch" Width="220" Padding="8,5"
                                  Background="{StaticResource VaultPanelRaised}" Foreground="White" BorderBrush="{StaticResource VaultLine}"
@@ -455,7 +466,7 @@
                                                        FontSize="21" FontWeight="Bold"
                                                        HorizontalAlignment="Right"
                                                        Foreground="{StaticResource VaultAccent}"/>
-                                            <TextBlock Text="{Binding VerifiedCopies, StringFormat={}{0} copies}"
+                                            <TextBlock Text="{Binding CopiesLabel}"
                                                        FontSize="11" Foreground="{StaticResource VaultMuted}"
                                                        Margin="0,5,0,0"
                                                        HorizontalAlignment="Right"/>
