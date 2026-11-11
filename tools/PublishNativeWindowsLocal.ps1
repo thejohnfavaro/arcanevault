@@ -107,7 +107,7 @@ try {
     $manifestJson = @{ version = $version; sourceSha = $sha; channel = 'preview' } |
         ConvertTo-Json -Compress
     [System.IO.File]::WriteAllText($manifestPath, $manifestJson,
-        (New-Object System.Text.UTF8Encoding($false)))
+        ([System.Text.UTF8Encoding]::new($false)))
 
     $zip = Join-Path $package 'ArcaneVaultNative-win-x64.zip'
     Compress-Archive -Path (Join-Path $publish '*') -DestinationPath $zip -CompressionLevel Optimal
