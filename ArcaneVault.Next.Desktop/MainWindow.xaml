@@ -148,13 +148,25 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <TextBlock Text="COLLECTION" Style="{StaticResource VaultEyebrow}"
+                        <TextBlock Text="WORKSPACES" Style="{StaticResource VaultEyebrow}"
                                    Margin="10,0,0,10"/>
+                        <Button x:Name="CatalogNavigationButton"
+                                Content="▤   Card Catalog"
+                                Click="OnShowCatalogClicked"
+                                Style="{StaticResource VaultNavPrimary}"
+                                ToolTip="Browse all Scryfall printings in the main window"
+                                Margin="0,0,0,5"/>
                         <Button x:Name="OpenNativeButton"
                                 Content="▣   My Collection"
                                 Click="OnOpenNativeClicked" IsEnabled="False"
                                 Style="{StaticResource VaultNavPrimary}"
-                                ToolTip="Open physical inventory, Arena ownership, saved decks and Set Progress"
+                                ToolTip="Browse your physical collection, Arena inventory and Set Progress in the main window"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="DeckLibraryNavigationButton"
+                                Content="▧   Deck Library"
+                                Click="OnOpenDeckLibraryClicked" IsEnabled="False"
+                                Style="{StaticResource VaultNavButton}"
+                                ToolTip="Browse and edit saved decks in the main workspace"
                                 Margin="0,0,0,5"/>
                         <Button x:Name="MyShortlistButton"
                                 Content="☆   My Shortlist"
@@ -248,7 +260,7 @@
             </DockPanel>
         </Border>
 
-        <Grid Grid.Column="1" Margin="27,23,27,18">
+        <Grid x:Name="CatalogWorkspace" Grid.Column="1" Margin="27,23,27,18">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -599,5 +611,9 @@
                 </Grid>
             </Border>
         </Grid>
+        <!-- Embedded native workspace; Collection and Deck Library use the same
+             verified data and editor flows as the old popup, without a Window. -->
+        <ContentControl x:Name="NativeWorkspaceHost" Grid.Column="1"
+                        Margin="10,12,10,12" Visibility="Collapsed"/>
     </Grid>
 </Window>

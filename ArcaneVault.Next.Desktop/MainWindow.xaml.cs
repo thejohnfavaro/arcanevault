@@ -27,7 +27,12 @@ public partial class MainWindow : Window
     private CatalogSnapshot? catalogSnapshot;
     private NativeCatalogOwnership? catalogOwnership;
     private CommanderBrowserWindow? edhLabWindow;
-    private NativeCollectionWindow? collectionWindow;
+    private NativeCollectionWindow? collectionWindow; // explicit read-only backup preview only
+    private NativeCollectionWorkspace? nativeWorkspaceView;
+    private bool nativeWorkspaceRequested;
+    private bool nativeWorkspaceLoading;
+    private int nativeWorkspaceSelectedTab;
+    private int nativeWorkspaceGeneration;
     private NativeShortlistWindow? shortlistWindow;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
@@ -42,6 +47,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        UpdateWorkspaceNavigation();
         catalogDetailedTemplate = CardsList.ItemTemplate;
         catalogDetailedPanel = CardsList.ItemsPanel;
         NativeVersionLabel.Text = "Native preview v" +
@@ -58,6 +64,7 @@ public partial class MainWindow : Window
             catalogSyncCancellation?.Cancel();
             edhLabWindow?.Close();
             collectionWindow?.Close();
+            InvalidateNativeWorkspace();
             shortlistWindow?.Close();
             CancelPendingSearch();
             catalogSnapshot?.Dispose();
@@ -72,6 +79,7 @@ public partial class MainWindow : Window
     private async Task InitializeNativeAsync()
     {
         OpenNativeButton.IsEnabled = System.IO.File.Exists(NativeWorkspace.DefaultPath);
+        DeckLibraryNavigationButton.IsEnabled = OpenNativeButton.IsEnabled;
         ExportFullBackupButton.IsEnabled = OpenNativeButton.IsEnabled;
         RestoreRecoveryButton.IsEnabled =
             NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
@@ -257,6 +265,7 @@ public partial class MainWindow : Window
             edhLabWindow?.Close();
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             var previous = catalogSnapshot;
             catalogSnapshot = fresh;
             syntheticMode = false;
@@ -353,6 +362,7 @@ public partial class MainWindow : Window
             CancelPendingSearch();
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             var previous = catalogSnapshot;
             catalogSnapshot = saved;
             modeVersion++;
@@ -361,6 +371,7 @@ public partial class MainWindow : Window
                 $"{saved.TotalPrintings:N0} printings now loaded directly from the native catalog";
             FilterStatus.Text = "Native catalog saved. It will reopen automatically next launch.";
             _ = FilterAsync();
+            if (nativeWorkspaceRequested) _ = OpenNativeCollectionAsync();
         }
         catch (Exception)
         {
@@ -460,6 +471,7 @@ public partial class MainWindow : Window
                 if (closing) return;
                 collectionWindow?.Close();
                 collectionWindow = null;
+            InvalidateNativeWorkspace();
                 RestoreRecoveryButton.IsEnabled = true;
                 await OpenNativeCollectionAsync();
                 if (!closing)
@@ -525,6 +537,7 @@ public partial class MainWindow : Window
                     if (closing) { catalog.Dispose(); return; }
                     collectionWindow?.Close();
                     collectionWindow = null;
+            InvalidateNativeWorkspace();
                     CancelPendingSearch();
                     var previous = catalogSnapshot;
                     catalogSnapshot = catalog;
@@ -616,6 +629,7 @@ public partial class MainWindow : Window
 
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             await OpenNativeCollectionAsync();
             if (closing) return;
 
@@ -815,6 +829,7 @@ public partial class MainWindow : Window
             if (closing) return;
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             await OpenNativeCollectionAsync();
             if (!closing)
                 MessageBox.Show(this,
@@ -915,10 +930,9 @@ public partial class MainWindow : Window
         view.Closed += async (_, _) =>
         {
             if (ReferenceEquals(shortlistWindow, view)) shortlistWindow = null;
-            if (closing || !view.ShortlistChanged || collectionWindow is null)
+            if (closing || !view.ShortlistChanged)
                 return;
-            collectionWindow.Close(); // invalidate stale collection edit SHA
-            await OpenNativeCollectionAsync();
+            await RefreshNativeWorkspaceAsync(); // reload after optimistic SHA change
         };
         view.Show();
     }
@@ -960,11 +974,8 @@ public partial class MainWindow : Window
             {
                 if (shortlistWindow is not null)
                     await shortlistWindow.RefreshFromWorkspaceAsync();
-                if (collectionWindow is not null)
-                {
-                    collectionWindow.Close();
-                    await OpenNativeCollectionAsync();
-                }
+                if (nativeWorkspaceView is not null || nativeWorkspaceRequested)
+                    await RefreshNativeWorkspaceAsync();
             }
         }
         catch (Exception ex)
@@ -981,16 +992,84 @@ public partial class MainWindow : Window
         }
     }
 
+    private void UpdateWorkspaceNavigation()
+    {
+        CatalogWorkspace.Visibility = nativeWorkspaceRequested
+            ? Visibility.Collapsed : Visibility.Visible;
+        NativeWorkspaceHost.Visibility = nativeWorkspaceRequested
+            ? Visibility.Visible : Visibility.Collapsed;
+
+        var active = (Style)FindResource("VaultNavPrimary");
+        var inactive = (Style)FindResource("VaultNavButton");
+        CatalogNavigationButton.Style = nativeWorkspaceRequested ? inactive : active;
+        OpenNativeButton.Style = nativeWorkspaceRequested &&
+            nativeWorkspaceSelectedTab != 2 ? active : inactive;
+        DeckLibraryNavigationButton.Style = nativeWorkspaceRequested &&
+            nativeWorkspaceSelectedTab == 2 ? active : inactive;
+    }
+
+    private void OnShowCatalogClicked(object sender, RoutedEventArgs e)
+    {
+        nativeWorkspaceRequested = false;
+        UpdateWorkspaceNavigation();
+    }
+
+    private void InvalidateNativeWorkspace()
+    {
+        nativeWorkspaceGeneration++;
+        nativeWorkspaceView = null;
+        NativeWorkspaceHost.Content = null;
+        if (nativeWorkspaceRequested && !closing)
+            NativeWorkspaceHost.Content = new TextBlock
+            {
+                Text = "Reloading your verified local collection…",
+                Foreground = (System.Windows.Media.Brush)FindResource("VaultMuted"),
+                Margin = new Thickness(22),
+                TextWrapping = TextWrapping.Wrap
+            };
+    }
+
     private async void OnOpenNativeClicked(object sender, RoutedEventArgs e) =>
+        await NavigateToNativeWorkspaceAsync(0);
+
+    private async void OnOpenDeckLibraryClicked(object sender, RoutedEventArgs e) =>
+        await NavigateToNativeWorkspaceAsync(2);
+
+    private async Task NavigateToNativeWorkspaceAsync(int section)
+    {
+        if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Create or import a native collection before opening this section.";
+            nativeWorkspaceRequested = false;
+            UpdateWorkspaceNavigation();
+            return;
+        }
+        nativeWorkspaceRequested = true;
+        nativeWorkspaceSelectedTab = section;
+        if (nativeWorkspaceView is not null)
+            nativeWorkspaceView.NavigateTo(section);
+        else
+            NativeWorkspaceHost.Content = new TextBlock
+            {
+                Text = "Opening and verifying your local workspace…",
+                Foreground = (System.Windows.Media.Brush)FindResource("VaultMuted"),
+                Margin = new Thickness(22),
+                TextWrapping = TextWrapping.Wrap
+            };
+        UpdateWorkspaceNavigation();
         await OpenNativeCollectionAsync();
+    }
 
     private async Task OpenNativeCollectionAsync()
     {
-        if (collectionWindow is not null)
+        if (nativeWorkspaceView is not null)
         {
-            collectionWindow.Activate();
+            if (nativeWorkspaceRequested)
+                nativeWorkspaceView.NavigateTo(nativeWorkspaceSelectedTab);
+            UpdateWorkspaceNavigation();
             return;
         }
+        if (nativeWorkspaceLoading) return;
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
         {
             catalogOwnership = null;
@@ -1000,6 +1079,8 @@ public partial class MainWindow : Window
         }
         var activeCatalog = catalogSnapshot;
         int version = modeVersion;
+        int generation = nativeWorkspaceGeneration;
+        nativeWorkspaceLoading = true;
         OpenNativeButton.IsEnabled = false;
         FilterStatus.Text = "Verifying native SQLite workspace and loading local collection…";
         try
@@ -1015,48 +1096,78 @@ public partial class MainWindow : Window
                 return (workspace, verification, progress, decks);
             });
             if (closing || version != modeVersion ||
+                generation != nativeWorkspaceGeneration ||
                 !ReferenceEquals(activeCatalog, catalogSnapshot)) return;
 
             catalogOwnership = NativeCatalogOwnership.From(bundle.workspace.Collection);
             _ = FilterAsync(); // reflect new edits/restores/CSV imports in catalog owned status
-            var view = new NativeCollectionWindow(bundle.workspace.Collection,
+            var view = new NativeCollectionWorkspace(bundle.workspace.Collection,
                 bundle.verification, activeCatalog?.ReadOnlySnapshotPath,
                 bundle.progress, nativeWorkspace: true,
                 nativePath: bundle.workspace.DatabasePath,
                 expectedBackupSha: bundle.workspace.BackupSha256,
-                reopenNative: OpenNativeCollectionAsync,
-                nativeDecks: bundle.decks)
-            { Owner = this };
-            collectionWindow = view;
-            view.Closed += (_, _) =>
+                reopenNative: RefreshNativeWorkspaceAsync,
+                nativeDecks: bundle.decks);
+            view.NavigateTo(nativeWorkspaceSelectedTab);
+            nativeWorkspaceView = view;
+            view.SectionChanged += section =>
             {
-                if (ReferenceEquals(collectionWindow, view))
-                    collectionWindow = null;
+                if (!ReferenceEquals(nativeWorkspaceView, view)) return;
+                nativeWorkspaceSelectedTab = section;
+                UpdateWorkspaceNavigation();
             };
-            view.Show();
+            NativeWorkspaceHost.Content = view;
+            UpdateWorkspaceNavigation();
             FilterStatus.Text =
                 $"Native collection: {bundle.workspace.Collection.PhysicalCopies:N0} physical + " +
                 $"{bundle.workspace.Collection.ArenaCopies:N0} Arena copies · restored from local SQLite";
             ModeStatus.Text = $"Private native workspace: {bundle.workspace.OriginalFileName} · " +
                 $"imported {bundle.workspace.ImportedAtUtc} · editable native collection with verified recovery";
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            if (!closing)
+            if (!closing && generation == nativeWorkspaceGeneration)
+            {
                 FilterStatus.Text =
                     "Native workspace verification failed. Data was NOT reset; preserve the file and use backup preview.";
+                if (nativeWorkspaceRequested)
+                    NativeWorkspaceHost.Content = new TextBlock
+                    {
+                        Text = "Collection could not be loaded safely: " + ex.Message +
+                               "\n\nYour original native data was not reset. Use backup recovery or import a verified backup.",
+                        Foreground = (System.Windows.Media.Brush)FindResource("VaultWarning"),
+                        Margin = new Thickness(22),
+                        TextWrapping = TextWrapping.Wrap
+                    };
+            }
         }
         finally
         {
+            bool invalidatedWhileLoading = generation != nativeWorkspaceGeneration;
+            nativeWorkspaceLoading = false;
+            if (!closing && invalidatedWhileLoading && nativeWorkspaceRequested &&
+                System.IO.File.Exists(NativeWorkspace.DefaultPath))
+                _ = OpenNativeCollectionAsync(); // new catalog/backup won the race
             if (!closing)
             {
                 OpenNativeButton.IsEnabled =
                     System.IO.File.Exists(NativeWorkspace.DefaultPath);
+                DeckLibraryNavigationButton.IsEnabled = OpenNativeButton.IsEnabled;
                 ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
                 MigrateLegacyButton.IsEnabled = true;
             }
         }
     }
+
+    private async Task RefreshNativeWorkspaceAsync()
+    {
+        if (closing) return;
+        if (nativeWorkspaceView is not null)
+            nativeWorkspaceSelectedTab = nativeWorkspaceView.SelectedSection;
+        InvalidateNativeWorkspace();
+        await OpenNativeCollectionAsync();
+    }
+
 
     /// <summary>
     /// Catalog browsing does not imply ownership. Opening a printing shows
@@ -1173,6 +1284,7 @@ public partial class MainWindow : Window
             edhLabWindow?.Close();
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             var previous = catalogSnapshot;
             catalogSnapshot = loaded;
             syntheticMode = false;
@@ -1184,6 +1296,7 @@ public partial class MainWindow : Window
             ModeStatus.Text = $"{loaded.TotalPrintings:N0} catalog printings in isolated snapshot · Prefix search · First 200 rows only · No live edits";
             SearchBox.Text = "";
             _ = FilterAsync();
+            if (nativeWorkspaceRequested) _ = OpenNativeCollectionAsync();
         }
         catch (Exception)
         {
@@ -1319,6 +1432,7 @@ public partial class MainWindow : Window
         edhLabWindow?.Close();
         collectionWindow?.Close();
         collectionWindow = null;
+            InvalidateNativeWorkspace();
         EdhLabButton.IsEnabled = false;
         SaveNativeCatalogButton.IsEnabled = false;
         modeVersion++;
@@ -1326,6 +1440,8 @@ public partial class MainWindow : Window
         catalogSnapshot = null;
         syntheticMode = true;
         previous?.Dispose();
+        nativeWorkspaceRequested = false; // demo is a catalog-only mode
+        UpdateWorkspaceNavigation();
         ModeStatus.Text = "Synthetic mode · No catalog file open. Nothing is imported, saved, or synced.";
         SearchBox.Text = "";
         _ = FilterAsync();
