@@ -405,16 +405,32 @@
                                   Checked="OnSetFilterChanged" Unchecked="OnSetFilterChanged"/>
                     </StackPanel>
                     <ListView Grid.Row="1" x:Name="SetSummaryList"
-                              SelectionChanged="OnSetSelected"
+                              SizeChanged="OnSetSummarySizeChanged"
                               Background="{StaticResource VaultPanel}"
                               Foreground="{StaticResource VaultText}"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
                               ScrollViewer.CanContentScroll="True">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="{StaticResource VaultPanelRaised}"
+                                <ItemsControl ItemsSource="{Binding Cards}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Rows="1"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                <Border MouseLeftButtonDown="OnSetTileClicked" Cursor="Hand"
+                                        ToolTip="Choose this set to inspect its ownership checklist"
+                                        Background="{StaticResource VaultPanelRaised}"
                                         BorderBrush="{StaticResource VaultLine}"
                                         BorderThickness="1" CornerRadius="12"
                                         Margin="6,4" Padding="12">
@@ -473,6 +489,9 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
