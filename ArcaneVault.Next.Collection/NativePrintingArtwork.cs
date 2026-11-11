@@ -63,38 +63,31 @@ public static class NativePrintingArtwork
                 "This catalog lacks printing artwork metadata. Run Full Scryfall Sync first.");
 
         using var cmd = db.CreateCommand();
+        // Arena ownership here is card-name-only; Scryfall printings do
+        // NOT certify availability or ownership of MTG Arena card styles.
+        // Offer one representative base artwork until a dedicated Arena
+        // style catalog is available. Never present print IDs as styles.
         cmd.CommandText = """
             SELECT print_id,name,setcode,collector,setname,image,games,digital,release
             FROM variants WHERE name=$name COLLATE NOCASE
             """ + (arenaOnly
                 ? " AND instr(',' || lower(replace(games,' ','')) || ',', ',arena,') > 0"
                 : "") + (arenaOnly
-                // In the Arena client, ownership is one card name; paper
-                // collector-only alternate art does not imply a purchasable
-                // Arena card style. Show the base shared edition per set,
-                // plus independently cataloged digital-specific editions.
-                ? "\nORDER BY digital DESC,release DESC,setcode COLLATE NOCASE," +
+                ? "\nORDER BY digital ASC,release DESC," +
                   " CASE WHEN collector GLOB '[0-9]*' THEN 0 ELSE 1 END," +
                   " CAST(collector AS INTEGER),collector COLLATE NOCASE"
                 : "\nORDER BY release DESC,setcode COLLATE NOCASE,collector") +
-                (arenaOnly ? "" : "\nLIMIT $limit");
+                "\nLIMIT $limit";
         cmd.Parameters.AddWithValue("$name", name.Trim());
-        cmd.Parameters.AddWithValue("$limit", limit + 1);
-        var result = new List<Printing>(limit);
-        var sharedPerSet = arenaOnly
-            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
+        cmd.Parameters.AddWithValue("$limit", arenaOnly ? 400 : limit + 1);
+        var result = new List<Printing>(arenaOnly ? 1 : limit);
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             cancellation.ThrowIfCancellationRequested();
             if (reader.IsDBNull(0) || !Guid.TryParse(reader.GetString(0), out Guid id) ||
                 id == Guid.Empty) continue;
-            // The Scryfall games flag establishes card availability, NOT
-            // whether each paper showcase printing is an Arena cosmetic. A
-            // conservative gallery includes one regular representative per
-            // set. Explicitly digital printings remain independently listed.
-            if (sharedPerSet is not null && reader.GetInt64(7) == 0 &&
-                !sharedPerSet.Add(reader.GetString(2))) continue;
+            if (arenaOnly && !TrustedImage(reader.GetString(5))) continue;
             if (result.Count == limit) return new Gallery(result.AsReadOnly(), true);
             bool paper = reader.GetInt64(7) == 0 &&
                 reader.GetString(6).Split(',',
@@ -103,6 +96,7 @@ public static class NativePrintingArtwork
             result.Add(new Printing(
                 id, reader.GetString(1), reader.GetString(2), reader.GetString(3),
                 reader.GetString(4), reader.GetString(5), paper, reader.GetString(8)));
+            if (arenaOnly) break; // one base preview; cosmetic style data is not available
         }
         return new Gallery(result.AsReadOnly(), false);
     }
