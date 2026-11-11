@@ -187,6 +187,46 @@ internal static class NativeSetProgressChecks
                  .EndsWith("/catalog-preview.jpg", StringComparison.Ordinal),
             "Arena name checklist should show catalog art without altering name-only ownership.");
 
+        // Cross-version persistent cache: second open must not rebuild, a
+        // changed authoritative collection/catalog invalidates it, and a
+        // corrupt disposable cache must be regenerated without data loss.
+        var cacheFolder = Path.Combine(work, "persistent-set-progress");
+        string state = new string('A', 64);
+        var firstCached = NativeSetProgressCache.Physical(review, catalog,
+            state, cacheFolder);
+        Must(firstCached.Sets.Count == progress.Sets.Count &&
+             File.Exists(Path.Combine(cacheFolder, "physical-summary.json")),
+            "Initial verified summary should survive as an on-disk cache file.");
+        File.WriteAllText(Path.Combine(cacheFolder, "physical-summary.json"), "{bad");
+        var recovered = NativeSetProgressCache.Physical(review, catalog,
+            state, cacheFolder);
+        Must(recovered.CatalogPaperSlots == progress.CatalogPaperSlots,
+            "A corrupt cache must rebuild from unchanged authoritative sources.");
+        var arenaCached = NativeSetProgressCache.Arena(backup.ArenaCards,
+            catalog, state, cacheFolder);
+        Must(arenaCached.Sets.Count == arenaScope.Sets.Count &&
+             File.Exists(Path.Combine(cacheFolder, "arena-summary.json")),
+            "Arena card-name coverage needs an independent persisted summary.");
+        var alternateIdentity = NativeSetProgressCache.Physical(review, catalog,
+            new string('B', 64), cacheFolder);
+        Must(alternateIdentity.ConfirmedOwnedCopies == progress.ConfirmedOwnedCopies,
+            "A different backup identity should safely recompute ownership.");
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = artCatalog, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString()))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText =
+                "UPDATE variants SET image='https://cards.scryfall.io/normal/front/1/1/changed.jpg' " +
+                "WHERE setcode='ZXQ' AND collector='001'";
+            cmd.ExecuteNonQuery();
+        }
+        var changedCatalog = NativeSetProgressCache.Physical(review,
+            artCatalog, state, cacheFolder);
+        Must(changedCatalog.Sets.Single(x => x.SetCode == "ZXQ").ArtworkUrl
+                 .EndsWith("/changed.jpg", StringComparison.Ordinal),
+            "Catalog changes must invalidate cached art and recalculate from source.");
+
         Must(sourceHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(backupFile))) &&
              catalogHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))) &&
              sourceTime == File.GetLastWriteTimeUtc(backupFile) &&
