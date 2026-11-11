@@ -41,6 +41,63 @@ public static class NativeDeckOwnedPicker
             .ToArray();
     }
 
+    public sealed record Shortage(string Name, int Required, long Owned)
+    {
+        public long Missing => Math.Max(0, Required - Owned);
+    }
+
+    public sealed record DraftSummary(int DistinctCards, int MainboardCopies,
+        int TotalWithCommander, int CoveredCopies, long MissingCopies,
+        IReadOnlyList<Shortage> Shortages)
+    {
+        public string Header => $"{MainboardCopies:N0} mainboard copies · " +
+            $"{DistinctCards:N0} names · {TotalWithCommander:N0} incl. commander · " +
+            $"{MissingCopies:N0} missing copies";
+    }
+
+    /// <summary>
+    /// Immediate read-only deck-versus-inventory accounting. The separate
+    /// commander is included only in Commander and Arena Brawl formats.
+    /// Coverage is per card and cannot be transferred between names or pools.
+    /// </summary>
+    public static DraftSummary Review(NativeBackupView ownership, Pool pool,
+        string mainboard, string? commander, string? format)
+    {
+        ArgumentNullException.ThrowIfNull(ownership);
+        var entries = NativeDeckEditing.ParseMainboard(mainboard);
+        bool commanderFormat = string.Equals(format?.Trim(), "Commander",
+            StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(format?.Trim(), "Arena Brawl",
+                StringComparison.OrdinalIgnoreCase);
+        string leader = commanderFormat ? (commander ?? "").Trim() : "";
+        var required = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var card in entries)
+            required[card.Name] = checked(required.GetValueOrDefault(card.Name) + card.Quantity);
+        if (leader.Length > 0)
+            required[leader] = checked(required.GetValueOrDefault(leader) + 1);
+        // Unlike bounded picker results, accounting must cover every owned name.
+        var owned = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        if (pool == Pool.Physical)
+            foreach (var card in ownership.PhysicalCards)
+                if (card.Quantity > 0)
+                    owned[card.Name] = checked(owned.GetValueOrDefault(card.Name) + card.Quantity);
+        if (pool == Pool.Arena)
+            foreach (var card in ownership.ArenaCards)
+                if (card.Quantity > 0)
+                    owned[card.Name] = checked(owned.GetValueOrDefault(card.Name) + card.Quantity);
+        var shortages = required.Select(x => new Shortage(
+                x.Key, x.Value, owned.GetValueOrDefault(x.Key)))
+            .Where(x => x.Missing > 0)
+            .OrderByDescending(x => x.Missing)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        int mainboardCopies = entries.Sum(x => x.Quantity);
+        long missing = shortages.Sum(x => x.Missing);
+        int total = checked(mainboardCopies + (leader.Length > 0 ? 1 : 0));
+        return new DraftSummary(entries.Count, mainboardCopies, total,
+            checked((int)(total - missing)), missing, shortages);
+    }
+
     /// <summary>
     /// Add a single selected owned card without discarding or rewriting other
     /// entries. Invalid draft text is rejected instead of silently repaired.
