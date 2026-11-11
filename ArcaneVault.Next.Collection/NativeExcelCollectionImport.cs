@@ -316,47 +316,71 @@ public static class NativeExcelCollectionImport
             throw new InvalidDataException("Native backup is not a JSON object.");
         var physical = root["physicalCards"] as JsonArray ??
             throw new InvalidDataException("Native backup has no physicalCards.");
+        // Index once: importing thousands of cards must not scan an entire
+        // existing collection for each row (quadratic behavior).
+        static string Part(string input) => input.Length + ":" + input;
+        static string Key(string id, string name, string set,
+            string collector, string finish)
+        {
+            if (Guid.TryParse(id, out var guid) && guid != Guid.Empty)
+                return "P:" + guid.ToString("D") + ":" + Part(finish);
+            return id.Length == 0
+                ? "U:" + Part(name) + Part(set) + Part(collector) + Part(finish)
+                : "";
+        }
+        var index = new Dictionary<string, List<JsonObject>>(StringComparer.OrdinalIgnoreCase);
+        void AddIndex(JsonObject line)
+        {
+            string id = line["scryfallId"]?.GetValue<string>() ?? "";
+            string key = Key(id, line["name"]?.GetValue<string>() ?? "",
+                line["set"]?.GetValue<string>() ?? "",
+                line["number"]?.GetValue<string>() ?? "",
+                line["finish"]?.GetValue<string>() ?? "");
+            if (key.Length == 0) return;
+            if (!index.TryGetValue(key, out var matches))
+                index[key] = matches = new List<JsonObject>();
+            matches.Add(line);
+        }
+        foreach (var entry in physical)
+        {
+            if (entry is not JsonObject line)
+                throw new InvalidDataException("Invalid existing physical row.");
+            AddIndex(line);
+        }
         long added = 0;
         foreach (var item in preview.Items)
         {
-            var candidates = new List<JsonObject>();
-            foreach (var entry in physical)
-            {
-                if (entry is not JsonObject old) throw new InvalidDataException("Invalid physical row.");
-                string oldName = old["name"]?.GetValue<string>() ?? "";
-                string oldId = old["scryfallId"]?.GetValue<string>() ?? "";
-                bool same = item.Verified
-                    ? Guid.TryParse(oldId, out var oldGuid) &&
-                      Guid.TryParse(item.ScryfallId, out var newGuid) && oldGuid == newGuid
-                    : oldId.Length == 0 &&
-                      oldName.Equals(item.Name, StringComparison.OrdinalIgnoreCase) &&
-                      (old["set"]?.GetValue<string>() ?? "").Equals(item.SetCode, StringComparison.OrdinalIgnoreCase) &&
-                      (old["number"]?.GetValue<string>() ?? "").Equals(item.CollectorNumber, StringComparison.OrdinalIgnoreCase);
-                if (!same ||
-                    !(old["finish"]?.GetValue<string>() ?? "").Equals(item.Finish, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                if (item.Verified &&
-                    (!oldName.Equals(item.Name, StringComparison.OrdinalIgnoreCase) ||
-                     !(old["set"]?.GetValue<string>() ?? "").Equals(item.SetCode, StringComparison.OrdinalIgnoreCase) ||
-                     !(old["number"]?.GetValue<string>() ?? "").Equals(item.CollectorNumber, StringComparison.OrdinalIgnoreCase)))
-                    throw new InvalidDataException("Existing verified printing has conflicting metadata.");
-                candidates.Add(old);
-            }
-            if (candidates.Count > 1)
-                throw new InvalidDataException("Duplicate existing physical rows conflict; import canceled.");
-            if (candidates.Count == 1)
+            string key = Key(item.ScryfallId, item.Name,
+                item.SetCode, item.CollectorNumber, item.Finish);
+            // Non-catalog-verified IDs must remain separate and unresolved.
+            if (!item.Verified && item.ScryfallId.Length > 0) key = "";
+            index.TryGetValue(key, out var candidates);
+            if (candidates is { Count: > 1 })
+                throw new InvalidDataException(
+                    "Duplicate existing physical rows conflict; import canceled.");
+            if (candidates is { Count: 1 })
             {
                 var line = candidates[0];
-                int qty = line["qty"]!.GetValue<int>();
-                if ((long)qty + item.Source.Quantity > 99_999)
-                    throw new InvalidDataException("Import would exceed a line's quantity limit.");
-                line["qty"] = qty + item.Source.Quantity;
+                if (item.Verified &&
+                    (!(line["name"]?.GetValue<string>() ?? "").Equals(
+                        item.Name, StringComparison.OrdinalIgnoreCase) ||
+                     !(line["set"]?.GetValue<string>() ?? "").Equals(
+                        item.SetCode, StringComparison.OrdinalIgnoreCase) ||
+                     !(line["number"]?.GetValue<string>() ?? "").Equals(
+                        item.CollectorNumber, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidDataException(
+                        "Existing verified printing has conflicting metadata.");
+                int quantity = line["qty"]!.GetValue<int>();
+                if ((long)quantity + item.Source.Quantity > 99_999)
+                    throw new InvalidDataException(
+                        "Import would exceed a line's quantity limit.");
+                line["qty"] = quantity + item.Source.Quantity;
             }
             else
             {
                 if (physical.Count >= 150_000)
                     throw new InvalidDataException("Native physical row capacity exceeded.");
-                physical.Add(new JsonObject
+                var line = new JsonObject
                 {
                     ["name"] = item.Name,
                     ["qty"] = item.Source.Quantity,
@@ -365,7 +389,9 @@ public static class NativeExcelCollectionImport
                     ["finish"] = item.Finish,
                     // Only keep supplied IDs; missing/ambiguous IDs are never invented.
                     ["scryfallId"] = item.ScryfallId
-                });
+                };
+                physical.Add(line);
+                if (key.Length > 0) AddIndex(line);
             }
             added = checked(added + item.Source.Quantity);
         }
