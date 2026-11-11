@@ -163,7 +163,8 @@ public static class CollectionCatalogReview
         double ManaValue,
         string ColorIdentity,
         string Legalities,
-        string SetCode);
+        string SetCode,
+        string ArtworkUrl = "");
 
     /// <summary>Offline card identity details; not a claim about the owned printing.</summary>
     public static CardDetails? ReadDetails(string catalogPath, string name)
@@ -177,11 +178,26 @@ public static class CollectionCatalogReview
             FROM cards WHERE name=$name COLLATE NOCASE LIMIT 1
             """;
         command.Parameters.AddWithValue("$name", name);
-        using var reader = command.ExecuteReader();
-        if (!reader.Read()) return null;
-        return new CardDetails(reader.GetString(0), reader.GetString(1),
-            reader.GetString(2), reader.GetString(3),
-            reader.GetDouble(4), reader.GetString(5),
-            reader.GetString(6), reader.GetString(7));
+        CardDetails? details;
+        using (var reader = command.ExecuteReader())
+        {
+            if (!reader.Read()) return null;
+            details = new CardDetails(reader.GetString(0), reader.GetString(1),
+                reader.GetString(2), reader.GetString(3),
+                reader.GetDouble(4), reader.GetString(5),
+                reader.GetString(6), reader.GetString(7));
+        }
+        // The official native Scryfall catalog stores preview artwork URLs.
+        // Older synthetic/imported catalogs might not have an image column;
+        // card text and ownership remain fully available in that case.
+        try
+        {
+            using var art = db.CreateCommand();
+            art.CommandText = "SELECT image FROM cards WHERE name=$name COLLATE NOCASE LIMIT 1";
+            art.Parameters.AddWithValue("$name", name);
+            details = details with { ArtworkUrl = art.ExecuteScalar()?.ToString() ?? "" };
+        }
+        catch (SqliteException) { /* Old catalog schema has no image URL. */ }
+        return details;
     }
 }
