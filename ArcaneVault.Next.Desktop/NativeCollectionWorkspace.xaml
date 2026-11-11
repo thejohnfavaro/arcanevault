@@ -200,6 +200,12 @@
                                 Click="OnEditArenaClicked" IsEnabled="False"
                                 Padding="14,8" Background="#382438"
                                 Foreground="White" BorderBrush="#79516C"/>
+                        <Button x:Name="ImportArenaButton" Content="Import CSV / Excel"
+                                Click="OnImportArenaClicked" IsEnabled="False"
+                                Padding="14,8" Margin="12,0,0,0"
+                                Background="{StaticResource VaultPanelRaised}"
+                                Foreground="{StaticResource VaultText}"
+                                BorderBrush="{StaticResource VaultAccentBorder}"/>
                         <TextBlock VerticalAlignment="Center" Margin="17,0,0,0"
                                    Foreground="{StaticResource VaultMuted}" Text="Arena is name-only; no printing ID required."/>
                     </StackPanel>
