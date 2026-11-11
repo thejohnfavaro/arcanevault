@@ -4,6 +4,7 @@ using ArcaneVault.Next.Domain;
 using ArcaneVault.Next.Collection;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
