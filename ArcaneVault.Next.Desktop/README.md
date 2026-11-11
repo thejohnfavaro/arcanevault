@@ -1,6 +1,18 @@
-# Arcane Vault Next — Windows core recovery prototype (read-only)
+# Arcane Vault Next — Windows native collection workspace (preview)
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
+
+## Native collection editing — Physical and Arena (AVN-024/025/026)
+
+You can now create a native workspace using **Start fresh collection**, then manage ownership directly in its **Physical Collection** and **Arena Collection** tabs. Open **Open native collection** to find these controls.
+
+- **Physical Collection → Add physical printing:** requires a loaded local Scryfall catalog (no installed legacy app). Search a card name, select the exact paper set/collector/printing UUID, choose nonfoil/foil/etched and the number of copies. Re-adding the *same verified printing and finish* increases that exact row's quantity; other printings are not merged. The app does not guess name-only printings.
+- **Physical Collection → Edit physical quantity:** select the exact owned row, change its quantity to **0–99,999**; zero removes that row and requires typing **REMOVE**. Increasing a selected unresolved legacy row does not invent any printing identity; it remains unresolved.
+- **Arena Collection → Add Arena card:** does **not require the local Scryfall catalog**. Type a card name and number of copies; an unambiguous matching Arena name gains copies or a new name-only row is created. Arena rows do not claim a physical printing or Arena format legality.
+- **Arena Collection → Edit / remove selected Arena card:** select one exact row, change its name and/or absolute quantity, or set quantity to **0** to remove it. Imported duplicate Arena names cannot be silently combined; an exact selected row can still be edited.
+- **Every successful edit** uses a version-checked, staged SQLite replacement and preserves the *entire previous native workspace* in a separately named recovery file. Choose **Restore native recovery** in the main window to undo. A stale selection, invalid quantity, ambiguous duplicate, or failed validation is rejected without updating the collection.
+
+After an edit, the viewer reloads physical/Arena totals, Card Details and Set Progress from the saved native collection. Existing deck library, revisions, artwork choices, annotations, unknown backup keys, legacy app data, and local Scryfall catalog are preserved. Editing does **not** write to the old Windows app or sync to Android. **This is not yet a fully shipped replacement**: native deck editing, standalone Scryfall catalog downloading, scanning and updater/installer work remain to be completed.
 
 ## Start a completely fresh native collection — AVN-023
 
@@ -10,7 +22,7 @@ Use **Start fresh collection** in the native Windows app. This works even on a n
 - With an **existing native collection**, the confirmation dialog shows the current physical/Arena copies, deck/revision count and preferred-artwork entries. It states exactly what will be reset. Type **`START FRESH`** to enable the final button. The app atomically creates a completely empty active database and saves the entire former native database in a uniquely named `native-workspace.rollback-*.sqlite` recovery point.
 - **Cleared from the active collection:** all physical card ownership, Arena card ownership, deck library/history, favorite choices, preferred art, wildcard counts, and collection-specific/legacy settings. The **Scryfall catalog is retained separately** and is not wiped or changed; the original legacy Windows app, its user data, and old exports are not touched.
 - An already-empty native collection is a **no-op**; resetting it again does not generate needless backups. **Restore native recovery** can restore all original data, and the intervening empty collection is then also preserved as another recovery point.
-- **Important preview limitation:** The native app still provides read-only collection browsing. Starting empty is useful to begin clean, but **adding individual owned cards directly in the native UI is not yet implemented**. Native card editing, scanning, new-deck authoring and full collection management are later Windows milestones. Do not delete recovery files.
+- **After starting empty:** You can add physical cards from a loaded Scryfall catalog and add Arena names manually. Native deck authoring, scanning and independent catalog downloads are not implemented yet. Do not delete recovery files.
 
 ## Safe native collection refresh and recovery — AVN-022
 

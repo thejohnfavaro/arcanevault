@@ -13,7 +13,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Text="Reduce or remove a selected physical line"
+        <TextBlock Grid.Row="0" Text="Edit a selected physical row's quantity"
                    FontSize="21" FontWeight="SemiBold" Margin="0,0,0,12"/>
         <TextBlock Grid.Row="1" x:Name="SelectedCardText" TextWrapping="Wrap"
                    Foreground="#DDC091" FontSize="14" Margin="0,0,0,14"/>
@@ -29,7 +29,7 @@
                         Foreground="White" BorderBrush="#966274"/>
             </StackPanel>
             <TextBlock Margin="0,9,0,0" Foreground="#AAC4D4" TextWrapping="Wrap"
-                       Text="Only this selected row changes. A quantity of 0 removes the entire row. Unknown/unresolved printing identities are not guessed or modified."/>
+                       Text="Change this exact row from 0 to 99,999 copies (0 removes it). Unresolved printing IDs remain unresolved; no identities or other rows are changed."/>
         </StackPanel>
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,14">
             <TextBlock Text="If removing, type REMOVE:" VerticalAlignment="Center"

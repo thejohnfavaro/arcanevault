@@ -1,0 +1,46 @@
+<Window x:Class="ArcaneVault.Next.Desktop.NativeArenaEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Arcane Vault Next — Arena ownership"
+        Width="630" Height="470" MinWidth="530" MinHeight="430"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="#101620" Foreground="#EAF0F6">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="HeadingText" Grid.Row="0"
+                   Text="Add Arena card" FontSize="23"
+                   FontWeight="SemiBold" Margin="0,0,0,13"/>
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="#AAC4D4"
+                   Margin="0,0,0,15"
+                   Text="Arena ownership is tracked by card name, not by physical printing. This does not verify Arena format legality. Only the native collection changes. Your installed Arcane Vault app and its files are untouched."/>
+        <StackPanel Grid.Row="2" Margin="0,0,0,14">
+            <TextBlock Text="Card name" Margin="0,0,0,6"/>
+            <TextBox x:Name="CardNameBox" Padding="10,9" FontSize="15"
+                     Background="#202C3B" Foreground="White" BorderBrush="#526377"/>
+            <TextBlock Text="Owned copies (0 removes the selected Arena row)"
+                       Margin="0,13,0,6"/>
+            <TextBox x:Name="QuantityBox" Width="130" HorizontalAlignment="Left"
+                     Padding="10,9" FontSize="15"
+                     Background="#202C3B" Foreground="White" BorderBrush="#526377"/>
+            <TextBlock x:Name="ModeNote" Foreground="#DDBF8C"
+                       TextWrapping="Wrap" Margin="0,11,0,0"/>
+        </StackPanel>
+        <TextBlock Grid.Row="3" x:Name="StatusText" Foreground="#B5CBD8"
+                   TextWrapping="Wrap" Margin="0,0,0,10"
+                   Text="Each successful save creates a separate, complete native recovery point."/>
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom">
+            <Button Content="Cancel" IsCancel="True" Padding="17,10"
+                    Margin="0,0,10,0" Background="#283F55" Foreground="White"/>
+            <Button x:Name="SaveButton" Content="Review and save"
+                    Click="OnSaveClicked" Padding="17,10"
+                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
+        </StackPanel>
+    </Grid>
+</Window>

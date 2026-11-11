@@ -74,14 +74,12 @@ internal static class NativePhysicalQuantityChecks
         Reject(() => NativeWorkspaceSafety.SetPhysicalQuantity(
             path, 1, first.Current.Collection.PhysicalCards[1], 1, first.Current.BackupSha256));
         Reject(() => NativeWorkspaceSafety.SetPhysicalQuantity(
-            path, 1, first.Current.Collection.PhysicalCards[1], 2, first.Current.BackupSha256));
-        Reject(() => NativeWorkspaceSafety.SetPhysicalQuantity(
             path, 1, first.Current.Collection.PhysicalCards[1], -1, first.Current.BackupSha256));
         Reject(() => NativeWorkspaceSafety.SetPhysicalQuantity(
             path, 99, first.Current.Collection.PhysicalCards[1], 0, first.Current.BackupSha256));
         Must(unchanged.SequenceEqual(SHA256.HashData(File.ReadAllBytes(path))) &&
              NativeWorkspaceSafety.RecoveryPaths(path).Count == rollbacks,
-             "Rejected stale/mismatched/no-op/increase/invalid requests changed data or made a recovery.");
+             "Rejected stale/mismatched/no-op/invalid requests changed data or made a recovery.");
 
         // Distinct, unresolved name-only rows can be removed individually,
         // even without a catalog. Never guess a print ID or aggregate by name.
@@ -132,6 +130,19 @@ internal static class NativePhysicalQuantityChecks
              restored.Current.Collection.CopiesWithMissingOrInvalidIds == 9 &&
              NativeWorkspace.Open(restored.RecoveryPath).Collection.PhysicalCopies == 6,
              "Rollback must restore original exact rows and preserve newer collection.");
+        // Selected-row increases are now supported, including unresolved legacy
+        // rows, without inferring print identity or changing card metadata.
+        var enlarged = NativeWorkspaceSafety.SetPhysicalQuantity(path, 3,
+            restored.Current.Collection.PhysicalCards[3], 6,
+            restored.Current.BackupSha256);
+        Must(enlarged.Current.Collection.PhysicalCopies == 21 &&
+             enlarged.Current.Collection.PhysicalCards.Count == 4 &&
+             enlarged.Current.Collection.PhysicalCards[3].Quantity == 6 &&
+             enlarged.Current.Collection.PhysicalCards[3].ScryfallId == "" &&
+             enlarged.Current.Collection.PhysicalCards[2].Quantity == 7 &&
+             enlarged.Current.Collection.DeckRevisions == 1 &&
+             NativeWorkspace.Open(enlarged.RecoveryPath).Collection.PhysicalCopies == 17,
+             "Increasing the selected row must conserve all other printings, history and rollback.");
         Must(sourceHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(exported))),
              "Native quantity edits modified the separately exported original backup.");
         Console.WriteLine("PASS: exact physical line reduction, zero removes one line, no name-based guesses, typed rows & unknown fields retained, stale guards and full rollback");
