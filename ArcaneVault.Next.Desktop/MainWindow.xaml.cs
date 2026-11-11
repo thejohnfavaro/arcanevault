@@ -1016,7 +1016,11 @@ public partial class MainWindow : Window
                     ? $"Verified physical copies: {selected.PhysicalOwned}; Arena name-owned: {selected.ArenaOwned}. " +
                       $"Unresolved physical copies by this name: {selected.UnresolvedName}."
                     : $"Exact printing not verified owned; Arena copies: {selected.ArenaOwned}. " +
-                      $"Unresolved physical copies by this name: {selected.UnresolvedName}."), info)
+                      $"Unresolved physical copies by this name: {selected.UnresolvedName}."), info,
+            snapshot.ReadOnlySnapshotPath,
+            System.IO.File.Exists(NativeWorkspace.DefaultPath)
+                ? NativeWorkspace.DefaultPath : null,
+            selected.SetCode, selected.CollectorNumber)
         { Owner = this };
         dialog.Show();
     }

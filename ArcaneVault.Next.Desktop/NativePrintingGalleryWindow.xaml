@@ -1,0 +1,119 @@
+<Window x:Class="ArcaneVault.Next.Desktop.NativePrintingGalleryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Arcane Vault — Printings &amp; Artwork"
+        Width="1040" Height="720" MinWidth="800" MinHeight="590"
+        Background="{StaticResource VaultBackground}"
+        Foreground="{StaticResource VaultText}">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,16">
+            <TextBlock Text="PRINTING &amp; ARTWORK GALLERY"
+                       Style="{StaticResource VaultEyebrow}" Margin="0,0,0,5"/>
+            <TextBlock x:Name="CardHeading" FontSize="25" FontWeight="Bold"
+                       Foreground="{StaticResource VaultText}"
+                       TextTrimming="CharacterEllipsis"/>
+            <TextBlock x:Name="GalleryStatus" Margin="0,6,0,0"
+                       Text="Reading locally cached Scryfall printings…"
+                       Foreground="{StaticResource VaultMuted}" TextWrapping="Wrap"/>
+        </StackPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="18"/>
+                <ColumnDefinition Width="340"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Style="{StaticResource VaultPanelCard}" Padding="12">
+                <DockPanel>
+                    <CheckBox x:Name="OwnedOnly" DockPanel.Dock="Top"
+                              Content="Only verified physically owned printings"
+                              Checked="OnOwnedOnlyChanged" Unchecked="OnOwnedOnlyChanged"
+                              Margin="4,2,0,13" Foreground="{StaticResource VaultText}"
+                              ToolTip="Name-only/unknown printing records are not included"/>
+                    <ListBox x:Name="PrintingsList" SelectionChanged="OnPrintingSelected"
+                             Background="{StaticResource VaultPanelRaised}"
+                             Foreground="{StaticResource VaultText}"
+                             BorderBrush="{StaticResource VaultLine}"
+                             ScrollViewer.CanContentScroll="True"
+                             VirtualizingStackPanel.IsVirtualizing="True"
+                             VirtualizingStackPanel.VirtualizationMode="Recycling">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderThickness="0,0,0,1"
+                                        BorderBrush="{StaticResource VaultLine}"
+                                        Padding="11,10">
+                                    <StackPanel>
+                                        <DockPanel LastChildFill="True">
+                                            <TextBlock Text="{Binding OwnedLabel}"
+                                                       DockPanel.Dock="Right" Margin="10,0,0,0"
+                                                       Foreground="{StaticResource VaultGood}"
+                                                       FontSize="11" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Title}"
+                                                       Foreground="{StaticResource VaultText}"
+                                                       FontSize="14" FontWeight="SemiBold"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Subtitle}" FontSize="11"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource VaultMuted}"
+                                                   Margin="0,4,0,0"/>
+                                        <TextBlock Text="{Binding PreferredLabel}" FontSize="11"
+                                                   Foreground="{StaticResource VaultAccent}"
+                                                   FontWeight="SemiBold" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource VaultPanelCard}" Padding="14">
+                <DockPanel>
+                    <TextBlock x:Name="PreviewInfo" DockPanel.Dock="Bottom"
+                               Foreground="{StaticResource VaultMuted}"
+                               TextWrapping="Wrap" FontSize="11.5" Margin="0,12,0,0"/>
+                    <Grid>
+                        <Border Background="{StaticResource VaultPanelRaised}"
+                                CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{StaticResource VaultAccentBorder}"/>
+                        <TextBlock x:Name="ArtPlaceholder" Text="Select a printing to preview"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <Image x:Name="ArtPreview" Visibility="Collapsed"
+                               Stretch="Uniform" Margin="6"
+                               SnapsToDevicePixels="True"/>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </Grid>
+        <Grid Grid.Row="2" Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Artwork changes are display-only. Inventory, quantities, set progress and saved decks are never edited."
+                       Foreground="{StaticResource VaultMuted}"
+                       TextWrapping="Wrap" VerticalAlignment="Center"
+                       FontSize="11" Margin="0,0,15,0"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="ResetPreferenceButton" Content="Use default artwork"
+                        Click="OnResetClicked" Padding="10,9" Margin="0,0,8,0"
+                        Background="{StaticResource VaultPanelRaised}"
+                        Foreground="{StaticResource VaultText}"
+                        BorderBrush="{StaticResource VaultLine}" IsEnabled="False"/>
+                <Button x:Name="SavePreferenceButton" Content="Use selected artwork"
+                        Click="OnSaveClicked" Padding="13,9" Margin="0,0,8,0"
+                        Background="{StaticResource VaultAccent}"
+                        Foreground="White" IsEnabled="False"/>
+                <Button Content="Close" Click="OnCloseClicked" Padding="12,9"
+                        Background="{StaticResource VaultPanelRaised}"
+                        Foreground="{StaticResource VaultText}"
+                        BorderBrush="{StaticResource VaultLine}"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
