@@ -264,6 +264,7 @@ public partial class MainWindow : Window
             edhLabWindow?.Close();
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             var previous = catalogSnapshot;
             catalogSnapshot = fresh;
             syntheticMode = false;
@@ -360,6 +361,7 @@ public partial class MainWindow : Window
             CancelPendingSearch();
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             var previous = catalogSnapshot;
             catalogSnapshot = saved;
             modeVersion++;
@@ -467,6 +469,7 @@ public partial class MainWindow : Window
                 if (closing) return;
                 collectionWindow?.Close();
                 collectionWindow = null;
+            InvalidateNativeWorkspace();
                 RestoreRecoveryButton.IsEnabled = true;
                 await OpenNativeCollectionAsync();
                 if (!closing)
@@ -532,6 +535,7 @@ public partial class MainWindow : Window
                     if (closing) { catalog.Dispose(); return; }
                     collectionWindow?.Close();
                     collectionWindow = null;
+            InvalidateNativeWorkspace();
                     CancelPendingSearch();
                     var previous = catalogSnapshot;
                     catalogSnapshot = catalog;
@@ -623,6 +627,7 @@ public partial class MainWindow : Window
 
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             await OpenNativeCollectionAsync();
             if (closing) return;
 
@@ -822,6 +827,7 @@ public partial class MainWindow : Window
             if (closing) return;
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             await OpenNativeCollectionAsync();
             if (!closing)
                 MessageBox.Show(this,
@@ -922,10 +928,9 @@ public partial class MainWindow : Window
         view.Closed += async (_, _) =>
         {
             if (ReferenceEquals(shortlistWindow, view)) shortlistWindow = null;
-            if (closing || !view.ShortlistChanged || collectionWindow is null)
+            if (closing || !view.ShortlistChanged)
                 return;
-            collectionWindow.Close(); // invalidate stale collection edit SHA
-            await OpenNativeCollectionAsync();
+            await RefreshNativeWorkspaceAsync(); // reload after optimistic SHA change
         };
         view.Show();
     }
@@ -967,11 +972,8 @@ public partial class MainWindow : Window
             {
                 if (shortlistWindow is not null)
                     await shortlistWindow.RefreshFromWorkspaceAsync();
-                if (collectionWindow is not null)
-                {
-                    collectionWindow.Close();
-                    await OpenNativeCollectionAsync();
-                }
+                if (nativeWorkspaceView is not null || nativeWorkspaceRequested)
+                    await RefreshNativeWorkspaceAsync();
             }
         }
         catch (Exception ex)
@@ -1258,6 +1260,7 @@ public partial class MainWindow : Window
             edhLabWindow?.Close();
             collectionWindow?.Close();
             collectionWindow = null;
+            InvalidateNativeWorkspace();
             var previous = catalogSnapshot;
             catalogSnapshot = loaded;
             syntheticMode = false;
@@ -1404,6 +1407,7 @@ public partial class MainWindow : Window
         edhLabWindow?.Close();
         collectionWindow?.Close();
         collectionWindow = null;
+            InvalidateNativeWorkspace();
         EdhLabButton.IsEnabled = false;
         SaveNativeCatalogButton.IsEnabled = false;
         modeVersion++;
