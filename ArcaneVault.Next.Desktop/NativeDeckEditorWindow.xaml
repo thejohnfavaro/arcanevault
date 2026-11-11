@@ -34,12 +34,12 @@
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="Commander (optional)" Margin="0,0,0,6"/>
-                <TextBox x:Name="CommanderBox" Padding="10,8" FontSize="14"
+                <TextBox x:Name="CommanderBox" TextChanged="OnDraftChanged" Padding="10,8" FontSize="14"
                          Background="#202737" Foreground="White" BorderBrush="#514276"/>
             </StackPanel>
             <StackPanel Grid.Column="4">
                 <TextBlock Text="Deck format" Margin="0,0,0,6"/>
-                <ComboBox x:Name="FormatBox" IsEditable="True"
+                <ComboBox x:Name="FormatBox" IsEditable="True" SelectionChanged="OnFormatChanged"
                           Padding="6,7" FontSize="13"
                           Background="#D7E4EB" Foreground="#0D1017">
                     <ComboBoxItem Content="Commander"/>
@@ -75,7 +75,7 @@
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="Mainboard — e.g. 1 Sol Ring or 12 Island"
                            Margin="0,0,0,8" Foreground="#E5BF79"/>
-                <TextBox Grid.Row="1" x:Name="MainboardBox"
+                <TextBox Grid.Row="1" x:Name="MainboardBox" TextChanged="OnDraftChanged"
                          AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
                          VerticalScrollBarVisibility="Auto"
                          HorizontalScrollBarVisibility="Auto"
@@ -89,6 +89,8 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <TextBlock Text="Add from owned cards" Foreground="#E5BF79"
@@ -115,6 +117,13 @@
                         Click="OnAddOwnedClicked" Padding="10,8"
                         Margin="0,8,0,0" Background="#202737"
                         Foreground="White" BorderBrush="#514276"/>
+                <TextBlock Grid.Row="5" x:Name="DeckSummaryText" Margin="0,12,0,5"
+                           TextWrapping="Wrap" Foreground="#E5BF79"
+                           Text="Deck totals will appear here."/>
+                <TextBlock Grid.Row="6" x:Name="DeckShortageText"
+                           TextWrapping="Wrap" Foreground="#C9A9A9"
+                           MaxHeight="118"
+                           ToolTip="Only the selected ownership pool is counted; missing copies are not auto-added."/>
             </Grid>
         </Grid>
 
