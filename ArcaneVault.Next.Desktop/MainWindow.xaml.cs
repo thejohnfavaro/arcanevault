@@ -103,6 +103,12 @@ public partial class MainWindow : Window
         UpdateWorkspaceNavigation();
         catalogDetailedTemplate = CardsList.ItemTemplate;
         catalogDetailedPanel = CardsList.ItemsPanel;
+        // SelectedIndex is set by XAML before these templates are captured.
+        // Reapply the initial view now so Card Art actually uses the tile-row
+        // template, rather than silently retaining the detailed list template.
+        OnCatalogViewModeChanged(CatalogViewMode, new SelectionChangedEventArgs(
+            System.Windows.Controls.Primitives.Selector.SelectionChangedEvent,
+            Array.Empty<object>(), Array.Empty<object>()));
         NativeVersionLabel.Text = "Native preview v" +
             (GetType().Assembly.GetName().Version?.ToString(3) ?? "unknown");
         sampleCards = Enumerable.Range(1, 25_000).Select(i =>
