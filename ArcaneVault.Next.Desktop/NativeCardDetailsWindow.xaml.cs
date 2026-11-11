@@ -34,8 +34,11 @@ public partial class NativeCardDetailsWindow : Window
         this.selectedSet = selectedSet;
         this.selectedCollector = selectedCollector;
         this.arenaScope = arenaScope;
-        defaultArtworkUrl = !string.IsNullOrWhiteSpace(selectedArtworkUrl)
-            ? selectedArtworkUrl : info?.ArtworkUrl;
+        // Arena never falls back to generic card-level artwork: it might be
+        // a paper-only printing, not a selectable Arena style.
+        defaultArtworkUrl = arenaScope ? selectedArtworkUrl
+            : (!string.IsNullOrWhiteSpace(selectedArtworkUrl)
+                ? selectedArtworkUrl : info?.ArtworkUrl);
         InitializeComponent();
         OpenArtworkGalleryButton.IsEnabled = !string.IsNullOrWhiteSpace(catalogPath);
         BookmarkCardButton.IsEnabled = !string.IsNullOrWhiteSpace(nativePath) &&
