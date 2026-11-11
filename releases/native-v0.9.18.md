@@ -2,6 +2,9 @@
 
 Set Progress banner artwork sizing polish.
 
+## Added
+- No new user-facing features; this update focuses on artwork layout correctness.
+
 ## Changed
 - Set Progress image fills each set tile edge-to-edge and crops excess illustration area instead of influencing the tile layout.
 - Preserve the existing **196-pixel** set-banner height, responsive column count, full-bleed Scryfall illustration crops, official set-symbol badges, dark overlays, progress bars, and collection labels.
@@ -9,6 +12,9 @@ Set Progress banner artwork sizing polish.
 
 ## Fixed
 - Prevent natural image proportions from making the set artwork box larger or leaving unwanted whitespace. The banner may deliberately crop away portions of the illustration.
+
+## Removed
+- Removed unintended artwork-driven expansion of the fixed-height Set Progress tile.
 
 ## Validation criteria
 - Release candidate must pass both the Windows build workflow and the .NET 10 native catalog regression workflow before merge.
