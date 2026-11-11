@@ -113,10 +113,14 @@
                          MouseDoubleClick="OnOwnedCardDoubleClicked"
                          Background="#171C28" Foreground="#F2F5FA"
                          BorderBrush="#514276"/>
-                <Button Grid.Row="4" Content="Add selected card (+1)"
-                        Click="OnAddOwnedClicked" Padding="10,8"
-                        Margin="0,8,0,0" Background="#202737"
-                        Foreground="White" BorderBrush="#514276"/>
+                <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Add card (+1)" Click="OnAddOwnedClicked"
+                            Padding="9,7" Margin="0,0,7,0"
+                            Background="#202737" Foreground="White" BorderBrush="#514276"/>
+                    <Button x:Name="AnalyzeDeckButton" Content="Analyze deck"
+                            Click="OnAnalyzeDeckClicked" Padding="9,7"
+                            Background="#473A70" Foreground="White" BorderBrush="#7663B3"/>
+                </StackPanel>
                 <TextBlock Grid.Row="5" x:Name="DeckSummaryText" Margin="0,12,0,5"
                            TextWrapping="Wrap" Foreground="#E5BF79"
                            Text="Deck totals will appear here."/>
@@ -141,9 +145,14 @@
                     Padding="11,8" Margin="0,0,8,4"
                     Background="#202737" Foreground="White" BorderBrush="#514276"/>
         </WrapPanel>
-        <TextBlock x:Name="StatusText" Grid.Row="6" Margin="0,13,0,13"
-                   Foreground="#9DA9BD" TextWrapping="Wrap"
-                   Text="Every successful save retains the complete previous native collection as a recovery file."/>
+        <StackPanel Grid.Row="6" Margin="0,10,0,10">
+            <TextBlock x:Name="AnalyticsText"
+                       Foreground="#B8D8D0" TextWrapping="Wrap" FontSize="12"
+                       Text="Deck analytics: select Analyze deck to use the offline Scryfall catalog."/>
+            <TextBlock x:Name="StatusText" Margin="0,6,0,0"
+                       Foreground="#9DA9BD" TextWrapping="Wrap"
+                       Text="Every successful save retains the complete previous native collection as a recovery file."/>
+        </StackPanel>
         <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Cancel" IsCancel="True"
                     Padding="18,10" Margin="0,0,12,0"
