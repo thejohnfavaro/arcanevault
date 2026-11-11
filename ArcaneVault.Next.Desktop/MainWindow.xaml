@@ -42,10 +42,11 @@
                                     Background="{StaticResource VaultAccentSurface}"
                                     BorderBrush="{StaticResource VaultAccentBorder}"
                                     BorderThickness="1" Margin="0,0,10,0">
-                                <TextBlock Text="✦" FontSize="27"
-                                           Foreground="{StaticResource VaultAccent}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"/>
+                                <Image Source="/ArcaneVault.Next.Desktop;component/Assets/ArcaneVaultIcon.png"
+                                       Width="36" Height="36"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock FontSize="21" FontWeight="Bold">
