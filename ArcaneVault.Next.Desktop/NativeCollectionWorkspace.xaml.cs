@@ -27,6 +27,7 @@ public partial class NativeCollectionWorkspace : UserControl
     private bool deckBusy;
     private GridView? physicalDetailedView;
     private bool excelBusy;
+    private bool arenaImportBusy;
     private bool valuationBusy;
     private NativePhysicalValuation.Result? valuation;
     private int valuationVersion;
@@ -75,6 +76,7 @@ public partial class NativeCollectionWorkspace : UserControl
             !string.IsNullOrWhiteSpace(nativePath) &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
         EditArenaButton.IsEnabled = AddArenaButton.IsEnabled;
+        ImportArenaButton.IsEnabled = AddArenaButton.IsEnabled;
         if (nativeWorkspace)
         {
             DataSourceLabel.Text =
@@ -578,6 +580,82 @@ public partial class NativeCollectionWorkspace : UserControl
                 DeleteDeckButton.IsEnabled = stillSelectedDeck is not null;
                 DuplicateDeckButton.IsEnabled = stillSelectedDeck is not null;
             }
+        }
+    }
+
+    private async void OnImportArenaClicked(object sender, RoutedEventArgs e)
+    {
+        if (arenaImportBusy || closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha)) return;
+        var picker = new OpenFileDialog
+        {
+            Title = "Import Arena card names and quantities from CSV or Excel",
+            Filter = "Collection files (*.csv;*.xlsx)|*.csv;*.xlsx|CSV files (*.csv)|*.csv|Excel workbooks (*.xlsx)|*.xlsx",
+            CheckFileExists = true,
+            Multiselect = false,
+            InitialDirectory = Environment.GetFolderPath(
+                Environment.SpecialFolder.MyDocuments)
+        };
+        if (picker.ShowDialog(Window.GetWindow(this)) != true) return;
+        arenaImportBusy = true;
+        ImportArenaButton.IsEnabled = false;
+        StatusText.Text = "Reading Arena names and quantities…";
+        try
+        {
+            var rows = await Task.Run(() =>
+                Path.GetExtension(picker.FileName).Equals(".csv", StringComparison.OrdinalIgnoreCase)
+                    ? NativeCsvCollectionImport.Read(picker.FileName)
+                    : NativeExcelCollectionImport.Read(picker.FileName));
+            if (closing) return;
+            // Arena is name-based: ignore physical printing columns, but preserve
+            // all names and quantities. Validate the full import at commit time.
+            long copies = rows.Sum(x => (long)x.Quantity);
+            int names = rows.Select(x => x.Name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            var confirmation =
+                $"File: {Path.GetFileName(picker.FileName)}\n" +
+                $"Rows: {rows.Count:N0} | Unique card names: {names:N0} | Copies: {copies:N0}\n\n" +
+                "This ADDS the quantities to your Arena collection by card name. " +
+                "Duplicate names in the file are combined. Existing rows will be incremented; " +
+                "existing physical printings, saved decks, and artwork remain unchanged.\n\n" +
+                "Reimporting the same file will ADD these quantities again. " +
+                "A complete recovery point is saved before the change.\n\n" +
+                "Import these Arena quantities?";
+            if (MessageBox.Show(Window.GetWindow(this), confirmation,
+                "Review Arena collection import", MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                StatusText.Text = "Arena import canceled; inventory unchanged.";
+                return;
+            }
+            StatusText.Text = "Adding Arena quantities with verified rollback…";
+            var outcome = await Task.Run(() =>
+                NativeWorkspaceSafety.AddArenaImport(nativePath, rows, expectedBackupSha));
+            if (closing) return;
+            MessageBox.Show(Window.GetWindow(this),
+                $"Arena import completed: {copies:N0} copies added across {names:N0} names.\n\n" +
+                "Recovery copy: " + outcome.RecoveryPath,
+                "Arena collection imported", MessageBoxButton.OK, MessageBoxImage.Information);
+            Close();
+            if (reopenNative is not null) await reopenNative();
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+            {
+                StatusText.Text = "Arena import stopped: " + ex.Message;
+                MessageBox.Show(Window.GetWindow(this),
+                    "Arena import could not be applied. The existing collection " +
+                    "was not intentionally changed.\n\n" + ex.Message,
+                    "Arena import stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            arenaImportBusy = false;
+            if (!closing) ImportArenaButton.IsEnabled =
+                !string.IsNullOrWhiteSpace(nativePath) &&
+                !string.IsNullOrWhiteSpace(expectedBackupSha);
         }
     }
 
