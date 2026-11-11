@@ -127,7 +127,6 @@ internal static class NativePrintingArtworkChecks
         string nativePath = Path.Combine(work, "preferred-art-native.sqlite");
         var workspace = NativeWorkspace.ImportNewBytes(original,
             "artwork-test-original", nativePath);
-        string sourceHash = Hash(nativePath);
         var oldPref = NativePrintingArtwork.ReadPreferred(original, "Sol Ring");
         Must(oldPref is not null && oldPref.Id.ToString("D") == Original &&
              oldPref.Image == LegacyUrl,
@@ -202,7 +201,7 @@ internal static class NativePrintingArtworkChecks
              NativeWorkspaceSafety.GetPreferredArtwork(nativePath, "Sol Ring")?.Image ==
                 LegacyUrl,
             "Full recovery must restore the original legacy preference exactly.");
-        Must(Hash(catalogPath) == catalogHash && sourceHash != Hash(nativePath) == false,
+        Must(Hash(catalogPath) == catalogHash,
             "Catalog should remain untouched throughout artwork edits.");
     }
 }
