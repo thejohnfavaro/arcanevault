@@ -27,3 +27,9 @@ Format status comes from the last local Scryfall sync, not a live banned-list qu
 ## Acceptance
 
 Open Card Details for several cards with differing cached format legality. Confirm meaningful labels/statuses, long-format list scrolling, readable Oracle text, unavailable metadata behavior and safe ownership counts. CI also verifies the parser's logic and an unchanged Scryfall SQLite catalog hash after reads.
+
+## Card Details activation
+
+**Double-click a real card row** in the native Card Catalog, Physical Collection, Arena Collection or Set Progress collector-slot list to open Card Details. The row is hit-tested before opening so blank space/headers cannot unintentionally open a previously selected card. The existing Card Details buttons continue to work. This is a WPF interaction change, not a data migration.
+
+**Parity limitation:** Readable legalities and double-click are targeted usability fixes, not proof of full replacement for the older WebView app. Track missing older modules at [#62](https://github.com/thejohnfavaro/arcanevault/issues/62).
