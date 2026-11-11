@@ -15,6 +15,55 @@ public partial class NativeDeckEditorWindow : Window
     private readonly NativeBackupView ownership;
     private readonly string? catalogPath;
     private bool busy;
+    private sealed record OwnedDisplay(string Name, long Owned)
+    {
+        public string Display => $"{Name}  ·  {Owned:N0} owned";
+    }
+
+    private void RefreshOwnedCards()
+    {
+        if (OwnedCardsList is null || OwnedPoolBox is null || OwnedSearchBox is null)
+            return;
+        var pool = OwnedPoolBox.SelectedIndex == 1
+            ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
+        OwnedCardsList.ItemsSource = NativeDeckOwnedPicker.Search(
+            ownership, pool, OwnedSearchBox.Text)
+            .Select(x => new OwnedDisplay(x.Name, x.Owned)).ToArray();
+    }
+
+    private void OnOwnedSearchChanged(object sender,
+        System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (OwnedSearchBox?.Text.Length > 255)
+        {
+            StatusText.Text = "Owned-card search must be 255 characters or fewer.";
+            return;
+        }
+        RefreshOwnedCards();
+    }
+
+    private void OnOwnedPoolChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e) => RefreshOwnedCards();
+
+    private void OnOwnedCardDoubleClicked(object sender,
+        System.Windows.Input.MouseButtonEventArgs e) => AddSelectedOwnedCard();
+
+    private void OnAddOwnedClicked(object sender, RoutedEventArgs e) => AddSelectedOwnedCard();
+
+    private void AddSelectedOwnedCard()
+    {
+        if (busy || OwnedCardsList.SelectedItem is not OwnedDisplay card) return;
+        try
+        {
+            MainboardBox.Text = NativeDeckOwnedPicker.AddOne(MainboardBox.Text, card.Name);
+            StatusText.Text = $"Added 1 {card.Name} to the unsaved draft. " +
+                "Collection quantities are unchanged; save still requires preflight review.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or OverflowException)
+        {
+            StatusText.Text = "Could not add card: " + ex.Message;
+        }
+    }
 
     public NativeDeckEditorWindow(string nativePath, string expectedSha,
         NativeBackupView ownership, string? catalogPath,
@@ -26,6 +75,9 @@ public partial class NativeDeckEditorWindow : Window
         this.catalogPath = catalogPath;
         original = selected;
         InitializeComponent();
+        OwnedPoolBox.SelectedIndex = selected?.Format.Equals("Arena Brawl",
+            StringComparison.OrdinalIgnoreCase) == true ? 1 : 0;
+        RefreshOwnedCards();
         FormatBox.Text = selected?.Format ?? "60-card";
         FolderBox.Text = selected?.Folder ?? "Unfiled";
         FavoriteDeckBox.IsChecked = selected?.Favorite ?? false;
