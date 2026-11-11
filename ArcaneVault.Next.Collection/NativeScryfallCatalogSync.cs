@@ -496,9 +496,11 @@ public static class NativeScryfallCatalogSync
     /// </summary>
     public static async Task<Result> SyncAsync(string targetPath,
         HttpClient? http = null, IProgress<Progress>? progress = null,
-        CancellationToken cancellation = default)
+        CancellationToken cancellation = default,
+        int minimumPrintings = ProductionMinimumPrintings)
     {
         CheckTarget(targetPath);
+        Check(minimumPrintings > 0, "Minimum printing count must be positive.");
         await ProcessGate.WaitAsync(cancellation);
         string bulkFile = NewSibling(Path.GetFullPath(targetPath), "download");
         bool ownsClient = http is null;
@@ -523,9 +525,9 @@ public static class NativeScryfallCatalogSync
             {
                 try
                 {
-                    var current = Verify(targetPath, minimumPrintings: 1);
+                    var current = Verify(targetPath, minimumPrintings);
                     if (current.UpdatedAt == chosen.UpdatedAt &&
-                        current.Printings >= ProductionMinimumPrintings)
+                        current.Printings >= minimumPrintings)
                         return new Result(false, current.Printings,
                             current.CardNames, current.UpdatedAt, null);
                 }
@@ -564,7 +566,7 @@ public static class NativeScryfallCatalogSync
                 Check(bytes > 0, "Scryfall returned an empty bulk file.");
             }
             return await BuildAndPublishAsync(bulkFile, targetPath, chosen.UpdatedAt,
-                ProductionMinimumPrintings, progress, cancellation);
+                minimumPrintings, progress, cancellation);
         }
         finally
         {
