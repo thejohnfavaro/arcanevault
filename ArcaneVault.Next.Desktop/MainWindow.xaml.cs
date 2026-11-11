@@ -169,8 +169,33 @@ public partial class MainWindow : Window
             }
         }
 
+        // Load verified ownership for the catalog's owned filter, without
+        // creating or opening the collection/deck workspace at startup.
         if (!closing && System.IO.File.Exists(NativeWorkspace.DefaultPath))
-            await OpenNativeCollectionAsync();
+            await LoadNativeOwnershipForCatalogAsync();
+    }
+
+    private async Task LoadNativeOwnershipForCatalogAsync()
+    {
+        int version = modeVersion;
+        try
+        {
+            var index = await Task.Run(() =>
+            {
+                var workspace = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
+                return NativeCatalogOwnership.From(workspace.Collection);
+            });
+            if (closing || version != modeVersion || nativeWorkspaceRequested) return;
+            catalogOwnership = index;
+            _ = FilterAsync();
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+                FilterStatus.Text =
+                    "Catalog ownership could not be loaded: " + ex.Message +
+                    ". Open My Collection for recovery options.";
+        }
     }
 
     /// <summary>

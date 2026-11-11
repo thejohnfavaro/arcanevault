@@ -123,6 +123,13 @@ internal static class NativeVisualShellChecks
              collection.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
                  StringComparison.Ordinal),
              "Set Progress must use a OneWay binding for the computed, read-only Percent property and preserve virtualization.");
+        // Collection and Deck Library must be opened only from sidebar navigation.
+        string startup = mainCode.Split("private async Task InitializeNativeAsync()", 2)[1]
+            .Split("private async Task LoadNativeOwnershipForCatalogAsync()", 2)[0];
+        Must(startup.Contains("await LoadNativeOwnershipForCatalogAsync();", StringComparison.Ordinal) &&
+             !startup.Contains("await OpenNativeCollectionAsync();", StringComparison.Ordinal),
+             "Startup must only prefetch ownership and not open Collection / Deck Library.");
+
         // Image view virtualizes rows instead of constructing every image at once.
         Must(main.Contains("CatalogTileRowTemplate", StringComparison.Ordinal) &&
              main.Contains("UniformGrid Rows=\"1\"", StringComparison.Ordinal) &&
