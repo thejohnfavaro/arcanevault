@@ -306,7 +306,7 @@ public sealed class CatalogSnapshot : IDisposable
                     ? " OR " : " AND ", selections) + ")");
             }
 
-            cmd.CommandText += "WHERE " + string.Join(" AND ", where) +
+            cmd.CommandText += "\nWHERE " + string.Join(" AND ", where) +
                 "\nORDER BY v.name COLLATE NOCASE,v.setcode,v.collector LIMIT $limit";
             cmd.Parameters.AddWithValue("$limit", limit + 1);
             var rows = new List<PrintingRow>(limit);
