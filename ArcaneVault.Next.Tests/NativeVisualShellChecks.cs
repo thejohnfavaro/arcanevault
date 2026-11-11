@@ -163,6 +163,12 @@ internal static class NativeVisualShellChecks
              collection.Contains("NativeSetSymbol SetCode=", StringComparison.Ordinal) &&
              collection.Contains("DecodeWidth=\"600\"", StringComparison.Ordinal),
              "Set tiles must use full-bleed art crops and official vector set-symbol controls.");
+        Must(collection.Contains("Height=\"196\" Margin=\"6,6\" ClipToBounds=\"True\"", StringComparison.Ordinal) &&
+             collection.Contains("x:Name=\"SetBannerSurface\" ClipToBounds=\"True\"", StringComparison.Ordinal) &&
+             collection.Contains("Width=\"{Binding ActualWidth, ElementName=SetBannerSurface}\"", StringComparison.Ordinal) &&
+             collection.Contains("Height=\"{Binding ActualHeight, ElementName=SetBannerSurface}\"", StringComparison.Ordinal) &&
+             collection.Contains("Stretch=\"UniformToFill\" DecodeWidth=\"600\"", StringComparison.Ordinal),
+             "Set banner image must cover/crop a fixed-height clipped viewport rather than resize the tile.");
         string setSymbolCode = File.ReadAllText(
             Path.Combine(dir, "NativeSetSymbol.cs"));
         Must(setSymbolCode.Contains("svgs.scryfall.io/sets/", StringComparison.Ordinal) &&
