@@ -19,7 +19,7 @@ public static class NativeCardRoles
 
     private static bool Matches(string text, string regex) =>
         Regex.IsMatch(text, regex, RegexOptions.IgnoreCase |
-            RegexOptions.CultureInvariant | RegexOptions.NonBacktracking,
+            RegexOptions.CultureInvariant,
             TimeSpan.FromMilliseconds(50));
 
     public static IReadOnlyList<string> Derive(string? type, string? oracle)
