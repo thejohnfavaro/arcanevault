@@ -20,7 +20,7 @@ public static class NativeDeckEditing
     public sealed record DeckRow(
         int Ordinal, string Id, string Name, string Commander,
         string Folder, int EntryCount, int TotalCopies, int Revisions,
-        bool Editable, string MainboardText, string SourceSha256);
+        bool Editable, string MainboardText, string SourceSha256, string Format = "");
 
     private static string Hash(string json) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
@@ -98,6 +98,9 @@ public static class NativeDeckEditing
             string commander = GetString(deck, "commander");
             string id = GetString(deck, "id");
             string folder = GetString(deck, "folder");
+            string format = GetString(deck, "format");
+            if (format.Length == 0)
+                format = string.IsNullOrWhiteSpace(commander) ? "60-card" : "Commander";
             var entries = deck["entries"] as JsonArray ??
                 throw new InvalidDataException("A saved deck is missing its card list.");
             int revisions = (deck["revisions"] as JsonArray)?.Count ?? 0;
@@ -130,7 +133,7 @@ public static class NativeDeckEditing
             items.Add(new DeckRow(i, id, name, commander,
                 string.IsNullOrWhiteSpace(folder) ? "Unfiled" : folder,
                 entries.Count, copies, revisions, editable,
-                string.Join("\n", mainboard), Hash(json)));
+                string.Join("\n", mainboard), Hash(json), format));
         }
         return items.AsReadOnly();
     }
@@ -205,6 +208,7 @@ public static class NativeDeckEditing
         {
             ["name"] = GetString(deck, "name"),
             ["commander"] = GetString(deck, "commander"),
+            ["format"] = GetString(deck, "format"),
             ["entries"] = deck["entries"]?.DeepClone() ?? new JsonArray(),
             ["savedAt"] = DateTimeOffset.UtcNow.ToString("O"),
             ["label"] = "Before native deck edit"
@@ -222,11 +226,14 @@ public static class NativeDeckEditing
     /// </summary>
     public static byte[] Save(byte[] backup,
         string name, string commander, string mainboardText,
-        DeckRow? selected = null)
+        DeckRow? selected = null, string? format = null)
     {
         ArgumentNullException.ThrowIfNull(backup);
         string safeName = CheckedText(name, nameof(name), 120, true);
         string safeCommander = CheckedText(commander, nameof(commander), 255, false);
+        string safeFormat = CheckedText(format ?? selected?.Format ??
+            (safeCommander.Length > 0 ? "Commander" : "60-card"),
+            nameof(format), 60, true);
         var entries = ParseMainboard(mainboardText);
         var before = NativeBackupReader.Read(backup);
         var currentRows = Describe(backup, out var root, out var library);
@@ -244,6 +251,7 @@ public static class NativeDeckEditing
                 ["id"] = id,
                 ["name"] = safeName,
                 ["commander"] = safeCommander,
+                ["format"] = safeFormat,
                 ["entries"] = EntriesForSave(entries, null),
                 ["updated"] = DateTimeOffset.UtcNow.ToString("O"),
                 ["favorite"] = false,
@@ -267,7 +275,8 @@ public static class NativeDeckEditing
             string newText = string.Join("\n", entries.Select(e => e.Quantity + " " + e.Name));
             if (parsedOld.Name == safeName &&
                 parsedOld.Commander == safeCommander &&
-                parsedOld.MainboardText == newText)
+                parsedOld.MainboardText == newText &&
+                parsedOld.Format == safeFormat)
                 throw new InvalidDataException("The deck has no changes; nothing was saved.");
 
             var history = row["revisions"] as JsonArray;
@@ -284,6 +293,7 @@ public static class NativeDeckEditing
             var previousEntries = row["entries"] as JsonArray;
             row["name"] = safeName;
             row["commander"] = safeCommander;
+            row["format"] = safeFormat;
             row["entries"] = EntriesForSave(entries, previousEntries);
             row["updated"] = DateTimeOffset.UtcNow.ToString("O");
         }
@@ -291,6 +301,40 @@ public static class NativeDeckEditing
         byte[] output = JsonSerializer.SerializeToUtf8Bytes(root);
         var after = NativeBackupReader.Read(output);
         VerifyOtherSections(before, after, expectedCount, expectedRevisions);
+        return output;
+    }
+
+    /// <summary>
+    /// Duplicate precisely one saved deck using a new ID and no revision
+    /// history or Arena sync link. No ownership, printing, or source deck
+    /// is modified. Complete previous SQLite workspace is backed up by caller.
+    /// </summary>
+    public static byte[] Duplicate(byte[] backup, DeckRow selected)
+    {
+        ArgumentNullException.ThrowIfNull(backup);
+        ArgumentNullException.ThrowIfNull(selected);
+        var before = NativeBackupReader.Read(backup);
+        var rows = Describe(backup, out var root, out var library);
+        if (selected.Ordinal < 0 || selected.Ordinal >= library.Count ||
+            rows[selected.Ordinal].SourceSha256 != selected.SourceSha256)
+            throw new InvalidDataException("The selected deck changed since it was displayed.");
+        if (library.Count >= 150_000)
+            throw new InvalidDataException("Maximum saved decks reached.");
+
+        var original = (JsonObject)library[selected.Ordinal]!;
+        var clone = (JsonObject)original.DeepClone();
+        clone["id"] = "deck_native_" + Guid.NewGuid().ToString("N");
+        clone["name"] = CheckedText(selected.Name + " — Copy",
+            "Duplicated deck name", 120, true);
+        clone["revisions"] = new JsonArray();
+        clone["arenaDeckId"] = "";
+        clone["arenaSyncedAt"] = "";
+        clone["updated"] = DateTimeOffset.UtcNow.ToString("O");
+        library.Add(clone);
+
+        byte[] output = JsonSerializer.SerializeToUtf8Bytes(root);
+        var after = NativeBackupReader.Read(output);
+        VerifyOtherSections(before, after, before.Decks + 1, before.DeckRevisions);
         return output;
     }
 
