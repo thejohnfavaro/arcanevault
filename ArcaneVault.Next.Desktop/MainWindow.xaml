@@ -15,9 +15,14 @@
                     <ColumnDefinition Width="100"/>
                     <ColumnDefinition Width="88"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Name}" FontSize="12" Margin="9,5"
-                           Foreground="{StaticResource VaultText}"
-                           TextTrimming="CharacterEllipsis"/>
+                <StackPanel Margin="9,3" Grid.Column="0">
+                    <TextBlock Text="{Binding Name}" FontSize="12"
+                               Foreground="{StaticResource VaultText}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding OwnershipLabel}" FontSize="10"
+                               Foreground="{StaticResource VaultAccent}"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
                 <TextBlock Grid.Column="1" Text="{Binding SetCode}" FontSize="11"
                            Margin="5,5" Foreground="{StaticResource VaultAccent}"/>
                 <TextBlock Grid.Column="2" Text="{Binding CollectorNumber}" FontSize="11"
@@ -34,9 +39,14 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
-                               TextWrapping="Wrap" MaxHeight="68" TextTrimming="CharacterEllipsis"
-                               Foreground="{StaticResource VaultText}"/>
+                    <StackPanel>
+                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                                   TextWrapping="Wrap" MaxHeight="68" TextTrimming="CharacterEllipsis"
+                                   Foreground="{StaticResource VaultText}"/>
+                        <TextBlock Text="{Binding OwnershipLabel}" FontSize="10"
+                                   Foreground="{StaticResource VaultAccent}"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Grid.Row="1">
                         <TextBlock Text="{Binding SetCode}" FontSize="11"
                                    Foreground="{StaticResource VaultAccent}"/>
@@ -322,11 +332,28 @@
                                          Foreground="{StaticResource VaultText}"/>
                             </StackPanel>
                             <CheckBox x:Name="ArenaOnlyBox" Content="On Arena"
-                                      VerticalAlignment="Bottom" Margin="0,0,0,12"
+                                      VerticalAlignment="Bottom" Margin="0,0,13,12"
                                       Foreground="{StaticResource VaultText}"
                                       Checked="OnCatalogFilterChanged"
                                       Unchecked="OnCatalogFilterChanged"
                                       ToolTip="Only printings flagged by Scryfall as available in MTG Arena"/>
+                            <StackPanel Margin="0,0,12,7">
+                                <TextBlock Text="COLLECTION OWNERSHIP"
+                                           Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <ComboBox x:Name="OwnershipFilterBox" Width="227" Height="30"
+                                          SelectedIndex="0"
+                                          SelectionChanged="OnCatalogFilterChanged"
+                                          Background="{StaticResource VaultPanelRaised}"
+                                          Foreground="{StaticResource VaultText}"
+                                          ToolTip="Physical requires matching exact printing ID; Arena uses card names">
+                                    <ComboBoxItem Content="All printings"/>
+                                    <ComboBoxItem Content="Owned physical printing"/>
+                                    <ComboBoxItem Content="Physical not verified owned"/>
+                                    <ComboBoxItem Content="Owned on Arena (card name)"/>
+                                    <ComboBoxItem Content="Not owned on Arena (name)"/>
+                                </ComboBox>
+                            </StackPanel>
                         </WrapPanel>
                         <WrapPanel VerticalAlignment="Center">
                             <TextBlock Text="COLOR IDENTITY" Style="{StaticResource VaultEyebrow}"
@@ -446,11 +473,15 @@
                                             <ColumnDefinition Width="126"/>
                                             <ColumnDefinition Width="104"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{Binding Name}"
-                                                   FontSize="14" FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   Foreground="{StaticResource VaultText}"
-                                                   VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="14" FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{StaticResource VaultText}"/>
+                                            <TextBlock Text="{Binding OwnershipLabel}"
+                                                       Foreground="{StaticResource VaultAccent}"
+                                                       FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
                                         <Border Grid.Column="1" CornerRadius="11"
                                                 HorizontalAlignment="Left"
                                                 Padding="10,5"
