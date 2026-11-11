@@ -32,19 +32,31 @@ public partial class App : Application
     {
         if (Interlocked.Exchange(ref reportingFailure, 1) != 0) return;
         string path = RecordFailure("UI dispatcher", e.Exception);
+        bool recovered = false;
+        try
+        {
+            recovered = (MainWindow as MainWindow)?.RecoverFromSetProgressFault() == true;
+        }
+        catch (Exception recoveryError)
+        {
+            RecordFailure("Set Progress recovery", recoveryError);
+        }
         try
         {
             MessageBox.Show(
-                "Arcane Vault encountered an unexpected UI error. " +
+                (recovered
+                    ? "Set Progress could not render and was safely closed. "
+                    : "Arcane Vault encountered an unexpected UI error. ") +
                 "Your collection has not been intentionally modified.\n\n" +
                 e.Exception.Message + "\n\nDiagnostic log: " + path,
                 "Arcane Vault Native — error", MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
         catch { }
-        // Do not conceal an unknown exception by claiming the application can
-        // safely continue with a potentially inconsistent UI.
-        e.Handled = false;
+        // Only a failed Set Progress view has a known safe recovery route.
+        // Other unexpected faults remain fatal rather than hiding corruption.
+        e.Handled = recovered;
+        Interlocked.Exchange(ref reportingFailure, 0);
     }
 
     protected override void OnStartup(StartupEventArgs e)
