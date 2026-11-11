@@ -187,7 +187,7 @@ public partial class NativeCollectionWindow : Window
             }
 
             StatusText.Text = "Importing physical quantities into a verified native recovery transaction…";
-            var outcome = await Task.Run(() => NativeWorkspaceSafety.AddExcelPhysical(
+            var outcome = await Task.Run(() => NativeWorkspaceSafety.AddPhysicalImport(
                 nativePath, catalogPath, rows, expectedBackupSha));
             if (closing) return;
             MessageBox.Show(this,
