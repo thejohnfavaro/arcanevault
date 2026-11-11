@@ -784,7 +784,7 @@ public partial class NativeCollectionWorkspace : UserControl
         OnDetailsClicked(sender, e);
     }
 
-    private void OnDetailsClicked(object sender, RoutedEventArgs e)
+    private async void OnDetailsClicked(object sender, RoutedEventArgs e)
     {
         string name;
         string ownership;
@@ -837,8 +837,40 @@ public partial class NativeCollectionWorkspace : UserControl
             set = (SetSummaryList.SelectedItem as NativeSetProgress.SetRow)?.SetCode;
             collector = setSlot.CollectorNumber;
         }
+        bool arenaScope = CollectionTabs.SelectedIndex == 1;
+        string? arenaArt = null;
+        if (arenaScope && !string.IsNullOrWhiteSpace(catalogPath))
+        {
+            try
+            {
+                // Arena records hold card names, not exact printing IDs.
+                // Prefer an Arena-digital style; never substitute paper-only art.
+                var styles = await Task.Run(() =>
+                    NativePrintingArtwork.Read(catalogPath, name, 400, arenaOnly: true));
+                if (closing) return;
+                var chosen = styles.Printings
+                    .Where(p => NativeCardArtwork.IsTrustedArtworkUrl(p.ImageUrl))
+                    .OrderBy(p => p.Paper)
+                    .ThenByDescending(p => p.Released, StringComparer.Ordinal)
+                    .FirstOrDefault();
+                if (chosen is not null)
+                {
+                    arenaArt = chosen.ImageUrl;
+                    set = chosen.SetCode;
+                    collector = chosen.CollectorNumber;
+                }
+            }
+            catch (Exception)
+            {
+                // A stale catalog never changes Arena ownership; use an empty
+                // artwork placeholder instead of a misleading paper printing.
+            }
+        }
+        if (closing) return;
         var details = new NativeCardDetailsWindow(name, ownership, info,
-            catalogPath, nativePath, set, collector) { Owner = Window.GetWindow(this) };
+            catalogPath, nativePath, set, collector,
+            arenaScope: arenaScope, selectedArtworkUrl: arenaArt)
+        { Owner = Window.GetWindow(this) };
         details.Closed += async (_, _) =>
         {
             if ((!details.PreferenceChanged && !details.ShortlistChanged) || closing) return;
