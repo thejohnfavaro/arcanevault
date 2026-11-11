@@ -79,10 +79,10 @@ public static class NativeScryfallCatalogSync
 
     public static Dataset ParseManifest(JsonElement root)
     {
-        Check(root.ValueKind == JsonValueKind.Object &&
-            root.TryGetProperty("data", out var datasets) &&
-            datasets.ValueKind == JsonValueKind.Array,
-            "Scryfall bulk manifest has no dataset list.");
+        if (root.ValueKind != JsonValueKind.Object ||
+            !root.TryGetProperty("data", out var datasets) ||
+            datasets.ValueKind != JsonValueKind.Array)
+            throw new InvalidDataException("Scryfall bulk manifest has no dataset list.");
         foreach (var candidate in datasets.EnumerateArray())
         {
             if (candidate.ValueKind != JsonValueKind.Object ||
@@ -104,13 +104,13 @@ public static class NativeScryfallCatalogSync
                 legacy.ValueKind == JsonValueKind.String)
                 url = legacy.GetString();
 
-            Check(Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-                uri.Scheme == Uri.UriSchemeHttps &&
-                uri.Port == 443 &&
-                (uri.Host.Equals("data.scryfall.io", StringComparison.OrdinalIgnoreCase) ||
-                 uri.Host.Equals("data.scryfall.com", StringComparison.OrdinalIgnoreCase)),
-                "Unexpected Scryfall bulk download host.");
-            return new Dataset(uri!, stamp!);
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+                uri.Scheme != Uri.UriSchemeHttps ||
+                uri.Port != 443 ||
+                !(uri.Host.Equals("data.scryfall.io", StringComparison.OrdinalIgnoreCase) ||
+                  uri.Host.Equals("data.scryfall.com", StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException("Unexpected Scryfall bulk download host.");
+            return new Dataset(uri, stamp!);
         }
         throw new InvalidDataException(
             "Scryfall bulk manifest did not list the English-first default_cards dataset.");
