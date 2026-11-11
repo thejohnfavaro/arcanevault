@@ -188,13 +188,13 @@ internal static class NativeVisualShellChecks
             "ManaCurveBars", "ColorIdentityBars", "CardTypeBars",
             "AverageManaText", "AnalyzeDeckButton"
         })
-            Must(deckEditor.Contains("x:Name=\\\"" + name + "\\\"", StringComparison.Ordinal),
+            Must(deckEditor.Contains("x:Name=\"" + name + "\"", StringComparison.Ordinal),
                 "Deck analytics chart control missing: " + name);
-        Must(deckEditor.Contains("x:Key=\\\"DeckChartBarTemplate\\\"", StringComparison.Ordinal) &&
-             deckEditor.Contains("Maximum=\\\"{Binding Maximum}\\\"", StringComparison.Ordinal) &&
-             deckEditor.Contains("Value=\\\"{Binding Count}\\\"", StringComparison.Ordinal) &&
-             deckEditor.Contains("Foreground=\\\"{Binding Fill}\\\"", StringComparison.Ordinal) &&
-             deckEditor.Contains("IsExpanded=\\\"False\\\"", StringComparison.Ordinal) &&
+        Must(deckEditor.Contains("x:Key=\"DeckChartBarTemplate\"", StringComparison.Ordinal) &&
+             deckEditor.Contains("Maximum=\"{Binding Maximum}\"", StringComparison.Ordinal) &&
+             deckEditor.Contains("Value=\"{Binding Count}\"", StringComparison.Ordinal) &&
+             deckEditor.Contains("Foreground=\"{Binding Fill}\"", StringComparison.Ordinal) &&
+             deckEditor.Contains("IsExpanded=\"False\"", StringComparison.Ordinal) &&
              deckEditorCode.Contains("NativeDeckAnalyticsCharts.FromReport(report)", StringComparison.Ordinal) &&
              deckEditorCode.Contains("InvalidateAnalytics()", StringComparison.Ordinal),
             "Deck chart visuals must bind computed series and hide stale values.");
