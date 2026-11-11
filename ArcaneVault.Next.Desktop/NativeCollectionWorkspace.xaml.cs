@@ -885,8 +885,11 @@ public partial class NativeCollectionWorkspace : UserControl
                  SetSlotsList.SelectedItem is NativeSetProgress.SetSlot slot)
         {
             name = slot.CardName;
-            ownership = $"Catalog collector slot #{slot.CollectorNumber} · " +
-                        $"{slot.Ownership} (verified physical copies only)";
+            ownership = slot.NameCoverage
+                ? $"Arena set card-name coverage · {slot.Ownership}. " +
+                  "No specific Arena printing or card style has been verified."
+                : $"Catalog collector slot #{slot.CollectorNumber} · " +
+                  $"{slot.Ownership} (verified physical copies only)";
         }
         else
         {
@@ -909,12 +912,15 @@ public partial class NativeCollectionWorkspace : UserControl
             collector = owned.Confirmed ? owned.CatalogCollector : owned.Original.CollectorNumber;
         }
         else if (CollectionTabs.SelectedIndex == 3 &&
-                 SetSlotsList.SelectedItem is NativeSetProgress.SetSlot setSlot)
+                 SetSlotsList.SelectedItem is NativeSetProgress.SetSlot setSlot &&
+                 !setSlot.NameCoverage)
         {
-            set = (SetSummaryList.SelectedItem as NativeSetProgress.SetRow)?.SetCode;
+            set = selectedSetRow?.SetCode;
             collector = setSlot.CollectorNumber;
         }
-        bool arenaScope = CollectionTabs.SelectedIndex == 1;
+        bool arenaScope = CollectionTabs.SelectedIndex == 1 ||
+            (CollectionTabs.SelectedIndex == 3 &&
+             SetSlotsList.SelectedItem is NativeSetProgress.SetSlot { NameCoverage: true });
         string? arenaArt = null;
         if (arenaScope && !string.IsNullOrWhiteSpace(catalogPath))
         {
