@@ -2,7 +2,7 @@
 
 Windows x64 prerelease, still behind the Windows 1.0 feature-parity gate.
 
-## New / changed
+## Added
 - **My Collection** and **Deck Library** are dedicated options on the permanent Windows sidebar, next to **Card Catalog**, without spawning a second window.
 - Selecting **My Collection** opens the same native physical/Arena/Set Progress workflow inside the main window, with the Physical Collection tab selected. **Deck Library** opens the saved-deck tab directly.
 - **Card Catalog** navigates back to the main catalog. The current collection tab remains selected when switching between workspace sections or after native edit/refresh.
@@ -11,11 +11,20 @@ Windows x64 prerelease, still behind the Windows 1.0 feature-parity gate.
 - Navigation is restored after full backup restore, Start Fresh, native catalog change, official Scryfall sync, and shortlist edits. During verification, the workspace shows an explicit loading state; failed verification never resets or overwrites the native collection.
 - Selecting a deck-related tab directly updates the active sidebar state. Modal add/edit dialogs are retained until their independent workflow is refactored, but the Collection and Deck Library *browsing screens themselves* are no longer separate windows.
 
+## Changed
+- Collection and Deck Library now use one shared in-process WPF view rather than separate top-level windows.
+
 ## Reliability and compatibility
 - Native profile, legacy WebView data, owned printing IDs, Arena quantities, saved decks/revisions, pricing snapshots and artwork preferences retain their exact existing file formats; this update does **not** migrate or rewrite collection data.
 - Shared WPF control is reused for the read-only backup preview and editable native workspace to avoid two drifting data/edit implementations.
 - A stale edit invalidates the embedded control, opens a verified fresh native SQLite workspace and returns to the same section rather than reusing old edit SHA checksums.
 - Versioned native updater and Windows build/release pipeline are unchanged.
+
+## Fixed
+- Removed the unwanted native Collection popup during startup or sidebar navigation; deck browsing stays in the main shell while the existing editors remain available.
+
+## Removed
+- No user features or collection records removed. The separate **editable native Collection top-level window** was replaced by an embedded view; explicitly requested external backup previews remain read-only windows.
 
 ## QA / limitations
 - Verify physical CSV/XLSX import, physical adjustment, Arena edit, create/rename/duplicate/delete deck, set progress, valuation and card details from inside the main shell. Verify the edit dialog returns to its previous section and no second Collection window appears.
