@@ -4,7 +4,7 @@
         Title="Start a fresh Arcane Vault collection" Width="620" Height="495"
         MinWidth="520" MinHeight="440"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
-        Background="#101620" Foreground="#EAF0F6">
+        Background="#0D1017" Foreground="#F0F1F6">
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -17,29 +17,29 @@
         <TextBlock Grid.Row="0" Text="Start a fresh collection" FontSize="25"
                    FontWeight="SemiBold" Margin="0,0,0,12"/>
         <TextBlock Grid.Row="1" x:Name="ImpactText"
-                   TextWrapping="Wrap" Foreground="#E3B87C"
+                   TextWrapping="Wrap" Foreground="#E5BF79"
                    FontSize="14" Margin="0,0,0,14"/>
         <TextBlock Grid.Row="2" TextWrapping="Wrap" FontSize="13"
-                   Foreground="#D3E2EB" Margin="0,0,0,14"
+                   Foreground="#C7C9D5" Margin="0,0,0,14"
                    Text="This clears all physical and Arena ownership, decks, deck revisions, preferred artwork, wildcards, and collection-specific settings from the ACTIVE native collection. It does not delete the saved Scryfall catalog, the original Arcane Vault installation, or existing recovery points."/>
         <TextBlock Grid.Row="3" x:Name="ProtectionText" TextWrapping="Wrap"
-                   Foreground="#B7CDDC" FontSize="13"/>
+                   Foreground="#9DA9BD" FontSize="13"/>
         <StackPanel Grid.Row="4" Margin="0,12,0,12">
             <TextBlock Text="To confirm, type START FRESH:" FontWeight="SemiBold"
                        Margin="0,0,0,6"/>
             <TextBox x:Name="ConfirmationInput" TextChanged="OnConfirmationChanged"
-                     Padding="11,9" Background="#202C3B" Foreground="#FFFFFF"
-                     BorderBrush="#667A8C" FontSize="15"/>
+                     Padding="11,9" Background="#202737" Foreground="#FFFFFF"
+                     BorderBrush="#514276" FontSize="15"/>
         </StackPanel>
         <StackPanel Grid.Row="5" Orientation="Horizontal"
                     HorizontalAlignment="Right">
             <Button Content="Cancel" Click="OnCancelClicked"
                     Padding="19,10" Margin="0,0,12,0"
-                    Background="#26394B" Foreground="White" BorderBrush="#607589"/>
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
             <Button x:Name="ConfirmButton" Content="Start fresh collection"
                     Click="OnConfirmClicked" IsEnabled="False"
-                    Padding="19,10" Background="#9A4E2D"
-                    Foreground="White" BorderBrush="#B97650"/>
+                    Padding="19,10" Background="#7663B3"
+                    Foreground="White" BorderBrush="#B59BFC"/>
         </StackPanel>
     </Grid>
 </Window>

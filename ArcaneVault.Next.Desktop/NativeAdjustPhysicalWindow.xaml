@@ -4,7 +4,7 @@
         Title="Arcane Vault Next — Adjust physical ownership"
         Width="650" Height="445" MinWidth="570" MinHeight="405"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Background="#101620" Foreground="#EAF0F6">
+        Background="#0D1017" Foreground="#F0F1F6">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -22,31 +22,31 @@
                 <TextBlock Text="New total quantity" VerticalAlignment="Center"
                            Margin="0,0,12,0"/>
                 <TextBox x:Name="NewQuantityBox" Width="90" Padding="9,7"
-                         Background="#202C3B" Foreground="White" BorderBrush="#526377"
+                         Background="#202737" Foreground="White" BorderBrush="#343D51"
                          Margin="0,0,14,0"/>
                 <Button Content="Set to 0 (remove line)" Padding="12,8"
-                        Click="OnSetZeroClicked" Background="#60394A"
-                        Foreground="White" BorderBrush="#966274"/>
+                        Click="OnSetZeroClicked" Background="#382438"
+                        Foreground="White" BorderBrush="#79516C"/>
             </StackPanel>
-            <TextBlock Margin="0,9,0,0" Foreground="#AAC4D4" TextWrapping="Wrap"
+            <TextBlock Margin="0,9,0,0" Foreground="#9DA9BD" TextWrapping="Wrap"
                        Text="Change this exact row from 0 to 99,999 copies (0 removes it). Unresolved printing IDs remain unresolved; no identities or other rows are changed."/>
         </StackPanel>
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,14">
             <TextBlock Text="If removing, type REMOVE:" VerticalAlignment="Center"
                        Margin="0,0,12,0"/>
             <TextBox x:Name="ConfirmRemoveBox" Width="110" Padding="9,7"
-                     Background="#202C3B" Foreground="White" BorderBrush="#526377"/>
+                     Background="#202737" Foreground="White" BorderBrush="#343D51"/>
         </StackPanel>
         <DockPanel Grid.Row="4" LastChildFill="True">
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
                         HorizontalAlignment="Right" Margin="0,12,0,0">
                 <Button x:Name="ApplyButton" Content="Review &amp; save change"
                         Padding="15,9" Click="OnApplyClicked" Margin="0,0,12,0"
-                        Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
+                        Background="#7663B3" Foreground="White" BorderBrush="#B59BFC"/>
                 <Button Content="Cancel" IsCancel="True" Padding="15,9"
-                        Background="#283F55" Foreground="White"/>
+                        Background="#202737" Foreground="White"/>
             </StackPanel>
-            <TextBlock x:Name="StatusText" Foreground="#B5CBD8" TextWrapping="Wrap"
+            <TextBlock x:Name="StatusText" Foreground="#9DA9BD" TextWrapping="Wrap"
                        Text="Edits are staged and checked. The previous native collection is retained for recovery; the installed Windows app is untouched."/>
         </DockPanel>
     </Grid>

@@ -4,7 +4,7 @@
         Title="Arcane Vault Next — Add verified paper printing"
         Width="950" Height="650" MinWidth="760" MinHeight="500"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Background="#101620" Foreground="#EAF0F6">
+        Background="#0D1017" Foreground="#F0F1F6">
     <Grid Margin="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -15,20 +15,20 @@
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Margin="0,0,0,14">
             <TextBlock Text="Add an exact physical printing" FontSize="23" FontWeight="SemiBold"/>
-            <TextBlock Margin="0,6,0,0" Foreground="#AAC4D4" TextWrapping="Wrap"
+            <TextBlock Margin="0,6,0,0" Foreground="#9DA9BD" TextWrapping="Wrap"
                        Text="Search the local catalog, select the specific set and collector number, then choose quantity and finish. The original Windows app is untouched. Every successful change keeps a native recovery point."/>
         </StackPanel>
         <DockPanel Grid.Row="1" Margin="0,0,0,12">
             <Button DockPanel.Dock="Right" Content="Find printings" Click="OnFindClicked"
                     x:Name="FindButton" Padding="16,8" Margin="12,0,0,0"
-                    Background="#283F55" Foreground="White"/>
+                    Background="#202737" Foreground="White"/>
             <TextBox x:Name="QueryBox" Padding="10,8" FontSize="15"
                      ToolTip="Enter at least two initial characters in the card name"
                      KeyDown="OnSearchKeyDown"
-                     Background="#202C3B" Foreground="White" BorderBrush="#526377"/>
+                     Background="#202737" Foreground="White" BorderBrush="#343D51"/>
         </DockPanel>
         <ListView Grid.Row="2" x:Name="PrintingsList"
-                  Background="#172231" Foreground="#EAF0F6" BorderBrush="#3C5165"
+                  Background="#171C28" Foreground="#F0F1F6" BorderBrush="#343D51"
                   VirtualizingStackPanel.IsVirtualizing="True"
                   VirtualizingStackPanel.VirtualizationMode="Recycling"
                   ScrollViewer.CanContentScroll="True">
@@ -44,20 +44,20 @@
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,14,0,12">
             <TextBlock Text="Copies to add" VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox x:Name="QuantityBox" Width="70" Text="1" Padding="8,6"
-                     Background="#202C3B" Foreground="White" BorderBrush="#526377"
+                     Background="#202737" Foreground="White" BorderBrush="#343D51"
                      Margin="0,0,22,0"/>
             <TextBlock Text="Finish" VerticalAlignment="Center" Margin="0,0,10,0"/>
             <ComboBox x:Name="FinishBox" Width="120" SelectedIndex="0"
-                      Background="#202C3B" Foreground="#101620">
+                      Background="#202737" Foreground="#0D1017">
                 <ComboBoxItem Content="nonfoil"/>
                 <ComboBoxItem Content="foil"/>
                 <ComboBoxItem Content="etched"/>
             </ComboBox>
             <Button x:Name="AddButton" Content="Add to native collection"
                     Click="OnAddClicked" Padding="18,8" Margin="24,0,0,0"
-                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
+                    Background="#7663B3" Foreground="White" BorderBrush="#B59BFC"/>
             <Button Content="Cancel" IsCancel="True" Padding="14,8" Margin="12,0,0,0"
-                    Background="#283F55" Foreground="White"/>
+                    Background="#202737" Foreground="White"/>
         </StackPanel>
         <TextBlock Grid.Row="4" x:Name="StatusText" TextWrapping="Wrap"
                    Foreground="#B4CBD6"

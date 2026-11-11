@@ -8,8 +8,13 @@
     <Nullable>enable</Nullable>
     <AssemblyName>ArcaneVault.Next.Desktop</AssemblyName>
     <RootNamespace>ArcaneVault.Next.Desktop</RootNamespace>
-    <ApplicationTitle>Arcane Vault Next — Native UI Prototype</ApplicationTitle>
+    <ApplicationTitle>Arcane Vault — Native Windows</ApplicationTitle>
+    <ApplicationIcon>..\ArcaneVault.Desktop\Assets\ArcaneVault.ico</ApplicationIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="..\ArcaneVault.Desktop\Assets\ArcaneVaultIcon.png"
+              Link="Assets\ArcaneVaultIcon.png"/>
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />

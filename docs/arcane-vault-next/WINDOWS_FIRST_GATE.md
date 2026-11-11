@@ -14,6 +14,12 @@
 
 All of the following must be validated: shipping Windows version installs/launches and updates without data loss; real full backup/restore (disposable profile) passes quantity/printing/deck/artwork comparison; core native card catalog, physical collection, Arena inventory, card details and Set Progress are functional; unresolved printings are visible rather than guessed; performance and stability have been measured; recovery route documented and tested. At that point, EDH Lab can be reprioritized.
 
+## In-progress slice: AVN-031 — WebView-inspired native Windows UI refresh
+
+The native WPF application adopts the original Arcane Vault web UI's charcoal/lavender design tokens and visual hierarchy, while retaining native SQLite ownership, independent Scryfall data and transaction/recovery controls. The main window has a real grouped left sidebar; collection view gains summary tiles, contextual actions and styled tabs; deck library cards are deck-box inspired; Set Progress uses visible native progress meters; Card Details shows optional Scryfall CDN artwork on demand with a bounded local image cache and safe offline fallback. Other editor/recovery dialogs share the same visual palette. Existing view identifiers and command handlers, virtualized collection/catalog lists, current printings validation and automatic rollback are preserved. CI statically checks resource references, named controls, event handler integrity and list virtualization, in addition to building WPF.
+
+**Device acceptance still required:** visual inspection on Windows at 100%/125%/150% display scaling, long card names, large collections, keyboard navigation, no-catalog/offline artwork, and real release/update workflow. This is not a claim that native UI is fully feature-identical to all WebView screens.
+
 ## In-progress slice: AVN-030 — portable native full backup export
 
 The native Windows main window now has **Export native full backup**. It reads the currently verified native SQLite workspace, exports its exact preserved schema-2 JSON including recent native card/deck edits, revisions and unknown legacy fields, and publishes it to a user-chosen **new** filename only after SHA verification. Export cannot overwrite prior files, mutate the installed legacy app profile, or change active native ownership. Tests round-trip the exported JSON into an independent native SQLite workspace and reject existing filenames, stale source SHAs and cancellation. This supplies a user-controlled portable recovery artifact in addition to automatic SQLite rollbacks.

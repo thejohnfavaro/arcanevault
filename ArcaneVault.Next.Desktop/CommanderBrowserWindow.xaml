@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="EDH Lab — Commander Browser (Native Preview)"
         Width="1000" Height="755" MinWidth="760" MinHeight="550"
-        Background="#101620" Foreground="#EAF0F6">
+        Background="#0D1017" Foreground="#F0F1F6">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -59,11 +59,11 @@
             <TextBox x:Name="CommanderSearch" TextChanged="OnFiltersChanged"
                      ToolTip="Search commander name or Oracle text"
                      FontSize="14" Padding="10,9"
-                     Background="#202C3B" Foreground="White" BorderBrush="#516174"/>
+                     Background="#202737" Foreground="White" BorderBrush="#343D51"/>
         </DockPanel>
         <ListView Grid.Row="4" x:Name="CommanderList"
-                  Background="#17202D" Foreground="#EAF0F6"
-                  BorderBrush="#405063"
+                  Background="#171C28" Foreground="#F0F1F6"
+                  BorderBrush="#343D51"
                   ScrollViewer.CanContentScroll="True"
                   VirtualizingStackPanel.IsVirtualizing="True"
                   VirtualizingStackPanel.VirtualizationMode="Recycling">

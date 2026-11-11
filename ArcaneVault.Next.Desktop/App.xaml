@@ -2,5 +2,261 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
-    <Application.Resources/>
+    <Application.Resources>
+        <!-- Reuses the original WebView Arcane Vault dark/lavender design tokens.
+             Keeping resources in one dictionary lets collection dialogs, editor
+             surfaces and future Windows screens stay visually consistent. -->
+        <SolidColorBrush x:Key="VaultBackground" Color="#0D1017"/>
+        <SolidColorBrush x:Key="VaultSidebar" Color="#121722"/>
+        <SolidColorBrush x:Key="VaultPanel" Color="#171C28"/>
+        <SolidColorBrush x:Key="VaultPanelRaised" Color="#202737"/>
+        <SolidColorBrush x:Key="VaultLine" Color="#343D51"/>
+        <SolidColorBrush x:Key="VaultText" Color="#F0F1F6"/>
+        <SolidColorBrush x:Key="VaultMuted" Color="#9DA9BD"/>
+        <SolidColorBrush x:Key="VaultAccent" Color="#B59BFC"/>
+        <SolidColorBrush x:Key="VaultAccentMuted" Color="#7663B3"/>
+        <SolidColorBrush x:Key="VaultAccentSurface" Color="#27233E"/>
+        <SolidColorBrush x:Key="VaultAccentBorder" Color="#514276"/>
+        <SolidColorBrush x:Key="VaultTeal" Color="#7FCAE1"/>
+        <SolidColorBrush x:Key="VaultGood" Color="#8BD3AC"/>
+        <SolidColorBrush x:Key="VaultWarning" Color="#E5BF79"/>
+        <SolidColorBrush x:Key="VaultDanger" Color="#9A5277"/>
+
+        <Style TargetType="{x:Type Window}">
+            <Setter Property="Background" Value="{StaticResource VaultBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+        </Style>
+
+        <Style TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="13,9"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="ButtonSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="9"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
+                                        Value="{StaticResource VaultAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.82"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="BorderBrush"
+                                        Value="{StaticResource VaultAccent}"/>
+                                <Setter TargetName="ButtonSurface" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.42"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="VaultPrimaryButton" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource VaultAccentMuted}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource VaultAccent}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="VaultNavButton" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="12,11"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="MinHeight" Value="43"/>
+        </Style>
+        <Style x:Key="VaultNavPrimary" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource VaultNavButton}">
+            <Setter Property="Background" Value="{StaticResource VaultAccentSurface}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource VaultAccentBorder}"/>
+            <Setter Property="Foreground" Value="#E4D9FF"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="VaultDangerButton" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#382438"/>
+            <Setter Property="BorderBrush" Value="#79516C"/>
+            <Setter Property="Foreground" Value="#F2CBDD"/>
+        </Style>
+
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource VaultAccent}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="11,9"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="MinHeight" Value="35"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Border x:Name="TextBoxSurface"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}"
+                                CornerRadius="9">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Focusable="False"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="TextBoxSurface" Property="BorderBrush"
+                                        Value="{StaticResource VaultAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="TextBoxSurface" Property="Opacity" Value="0.52"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="{x:Type ListView}">
+            <Setter Property="Background" Value="{StaticResource VaultPanel}"/>
+            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+            <Setter Property="VirtualizingStackPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingStackPanel.VirtualizationMode" Value="Recycling"/>
+        </Style>
+        <Style TargetType="{x:Type ListViewItem}">
+            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="6,5"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource VaultAccentSurface}"/>
+                    <Setter Property="Foreground" Value="#E5DBFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="{x:Type GridViewColumnHeader}">
+            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="10,10"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style TargetType="{x:Type ProgressBar}">
+            <Setter Property="Background" Value="{StaticResource VaultLine}"/>
+            <Setter Property="Foreground" Value="{StaticResource VaultAccent}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Height" Value="7"/>
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="Maximum" Value="100"/>
+        </Style>
+
+        <Style TargetType="{x:Type TabControl}">
+            <Setter Property="Background" Value="{StaticResource VaultPanel}"/>
+            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+        </Style>
+        <Style TargetType="{x:Type TabItem}">
+            <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="Margin" Value="0,0,6,4"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabItem}">
+                        <Border x:Name="TabSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter
+                                ContentSource="Header"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabSurface" Property="Background"
+                                        Value="{StaticResource VaultAccentSurface}"/>
+                                <Setter TargetName="TabSurface" Property="BorderBrush"
+                                        Value="{StaticResource VaultAccentBorder}"/>
+                                <Setter Property="Foreground" Value="#E5D9FF"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabSurface" Property="BorderBrush"
+                                        Value="{StaticResource VaultAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="TabSurface" Property="BorderBrush"
+                                        Value="{StaticResource VaultAccent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="VaultEyebrow" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource VaultAccent}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style x:Key="VaultMutedText" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="VaultPanelCard" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="{StaticResource VaultPanel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="13"/>
+            <Setter Property="Padding" Value="16"/>
+        </Style>
+    </Application.Resources>
 </Application>
