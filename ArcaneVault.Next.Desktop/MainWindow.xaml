@@ -33,65 +33,75 @@
                            Margin="5,5" Foreground="{StaticResource VaultMuted}"/>
             </Grid>
         </DataTemplate>
-        <!-- The image view deliberately uses a virtualized *vertical* panel.
-             Only rows visible to the user create image controls/downloads. -->
-        <DataTemplate x:Key="CatalogTileTemplate">
-            <Border Margin="5,5" Padding="10"
-                    Background="{StaticResource VaultPanelRaised}"
-                    BorderBrush="{StaticResource VaultAccentBorder}"
-                    BorderThickness="1" CornerRadius="11">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="132" Height="184"
-                            Background="{StaticResource VaultBackground}"
-                            BorderBrush="{StaticResource VaultLine}"
-                            BorderThickness="1" CornerRadius="8">
-                        <Grid>
-                            <TextBlock Text="No cached card image"
-                                       Foreground="{StaticResource VaultMuted}"
-                                       TextWrapping="Wrap"
-                                       TextAlignment="Center"
-                                       Margin="8"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"/>
-                            <local:NativeCardArtImage ArtUrl="{Binding ImageUrl}"
-                                                      Width="128" Height="178"/>
-                        </Grid>
-                    </Border>
-                    <StackPanel Grid.Column="1" Margin="14,2,0,0">
-                        <TextBlock Text="{Binding Name}" FontSize="17"
-                                   FontWeight="SemiBold"
-                                   TextWrapping="Wrap" MaxHeight="60"
-                                   Foreground="{StaticResource VaultText}"/>
-                        <TextBlock Text="{Binding RolesLabel}" FontSize="12"
-                                   Foreground="{StaticResource VaultGood}"
-                                   TextWrapping="Wrap" Margin="0,10,0,0"
-                                   ToolTip="Heuristic utilization tags from Scryfall Oracle text; not official deck recommendations"/>
-                        <TextBlock Text="{Binding OwnershipLabel}" FontSize="11"
-                                   Foreground="{StaticResource VaultAccent}"
-                                   TextWrapping="Wrap" Margin="0,8,0,0"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <TextBlock Text="{Binding SetCode}" FontSize="12"
-                                       Foreground="{StaticResource VaultAccent}"/>
-                            <TextBlock Text="  ·  #" Foreground="{StaticResource VaultMuted}"/>
-                            <TextBlock Text="{Binding CollectorNumber}" FontSize="12"
-                                       Foreground="{StaticResource VaultMuted}"/>
-                        </StackPanel>
-                        <TextBlock Text="Double-click for card details and full artwork"
-                                   FontSize="10.5" Margin="0,10,0,0"
-                                   Foreground="{StaticResource VaultMuted}"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
+        <!-- Tile art is displayed in rows of 1–4 cards. The outer ListView
+             virtualizes ROWS so off-screen card image controls never load.
+             Grouped rows reflow when the available width crosses a breakpoint. -->
+        <DataTemplate x:Key="CatalogTileRowTemplate">
+            <ItemsControl ItemsSource="{Binding Cards}"
+                          HorizontalAlignment="Stretch">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="5,6" Padding="10"
+                                Height="363" CornerRadius="11"
+                                Background="{StaticResource VaultPanelRaised}"
+                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                BorderThickness="1"
+                                Tag="{Binding}"
+                                PreviewMouseLeftButtonDown="OnCatalogTileMouseDown"
+                                ToolTip="Click to select; double-click for card details">
+                            <StackPanel>
+                                <Border HorizontalAlignment="Center"
+                                        Width="150" Height="210"
+                                        Background="{StaticResource VaultBackground}"
+                                        BorderBrush="{StaticResource VaultLine}"
+                                        BorderThickness="1" CornerRadius="8">
+                                    <Grid>
+                                        <TextBlock Text="Image not cached"
+                                                   Foreground="{StaticResource VaultMuted}"
+                                                   TextWrapping="Wrap"
+                                                   TextAlignment="Center"
+                                                   Margin="7" FontSize="11"
+                                                   VerticalAlignment="Center"/>
+                                        <local:NativeCardArtImage ArtUrl="{Binding ImageUrl}"
+                                                                  Width="146" Height="204"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Text="{Binding Name}" FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource VaultText}"
+                                           TextWrapping="Wrap" TextAlignment="Center"
+                                           MaxHeight="40" Margin="0,10,0,0"/>
+                                <TextBlock Text="{Binding RolesLabel}" FontSize="11"
+                                           Foreground="{StaticResource VaultGood}"
+                                           TextAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding RolesLabel}" Margin="0,5,0,0"/>
+                                <TextBlock Text="{Binding OwnershipLabel}" FontSize="11"
+                                           Foreground="{StaticResource VaultAccent}"
+                                           TextAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           Margin="0,4,0,0"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                            Margin="0,7,0,0">
+                                    <TextBlock Text="{Binding SetCode}" FontSize="11"
+                                               Foreground="{StaticResource VaultMuted}"/>
+                                    <TextBlock Text="  ·  #" Foreground="{StaticResource VaultMuted}"/>
+                                    <TextBlock Text="{Binding CollectorNumber}" FontSize="11"
+                                               Foreground="{StaticResource VaultMuted}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </DataTemplate>
         <ItemsPanelTemplate x:Key="CatalogVirtualPanel">
             <VirtualizingStackPanel/>
-        </ItemsPanelTemplate>
-        <ItemsPanelTemplate x:Key="CatalogTilePanel">
-            <WrapPanel/>
         </ItemsPanelTemplate>
     </Window.Resources>
     <Grid>
@@ -533,6 +543,8 @@
                                    VerticalAlignment="Center"/>
                     </Grid>
                     <ListView Grid.Row="1" x:Name="CardsList"
+                              SizeChanged="OnCatalogListSizeChanged"
+                              HorizontalContentAlignment="Stretch"
                               MouseDoubleClick="OnCatalogCardRowDoubleClick"
                               Background="{StaticResource VaultPanel}"
                               BorderThickness="0"
