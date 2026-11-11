@@ -119,10 +119,10 @@ internal static class NativeVisualShellChecks
              main.Contains("OnShowCatalogClicked", StringComparison.Ordinal) &&
              mainCode.Contains("nativeWorkspaceView.NavigateTo(section)", StringComparison.Ordinal),
             "Card Catalog and Deck Library sidebar navigation must preserve in-shell routing.");
-        Must(collection.Contains("Value=\"{Binding Percent}\"", StringComparison.Ordinal) &&
+        Must(collection.Contains("Value=\"{Binding Percent, Mode=OneWay}\"", StringComparison.Ordinal) &&
              collection.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
                  StringComparison.Ordinal),
-             "Set Progress visualization must bind exact percentages and preserve virtualization.");
+             "Set Progress must use a OneWay binding for the computed, read-only Percent property and preserve virtualization.");
         // Image view virtualizes rows instead of constructing every image at once.
         Must(main.Contains("CatalogTileRowTemplate", StringComparison.Ordinal) &&
              main.Contains("UniformGrid Rows=\"1\"", StringComparison.Ordinal) &&
