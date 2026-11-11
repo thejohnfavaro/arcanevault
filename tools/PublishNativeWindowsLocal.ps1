@@ -64,8 +64,16 @@ try {
         }
     }
 
-    & gh release view $tag --repo $repo --json tagName *> $null
-    if ($LASTEXITCODE -eq 0) {
+    # "gh release view" emits a native stderr error for a missing tag.
+    # Windows PowerShell 5.1 escalates that to a terminating NativeCommandError
+    # when $ErrorActionPreference = 'Stop'. List tags instead: a missing
+    # release is an expected condition, not a failure.
+    $existingJson = & gh release list --repo $repo --limit 1000 --json tagName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not inspect existing GitHub releases; refusing to publish blindly."
+    }
+    $existing = @($existingJson | ConvertFrom-Json)
+    if ($existing | Where-Object { $_.tagName -eq $tag }) {
         throw "Release $tag already exists; refusing to overwrite its assets."
     }
 
