@@ -18,12 +18,29 @@ public sealed class CatalogSnapshot : IDisposable
     private readonly object gate = new();
     private bool disposed;
     private readonly bool ownsTemporaryFile;
+    public bool HasFullMetadata { get; }
 
-    private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true)
+    public enum ColorMatching { ContainsAll, Exact, ContainsAny }
+
+    /// <summary>All filters are read-only local catalog predicates. ColorMask
+    /// uses canonical MTG color-identity symbols WUBRG, not mana cost.</summary>
+    public sealed record SearchOptions(
+        string SetCode = "", string Rarity = "", string TypeContains = "",
+        string ColorMask = "", ColorMatching ColorMatch = ColorMatching.ContainsAll,
+        bool ColorlessOnly = false, bool ArenaOnly = false)
+    {
+        public bool IsDefault =>
+            SetCode.Length == 0 && Rarity.Length == 0 && TypeContains.Length == 0 &&
+            ColorMask.Length == 0 && !ColorlessOnly && !ArenaOnly;
+    }
+
+    private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true,
+        bool hasFullMetadata = false)
     {
         snapshotPath = path;
         TotalPrintings = total;
         this.ownsTemporaryFile = ownsTemporaryFile;
+        HasFullMetadata = hasFullMetadata;
     }
 
     public long TotalPrintings { get; }
@@ -70,8 +87,14 @@ public sealed class CatalogSnapshot : IDisposable
                 throw new InvalidDataException("The selected file does not contain an Arcane Vault printing catalog.");
             query.CommandText = "SELECT COUNT(*) FROM variants";
             long count = Convert.ToInt64(query.ExecuteScalar());
+            query.CommandText = """
+                SELECT COUNT(*) FROM sqlite_master
+                WHERE type='table' AND name='cards'
+                """;
+            bool hasFullMetadata = Convert.ToInt64(query.ExecuteScalar()) == 1;
             cancellationToken.ThrowIfCancellationRequested();
-            return new CatalogSnapshot(staging, count);
+            return new CatalogSnapshot(staging, count,
+                hasFullMetadata: hasFullMetadata);
         }
         catch
         {
@@ -100,7 +123,8 @@ public sealed class CatalogSnapshot : IDisposable
         long total = Convert.ToInt64(command.ExecuteScalar());
         if (total < 1)
             throw new InvalidDataException("The native catalog has no printings.");
-        return new CatalogSnapshot(Path.GetFullPath(path), total, ownsTemporaryFile: false);
+        return new CatalogSnapshot(Path.GetFullPath(path), total,
+            ownsTemporaryFile: false, hasFullMetadata: true);
     }
 
     /// <summary>
@@ -186,6 +210,119 @@ public sealed class CatalogSnapshot : IDisposable
                 else { hasExtra = true; break; }
             }
             return new SearchResult(rows, Stopwatch.GetElapsedTime(started).TotalMilliseconds, hasExtra);
+        }
+    }
+
+    /// <summary>
+    /// Bounded, parameterized printings query with combined set, rarity, type,
+    /// mana color identity and Arena availability filters. The underlying
+    /// Scryfall catalog is never written to or modified.
+    /// </summary>
+    public SearchResult SearchFiltered(string input, SearchOptions filters,
+        int limit = 200, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filters);
+        if (limit is < 1 or > 200)
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        if (filters.IsDefault)
+            return SearchPrefix(input, limit, cancellationToken);
+        input = (input ?? "").Trim();
+        if (input.Length > 160) input = input[..160];
+
+        string color = filters.ColorMask.Trim().ToUpperInvariant();
+        if (color.Length > 5 || color.Any(ch => !"WUBRG".Contains(ch)) ||
+            color.Distinct().Count() != color.Length)
+            throw new ArgumentException("Invalid color identity selection.");
+        color = new string("WUBRG".Where(color.Contains).ToArray());
+        if (filters.ColorlessOnly && color.Length > 0)
+            throw new ArgumentException("Colorless and colored filters cannot both be selected.");
+        string rarity = filters.Rarity.Trim().ToLowerInvariant();
+        if (rarity.Length > 0 && rarity is not (
+            "common" or "uncommon" or "rare" or "mythic" or "special" or "bonus"))
+            throw new ArgumentException("Unknown catalog rarity filter.");
+        string set = filters.SetCode.Trim();
+        string type = filters.TypeContains.Trim();
+        if (set.Length > 20 || type.Length > 80)
+            throw new ArgumentException("Catalog filter exceeds its supported length.");
+        bool needsCard = filters.ColorlessOnly || color.Length > 0 || type.Length > 0;
+        if ((needsCard || filters.ArenaOnly) && !HasFullMetadata)
+            throw new InvalidDataException(
+                "This older catalog does not contain the metadata needed for that filter. " +
+                "Sync the current native Scryfall catalog.");
+
+        static string EscapeLike(string value) =>
+            value.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
+
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
+            using var db = Connect(snapshotPath, SqliteOpenMode.ReadOnly);
+            using var cmd = db.CreateCommand();
+            var where = new List<string> { @"v.name LIKE $prefix ESCAPE '\'" };
+            cmd.Parameters.AddWithValue("$prefix", EscapeLike(input) + "%");
+            if (needsCard)
+                cmd.CommandText = """
+                    SELECT v.name,v.setcode,v.collector FROM variants v
+                    INNER JOIN cards c ON c.name = v.name COLLATE NOCASE
+                    """;
+            else cmd.CommandText =
+                "SELECT v.name,v.setcode,v.collector FROM variants v\n";
+
+            if (set.Length > 0)
+            {
+                where.Add("v.setcode = $set COLLATE NOCASE");
+                cmd.Parameters.AddWithValue("$set", set);
+            }
+            if (rarity.Length > 0)
+            {
+                where.Add("v.rarity = $rarity COLLATE NOCASE");
+                cmd.Parameters.AddWithValue("$rarity", rarity);
+            }
+            if (filters.ArenaOnly)
+                where.Add("v.arena = 1");
+            if (type.Length > 0)
+            {
+                where.Add(@"c.type LIKE $type ESCAPE '\' COLLATE NOCASE");
+                cmd.Parameters.AddWithValue("$type", "%" + EscapeLike(type) + "%");
+            }
+            if (filters.ColorlessOnly)
+                where.Add("c.colors = ''");
+            else if (color.Length > 0 && filters.ColorMatch == ColorMatching.Exact)
+            {
+                where.Add("c.colors = $colors COLLATE NOCASE");
+                cmd.Parameters.AddWithValue("$colors", color);
+            }
+            else if (color.Length > 0)
+            {
+                var selections = new List<string>();
+                for (int i = 0; i < color.Length; i++)
+                {
+                    string param = "$color" + i;
+                    selections.Add("instr(c.colors," + param + ") > 0");
+                    cmd.Parameters.AddWithValue(param, color[i].ToString());
+                }
+                where.Add("(" + string.Join(filters.ColorMatch == ColorMatching.ContainsAny
+                    ? " OR " : " AND ", selections) + ")");
+            }
+
+            cmd.CommandText += "WHERE " + string.Join(" AND ", where) +
+                "\nORDER BY v.name COLLATE NOCASE,v.setcode,v.collector LIMIT $limit";
+            cmd.Parameters.AddWithValue("$limit", limit + 1);
+            var rows = new List<PrintingRow>(limit);
+            bool hasExtra = false;
+            var started = Stopwatch.GetTimestamp();
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (rows.Count < limit)
+                    rows.Add(new PrintingRow(reader.GetString(0),
+                        reader.GetString(1), reader.GetString(2)));
+                else { hasExtra = true; break; }
+            }
+            return new SearchResult(rows,
+                Stopwatch.GetElapsedTime(started).TotalMilliseconds, hasExtra);
         }
     }
 
