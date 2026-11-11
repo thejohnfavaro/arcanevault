@@ -389,7 +389,8 @@ public sealed class CatalogSnapshot : IDisposable
                 where.Add("v.rarity = $rarity COLLATE NOCASE");
                 cmd.Parameters.AddWithValue("$rarity", rarity);
             }
-            // Arena name ownership does not make every paper reprint available.
+            // Name-owned Arena collection entries may only be represented by
+            // Arena-available printings; paper-exclusive art is never eligible.
             if (filters.ArenaOnly ||
                 filters.Ownership is OwnershipMode.ArenaOwned or OwnershipMode.ArenaNotOwned)
                 where.Add("v.arena = 1");
@@ -418,14 +419,27 @@ public sealed class CatalogSnapshot : IDisposable
                     ? " OR " : " AND ", selections) + ")");
             }
 
+            // Arena owns CARD NAMES, not every printing of a card. A single
+            // representative image is shown in the catalog; the separately
+            // scoped printing gallery can still browse all Arena styles.
+            // Digital-specific images take priority over shared paper/Arena
+            // releases. Apply the result cap AFTER unique names are selected.
+            bool arenaScope = filters.ArenaOnly ||
+                filters.Ownership is OwnershipMode.ArenaOwned or OwnershipMode.ArenaNotOwned;
             cmd.CommandText += "\nWHERE " + string.Join(" AND ", where) +
-                "\nORDER BY v.name COLLATE NOCASE,v.setcode,v.collector";
-            if (filters.Ownership == OwnershipMode.All &&
+                (arenaScope
+                    ? "\nORDER BY v.name COLLATE NOCASE," +
+                      (HasPaperPrintingMetadata ? "v.digital DESC," : "") +
+                      "v.setcode,v.collector"
+                    : "\nORDER BY v.name COLLATE NOCASE,v.setcode,v.collector");
+            if (!arenaScope && filters.Ownership == OwnershipMode.All &&
                 filters.Role.Length == 0)
             {
                 cmd.CommandText += " LIMIT $limit";
                 cmd.Parameters.AddWithValue("$limit", limit + 1);
             }
+            var encounteredArenaNames = arenaScope
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
             var rows = new List<PrintingRow>(limit);
             bool hasExtra = false;
             var started = Stopwatch.GetTimestamp();
@@ -447,6 +461,8 @@ public sealed class CatalogSnapshot : IDisposable
                      !row.RolesLabel.Split(" · ", StringSplitOptions.RemoveEmptyEntries)
                         .Contains(filters.Role, StringComparer.OrdinalIgnoreCase)))
                     continue;
+                if (encounteredArenaNames is not null &&
+                    !encounteredArenaNames.Add(row.Name)) continue;
                 if (rows.Count >= limit) { hasExtra = true; break; }
                 rows.Add(row);
             }
