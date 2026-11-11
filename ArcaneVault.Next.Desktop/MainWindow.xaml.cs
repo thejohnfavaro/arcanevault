@@ -867,6 +867,41 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Catalog browsing does not imply ownership. Opening a printing shows
+    /// the cached card identity, never assigns the selected printing to the
+    /// native physical collection, and loads art only in the detail window.
+    /// </summary>
+    private async void OnCatalogCardDetailsClicked(object sender, RoutedEventArgs e)
+    {
+        var snapshot = catalogSnapshot;
+        if (closing || snapshot is null ||
+            CardsList.SelectedItem is not CatalogSnapshot.PrintingRow selected)
+        {
+            FilterStatus.Text = "Select a catalog printing to view its card details.";
+            return;
+        }
+        int version = modeVersion;
+        CollectionCatalogReview.CardDetails? info;
+        try
+        {
+            info = await Task.Run(() =>
+                CollectionCatalogReview.ReadDetails(
+                    snapshot.ReadOnlySnapshotPath, selected.Name));
+        }
+        catch (Exception)
+        {
+            info = null; // A stale/minimal catalog still gets a safe local fallback.
+        }
+        if (closing || version != modeVersion ||
+            !ReferenceEquals(snapshot, catalogSnapshot)) return;
+        var dialog = new NativeCardDetailsWindow(selected.Name,
+            $"Catalog: {selected.SetCode} #{selected.CollectorNumber}. " +
+            "This browsing result is not automatically marked owned.", info)
+        { Owner = this };
+        dialog.Show();
+    }
+
     private void CancelPendingSearch()
     {
         var old = searchCancellation;

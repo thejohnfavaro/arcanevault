@@ -236,6 +236,12 @@
                                    Foreground="{StaticResource VaultMuted}"
                                    TextWrapping="Wrap" FontSize="12"
                                    Text="No catalog loaded"/>
+                        <Button Content="View selected card  ›"
+                                Click="OnCatalogCardDetailsClicked"
+                                Style="{StaticResource VaultPrimaryButton}"
+                                Padding="11,7" Margin="0,9,0,0"
+                                HorizontalAlignment="Left"
+                                ToolTip="View locally cached Scryfall metadata and on-demand artwork for the selected printing"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -271,6 +277,7 @@
                                    VerticalAlignment="Center"/>
                     </Grid>
                     <ListView Grid.Row="1" x:Name="CardsList"
+                              MouseDoubleClick="OnCatalogCardDetailsClicked"
                               Background="{StaticResource VaultPanel}"
                               BorderThickness="0"
                               ScrollViewer.CanContentScroll="True"
