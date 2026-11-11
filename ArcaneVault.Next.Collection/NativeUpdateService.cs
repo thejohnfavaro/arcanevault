@@ -130,7 +130,7 @@ public static class NativeUpdateService
                 !current.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Unexpected update download host.");
             using var request = new HttpRequestMessage(HttpMethod.Get, current);
-            request.Headers.UserAgent.ParseAdd("ArcaneVaultNative/0.9.0");
+            request.Headers.UserAgent.ParseAdd("ArcaneVaultNativeUpdater/1.0");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(
                 current.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase)
                     ? "application/vnd.github+json" : "application/octet-stream"));
@@ -174,16 +174,37 @@ public static class NativeUpdateService
         return memory.ToArray();
     }
 
+    /// <summary>
+    /// The repository has its own legacy Windows release channel. Scan
+    /// bounded pages instead of assuming that the last 30 releases include
+    /// the most recent native version.
+    /// </summary>
     public static async Task<Candidate?> FindUpdateAsync(Version current,
         CancellationToken cancellation = default)
     {
+        ArgumentNullException.ThrowIfNull(current);
         using var http = Client();
-        using var response = await TrustedGetAsync(http, new Uri(
-            "https://api.github.com/repos/thejohnfavaro/arcanevault/releases?per_page=30"),
-            cancellation);
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellation);
-        var data = await ReadBoundedAsync(stream, 2_000_000, cancellation);
-        return SelectLatest(Encoding.UTF8.GetString(data), current);
+        Candidate? best = null;
+        for (int page = 1; page <= 8; page++)
+        {
+            using var response = await TrustedGetAsync(http, new Uri(
+                "https://api.github.com/repos/thejohnfavaro/arcanevault/releases?per_page=100&page=" +
+                page), cancellation);
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellation);
+            var data = await ReadBoundedAsync(stream, 6_000_000, cancellation);
+            string json = Encoding.UTF8.GetString(data);
+            var result = SelectLatest(json, current);
+            if (result is not null && (best is null || result.Version > best.Version))
+                best = result;
+            using var pageData = JsonDocument.Parse(json);
+            int count = pageData.RootElement.GetArrayLength();
+            if (count < 100) return best;
+        }
+        if (best is null)
+            throw new InvalidDataException(
+                "Too many unrelated releases to confirm that no native update exists. " +
+                "Check the official GitHub native release list manually.");
+        return best;
     }
 
     public static string ParseChecksum(string input)
@@ -258,8 +279,8 @@ public static class NativeUpdateService
         string root = Path.GetFullPath(versionsRoot);
         Directory.CreateDirectory(root);
         string target = Path.Combine(root, "v" + expectedVersion.ToString(3));
-        if (Directory.Exists(target) || File.Exists(target))
-            throw new InvalidDataException("That native version already exists; no files were replaced.");
+        if (File.Exists(target))
+            throw new InvalidDataException("The target version path is not a directory.");
         string stage = Path.Combine(root, ".stage-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stage);
         try
@@ -315,6 +336,29 @@ public static class NativeUpdateService
             if (!File.Exists(exe) || new FileInfo(exe).Length == 0)
                 throw new InvalidDataException("Native update ZIP has no executable.");
             cancellation.ThrowIfCancellationRequested();
+            if (Directory.Exists(target))
+            {
+                // A previous successful staging may not have been launched.
+                // Reuse it only if every byte and relative file name matches
+                // the newly downloaded, checksum-verified official archive.
+                string[] fresh = Directory.GetFiles(stage, "*",
+                    SearchOption.AllDirectories)
+                    .Select(f => Path.GetRelativePath(stage, f))
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+                string[] existing = Directory.GetFiles(target, "*",
+                    SearchOption.AllDirectories)
+                    .Select(f => Path.GetRelativePath(target, f))
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+                if (!fresh.SequenceEqual(existing, StringComparer.OrdinalIgnoreCase) ||
+                    fresh.Any(relative => !Digest(Path.Combine(stage, relative))
+                        .Equals(Digest(Path.Combine(target, relative)),
+                            StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidDataException(
+                        "A version folder already exists with different or unverified files. " +
+                        "Nothing was overwritten; inspect it manually.");
+                return new Installed(expectedVersion,
+                    Path.Combine(target, ExecutableName), target, actual);
+            }
             Directory.Move(stage, target);
             return new Installed(expectedVersion, Path.Combine(target, ExecutableName),
                 target, actual);
