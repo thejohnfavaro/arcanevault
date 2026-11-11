@@ -2,6 +2,17 @@
 
 This is a **separate experimental WPF/.NET 10 application**, not a replacement for the shipping Arcane Vault executable. The shipping Windows app and its framework/version are unchanged.
 
+## Native Deck Library — AVN-028 (Windows 1.0 preparation)
+
+Choose **Open deck library** from the Arcane Vault Next main window after starting or importing a native collection. This is a native WPF editor backed by the independent SQLite workspace: **no original Windows app, browser, export or Scryfall catalog required**.
+
+- **New draft → Save deck** creates a saved deck with a name, optional commander, format, and main-deck list (`2 Sol Ring` per line). Supports Commander, Arena Brawl and 60-card deck lists as stored data, but does **not** claim that a deck is legal or that its cards are owned.
+- **Edit selected** loads one exact saved deck and its card quantities. Changes create a new revision snapshot inside that deck, preserving its older revisions. Existing legacy deck IDs, folder, tags, favorite state, Arena ID, cover art and unknown metadata are preserved; unchanged card rows retain their extra annotations.
+- **Duplicate** makes an independent deck copy with a new ID and no old revision history. **Delete** removes only the explicitly selected saved deck from the active library after confirmation.
+- Every successful create, update, duplicate or delete also preserves the **complete previous native SQLite workspace** in a unique recovery file (all physical/Arena ownership, decks, art and preferences). Use **Restore native recovery** to undo even a deletion. Stale selection and workspace checksum mismatches fail without saving.
+- The editor supports one card per line with an integer quantity followed by an exact card name; split cards such as `2 Fire // Ice` work. Duplicate names within a deck are rejected rather than silently merged. Existing legacy deck revisions and unknown fields are not discarded.
+- **Current limitations:** this is deck *storage and authoring*, not yet format-specific rules/commander color-identity verification, ownership availability calculations, automated deck imports, a drag-and-drop deckbuilder, match statistics or Android sync. Those remain acceptance/feature-parity work before 1.0.
+
 ## Built-in Scryfall catalog download and refresh — AVN-027
 
 Use **Download / update Scryfall catalog** on the Arcane Vault Next main window. This feature requires an internet connection, but **does not require the old Arcane Vault application, an existing Scryfall database, a JSON backup, or WebView2**.
@@ -22,7 +33,7 @@ You can now create a native workspace using **Start fresh collection**, then man
 - **Arena Collection → Edit / remove selected Arena card:** select one exact row, change its name and/or absolute quantity, or set quantity to **0** to remove it. Imported duplicate Arena names cannot be silently combined; an exact selected row can still be edited.
 - **Every successful edit** uses a version-checked, staged SQLite replacement and preserves the *entire previous native workspace* in a separately named recovery file. Choose **Restore native recovery** in the main window to undo. A stale selection, invalid quantity, ambiguous duplicate, or failed validation is rejected without updating the collection.
 
-After an edit, the viewer reloads physical/Arena totals, Card Details and Set Progress from the saved native collection. Existing deck library, revisions, artwork choices, annotations, unknown backup keys, legacy app data, and local Scryfall catalog are preserved. Editing does **not** write to the old Windows app or sync to Android. **This is not yet a fully shipped replacement**: native deck editing, standalone Scryfall catalog downloading, scanning and updater/installer work remain to be completed.
+After an edit, the viewer reloads physical/Arena totals, Card Details and Set Progress from the saved native collection. Existing deck library, revisions, artwork choices, annotations, unknown backup keys, legacy app data, and local Scryfall catalog are preserved. Editing does **not** write to the old Windows app or sync to Android. **This is not yet a fully shipped replacement**: format legality validation, scanning and installer/updater work remain to be completed.
 
 ## Start a completely fresh native collection — AVN-023
 
