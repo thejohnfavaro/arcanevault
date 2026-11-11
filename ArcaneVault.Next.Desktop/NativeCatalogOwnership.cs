@@ -75,10 +75,10 @@ public sealed class NativeCatalogOwnership
     }
 
     public Counts ForPrinting(string printId, string name,
-        string setCode, string collectorNumber)
+        string setCode, string collectorNumber, bool isPaper = true)
     {
         int physical = 0;
-        if (Guid.TryParse(printId, out Guid guid) &&
+        if (isPaper && Guid.TryParse(printId, out Guid guid) &&
             physicalById.TryGetValue(guid, out var candidates))
         {
             foreach (var record in candidates)
