@@ -1088,6 +1088,20 @@ public partial class MainWindow : Window
             };
     }
 
+    // A rendering failure in Set Progress must not silently take down the entire
+    // editor. Detach the affected view without writing any collection data.
+    // The application-level dispatcher guard invokes this only for an otherwise
+    // unhandled exception while the Set Progress tab is active.
+    internal bool RecoverFromSetProgressFault()
+    {
+        if (nativeWorkspaceView?.SelectedSection != 3) return false;
+        InvalidateNativeWorkspace();
+        nativeWorkspaceRequested = false;
+        UpdateWorkspaceNavigation();
+        FilterStatus.Text = "Set Progress could not render. The view was closed; your collection is unchanged. See Diagnostics/native-crash.log.";
+        return true;
+    }
+
     private async void OnOpenNativeClicked(object sender, RoutedEventArgs e) =>
         await NavigateToNativeWorkspaceAsync(0);
 
