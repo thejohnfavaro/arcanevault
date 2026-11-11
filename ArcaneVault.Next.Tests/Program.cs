@@ -146,6 +146,7 @@ try
     await NativeScryfallCatalogSyncChecks.RunAsync(work);
     NativeDeckEditingChecks.Run(work);
     NativeDeckPreflightChecks.Run(work);
+    NativeDeckInterchangeChecks.Run(work);
     NativeExcelImportChecks.Run(work);
     NativeCsvImportChecks.Run(work);
     NativeFormatLegalityChecks.Run(work);
