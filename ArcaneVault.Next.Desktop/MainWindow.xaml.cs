@@ -29,12 +29,15 @@ public partial class MainWindow : Window
     private bool closing;
     private CancellationTokenSource? catalogSyncCancellation;
     private bool catalogSyncBusy;
+    private bool nativeUpdateBusy;
     private bool syntheticMode;
     private int modeVersion;
 
     public MainWindow()
     {
         InitializeComponent();
+        NativeVersionLabel.Text = "Native preview v" +
+            (GetType().Assembly.GetName().Version?.ToString(3) ?? "unknown");
         sampleCards = Enumerable.Range(1, 25_000).Select(i =>
             new SampleCard($"Sample Card {i:D5}", $"S{i % 60:D2}", $"#{i % 450 + 1:D3}")).ToArray();
         // A new real workspace must never appear populated with demo entries.
@@ -92,6 +95,96 @@ public partial class MainWindow : Window
 
         if (!closing && System.IO.File.Exists(NativeWorkspace.DefaultPath))
             await OpenNativeCollectionAsync();
+    }
+
+    /// <summary>
+    /// Updates only executable files, never the native workspace. The user
+    /// reviews the candidate before download and before switching versions.
+    /// The installed legacy app and old native executable remain intact.
+    /// </summary>
+    private async void OnCheckNativeUpdatesClicked(object sender, RoutedEventArgs e)
+    {
+        if (nativeUpdateBusy || closing) return;
+        nativeUpdateBusy = true;
+        CheckNativeUpdatesButton.IsEnabled = false;
+        try
+        {
+            Version current = GetType().Assembly.GetName().Version ??
+                new Version(0, 9, 0);
+            FilterStatus.Text = "Checking versioned Arcane Vault Native preview releases…";
+            var release = await NativeUpdateService.FindUpdateAsync(current);
+            if (closing) return;
+            if (release is null)
+            {
+                FilterStatus.Text = "No newer versioned native preview release is available.";
+                MessageBox.Show(this,
+                    $"Current native version: {current.ToString(3)}.\n\n" +
+                    "No newer verified native preview release was found. " +
+                    "The existing WebView app uses a separate updater.",
+                    "Native updates", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            string version = release.Version.ToString(3);
+            if (MessageBox.Show(this,
+                $"Native preview v{version} is available.\n\n" +
+                "Download the official ZIP and SHA-256 checksum from the project’s " +
+                "GitHub release. The ZIP will be verified and unpacked into a NEW " +
+                "versioned application folder; existing installed versions, " +
+                "the installed WebView app and all collection/recovery files are " +
+                "left untouched.\n\n" +
+                "This is an unsigned preview, not the certified 1.0 release. " +
+                "Install this version side-by-side?",
+                "Install native update?", MessageBoxButton.YesNo,
+                MessageBoxImage.Question) != MessageBoxResult.Yes)
+            {
+                FilterStatus.Text = "Native update canceled. No application or collection files changed.";
+                return;
+            }
+            var progress = new Progress<string>(message =>
+            {
+                if (!closing) FilterStatus.Text = message;
+            });
+            var installed = await NativeUpdateService.DownloadAndStageAsync(release,
+                progress: progress);
+            if (closing) return;
+            FilterStatus.Text = $"Native v{version} installed separately; current collection unchanged.";
+            if (MessageBox.Show(this,
+                $"Native preview v{version} is installed at:\n" +
+                installed.Directory +
+                "\n\nThe previous executable remains available. " +
+                "Your existing native collection will be opened by the new " +
+                "version AFTER this instance closes.\n\nLaunch the new version now?",
+                "Native update staged", MessageBoxButton.YesNo,
+                MessageBoxImage.Information) == MessageBoxResult.Yes)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = installed.ExecutablePath,
+                    Arguments = "--upgrade-from-pid=" + Environment.ProcessId,
+                    UseShellExecute = true,
+                    WorkingDirectory = installed.Directory
+                });
+                Application.Current.Shutdown();
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+            {
+                FilterStatus.Text = "Native update was not installed. Existing collection was not edited.";
+                MessageBox.Show(this,
+                    "Native update failed verification or installation.\n\n" +
+                    ex.Message +
+                    "\n\nYour active executable and collection were not replaced.",
+                    "Native update not applied",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            nativeUpdateBusy = false;
+            if (!closing) CheckNativeUpdatesButton.IsEnabled = true;
+        }
     }
 
     /// <summary>
