@@ -435,10 +435,15 @@
                                         BorderBrush="{StaticResource VaultAccentBorder}"
                                         BorderThickness="1" CornerRadius="12"
                                         Height="196" Margin="6,6" ClipToBounds="True">
-                                    <Grid ClipToBounds="True">
-                                        <!-- Entire tile is an art banner; image cache only loads visible rows. -->
+                                    <Grid x:Name="SetBannerSurface" ClipToBounds="True">
+                                        <!-- Lock artwork to the tile's actual viewport: cover crops excess
+                                             image area rather than expanding the card to its source ratio. -->
                                         <local:NativeCardArtImage ArtUrl="{Binding BannerArtworkUrl}"
-                                            Stretch="UniformToFill" DecodeWidth="600" Opacity="0.9"/>
+                                            Width="{Binding ActualWidth, ElementName=SetBannerSurface}"
+                                            Height="{Binding ActualHeight, ElementName=SetBannerSurface}"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Stretch="UniformToFill" DecodeWidth="600" Opacity="0.9"
+                                            IsHitTestVisible="False"/>
                                         <Border>
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
