@@ -15,12 +15,13 @@ namespace ArcaneVault.Next.Desktop;
 public partial class NativePrintingGalleryWindow : Window
 {
     private sealed record Choice(NativePrintingArtwork.Printing Printing,
-        int PhysicalOwned, bool IsPreferred)
+        int PhysicalOwned, int ArenaOwned, bool IsPreferred, bool ArenaScope)
     {
         public string Title => Printing.Title;
         public string Subtitle => Printing.Subtitle;
-        public string OwnedLabel => PhysicalOwned > 0
-            ? $"Owned ×{PhysicalOwned}" : "Not verified owned";
+        public string OwnedLabel => ArenaScope
+            ? (ArenaOwned > 0 ? "Owned on Arena (by name)" : "Not owned on Arena")
+            : (PhysicalOwned > 0 ? $"Owned ×{PhysicalOwned}" : "Not verified owned");
         public string PreferredLabel => IsPreferred ? "★ Saved artwork" : "";
     }
 
@@ -83,10 +84,10 @@ public partial class NativePrintingGalleryWindow : Window
                 }
                 var rows = gallery.Printings.Select(p =>
                 {
-                    int owned = ownership?.ForPrinting(p.Id.ToString("D"),
-                        p.Name, p.SetCode, p.CollectorNumber, p.Paper)
-                        .VerifiedPhysical ?? 0;
-                    return new Choice(p, owned, saved?.Id == p.Id);
+                    var counts = ownership?.ForPrinting(p.Id.ToString("D"),
+                        p.Name, p.SetCode, p.CollectorNumber, p.Paper);
+                    return new Choice(p, counts?.VerifiedPhysical ?? 0,
+                        counts?.Arena ?? 0, saved?.Id == p.Id, arenaOnly);
                 }).ToList();
                 return (rows, gallery.Truncated, saved, sha);
             });
