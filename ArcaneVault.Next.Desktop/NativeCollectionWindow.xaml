@@ -31,7 +31,7 @@
                         Click="OnAddPhysicalClicked" IsEnabled="False" Padding="14,8"
                         Margin="0,0,10,0"
                         Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
-                <Button x:Name="AdjustPhysicalButton" Content="Reduce / remove selected"
+                <Button x:Name="AdjustPhysicalButton" Content="Edit physical quantity"
                         Click="OnAdjustPhysicalClicked" IsEnabled="False" Padding="14,8"
                         Margin="0,0,10,0" Background="#60394A" Foreground="White"
                         BorderBrush="#966274"/>
@@ -63,7 +63,26 @@
                 </ListView>
             </TabItem>
             <TabItem Header="Arena Collection">
-                <ListView x:Name="ArenaList" MouseDoubleClick="OnDetailsClicked"
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal"
+                                Margin="8,9,8,9">
+                        <Button x:Name="AddArenaButton" Content="Add Arena card"
+                                Click="OnAddArenaClicked" IsEnabled="False"
+                                Padding="14,8" Margin="0,0,12,0"
+                                Background="#9A4E2D" Foreground="White"
+                                BorderBrush="#B97650"/>
+                        <Button x:Name="EditArenaButton" Content="Edit / remove selected Arena card"
+                                Click="OnEditArenaClicked" IsEnabled="False"
+                                Padding="14,8" Background="#60394A"
+                                Foreground="White" BorderBrush="#966274"/>
+                        <TextBlock VerticalAlignment="Center" Margin="17,0,0,0"
+                                   Foreground="#AAC4D4" Text="Arena is name-only; no printing ID required."/>
+                    </StackPanel>
+                <ListView Grid.Row="1" x:Name="ArenaList" MouseDoubleClick="OnDetailsClicked"
                           Background="#172231" Foreground="#EAF0F6"
                           VirtualizingStackPanel.IsVirtualizing="True"
                           VirtualizingStackPanel.VirtualizationMode="Recycling"
@@ -75,6 +94,7 @@
                         </GridView>
                     </ListView.View>
                 </ListView>
+                </Grid>
             </TabItem>
             <TabItem Header="Set Progress">
                 <Grid Margin="10">
