@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Arcane Vault Next — Saved deck editor" Width="795" Height="745"
         MinWidth="650" MinHeight="560" WindowStartupLocation="CenterOwner"
-        ShowInTaskbar="False" Background="#101620" Foreground="#EBF1F8">
+        ShowInTaskbar="False" Background="#0D1017" Foreground="#F0F1F6">
     <Grid Margin="22">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -15,7 +15,7 @@
         </Grid.RowDefinitions>
         <TextBlock x:Name="HeaderText" Grid.Row="0" Text="Create saved deck"
                    FontWeight="SemiBold" FontSize="24" Margin="0,0,0,12"/>
-        <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="#BDD0DF"
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="#B5B7CB"
                    Margin="0,0,0,16" Text="Save a local deck independently from ownership. The Commander field is optional for non-Commander formats. This editor does not yet verify format legality, deck size, color identity, or whether listed cards are owned."/>
         <Grid Grid.Row="2" Margin="0,0,0,14">
             <Grid.ColumnDefinitions>
@@ -28,18 +28,18 @@
             <StackPanel Grid.Column="0">
                 <TextBlock Text="Deck name" Margin="0,0,0,6"/>
                 <TextBox x:Name="DeckNameBox" Padding="10,8" FontSize="14"
-                         Background="#202C3B" Foreground="White" BorderBrush="#607589"/>
+                         Background="#202737" Foreground="White" BorderBrush="#514276"/>
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="Commander (optional)" Margin="0,0,0,6"/>
                 <TextBox x:Name="CommanderBox" Padding="10,8" FontSize="14"
-                         Background="#202C3B" Foreground="White" BorderBrush="#607589"/>
+                         Background="#202737" Foreground="White" BorderBrush="#514276"/>
             </StackPanel>
             <StackPanel Grid.Column="4">
                 <TextBlock Text="Deck format" Margin="0,0,0,6"/>
                 <ComboBox x:Name="FormatBox" IsEditable="True"
                           Padding="6,7" FontSize="13"
-                          Background="#D7E4EB" Foreground="#101620">
+                          Background="#D7E4EB" Foreground="#0D1017">
                     <ComboBoxItem Content="Commander"/>
                     <ComboBoxItem Content="Arena Brawl"/>
                     <ComboBoxItem Content="60-card"/>
@@ -53,25 +53,25 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             <TextBlock Grid.Row="0" Text="Mainboard — one card per line, e.g. 1 Sol Ring or 12 Island"
-                       Margin="0,0,0,8" Foreground="#E3B87C"/>
+                       Margin="0,0,0,8" Foreground="#E5BF79"/>
             <TextBox Grid.Row="1" x:Name="MainboardBox"
                      AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
                      VerticalScrollBarVisibility="Auto"
                      HorizontalScrollBarVisibility="Auto"
                      FontSize="14" FontFamily="Consolas"
-                     Padding="12" Background="#182638"
-                     Foreground="#F2F5FA" BorderBrush="#607589"/>
+                     Padding="12" Background="#171C28"
+                     Foreground="#F2F5FA" BorderBrush="#514276"/>
         </Grid>
         <TextBlock x:Name="StatusText" Grid.Row="4" Margin="0,13,0,13"
-                   Foreground="#B8D2DE" TextWrapping="Wrap"
+                   Foreground="#9DA9BD" TextWrapping="Wrap"
                    Text="Every successful save retains the complete previous native collection as a recovery file."/>
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Cancel" IsCancel="True"
                     Padding="18,10" Margin="0,0,12,0"
-                    Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
             <Button x:Name="SaveDeckButton" Content="Review and save deck"
                     Click="OnSaveDeckClicked" Padding="18,10"
-                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
+                    Background="#7663B3" Foreground="White" BorderBrush="#B59BFC"/>
         </StackPanel>
     </Grid>
 </Window>
