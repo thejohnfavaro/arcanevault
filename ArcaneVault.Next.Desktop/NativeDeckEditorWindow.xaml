@@ -63,19 +63,59 @@
                       ToolTip="Show this deck first in the saved library"/>
         </StackPanel>
         <Grid Grid.Row="4">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Mainboard — one card per line, e.g. 1 Sol Ring or 12 Island"
-                       Margin="0,0,0,8" Foreground="#E5BF79"/>
-            <TextBox Grid.Row="1" x:Name="MainboardBox"
-                     AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
-                     VerticalScrollBarVisibility="Auto"
-                     HorizontalScrollBarVisibility="Auto"
-                     FontSize="14" FontFamily="Consolas"
-                     Padding="12" Background="#171C28"
-                     Foreground="#F2F5FA" BorderBrush="#514276"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Mainboard — e.g. 1 Sol Ring or 12 Island"
+                           Margin="0,0,0,8" Foreground="#E5BF79"/>
+                <TextBox Grid.Row="1" x:Name="MainboardBox"
+                         AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         FontSize="14" FontFamily="Consolas"
+                         Padding="12" Background="#171C28"
+                         Foreground="#F2F5FA" BorderBrush="#514276"/>
+            </Grid>
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Add from owned cards" Foreground="#E5BF79"
+                           Margin="0,0,0,8"/>
+                <ComboBox Grid.Row="1" x:Name="OwnedPoolBox"
+                          SelectionChanged="OnOwnedPoolChanged"
+                          Background="#D7E4EB" Foreground="#0D1017"
+                          Margin="0,0,0,8">
+                    <ComboBoxItem Content="Physical collection"/>
+                    <ComboBoxItem Content="Arena collection"/>
+                </ComboBox>
+                <TextBox Grid.Row="2" x:Name="OwnedSearchBox"
+                         TextChanged="OnOwnedSearchChanged"
+                         Padding="9,7" Margin="0,0,0,8"
+                         ToolTip="Filter owned card names; shows up to 200 matches"
+                         Background="#202737" Foreground="White"
+                         BorderBrush="#514276"/>
+                <ListBox Grid.Row="3" x:Name="OwnedCardsList"
+                         DisplayMemberPath="Display"
+                         MouseDoubleClick="OnOwnedCardDoubleClicked"
+                         Background="#171C28" Foreground="#F2F5FA"
+                         BorderBrush="#514276"/>
+                <Button Grid.Row="4" Content="Add selected card (+1)"
+                        Click="OnAddOwnedClicked" Padding="10,8"
+                        Margin="0,8,0,0" Background="#202737"
+                        Foreground="White" BorderBrush="#514276"/>
+            </Grid>
         </Grid>
 
         <WrapPanel Grid.Row="5" Margin="0,10,0,0">
