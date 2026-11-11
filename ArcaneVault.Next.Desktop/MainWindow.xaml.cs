@@ -60,6 +60,7 @@ public partial class MainWindow : Window
     private async Task InitializeNativeAsync()
     {
         OpenNativeButton.IsEnabled = System.IO.File.Exists(NativeWorkspace.DefaultPath);
+        ExportFullBackupButton.IsEnabled = OpenNativeButton.IsEnabled;
         RestoreRecoveryButton.IsEnabled =
             NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
         ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
@@ -559,10 +560,101 @@ public partial class MainWindow : Window
                 MigrateLegacyButton.IsEnabled = true;
                 ImportNativeButton.IsEnabled = !nativeExists;
                 OpenNativeButton.IsEnabled = nativeExists;
+                ExportFullBackupButton.IsEnabled = nativeExists;
                 RestoreRecoveryButton.IsEnabled =
                     NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
                 CollectionBackupButton.IsEnabled = true;
             }
+        }
+    }
+
+    /// <summary>
+    /// User-controlled recovery export from the CURRENT native SQLite source.
+    /// This includes all native edits and deck versions; it does not depend
+    /// on the old Windows application or an exported legacy backup.
+    /// </summary>
+    private async void OnExportFullBackupClicked(object sender, RoutedEventArgs e)
+    {
+        if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Start or import a native collection before exporting.";
+            ExportFullBackupButton.IsEnabled = false;
+            return;
+        }
+
+        var picker = new SaveFileDialog
+        {
+            Title = "Save a complete Arcane Vault Next collection backup",
+            Filter = "Arcane Vault full backup (*.json)|*.json",
+            AddExtension = true,
+            DefaultExt = ".json",
+            OverwritePrompt = false,
+            FileName = "arcane-vault-next-full-backup-" +
+                DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".json",
+            InitialDirectory = Environment.GetFolderPath(
+                Environment.SpecialFolder.MyDocuments)
+        };
+        if (picker.ShowDialog(this) != true) return;
+
+        if (System.IO.File.Exists(picker.FileName))
+        {
+            MessageBox.Show(this,
+                "This backup filename is already in use. Choose a new name. " +
+                "Arcane Vault Next will not overwrite an existing backup.",
+                "Keep existing backup", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        if (MessageBox.Show(this,
+            "Save the complete CURRENT native collection as a portable full JSON " +
+            "backup, including physical and Arena ownership, printings, decks, " +
+            "revision history, artwork preferences and any retained legacy settings?\n\n" +
+            "The file is not encrypted; keep it in a private location. " +
+            "No installed application or native database will be changed, " +
+            "and existing backups will not be overwritten.",
+            "Confirm native full backup export", MessageBoxButton.YesNo,
+            MessageBoxImage.Information) != MessageBoxResult.Yes)
+            return;
+
+        ExportFullBackupButton.IsEnabled = false;
+        FilterStatus.Text = "Verifying current native collection and writing a complete backup…";
+        try
+        {
+            var saved = await Task.Run(() =>
+            {
+                var native = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
+                return NativeWorkspaceSafety.ExportFullBackup(
+                    NativeWorkspace.DefaultPath, picker.FileName,
+                    native.BackupSha256);
+            });
+            if (closing) return;
+            FilterStatus.Text =
+                $"Native full backup saved: {saved.PhysicalCopies:N0} physical, " +
+                $"{saved.ArenaCopies:N0} Arena copies, {saved.Decks:N0} decks.";
+            MessageBox.Show(this,
+                "A complete validated native collection backup was saved to:\n" +
+                saved.FilePath + "\n\n" +
+                $"Physical: {saved.PhysicalCopies:N0} copies\n" +
+                $"Arena: {saved.ArenaCopies:N0} copies\n" +
+                $"Decks: {saved.Decks:N0} ({saved.Revisions:N0} revisions)\n\n" +
+                "The original native database and prior backups were unchanged.",
+                "Full backup saved", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+            {
+                FilterStatus.Text = "Native full backup was not completed. Existing data is unchanged.";
+                MessageBox.Show(this,
+                    "Could not verify or write the full backup. No native data " +
+                    "was reset or overwritten.\n\n" + ex.Message,
+                    "Backup export stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            if (!closing)
+                ExportFullBackupButton.IsEnabled =
+                    System.IO.File.Exists(NativeWorkspace.DefaultPath);
         }
     }
 
@@ -695,6 +787,7 @@ public partial class MainWindow : Window
             {
                 OpenNativeButton.IsEnabled =
                     System.IO.File.Exists(NativeWorkspace.DefaultPath);
+                ExportFullBackupButton.IsEnabled = OpenNativeButton.IsEnabled;
                 ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
                 MigrateLegacyButton.IsEnabled = true;
             }
