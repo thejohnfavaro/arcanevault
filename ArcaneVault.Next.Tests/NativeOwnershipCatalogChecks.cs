@@ -50,7 +50,7 @@ internal static class NativeOwnershipCatalogChecks
                     finish = "nonfoil", scryfallId = Fourth }
             },
             deckLibrary = Array.Empty<object>(),
-            preferredArtwork = new { }
+            preferredArtwork = new Dictionary<string, string>()
         });
         var view = NativeBackupReader.Read(backup);
         var ownership = NativeCatalogOwnership.From(view);
