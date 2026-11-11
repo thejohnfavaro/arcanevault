@@ -151,6 +151,42 @@ internal static class NativeSetProgressChecks
              progress.Sets.Single(x => x.SetCode == "ZXQ").OwnedSlots == 2,
             "Arena name coverage must never change verified physical set ownership.");
 
+        // Artwork previews are catalog metadata, not evidence of ownership.
+        // Keep the original minimal-schema catalog unchanged and ensure the
+        // richer catalog can add representative set/cards art read-only.
+        string artCatalog = Path.Combine(work, "set-progress-artwork.sqlite");
+        File.Copy(catalog, artCatalog);
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = artCatalog, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString()))
+        {
+            db.Open();
+            using var update = db.CreateCommand();
+            update.CommandText = """
+                ALTER TABLE variants ADD COLUMN image TEXT NOT NULL DEFAULT '';
+                UPDATE variants SET image =
+                  'https://cards.scryfall.io/normal/front/1/1/catalog-preview.jpg'
+                WHERE setcode='ZXQ' AND collector='001';
+                """;
+            update.ExecuteNonQuery();
+        }
+        var artProgress = NativeSetProgress.Build(review, artCatalog);
+        Must(artProgress.Sets.Single(x => x.SetCode == "ZXQ").ArtworkUrl
+                 .EndsWith("/catalog-preview.jpg", StringComparison.Ordinal),
+            "Verified physical set tiles must load representative official card art.");
+        var artSlots = NativeSetProgress.LoadSetSlots(review, artCatalog, "ZXQ");
+        Must(artSlots[0].ArtworkUrl.EndsWith("/catalog-preview.jpg",
+                 StringComparison.Ordinal) && artSlots[2].ArtworkUrl == "",
+            "Set checklist must provide artwork when present and allow safe blank art.");
+        var artArena = NativeSetProgress.BuildArena(backup.ArenaCards, artCatalog);
+        Must(artArena.Sets.Single(x => x.SetCode == "ZXQ").ArtworkUrl
+                 .EndsWith("/catalog-preview.jpg", StringComparison.Ordinal),
+            "Arena set tiles should use catalog art without claiming specific owned printings.");
+        var artNames = NativeSetProgress.LoadArenaSetNames(
+            backup.ArenaCards, artCatalog, "ZXQ");
+        Must(artNames.Single(x => x.CardName == "Card A").ArtworkUrl
+                 .EndsWith("/catalog-preview.jpg", StringComparison.Ordinal),
+            "Arena name checklist should show catalog art without altering name-only ownership.");
+
         Must(sourceHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(backupFile))) &&
              catalogHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))) &&
              sourceTime == File.GetLastWriteTimeUtc(backupFile) &&
