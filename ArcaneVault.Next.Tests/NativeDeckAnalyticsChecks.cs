@@ -1,5 +1,4 @@
 using ArcaneVault.Next.Collection;
-using ArcaneVault.Next.Desktop;
 using Microsoft.Data.Sqlite;
 using System.Security.Cryptography;
 
@@ -50,7 +49,7 @@ internal static class NativeDeckAnalyticsChecks
         var standard = NativeDeckAnalytics.Analyze(entries, "Leader", "60-card", path);
         Must(standard.TotalCards == 18 && standard.Creatures == 1,
              "Non-commander deck must not include optional leader.");
-        var bars = NativeDeckAnalyticsCharts.FromReport(result);
+        var bars = NativeDeckAnalyticsSeries.FromReport(result);
         Must(bars.Curve.Count == 8 && bars.Curve[1].Count == 5 &&
              bars.Curve[7].Label == "7+" &&
              bars.Curve.All(x => x.Maximum == 5),
@@ -63,7 +62,7 @@ internal static class NativeDeckAnalyticsChecks
              bars.Types.Single(x => x.Label == "Creatures").Count == 2 &&
              bars.Types.Sum(x => x.Count) == result.KnownCards,
              "Primary card type chart must count each known copy once.");
-        var emptyCharts = NativeDeckAnalyticsCharts.FromReport(
+        var emptyCharts = NativeDeckAnalyticsSeries.FromReport(
             NativeDeckAnalytics.Analyze(Array.Empty<NativeDeckEditing.Entry>(),
                 "", "60-card", path));
         Must(emptyCharts.Curve.All(x => x.Count == 0 && x.Maximum == 1) &&
