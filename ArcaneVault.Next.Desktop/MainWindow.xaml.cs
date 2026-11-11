@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace ArcaneVault.Next.Desktop;
 
@@ -969,6 +970,15 @@ public partial class MainWindow : Window
     /// the cached card identity, never assigns the selected printing to the
     /// native physical collection, and loads art only in the detail window.
     /// </summary>
+    private void OnCatalogCardRowDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not ListView list ||
+            NativeCardRowActivation.SelectClickedRow(list, e.OriginalSource) is not
+                CatalogSnapshot.PrintingRow) return;
+        e.Handled = true;
+        OnCatalogCardDetailsClicked(sender, e);
+    }
+
     private async void OnCatalogCardDetailsClicked(object sender, RoutedEventArgs e)
     {
         var snapshot = catalogSnapshot;
