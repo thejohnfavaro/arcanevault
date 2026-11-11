@@ -525,6 +525,30 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    /// <summary>
+    /// Add CSV/XLSX Arena name-based quantities atomically with one recovery
+    /// point, retaining the complete existing physical/deck/art collection.
+    /// </summary>
+    public static Replacement AddArenaImport(string nativePath,
+        IReadOnlyList<NativeExcelCollectionImport.Row> imported,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        ArgumentNullException.ThrowIfNull(imported);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] updated = NativeArenaEditing.AddImport(
+                ReadPreservedBackup(path), imported);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "native-arena-collection-import",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static Replacement AddArenaCopies(string nativePath, string cardName,
         int quantity, string expectedCurrentBackupSha,
         CancellationToken cancellation = default)
