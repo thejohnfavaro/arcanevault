@@ -259,6 +259,19 @@ public static class NativeScryfallCatalogSync
         Set(print, "$b", Text(element, "border_color"));
         Set(print, "$rel", Text(element, "released_at"));
         Set(print, "$u", url);
+        // Scryfall daily bulk USD prices are snapshot estimates, not live quotes.
+        // Store raw decimal strings to avoid binary floating-point rounding.
+        string usd = "", foil = "", etched = "";
+        if (element.TryGetProperty("prices", out var prices) &&
+            prices.ValueKind == JsonValueKind.Object)
+        {
+            usd = Text(prices, "usd");
+            foil = Text(prices, "usd_foil");
+            etched = Text(prices, "usd_etched");
+        }
+        Set(print, "$usd", usd);
+        Set(print, "$foil", foil);
+        Set(print, "$etched", etched);
         print.ExecuteNonQuery();
         inserted++;
     }
@@ -388,7 +401,9 @@ public static class NativeScryfallCatalogSync
                           art_id TEXT NOT NULL,games TEXT NOT NULL,arena INTEGER NOT NULL,
                           digital INTEGER NOT NULL,promo INTEGER NOT NULL,
                           full_art INTEGER NOT NULL,border TEXT NOT NULL,
-                          release TEXT NOT NULL,url TEXT NOT NULL
+                          release TEXT NOT NULL,url TEXT NOT NULL,
+                          usd TEXT NOT NULL DEFAULT '',usd_foil TEXT NOT NULL DEFAULT '',
+                          usd_etched TEXT NOT NULL DEFAULT ''
                         );
                         CREATE TABLE state(key TEXT PRIMARY KEY,value TEXT NOT NULL);
                         """;
@@ -405,10 +420,12 @@ public static class NativeScryfallCatalogSync
                         """, "$n","$t","$o","$r","$mv","$c","$i","$u","$l","$ly","$s","$a");
                     using var art = Prepare(db, tx, """
                         INSERT INTO variants(print_id,name,setcode,setname,collector,rarity,
-                            image,image_back,art_id,games,arena,digital,promo,full_art,border,release,url)
-                        VALUES($id,$n,$s,$sn,$cn,$r,$i,$ib,$ai,$g,$a,$d,$p,$f,$b,$rel,$u)
+                            image,image_back,art_id,games,arena,digital,promo,full_art,border,release,url,
+                            usd,usd_foil,usd_etched)
+                        VALUES($id,$n,$s,$sn,$cn,$r,$i,$ib,$ai,$g,$a,$d,$p,$f,$b,$rel,$u,
+                            $usd,$foil,$etched)
                         """, "$id","$n","$s","$sn","$cn","$r","$i","$ib","$ai","$g",
-                             "$a","$d","$p","$f","$b","$rel","$u");
+                             "$a","$d","$p","$f","$b","$rel","$u","$usd","$foil","$etched");
                     long count = await ReadBulkAsync(bulkFile, card, art, progress, cancellation);
                     Check(count >= minimumPrintings,
                         "Bulk data contains too few printings. Existing catalog preserved.");

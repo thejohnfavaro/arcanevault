@@ -55,6 +55,7 @@ internal static class NativeScryfallCatalogSyncChecks
             legalities = new { commander = "legal", brawl = "legal" },
             color_identity = new[] { "U", "B" },
             games = games.Split(','),
+            prices = new { usd = "2.50", usd_foil = "7.25", usd_etched = (string?)null },
             digital
         });
 
@@ -139,6 +140,23 @@ internal static class NativeScryfallCatalogSyncChecks
         Must(info.Printings == 3 && info.CardNames == 2 && info.UpdatedAt == stampOne,
             "Native catalog was not re-openable and verified.");
 
+        // Source bulk prices must survive into the verified read-only native catalog
+        // without floating-point conversion or silently replacing a null quote.
+        using (var prices = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = catalog, Mode = SqliteOpenMode.ReadOnly, Pooling = false
+        }.ToString()))
+        {
+            prices.Open();
+            using var price = prices.CreateCommand();
+            price.CommandText =
+                "SELECT usd,usd_foil,usd_etched FROM variants WHERE print_id=$id";
+            price.Parameters.AddWithValue("$id", a);
+            using var priceRow = price.ExecuteReader();
+            Must(priceRow.Read() && priceRow.GetString(0) == "2.50" &&
+                 priceRow.GetString(1) == "7.25" && priceRow.GetString(2) == "",
+                "Scryfall bulk USD price strings/nulls were not stored on the exact printing.");
+        }
         var printing = NativePhysicalEditing.RequirePaperPrinting(catalog, Guid.Parse(a));
         Must(printing.Name == "Catalog Test" && printing.SetCode == "TST" &&
              printing.CollectorNumber == "1", "Catalog paper printing selection failed.");
