@@ -335,7 +335,7 @@ public static class NativeWorkspaceSafety
     public static Replacement SaveDeck(string nativePath,
         string name, string commander, string mainboard,
         NativeDeckEditing.DeckRow? selected, string expectedCurrentBackupSha,
-        CancellationToken cancellation = default)
+        CancellationToken cancellation = default, string? format = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
         lock (UpdateGate)
@@ -344,9 +344,32 @@ public static class NativeWorkspaceSafety
             string path = Path.GetFullPath(nativePath);
             CheckCurrent(path, expectedCurrentBackupSha);
             var changed = NativeDeckEditing.Save(ReadPreservedBackup(path),
-                name, commander, mainboard, selected);
+                name, commander, mainboard, selected, format);
             cancellation.ThrowIfCancellationRequested();
             return Refresh(path, changed, "native-deck-library-save",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
+    /// <summary>
+    /// Duplicate one selected deck without copying its revision history or
+    /// Arena link. Uses the same atomic SQLite swap and verified rollback.
+    /// </summary>
+    public static Replacement DuplicateDeck(string nativePath,
+        NativeDeckEditing.DeckRow selected, string expectedCurrentBackupSha,
+        CancellationToken cancellation = default)
+    {
+        ArgumentNullException.ThrowIfNull(selected);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var changed = NativeDeckEditing.Duplicate(
+                ReadPreservedBackup(path), selected);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, changed, "native-deck-library-duplicate",
                 expectedCurrentBackupSha, cancellation);
         }
     }
