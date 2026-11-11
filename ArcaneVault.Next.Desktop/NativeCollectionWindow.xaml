@@ -111,6 +111,19 @@
                                 Click="OnAdjustPhysicalClicked" IsEnabled="False"
                                 Style="{StaticResource VaultDangerButton}"
                                 Padding="14,9" Margin="0,0,12,0"/>
+                        <Button x:Name="ImportExcelButton" Content="Import Excel (.xlsx)"
+                                Click="OnImportExcelClicked" IsEnabled="False"
+                                Style="{StaticResource VaultPrimaryButton}"
+                                Padding="14,9" Margin="0,0,12,0"/>
+                        <ComboBox x:Name="PhysicalViewMode" SelectedIndex="0"
+                                  SelectionChanged="OnPhysicalViewModeChanged"
+                                  MinWidth="128" Height="36" Padding="6,4"
+                                  Background="{StaticResource VaultPanelRaised}"
+                                  Foreground="{StaticResource VaultText}"
+                                  ToolTip="Switch physical inventory between detailed and compact columns">
+                            <ComboBoxItem Content="Detailed"/>
+                            <ComboBoxItem Content="Compact"/>
+                        </ComboBox>
                         <TextBlock Text="Verified set and collector number • foil variants stay separate"
                                    Style="{StaticResource VaultMutedText}"
                                    VerticalAlignment="Center"/>
