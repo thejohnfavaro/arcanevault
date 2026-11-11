@@ -22,10 +22,12 @@ public sealed class NativeCatalogOwnership
             get
             {
                 var parts = new List<string>();
-                if (VerifiedPhysical > 0) parts.Add($"Physical {VerifiedPhysical}");
+                // Quantity remains in VerifiedPhysical; the catalog does not show per-card Physical N badges.
                 if (Arena > 0) parts.Add($"Arena {Arena}");
                 if (UnresolvedName > 0) parts.Add($"Unresolved name {UnresolvedName}");
-                return parts.Count == 0 ? "Not verified as owned" : string.Join(" · ", parts);
+                return parts.Count == 0
+                    ? (VerifiedPhysical > 0 ? "Owned" : "Not verified as owned")
+                    : string.Join(" · ", parts);
             }
         }
     }
