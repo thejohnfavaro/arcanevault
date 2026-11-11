@@ -1,104 +1,343 @@
 <Window x:Class="ArcaneVault.Next.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Arcane Vault Next — Native Workspace" Width="1080" Height="750"
-        MinWidth="780" MinHeight="520" Background="#101620" Foreground="#EBF1F8">
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Margin="0,0,0,18">
-            <TextBlock FontSize="27" FontWeight="Bold" Text="Arcane Vault Next"/>
-            <TextBlock FontSize="13" Foreground="#ADC0D1" Margin="0,4,0,0"
-                       Text="Standalone Windows collection and Scryfall catalog · Verified native editing with rollback"/>
-        </StackPanel>
-        <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
-            <Button x:Name="SyncCatalogButton" Content="Download / update Scryfall catalog"
-                    Click="OnSyncCatalogClicked" Padding="12,9" Margin="0,0,12,0"
-                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
-            <Button x:Name="CancelCatalogButton" Content="Cancel Scryfall sync"
-                    Click="OnCancelCatalogClicked" IsEnabled="False"
-                    Padding="12,9" Margin="0,0,12,0"
-                    Background="#60394A" Foreground="White" BorderBrush="#966274"/>
-            <Button x:Name="OpenCatalogButton" Content="Open a read-only catalog snapshot"
-                    Click="OnOpenCatalogClicked" Padding="12,9" Margin="0,0,12,0"
-                    Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
-            <Button x:Name="SyntheticButton" Content="Use 25,000 synthetic cards"
-                    Click="OnSyntheticClicked" Visibility="Collapsed" Padding="12,9"
-                    Background="#283F55" Foreground="White" BorderBrush="#65778B" Margin="0,0,12,0"/>
-            <Button x:Name="SaveNativeCatalogButton" Content="Keep catalog natively"
-                    Click="OnSaveNativeCatalogClicked" Padding="12,9" Margin="0,0,12,0"
-                    IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
-            <Button x:Name="MigrateLegacyButton" Content="Inspect / refresh installed data"
-                    Click="OnMigrateLegacyClicked" Padding="12,9" Margin="0,0,12,0"
-                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
-            <Button x:Name="ImportNativeButton" Content="Import backup once"
-                    Click="OnImportNativeClicked" Padding="12,9" Margin="0,0,12,0"
-                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
-            <Button x:Name="OpenNativeButton" Content="Open native collection"
-                    Click="OnOpenNativeClicked" Padding="12,9" Margin="0,0,12,0"
-                    IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
-            <Button x:Name="RestoreRecoveryButton" Content="Restore native recovery"
-                    Click="OnRestoreRecoveryClicked" Padding="12,9" Margin="0,0,12,0"
-                    IsEnabled="False" Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
-            <Button x:Name="ExportFullBackupButton" Content="Export native full backup"
-                    Click="OnExportFullBackupClicked" Padding="12,9" Margin="0,0,12,0"
-                    IsEnabled="False" Background="#283F55"
-                    Foreground="White" BorderBrush="#65778B"/>
-            <Button x:Name="StartFreshButton" Content="Start fresh collection"
-                    Click="OnStartFreshClicked" Padding="12,9" Margin="0,0,12,0"
-                    Background="#633848" Foreground="White" BorderBrush="#9E667A"/>
-            <Button x:Name="CollectionBackupButton" Content="Preview external backup"
-                    Click="OnCollectionBackupClicked" Padding="12,9" Margin="0,0,12,0"
-                    Background="#283F55" Foreground="White" BorderBrush="#65778B"/>
-            <!-- EDH Lab feature preserved but hidden until Windows core parity passes. -->
-            <Button x:Name="EdhLabButton" Content="EDH Lab — Commanders"
-                    Click="OnEdhLabClicked" Visibility="Collapsed" Padding="12,9" IsEnabled="False"
-                    Background="#9A4E2D" Foreground="White" BorderBrush="#B97650"/>
-        </WrapPanel>
-        <DockPanel Grid.Row="2" Margin="0,0,0,12">
-            <TextBlock DockPanel.Dock="Right" x:Name="FilterStatus" TextAlignment="Right"
-                       Width="340" VerticalAlignment="Center" Foreground="#B5CCD7"
-                       Text="25,000 synthetic rows"/>
-            <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged"
-                     ToolTip="Catalog mode performs bounded name-prefix searches, max 200 printings"
-                     Padding="12,9" FontSize="15" Background="#202C3B" Foreground="White"
-                     BorderBrush="#516174"/>
-        </DockPanel>
-        <ListView Grid.Row="3" x:Name="CardsList"
-                  Background="#17202D" Foreground="#EAF0F6" BorderBrush="#405063"
-                  ScrollViewer.CanContentScroll="True"
-                  VirtualizingStackPanel.IsVirtualizing="True"
-                  VirtualizingStackPanel.VirtualizationMode="Recycling">
-            <ListView.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <VirtualizingStackPanel/>
-                </ItemsPanelTemplate>
-            </ListView.ItemsPanel>
-            <ListView.ItemTemplate>
-                <DataTemplate>
-                    <Grid Margin="5,7">
+        Title="Arcane Vault — Native Windows" Width="1330" Height="850"
+        MinWidth="965" MinHeight="655"
+        Background="{StaticResource VaultBackground}"
+        Foreground="{StaticResource VaultText}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="264"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- The original WebView application's compact, grouped left navigation.
+             All commands keep their existing event handlers and confirmation flow. -->
+        <Border Grid.Column="0" Background="{StaticResource VaultSidebar}"
+                BorderBrush="{StaticResource VaultLine}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="15,22,15,18">
+                <Border DockPanel.Dock="Bottom"
+                        Background="{StaticResource VaultPanel}"
+                        BorderBrush="{StaticResource VaultLine}" BorderThickness="1"
+                        CornerRadius="12" Padding="13" Margin="2,18,2,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource VaultEyebrow}"
+                                   Text="PRIVATE BY DESIGN"/>
+                        <TextBlock Style="{StaticResource VaultMutedText}"
+                                   Margin="0,7,0,0"
+                                   Text="Your inventory, deck library and recovery points stay in the native Windows workspace."/>
+                        <Border Margin="0,12,0,0" BorderBrush="{StaticResource VaultLine}"
+                                BorderThickness="0,1,0,0" Padding="0,10,0,0">
+                            <TextBlock Foreground="{StaticResource VaultGood}"
+                                       FontSize="11" Text="●  LOCAL DATABASE"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="3,0,0,28">
+                            <Border Width="43" Height="43" CornerRadius="11"
+                                    Background="{StaticResource VaultAccentSurface}"
+                                    BorderBrush="{StaticResource VaultAccentBorder}"
+                                    BorderThickness="1" Margin="0,0,10,0">
+                                <TextBlock Text="✦" FontSize="27"
+                                           Foreground="{StaticResource VaultAccent}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock FontSize="21" FontWeight="Bold">
+                                    <Run Text="ARCANE "/><Run Text="VAULT"
+                                            Foreground="{StaticResource VaultAccent}"/>
+                                </TextBlock>
+                                <TextBlock Text="Windows · native edition"
+                                           Style="{StaticResource VaultMutedText}"
+                                           Margin="0,1,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock Text="COLLECTION" Style="{StaticResource VaultEyebrow}"
+                                   Margin="10,0,0,10"/>
+                        <Button x:Name="OpenNativeButton"
+                                Content="▣   My Collection"
+                                Click="OnOpenNativeClicked" IsEnabled="False"
+                                Style="{StaticResource VaultNavPrimary}"
+                                ToolTip="Open physical inventory, Arena ownership, saved decks and Set Progress"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="StartFreshButton"
+                                Content="＋   Start Fresh Collection"
+                                Click="OnStartFreshClicked"
+                                Style="{StaticResource VaultNavButton}"
+                                ToolTip="Start with zero ownership; keep a recovery point if a collection exists"
+                                Margin="0,0,0,5"/>
+
+                        <Border BorderBrush="{StaticResource VaultLine}" BorderThickness="0,1,0,0"
+                                Margin="8,17,8,19"/>
+                        <TextBlock Text="CARD DATABASE" Style="{StaticResource VaultEyebrow}"
+                                   Margin="10,0,0,10"/>
+                        <Button x:Name="SyncCatalogButton"
+                                Content="⟳   Sync Scryfall Catalog"
+                                Click="OnSyncCatalogClicked"
+                                Style="{StaticResource VaultNavPrimary}"
+                                ToolTip="Download or refresh official Scryfall bulk printing data"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="CancelCatalogButton"
+                                Content="×   Cancel Catalog Sync"
+                                Click="OnCancelCatalogClicked" IsEnabled="False"
+                                Style="{StaticResource VaultDangerButton}"
+                                Margin="0,0,0,6"/>
+                        <Button x:Name="OpenCatalogButton"
+                                Content="◫   Open Local Catalog"
+                                Click="OnOpenCatalogClicked"
+                                Style="{StaticResource VaultNavButton}"
+                                ToolTip="Open an existing catalog using a private SQLite snapshot"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="SaveNativeCatalogButton"
+                                Content="↓   Keep Catalog Natively"
+                                Click="OnSaveNativeCatalogClicked" IsEnabled="False"
+                                Style="{StaticResource VaultNavButton}"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="SyntheticButton" Visibility="Collapsed"
+                                Content="Use synthetic cards"
+                                Click="OnSyntheticClicked"
+                                Style="{StaticResource VaultNavButton}"/>
+
+                        <Border BorderBrush="{StaticResource VaultLine}" BorderThickness="0,1,0,0"
+                                Margin="8,17,8,19"/>
+                        <TextBlock Text="DATA &amp; SYNC" Style="{StaticResource VaultEyebrow}"
+                                   Margin="10,0,0,10"/>
+                        <Button x:Name="MigrateLegacyButton"
+                                Content="⇄   Inspect / Refresh Old Data"
+                                Click="OnMigrateLegacyClicked"
+                                Style="{StaticResource VaultNavButton}"
+                                ToolTip="Import or compare against the installed legacy app without altering its data"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="ImportNativeButton"
+                                Content="↓   Import Full Backup"
+                                Click="OnImportNativeClicked"
+                                Style="{StaticResource VaultNavButton}"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="ExportFullBackupButton"
+                                Content="↑   Export Full Backup"
+                                Click="OnExportFullBackupClicked" IsEnabled="False"
+                                Style="{StaticResource VaultNavButton}"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="RestoreRecoveryButton"
+                                Content="↶   Restore Recovery Point"
+                                Click="OnRestoreRecoveryClicked" IsEnabled="False"
+                                Style="{StaticResource VaultNavButton}"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="CollectionBackupButton"
+                                Content="◷   Preview External Backup"
+                                Click="OnCollectionBackupClicked"
+                                Style="{StaticResource VaultNavButton}"
+                                Margin="0,0,0,5"/>
+                        <Button x:Name="EdhLabButton"
+                                Content="EDH Lab — Commanders" Visibility="Collapsed"
+                                Click="OnEdhLabClicked" IsEnabled="False"
+                                Style="{StaticResource VaultNavButton}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Column="1" Margin="27,23,27,18">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,21">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="THE ARCHIVE" Style="{StaticResource VaultEyebrow}"
+                               Margin="0,0,0,7"/>
+                    <TextBlock Text="Card Catalog" FontSize="31"
+                               FontWeight="Bold" Foreground="{StaticResource VaultText}"/>
+                    <TextBlock Text="Find cards, explore printings, and manage your own vault."
+                               Style="{StaticResource VaultMutedText}" Margin="0,5,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="1" Background="{StaticResource VaultAccentSurface}"
+                        BorderBrush="{StaticResource VaultAccentBorder}" BorderThickness="1"
+                        CornerRadius="18" Padding="13,7"
+                        VerticalAlignment="Top" Margin="10,6,0,0">
+                    <TextBlock Text="●  NATIVE WINDOWS PREVIEW"
+                               FontSize="10.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource VaultAccent}"/>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="1" CornerRadius="15" Padding="24,20"
+                    BorderBrush="{StaticResource VaultAccentBorder}"
+                    BorderThickness="1" Margin="0,0,0,20">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.9">
+                        <GradientStop Color="#302748" Offset="0"/>
+                        <GradientStop Color="#201E34" Offset="0.55"/>
+                        <GradientStop Color="#171C28" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="YOUR COLLECTION. YOUR RULES."
+                                   Foreground="#D0BBFF" FontSize="11"
+                                   FontWeight="Bold" Margin="0,0,0,8"/>
+                        <TextBlock Text="Every printing tells a story."
+                                   FontSize="21" FontWeight="SemiBold"
+                                   Foreground="White"/>
+                        <TextBlock Text="A complete local collection, with exact editions and recoverable edits."
+                                   Style="{StaticResource VaultMutedText}"
+                                   Margin="0,7,0,0"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="✦"
+                               FontSize="72" Margin="24,-12,0,-10"
+                               Foreground="#625283" Opacity="0.82"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Style="{StaticResource VaultPanelCard}"
+                    Margin="0,0,0,15" Padding="17,13">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="275"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,18,0">
+                        <TextBlock Text="SEARCH PRINTINGS"
+                                   Style="{StaticResource VaultEyebrow}"
+                                   Margin="0,0,0,7"/>
+                        <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged"
+                                 ToolTip="Search catalog names by prefix, with up to 200 printings per query"
+                                 FontSize="15" Height="42"
+                                 Padding="14,10"
+                                 Background="{StaticResource VaultPanelRaised}"
+                                 Foreground="{StaticResource VaultText}"
+                                 BorderBrush="{StaticResource VaultLine}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="CATALOG STATUS" Style="{StaticResource VaultEyebrow}"
+                                   Margin="0,0,0,5"/>
+                        <TextBlock x:Name="FilterStatus"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   TextWrapping="Wrap" FontSize="12"
+                                   Text="No catalog loaded"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="3"
+                    Background="{StaticResource VaultPanel}"
+                    BorderBrush="{StaticResource VaultLine}"
+                    BorderThickness="1" CornerRadius="14"
+                    ClipToBounds="True">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Background="{StaticResource VaultPanelRaised}"
+                          Height="45">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="90"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="126"/>
+                            <ColumnDefinition Width="116"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding CollectorNumber}" Grid.Column="0"
-                                   Foreground="#A3C2D0"/>
-                        <TextBlock Text="{Binding Name}" Grid.Column="1"
-                                   FontWeight="Medium"/>
-                        <TextBlock Text="{Binding SetCode}" Grid.Column="2"
-                                   Foreground="#B8C7D6"/>
+                        <TextBlock Text="CARD NAME" Grid.Column="0"
+                                   Style="{StaticResource VaultEyebrow}"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   Margin="18,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="SET" Grid.Column="1"
+                                   Style="{StaticResource VaultEyebrow}"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="COLLECTOR #" Grid.Column="2"
+                                   Style="{StaticResource VaultEyebrow}"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   VerticalAlignment="Center"/>
                     </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
-        <TextBlock Grid.Row="4" x:Name="ModeStatus" Margin="0,12,0,0"
-                   Foreground="#A8BACA" FontSize="12"
-                   Text="No native workspace imported. Start fresh, import an existing backup, or migrate an installed collection. The old app remains untouched."/>
+                    <ListView Grid.Row="1" x:Name="CardsList"
+                              Background="{StaticResource VaultPanel}"
+                              BorderThickness="0"
+                              ScrollViewer.CanContentScroll="True"
+                              VirtualizingStackPanel.IsVirtualizing="True"
+                              VirtualizingStackPanel.VirtualizationMode="Recycling"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel/>
+                            </ItemsPanelTemplate>
+                        </ListView.ItemsPanel>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="3,2" Padding="12,12"
+                                        CornerRadius="8" BorderThickness="0,0,0,1"
+                                        BorderBrush="{StaticResource VaultLine}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="126"/>
+                                            <ColumnDefinition Width="104"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="14" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource VaultText}"
+                                                   VerticalAlignment="Center"/>
+                                        <Border Grid.Column="1" CornerRadius="11"
+                                                HorizontalAlignment="Left"
+                                                Padding="10,5"
+                                                Background="{StaticResource VaultAccentSurface}"
+                                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                                BorderThickness="1">
+                                            <TextBlock Text="{Binding SetCode}" FontSize="11"
+                                                       Foreground="{StaticResource VaultAccent}"
+                                                       FontWeight="SemiBold"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding CollectorNumber}"
+                                                   Grid.Column="2"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="12"
+                                                   Foreground="{StaticResource VaultMuted}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="4" Margin="0,14,0,0"
+                    BorderBrush="{StaticResource VaultLine}"
+                    BorderThickness="0,1,0,0" Padding="4,11,4,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="●  WORKSPACE" Foreground="{StaticResource VaultGood}"
+                               FontWeight="SemiBold" FontSize="11"
+                               Margin="0,0,20,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" x:Name="ModeStatus"
+                               Foreground="{StaticResource VaultMuted}"
+                               FontSize="11.5" TextWrapping="Wrap"
+                               VerticalAlignment="Center"
+                               Text="A new vault can start empty, then add physical and Arena cards using the native collection."/>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
