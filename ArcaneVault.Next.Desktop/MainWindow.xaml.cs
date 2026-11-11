@@ -25,6 +25,7 @@ public partial class MainWindow : Window
 
     private readonly IReadOnlyList<SampleCard> sampleCards;
     private CatalogSnapshot? catalogSnapshot;
+    private NativeCatalogOwnership? catalogOwnership;
     private CommanderBrowserWindow? edhLabWindow;
     private NativeCollectionWindow? collectionWindow;
     private CancellationTokenSource? searchCancellation;
@@ -905,7 +906,9 @@ public partial class MainWindow : Window
         }
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
         {
+            catalogOwnership = null;
             FilterStatus.Text = "No native collection yet. Choose Import backup once.";
+            _ = FilterAsync();
             return;
         }
         var activeCatalog = catalogSnapshot;
@@ -927,6 +930,8 @@ public partial class MainWindow : Window
             if (closing || version != modeVersion ||
                 !ReferenceEquals(activeCatalog, catalogSnapshot)) return;
 
+            catalogOwnership = NativeCatalogOwnership.From(bundle.workspace.Collection);
+            _ = FilterAsync(); // reflect new edits/restores/CSV imports in catalog owned status
             var view = new NativeCollectionWindow(bundle.workspace.Collection,
                 bundle.verification, activeCatalog?.ReadOnlySnapshotPath,
                 bundle.progress, nativeWorkspace: true,
@@ -1005,7 +1010,13 @@ public partial class MainWindow : Window
             !ReferenceEquals(snapshot, catalogSnapshot)) return;
         var dialog = new NativeCardDetailsWindow(selected.Name,
             $"Catalog: {selected.SetCode} #{selected.CollectorNumber}. " +
-            "This browsing result is not automatically marked owned.", info)
+            (catalogOwnership is null
+                ? "No native collection loaded; ownership unknown."
+                : selected.PhysicalOwned > 0 || selected.ArenaOwned > 0
+                    ? $"Verified physical copies: {selected.PhysicalOwned}; Arena name-owned: {selected.ArenaOwned}. " +
+                      $"Unresolved physical copies by this name: {selected.UnresolvedName}."
+                    : $"Exact printing not verified owned; Arena copies: {selected.ArenaOwned}. " +
+                      $"Unresolved physical copies by this name: {selected.UnresolvedName}."), info)
         { Owner = this };
         dialog.Show();
     }
@@ -1266,7 +1277,9 @@ public partial class MainWindow : Window
             (CatalogSnapshot.ColorMatching)Math.Clamp(
                 ColorMatchBox?.SelectedIndex ?? 0, 0, 2),
             ColorlessOnlyBox?.IsChecked == true,
-            ArenaOnlyBox?.IsChecked == true);
+            ArenaOnlyBox?.IsChecked == true,
+            (CatalogSnapshot.OwnershipMode)Math.Clamp(
+                OwnershipFilterBox?.SelectedIndex ?? 0, 0, 4));
     }
 
     private async Task FilterAsync()
@@ -1277,6 +1290,7 @@ public partial class MainWindow : Window
         var token = cts.Token;
         var filter = SearchBox.Text.Trim();
         var filters = SelectedCatalogFilters();
+        var ownership = catalogOwnership;
         var active = catalogSnapshot;
         var version = modeVersion;
         try
@@ -1306,12 +1320,16 @@ public partial class MainWindow : Window
             else
             {
                 var results = await Task.Run(() =>
-                    active.SearchFiltered(filter, filters, cancellationToken: token), token);
+                    active.SearchFiltered(filter, filters, cancellationToken: token,
+                        ownership: ownership), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
                 CardsList.ItemsSource = results.Rows;
                 FilterStatus.Text = $"{results.Rows.Count:N0} printings · SQL {results.SqlMilliseconds:F1} ms" +
-                    (results.MayHaveMore ? " · First 200" : "");
+                    (results.MayHaveMore ? " · First 200 matching results" : "") +
+                    (ownership is not null
+                        ? " · Physical by verified printing ID; Arena by card name"
+                        : " · No native ownership loaded");
             }
         }
         catch (OperationCanceledException) { }
