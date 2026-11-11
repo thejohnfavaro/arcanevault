@@ -135,6 +135,15 @@
                                 Click="OnCollectionBackupClicked"
                                 Style="{StaticResource VaultNavButton}"
                                 Margin="0,0,0,5"/>
+                        <Button x:Name="CheckNativeUpdatesButton"
+                                Content="⬆   Check Native Updates"
+                                Click="OnCheckNativeUpdatesClicked"
+                                Style="{StaticResource VaultNavPrimary}"
+                                ToolTip="Find a newer native preview release, verify its checksum, and install side-by-side"
+                                Margin="0,12,0,5"/>
+                        <TextBlock x:Name="NativeVersionLabel" 
+                                   Style="{StaticResource VaultMutedText}"
+                                   Text="Native preview version" Margin="10,2,0,5"/>
                         <Button x:Name="EdhLabButton"
                                 Content="EDH Lab — Commanders" Visibility="Collapsed"
                                 Click="OnEdhLabClicked" IsEnabled="False"

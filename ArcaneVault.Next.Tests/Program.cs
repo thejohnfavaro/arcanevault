@@ -146,6 +146,7 @@ try
     await NativeScryfallCatalogSyncChecks.RunAsync(work);
     NativeDeckEditingChecks.Run(work);
     NativeDeckPreflightChecks.Run(work);
+    NativeUpdateChecks.Run(work);
     NativeFullBackupExportChecks.Run(work);
     NativeVisualShellChecks.Run();
     LegacyStorageImportChecks.Run(work);
