@@ -18,6 +18,7 @@ public partial class NativeDeckEditorWindow : Window
         this.expectedSha = expectedSha;
         original = selected;
         InitializeComponent();
+        FormatBox.Text = selected?.Format ?? "60-card";
         if (selected is not null)
         {
             HeaderText.Text = "Edit saved deck";
@@ -35,6 +36,7 @@ public partial class NativeDeckEditorWindow : Window
         if (busy) return;
         string name = DeckNameBox.Text.Trim();
         string commander = CommanderBox.Text.Trim();
+        string format = FormatBox.Text.Trim();
         string mainboard = MainboardBox.Text;
         IReadOnlyList<NativeDeckEditing.Entry> entries;
         try
@@ -42,7 +44,8 @@ public partial class NativeDeckEditorWindow : Window
             // Validate locally before asking the user to confirm the edit.
             entries = NativeDeckEditing.ParseMainboard(mainboard);
             if (name.Length is < 1 or > 120 || name.Any(char.IsControl) ||
-                commander.Length > 255 || commander.Any(char.IsControl))
+                commander.Length > 255 || commander.Any(char.IsControl) ||
+                format.Length is < 1 or > 60 || format.Any(char.IsControl))
                 throw new InvalidDataException("Invalid deck or commander name.");
         }
         catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
@@ -54,7 +57,7 @@ public partial class NativeDeckEditorWindow : Window
         int copies = entries.Sum(entry => entry.Quantity);
         string action = original is null ? "CREATE" : "UPDATE";
         if (MessageBox.Show(this,
-            $"{action} \"{name}\" with {copies:N0} mainboard copies across " +
+            $"{action} \"{name}\" ({format}) with {copies:N0} mainboard copies across " +
             $"{entries.Count:N0} distinct card names" +
             (commander.Length > 0 ? $", Commander: {commander}" : ", no commander") +
             "?\n\nThis only changes the saved Deck Library. Physical/Arena ownership " +
@@ -71,7 +74,7 @@ public partial class NativeDeckEditorWindow : Window
         {
             var saved = await Task.Run(() =>
                 NativeWorkspaceSafety.SaveDeck(nativePath, name, commander,
-                    mainboard, original, expectedSha));
+                    mainboard, original, expectedSha, format: format));
             MessageBox.Show(this,
                 $"Deck saved. Library now contains {saved.Current.Collection.Decks:N0} decks " +
                 $"and {saved.Current.Collection.DeckRevisions:N0} revisions.\n\n" +
