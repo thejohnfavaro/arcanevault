@@ -30,12 +30,16 @@ public partial class MainWindow : Window
     private CancellationTokenSource? catalogSyncCancellation;
     private bool catalogSyncBusy;
     private bool nativeUpdateBusy;
+    private DataTemplate? catalogDetailedTemplate;
+    private ItemsPanelTemplate? catalogDetailedPanel;
     private bool syntheticMode;
     private int modeVersion;
 
     public MainWindow()
     {
         InitializeComponent();
+        catalogDetailedTemplate = CardsList.ItemTemplate;
+        catalogDetailedPanel = CardsList.ItemsPanel;
         NativeVersionLabel.Text = "Native preview v" +
             (GetType().Assembly.GetName().Version?.ToString(3) ?? "unknown");
         sampleCards = Enumerable.Range(1, 25_000).Select(i =>
@@ -993,6 +997,28 @@ public partial class MainWindow : Window
             "This browsing result is not automatically marked owned.", info)
         { Owner = this };
         dialog.Show();
+    }
+
+    private void OnCatalogViewModeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (CardsList is null || CatalogColumnHeaders is null ||
+            catalogDetailedTemplate is null || catalogDetailedPanel is null) return;
+        object? selectedPrinting = CardsList.SelectedItem;
+        int mode = CatalogViewMode.SelectedIndex;
+        CardsList.ItemsPanel = mode == 2
+            ? (ItemsPanelTemplate)FindResource("CatalogTilePanel")
+            : catalogDetailedPanel;
+        CardsList.ItemTemplate = mode switch
+        {
+            1 => (DataTemplate)FindResource("CatalogCompactTemplate"),
+            2 => (DataTemplate)FindResource("CatalogTileTemplate"),
+            _ => catalogDetailedTemplate
+        };
+        CatalogColumnHeaders.Visibility = mode == 2
+            ? Visibility.Collapsed : Visibility.Visible;
+        CardsList.SelectedItem = selectedPrinting;
+        // Tile mode intentionally renders only the bounded <=200 search matches.
+        // No image network requests occur until user explicitly opens card details.
     }
 
     private void CancelPendingSearch()

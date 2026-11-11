@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using Microsoft.Win32;
 using System.IO;
 using ArcaneVault.Next.Domain;
 using System.Windows;
@@ -23,6 +24,8 @@ public partial class NativeCollectionWindow : Window
     private readonly Func<Task>? reopenNative;
     private readonly IReadOnlyList<NativeDeckEditing.DeckRow> deckRows;
     private bool deckBusy;
+    private GridView? physicalDetailedView;
+    private bool excelBusy;
 
     public NativeCollectionWindow(NativeBackupView backup,
         CollectionCatalogReview.Result review, string? catalogPath,
@@ -40,6 +43,7 @@ public partial class NativeCollectionWindow : Window
         this.reopenNative = reopenNative;
         deckRows = nativeDecks ?? Array.Empty<NativeDeckEditing.DeckRow>();
         InitializeComponent();
+        physicalDetailedView = PhysicalList.View as GridView;
         DeckLibraryList.ItemsSource = deckRows;
         AddDeckButton.IsEnabled = nativeWorkspace &&
             !string.IsNullOrWhiteSpace(nativePath) &&
@@ -53,6 +57,9 @@ public partial class NativeCollectionWindow : Window
             !string.IsNullOrWhiteSpace(expectedBackupSha) &&
             !string.IsNullOrWhiteSpace(catalogPath);
         AdjustPhysicalButton.IsEnabled = nativeWorkspace &&
+            !string.IsNullOrWhiteSpace(nativePath) &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha);
+        ImportExcelButton.IsEnabled = nativeWorkspace &&
             !string.IsNullOrWhiteSpace(nativePath) &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
         AddArenaButton.IsEnabled = nativeWorkspace &&
@@ -105,6 +112,107 @@ public partial class NativeCollectionWindow : Window
         StatusText.Text = $"{physical.Length:N0} physical lines and {arena.Length:N0} Arena names shown. " +
             "Double-click a card for offline details. Arena ownership has no printing IDs. " +
             "Set Progress counts only verified paper collector-number slots; missing/invalid print IDs never count.";
+    }
+
+    private void OnPhysicalViewModeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PhysicalList is null || physicalDetailedView is null ||
+            PhysicalViewMode is null) return;
+        object? selected = PhysicalList.SelectedItem;
+        if (PhysicalViewMode.SelectedIndex == 1)
+        {
+            var compact = new GridView();
+            compact.Columns.Add(new GridViewColumn
+            { Header = "Card", Width = 325, DisplayMemberBinding = new System.Windows.Data.Binding("Name") });
+            compact.Columns.Add(new GridViewColumn
+            { Header = "Qty", Width = 55, DisplayMemberBinding = new System.Windows.Data.Binding("Quantity") });
+            compact.Columns.Add(new GridViewColumn
+            { Header = "Set / #", Width = 115, DisplayMemberBinding = new System.Windows.Data.Binding("SetAndNumber") });
+            PhysicalList.View = compact;
+        }
+        else PhysicalList.View = physicalDetailedView;
+        PhysicalList.SelectedItem = selected;
+    }
+
+    private async void OnImportExcelClicked(object sender, RoutedEventArgs e)
+    {
+        if (excelBusy || closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha)) return;
+        var picker = new OpenFileDialog
+        {
+            Title = "Import physical MTG collection quantities from Excel",
+            Filter = "Excel workbooks (*.xlsx)|*.xlsx",
+            CheckFileExists = true,
+            Multiselect = false,
+            InitialDirectory = Environment.GetFolderPath(
+                Environment.SpecialFolder.MyDocuments)
+        };
+        if (picker.ShowDialog(this) != true) return;
+        excelBusy = true;
+        ImportExcelButton.IsEnabled = false;
+        StatusText.Text = "Reading Excel workbook and verifying exact paper printings…";
+        try
+        {
+            var (rows, preview) = await Task.Run(() =>
+            {
+                var source = NativeExcelCollectionImport.Read(picker.FileName);
+                var summary = NativeExcelCollectionImport.Prepare(source, catalogPath);
+                return (source, summary);
+            });
+            if (closing) return;
+            var sample = preview.Items.Where(x => !x.Verified).Take(8)
+                .Select(x => $"Excel row {x.Source.SpreadsheetRow}: {x.Name} — {x.Status}");
+            string details = string.Join("\n", sample);
+            string prompt =
+                $"Excel file: {System.IO.Path.GetFileName(picker.FileName)}\n" +
+                $"{preview.Items.Count:N0} rows, {preview.Copies:N0} copies\n" +
+                $"Catalog-verified: {preview.VerifiedRows:N0} rows / {preview.VerifiedCopies:N0} copies\n" +
+                $"Unresolved: {preview.UnresolvedRows:N0} rows / {preview.UnresolvedCopies:N0} copies\n\n" +
+                (details.Length > 0 ? details + "\n\n" : "") +
+                "This ADDs quantities to the current physical collection. " +
+                "It does NOT replace, remove, or synchronize any existing inventory. " +
+                "Reimporting the same workbook will ADD the same quantities again.\n\n" +
+                "Unresolved rows remain visible but do not count toward verified Set Progress. " +
+                "Missing finish is preserved as unspecified, never guessed as foil/nonfoil.\n\n" +
+                "The complete previous native collection will be saved as a recovery point. " +
+                "Add these Excel quantities now?";
+            if (MessageBox.Show(this, prompt, "Review Excel collection import",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                StatusText.Text = "Excel import canceled; existing collection unchanged.";
+                return;
+            }
+
+            StatusText.Text = "Importing Excel quantities into a verified native recovery transaction…";
+            var outcome = await Task.Run(() => NativeWorkspaceSafety.AddExcelPhysical(
+                nativePath, catalogPath, rows, expectedBackupSha));
+            if (closing) return;
+            MessageBox.Show(this,
+                $"Excel import completed: {preview.Copies:N0} copies added.\n\n" +
+                "The complete previous native collection is preserved here:\n" +
+                outcome.RecoveryPath,
+                "Excel collection imported", MessageBoxButton.OK, MessageBoxImage.Information);
+            Close();
+            if (reopenNative is not null) await reopenNative();
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+            {
+                StatusText.Text = "Excel import stopped: " + ex.Message;
+                MessageBox.Show(this,
+                    "Excel import could not be verified. The active collection " +
+                    "was not intentionally changed.\n\n" + ex.Message,
+                    "Excel import stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            excelBusy = false;
+            if (!closing) ImportExcelButton.IsEnabled =
+                !string.IsNullOrWhiteSpace(nativePath) &&
+                !string.IsNullOrWhiteSpace(expectedBackupSha);
+        }
     }
 
     private void OnFilterChanged(object sender, RoutedEventArgs e) => RefreshLists();

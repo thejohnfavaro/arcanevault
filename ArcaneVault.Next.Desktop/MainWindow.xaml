@@ -5,6 +5,55 @@
         MinWidth="965" MinHeight="655"
         Background="{StaticResource VaultBackground}"
         Foreground="{StaticResource VaultText}">
+    <Window.Resources>
+        <!-- All tile results are bounded to 200 offline catalog matches; never
+             launch remote art requests during list scrolling. -->
+        <DataTemplate x:Key="CatalogCompactTemplate">
+            <Grid Margin="5,1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="88"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Name}" FontSize="12" Margin="9,5"
+                           Foreground="{StaticResource VaultText}"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="1" Text="{Binding SetCode}" FontSize="11"
+                           Margin="5,5" Foreground="{StaticResource VaultAccent}"/>
+                <TextBlock Grid.Column="2" Text="{Binding CollectorNumber}" FontSize="11"
+                           Margin="5,5" Foreground="{StaticResource VaultMuted}"/>
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="CatalogTileTemplate">
+            <Border Width="172" Height="116" Margin="7" Padding="11"
+                    Background="{StaticResource VaultPanelRaised}"
+                    BorderBrush="{StaticResource VaultAccentBorder}"
+                    BorderThickness="1" CornerRadius="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                               TextWrapping="Wrap" MaxHeight="68" TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource VaultText}"/>
+                    <StackPanel Orientation="Horizontal" Grid.Row="1">
+                        <TextBlock Text="{Binding SetCode}" FontSize="11"
+                                   Foreground="{StaticResource VaultAccent}"/>
+                        <TextBlock Text="  ·  #" Foreground="{StaticResource VaultMuted}"/>
+                        <TextBlock Text="{Binding CollectorNumber}" FontSize="11"
+                                   Foreground="{StaticResource VaultMuted}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+        <ItemsPanelTemplate x:Key="CatalogVirtualPanel">
+            <VirtualizingStackPanel/>
+        </ItemsPanelTemplate>
+        <ItemsPanelTemplate x:Key="CatalogTilePanel">
+            <WrapPanel/>
+        </ItemsPanelTemplate>
+    </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="264"/>
@@ -251,6 +300,18 @@
                                 Padding="11,7" Margin="0,9,0,0"
                                 HorizontalAlignment="Left"
                                 ToolTip="View locally cached Scryfall metadata and on-demand artwork for the selected printing"/>
+                        <TextBlock Text="CATALOG VIEW" Style="{StaticResource VaultEyebrow}"
+                                   Margin="0,12,0,5"/>
+                        <ComboBox x:Name="CatalogViewMode" SelectedIndex="0"
+                                  SelectionChanged="OnCatalogViewModeChanged"
+                                  Background="{StaticResource VaultPanelRaised}"
+                                  Foreground="{StaticResource VaultText}"
+                                  Padding="6,4" Height="32"
+                                  ToolTip="Switch between detailed, dense and tile layouts">
+                            <ComboBoxItem Content="Detailed list"/>
+                            <ComboBoxItem Content="Compact list"/>
+                            <ComboBoxItem Content="Cards / tiles"/>
+                        </ComboBox>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -265,7 +326,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="{StaticResource VaultPanelRaised}"
+                    <Grid x:Name="CatalogColumnHeaders" Grid.Row="0" Background="{StaticResource VaultPanelRaised}"
                           Height="45">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
