@@ -169,8 +169,35 @@ public partial class MainWindow : Window
             }
         }
 
+        // Keep startup in Card Catalog. Only read Arena/physical ownership
+        // needed for filters; construct the full collection/deck UI lazily on
+        // sidebar navigation, never automatically at launch.
         if (!closing && System.IO.File.Exists(NativeWorkspace.DefaultPath))
-            await OpenNativeCollectionAsync();
+            await LoadNativeOwnershipForCatalogAsync();
+    }
+
+    private async Task LoadNativeOwnershipForCatalogAsync()
+    {
+        var version = modeVersion;
+        try
+        {
+            var ownership = await Task.Run(() =>
+            {
+                var workspace = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
+                return NativeCatalogOwnership.From(workspace.Collection);
+            });
+            if (closing || version != modeVersion || nativeWorkspaceRequested)
+                return;
+            catalogOwnership = ownership;
+            _ = FilterAsync();
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+                FilterStatus.Text =
+                    "Unable to load saved collection ownership for catalog filters: " +
+                    ex.Message + ". Open My Collection to inspect recovery options.";
+        }
     }
 
     /// <summary>
