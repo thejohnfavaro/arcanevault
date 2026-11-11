@@ -126,6 +126,12 @@
                                 Style="{StaticResource VaultNavPrimary}"
                                 ToolTip="Open physical inventory, Arena ownership, saved decks and Set Progress"
                                 Margin="0,0,0,5"/>
+                        <Button x:Name="MyShortlistButton"
+                                Content="☆   My Shortlist"
+                                Click="OnOpenShortlistClicked"
+                                Style="{StaticResource VaultNavButton}"
+                                ToolTip="Browse saved card bookmarks from the legacy-compatible native collection"
+                                Margin="0,0,0,5"/>
                         <Button x:Name="StartFreshButton"
                                 Content="＋   Start Fresh Collection"
                                 Click="OnStartFreshClicked"
@@ -403,6 +409,13 @@
                                 Padding="11,7" Margin="0,9,0,0"
                                 HorizontalAlignment="Left"
                                 ToolTip="View locally cached Scryfall metadata and on-demand artwork for the selected printing"/>
+                        <Button x:Name="AddShortlistButton"
+                                Content="☆  Save selected to shortlist"
+                                Click="OnAddShortlistClicked"
+                                Style="{StaticResource VaultNavButton}"
+                                Padding="10,8" Margin="0,7,0,0"
+                                HorizontalAlignment="Left"
+                                ToolTip="Bookmark this card name in your native collection; no physical or Arena ownership is added"/>
                         <TextBlock Text="CATALOG VIEW" Style="{StaticResource VaultEyebrow}"
                                    Margin="0,12,0,5"/>
                         <ComboBox x:Name="CatalogViewMode" SelectedIndex="0"
