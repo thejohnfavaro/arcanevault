@@ -47,6 +47,11 @@ public partial class NativeCollectionWorkspace : UserControl
         this.reopenNative = reopenNative;
         deckRows = nativeDecks ?? Array.Empty<NativeDeckEditing.DeckRow>();
         InitializeComponent();
+        CollectionTabs.SelectionChanged += (_, e) =>
+        {
+            if (ReferenceEquals(e.OriginalSource, CollectionTabs))
+                SectionChanged?.Invoke(CollectionTabs.SelectedIndex);
+        };
         physicalDetailedView = PhysicalList.View as GridView;
         RefreshDeckRows();
         AddDeckButton.IsEnabled = nativeWorkspace &&
@@ -100,6 +105,7 @@ public partial class NativeCollectionWorkspace : UserControl
 
     /// <summary>Host-controlled sidebar selection; the data and edit actions
     /// are unchanged from the standalone collection view.</summary>
+    public event Action<int>? SectionChanged;
     public int SelectedSection => CollectionTabs.SelectedIndex;
     public void NavigateTo(int tabIndex)
     {
