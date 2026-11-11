@@ -68,17 +68,34 @@ public static class NativePrintingArtwork
             FROM variants WHERE name=$name COLLATE NOCASE
             """ + (arenaOnly
                 ? " AND instr(',' || lower(replace(games,' ','')) || ',', ',arena,') > 0"
-                : "") + "\nORDER BY release DESC,setcode COLLATE NOCASE,collector\nLIMIT $limit";
+                : "") + (arenaOnly
+                // In the Arena client, ownership is one card name; paper
+                // collector-only alternate art does not imply a purchasable
+                // Arena card style. Show the base shared edition per set,
+                // plus independently cataloged digital-specific editions.
+                ? "\nORDER BY digital DESC,release DESC,setcode COLLATE NOCASE," +
+                  " CASE WHEN collector GLOB '[0-9]*' THEN 0 ELSE 1 END," +
+                  " CAST(collector AS INTEGER),collector COLLATE NOCASE"
+                : "\nORDER BY release DESC,setcode COLLATE NOCASE,collector") +
+                (arenaOnly ? "" : "\nLIMIT $limit");
         cmd.Parameters.AddWithValue("$name", name.Trim());
         cmd.Parameters.AddWithValue("$limit", limit + 1);
         var result = new List<Printing>(limit);
+        var sharedPerSet = arenaOnly
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             cancellation.ThrowIfCancellationRequested();
-            if (result.Count == limit) return new Gallery(result.AsReadOnly(), true);
             if (reader.IsDBNull(0) || !Guid.TryParse(reader.GetString(0), out Guid id) ||
                 id == Guid.Empty) continue;
+            // The Scryfall games flag establishes card availability, NOT
+            // whether each paper showcase printing is an Arena cosmetic. A
+            // conservative gallery includes one regular representative per
+            // set. Explicitly digital printings remain independently listed.
+            if (sharedPerSet is not null && reader.GetInt64(7) == 0 &&
+                !sharedPerSet.Add(reader.GetString(2))) continue;
+            if (result.Count == limit) return new Gallery(result.AsReadOnly(), true);
             bool paper = reader.GetInt64(7) == 0 &&
                 reader.GetString(6).Split(',',
                 StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
