@@ -139,6 +139,7 @@ public partial class MainWindow : Window
     {
         OpenNativeButton.IsEnabled = System.IO.File.Exists(NativeWorkspace.DefaultPath);
         DeckLibraryNavigationButton.IsEnabled = OpenNativeButton.IsEnabled;
+        SetProgressNavigationButton.IsEnabled = OpenNativeButton.IsEnabled;
         ExportFullBackupButton.IsEnabled = OpenNativeButton.IsEnabled;
         RestoreRecoveryButton.IsEnabled =
             NativeWorkspaceSafety.RecoveryPaths(NativeWorkspace.DefaultPath).Count > 0;
@@ -1087,9 +1088,11 @@ public partial class MainWindow : Window
         var inactive = (Style)FindResource("VaultNavButton");
         CatalogNavigationButton.Style = nativeWorkspaceRequested ? inactive : active;
         OpenNativeButton.Style = nativeWorkspaceRequested &&
-            nativeWorkspaceSelectedTab != 2 ? active : inactive;
+            nativeWorkspaceSelectedTab is not (2 or 3) ? active : inactive;
         DeckLibraryNavigationButton.Style = nativeWorkspaceRequested &&
             nativeWorkspaceSelectedTab == 2 ? active : inactive;
+        SetProgressNavigationButton.Style = nativeWorkspaceRequested &&
+            nativeWorkspaceSelectedTab == 3 ? active : inactive;
     }
 
     private void OnShowCatalogClicked(object sender, RoutedEventArgs e)
@@ -1132,6 +1135,9 @@ public partial class MainWindow : Window
 
     private async void OnOpenDeckLibraryClicked(object sender, RoutedEventArgs e) =>
         await NavigateToNativeWorkspaceAsync(2);
+
+    private async void OnOpenSetProgressClicked(object sender, RoutedEventArgs e) =>
+        await NavigateToNativeWorkspaceAsync(3);
 
     private async Task NavigateToNativeWorkspaceAsync(int section)
     {
@@ -1251,6 +1257,7 @@ public partial class MainWindow : Window
                 OpenNativeButton.IsEnabled =
                     System.IO.File.Exists(NativeWorkspace.DefaultPath);
                 DeckLibraryNavigationButton.IsEnabled = OpenNativeButton.IsEnabled;
+        SetProgressNavigationButton.IsEnabled = OpenNativeButton.IsEnabled;
                 ImportNativeButton.IsEnabled = !OpenNativeButton.IsEnabled;
                 MigrateLegacyButton.IsEnabled = true;
             }
