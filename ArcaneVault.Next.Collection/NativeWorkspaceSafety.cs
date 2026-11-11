@@ -317,6 +317,72 @@ public static class NativeWorkspaceSafety
     /// about exact physical printing, set ownership or Arena format legality.
     /// Retains one complete verified recovery file for every successful edit.
     /// </summary>
+    public sealed record DeckLibraryState(string BackupSha256,
+        IReadOnlyList<NativeDeckEditing.DeckRow> Decks);
+
+    /// <summary>Open verified native deck data; never touch the installed legacy application.</summary>
+    public static DeckLibraryState OpenDeckLibrary(string nativePath)
+    {
+        var current = NativeWorkspace.Open(nativePath);
+        var decks = NativeDeckEditing.List(ReadPreservedBackup(nativePath));
+        return new DeckLibraryState(current.BackupSha256, decks);
+    }
+
+    public static Replacement SaveDeck(string nativePath,
+        NativeDeckEditing.DeckRow? existing, string name, string commander,
+        string format, IReadOnlyList<NativeDeckEditing.DeckCard> cards,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] old = ReadPreservedBackup(path);
+            byte[] updated = existing is null
+                ? NativeDeckEditing.Create(old, name, commander, format, cards)
+                : NativeDeckEditing.Update(old, existing, name, commander, format, cards);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "native-deck-save",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
+    public static Replacement DeleteDeck(string nativePath,
+        NativeDeckEditing.DeckRow selected,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentNullException.ThrowIfNull(selected);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var updated = NativeDeckEditing.Delete(ReadPreservedBackup(path), selected);
+            return Refresh(path, updated, "native-deck-delete",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
+    public static Replacement DuplicateDeck(string nativePath,
+        NativeDeckEditing.DeckRow selected,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentNullException.ThrowIfNull(selected);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var updated = NativeDeckEditing.Duplicate(ReadPreservedBackup(path), selected);
+            return Refresh(path, updated, "native-deck-duplicate",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static Replacement AddArenaCopies(string nativePath, string cardName,
         int quantity, string expectedCurrentBackupSha,
         CancellationToken cancellation = default)
