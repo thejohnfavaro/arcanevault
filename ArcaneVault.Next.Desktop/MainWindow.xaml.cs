@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        UpdateWorkspaceNavigation();
         catalogDetailedTemplate = CardsList.ItemTemplate;
         catalogDetailedPanel = CardsList.ItemsPanel;
         NativeVersionLabel.Text = "Native preview v" +
@@ -1109,6 +1110,12 @@ public partial class MainWindow : Window
                 nativeDecks: bundle.decks);
             view.NavigateTo(nativeWorkspaceSelectedTab);
             nativeWorkspaceView = view;
+            view.SectionChanged += section =>
+            {
+                if (!ReferenceEquals(nativeWorkspaceView, view)) return;
+                nativeWorkspaceSelectedTab = section;
+                UpdateWorkspaceNavigation();
+            };
             NativeWorkspaceHost.Content = view;
             UpdateWorkspaceNavigation();
             FilterStatus.Text =
@@ -1119,7 +1126,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            if (!closing)
+            if (!closing && generation == nativeWorkspaceGeneration)
             {
                 FilterStatus.Text =
                     "Native workspace verification failed. Data was NOT reset; preserve the file and use backup preview.";
@@ -1155,6 +1162,8 @@ public partial class MainWindow : Window
     private async Task RefreshNativeWorkspaceAsync()
     {
         if (closing) return;
+        if (nativeWorkspaceView is not null)
+            nativeWorkspaceSelectedTab = nativeWorkspaceView.SelectedSection;
         InvalidateNativeWorkspace();
         await OpenNativeCollectionAsync();
     }
