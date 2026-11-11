@@ -28,6 +28,18 @@ public sealed class NativeCardArtImage : Image
         set => SetValue(ArtUrlProperty, value);
     }
 
+    // Increase decode resolution for wide set banners without forcing every
+    // catalog card thumbnail to allocate a large bitmap.
+    public static readonly DependencyProperty DecodeWidthProperty =
+        DependencyProperty.Register(nameof(DecodeWidth), typeof(int),
+            typeof(NativeCardArtImage), new PropertyMetadata(240, OnArtUrlChanged));
+
+    public int DecodeWidth
+    {
+        get => (int)GetValue(DecodeWidthProperty);
+        set => SetValue(DecodeWidthProperty, value);
+    }
+
     public NativeCardArtImage()
     {
         Loaded += (_, _) => Start();
@@ -73,7 +85,7 @@ public sealed class NativeCardArtImage : Image
             var image = new BitmapImage();
             image.BeginInit();
             image.CacheOption = BitmapCacheOption.OnLoad;
-            image.DecodePixelWidth = 240; // Render thumbnail, never full-resolution grid.
+            image.DecodePixelWidth = Math.Clamp(DecodeWidth, 96, 800); // Limit thumbnail and banner allocations.
             image.StreamSource = stream;
             image.EndInit();
             image.Freeze();
