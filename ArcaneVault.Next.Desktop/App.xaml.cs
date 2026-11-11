@@ -21,7 +21,7 @@ public partial class App : Application
         {
             Directory.CreateDirectory(directory);
             File.AppendAllText(path,
-                $"[{DateTimeOffset.Now:O}] {source}\\n{error}\\n\\n");
+                $"[{DateTimeOffset.Now:O}] {source}\n{error}\n\n");
         }
         catch { /* Logging must not create a second process failure. */ }
         return path;
@@ -36,8 +36,8 @@ public partial class App : Application
         {
             MessageBox.Show(
                 "Arcane Vault encountered an unexpected UI error. " +
-                "Your collection has not been intentionally modified.\\n\\n" +
-                e.Exception.Message + "\\n\\nDiagnostic log: " + path,
+                "Your collection has not been intentionally modified.\n\n" +
+                e.Exception.Message + "\n\nDiagnostic log: " + path,
                 "Arcane Vault Native — error", MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
