@@ -13,6 +13,7 @@ public partial class NativeCardDetailsWindow : Window
     private readonly string? selectedSet;
     private readonly string? selectedCollector;
     private readonly string? defaultArtworkUrl;
+    private readonly bool arenaScope;
     private int artworkVersion;
     private bool bookmarkBusy;
     private bool bookmarkSaved;
@@ -25,13 +26,19 @@ public partial class NativeCardDetailsWindow : Window
     public NativeCardDetailsWindow(string name, string ownership,
         CollectionCatalogReview.CardDetails? info,
         string? catalogPath = null, string? nativePath = null,
-        string? selectedSet = null, string? selectedCollector = null)
+        string? selectedSet = null, string? selectedCollector = null,
+        bool arenaScope = false, string? selectedArtworkUrl = null)
     {
         this.catalogPath = catalogPath;
         this.nativePath = nativePath;
         this.selectedSet = selectedSet;
         this.selectedCollector = selectedCollector;
-        defaultArtworkUrl = info?.ArtworkUrl;
+        this.arenaScope = arenaScope;
+        // Arena never falls back to generic card-level artwork: it might be
+        // a paper-only printing, not a selectable Arena style.
+        defaultArtworkUrl = arenaScope ? selectedArtworkUrl
+            : (!string.IsNullOrWhiteSpace(selectedArtworkUrl)
+                ? selectedArtworkUrl : info?.ArtworkUrl);
         InitializeComponent();
         OpenArtworkGalleryButton.IsEnabled = !string.IsNullOrWhiteSpace(catalogPath);
         BookmarkCardButton.IsEnabled = !string.IsNullOrWhiteSpace(nativePath) &&
@@ -160,8 +167,18 @@ public partial class NativeCardDetailsWindow : Window
                 var preference = await Task.Run(() =>
                     NativeWorkspaceSafety.GetPreferredArtwork(nativePath, CardName.Text));
                 if (artworkCancellation.IsCancellationRequested) return;
-                if (preference is not null &&
-                    NativeCardArtwork.IsTrustedArtworkUrl(preference.Image))
+                bool allowed = preference is not null &&
+                    NativeCardArtwork.IsTrustedArtworkUrl(preference.Image);
+                if (allowed && arenaScope)
+                {
+                    // Preferred artwork can originate from the physical gallery.
+                    // Only apply it here when its exact print is Arena-available.
+                    allowed = !string.IsNullOrWhiteSpace(catalogPath) &&
+                        NativePrintingArtwork.Read(catalogPath, CardName.Text, 400,
+                            arenaOnly: true).Printings.Any(p =>
+                                p.Id == preference!.Id && p.ImageUrl == preference.Image);
+                }
+                if (allowed)
                 {
                     url = preference.Image;
                     chosen = true;
@@ -188,7 +205,8 @@ public partial class NativeCardDetailsWindow : Window
         try
         {
             var dialog = new NativePrintingGalleryWindow(CardName.Text,
-                catalogPath, nativePath, selectedSet, selectedCollector)
+                catalogPath, nativePath, selectedSet, selectedCollector,
+                arenaOnly: arenaScope)
             { Owner = this };
             if (dialog.ShowDialog() == true && dialog.PreferenceChanged)
             {

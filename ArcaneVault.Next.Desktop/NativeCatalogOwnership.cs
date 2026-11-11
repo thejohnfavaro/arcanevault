@@ -23,7 +23,7 @@ public sealed class NativeCatalogOwnership
             {
                 var parts = new List<string>();
                 // Quantity remains in VerifiedPhysical; the catalog does not show per-card Physical N badges.
-                if (Arena > 0) parts.Add($"Arena {Arena}");
+                // Arena quantities are shown in the Arena inventory, not as catalog badges.
                 if (UnresolvedName > 0) parts.Add($"Unresolved name {UnresolvedName}");
                 return parts.Count == 0
                     ? (VerifiedPhysical > 0 ? "Owned" : "Not verified as owned")

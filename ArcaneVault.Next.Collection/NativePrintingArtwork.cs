@@ -45,7 +45,7 @@ public static class NativePrintingArtwork
     /// pretend to supply a verified printing for artwork persistence.
     /// </summary>
     public static Gallery Read(string catalogPath, string name, int limit = 300,
-        CancellationToken cancellation = default)
+        CancellationToken cancellation = default, bool arenaOnly = false)
     {
         if (string.IsNullOrWhiteSpace(catalogPath) || string.IsNullOrWhiteSpace(name))
             throw new InvalidDataException("Select a card and load an official native Scryfall catalog.");
@@ -66,9 +66,9 @@ public static class NativePrintingArtwork
         cmd.CommandText = """
             SELECT print_id,name,setcode,collector,setname,image,games,digital,release
             FROM variants WHERE name=$name COLLATE NOCASE
-            ORDER BY release DESC,setcode COLLATE NOCASE,collector
-            LIMIT $limit
-            """;
+            """ + (arenaOnly
+                ? " AND instr(',' || lower(replace(games,' ','')) || ',', ',arena,') > 0"
+                : "") + "\nORDER BY release DESC,setcode COLLATE NOCASE,collector\nLIMIT $limit";
         cmd.Parameters.AddWithValue("$name", name.Trim());
         cmd.Parameters.AddWithValue("$limit", limit + 1);
         var result = new List<Printing>(limit);
