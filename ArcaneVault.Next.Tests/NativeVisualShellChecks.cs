@@ -107,6 +107,30 @@ internal static class NativeVisualShellChecks
              collection.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
                  StringComparison.Ordinal),
              "Set Progress visualization must bind exact percentages and preserve virtualization.");
+        // Image view virtualizes rows instead of constructing every image at once.
+        Must(main.Contains("CatalogTileRowTemplate", StringComparison.Ordinal) &&
+             main.Contains("UniformGrid Rows=\\\"1\\\"", StringComparison.Ordinal) &&
+             main.Contains("OnCatalogTileMouseDown", StringComparison.Ordinal) &&
+             main.Contains("OnCatalogListSizeChanged", StringComparison.Ordinal),
+             "Responsive catalog tile grid controls or handlers are missing.");
+        Must(CatalogTileLayout.ColumnsForWidth(365) == 1 &&
+             CatalogTileLayout.ColumnsForWidth(675) == 2 &&
+             CatalogTileLayout.ColumnsForWidth(955) == 3 &&
+             CatalogTileLayout.ColumnsForWidth(1600) == 4,
+             "Catalog tile grid width breakpoints regressed.");
+        var markerCards = Enumerable.Range(1, 8).Cast<object>().ToArray();
+        var tileRows = CatalogTileLayout.BuildRows(markerCards, 3);
+        Must(tileRows.Count == 3 &&
+             tileRows.All(row => row.Cards.Count == 3) &&
+             Equals(tileRows[0].Cards[0], 1) &&
+             Equals(tileRows[1].Cards[2], 6) &&
+             Equals(tileRows[2].Cards[1], 8) &&
+             tileRows[2].Cards[2] is null,
+             "Tile rows lost card order or final-row padding.");
+        Must(tileRows.SelectMany(row => row.Cards).Where(x => x is not null)
+                .SequenceEqual(markerCards.Cast<object?>()),
+             "Responsive grid must preserve exact printing objects and order.");
+
         Must(main.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
                  StringComparison.Ordinal),
              "Catalog list virtualization was dropped during redesign.");
