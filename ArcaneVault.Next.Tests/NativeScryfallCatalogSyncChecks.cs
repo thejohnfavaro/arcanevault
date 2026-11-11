@@ -30,6 +30,7 @@ internal static class NativeScryfallCatalogSyncChecks
         catch (InvalidDataException) { return; }
         catch (JsonException) { return; }
         catch (OperationCanceledException) { return; }
+        catch (HttpRequestException) { return; }
         throw new InvalidOperationException("Invalid catalog sync unexpectedly passed validation.");
     }
 
