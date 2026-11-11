@@ -436,13 +436,19 @@
                                         BorderThickness="1" CornerRadius="12"
                                         Height="196" Margin="6,6" ClipToBounds="True">
                                     <Grid x:Name="SetBannerSurface" ClipToBounds="True">
-                                        <!-- Lock artwork to the tile's actual viewport: cover crops excess
-                                             image area rather than expanding the card to its source ratio. -->
-                                        <local:NativeCardArtImage ArtUrl="{Binding BannerArtworkUrl}"
-                                            Width="{Binding ActualWidth, ElementName=SetBannerSurface}"
-                                            Height="{Binding ActualHeight, ElementName=SetBannerSurface}"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            Stretch="UniformToFill" DecodeWidth="600" Opacity="0.9"
+                                        <!-- ImageBrush paints the fixed-size tile background without
+                                             affecting measure/arrange. UniformToFill crops the image at
+                                             the tile edges instead of resizing the tile or adding bars. -->
+                                        <Grid.Background>
+                                            <ImageBrush ImageSource="{Binding Source, ElementName=SetBannerImage}"
+                                                        Stretch="UniformToFill" AlignmentX="Center"
+                                                        AlignmentY="Center" Opacity="0.9"/>
+                                        </Grid.Background>
+                                        <!-- Zero-size loader keeps the existing bounded Scryfall image
+                                             cache, cancellation and decode path; only the brush paints. -->
+                                        <local:NativeCardArtImage x:Name="SetBannerImage"
+                                            ArtUrl="{Binding BannerArtworkUrl}" DecodeWidth="600"
+                                            Width="0" Height="0" Opacity="0"
                                             IsHitTestVisible="False"/>
                                         <Border>
                                             <Border.Background>
