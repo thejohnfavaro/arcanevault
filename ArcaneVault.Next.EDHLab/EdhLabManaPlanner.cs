@@ -30,7 +30,10 @@ public static class EdhLabManaPlanner
         int DesiredBasics, int TotalAfter, int CopiesAfter,
         IReadOnlyList<(string Name, int Quantity)> Basics,
         IReadOnlyList<string> UnverifiedCards,
-        IReadOnlyDictionary<string, double> ApproximateColoredSources)
+        IReadOnlyDictionary<string, double> ApproximateColoredSources,
+        IReadOnlyDictionary<string, double> ColoredPipDemand,
+        int ParsedManaCostCopies, int MissingManaCostCopies,
+        bool UsingSpellPips, bool ManaCostsAvailable, bool WantsSpellPips)
     {
         public bool CanApply => UnverifiedCards.Count == 0 && CopiesAfter <= 99;
 
@@ -44,10 +47,24 @@ public static class EdhLabManaPlanner
                 string sources = ApproximateColoredSources.Count == 0 ? "Colorless" :
                     string.Join(" · ", ApproximateColoredSources
                         .Select(x => x.Key + " ~" + x.Value.ToString("0.#")));
+                string pipSummary = string.Join(" · ",
+                    ColoredPipDemand.Where(x => x.Value > 0)
+                        .Select(x => x.Key + " " + x.Value.ToString("0.#")));
+                string demandNote = !WantsSpellPips
+                    ? "Even-color mode (spell costs not weighted)."
+                    : !ManaCostsAvailable
+                        ? "Even-color fallback: Full Sync needed to add mana costs to this older catalog."
+                        : UsingSpellPips
+                            ? $"Spell-pip mode: {pipSummary} ({ParsedManaCostCopies} costed nonland copies; smoothed ratios)."
+                            : "Even-color fallback: no colored spell symbols parsed in this draft.";
                 return $"Land plan: {TotalAfter}/{TargetLands} target " +
                     $"({FixedLands} fixed, {DesiredBasics} suggested basics)" +
                     (parts.Length > 0 ? "\nBasics: " + parts : "") +
                     $"\nApprox. colored sources: {sources}" +
+                    $"\n{demandNote}" +
+                    (WantsSpellPips && ManaCostsAvailable && MissingManaCostCopies > 0
+                        ? $" {MissingManaCostCopies} nonland copies have no cached casting cost."
+                        : "") +
                     (FlexibleLands > 0 ? $" · {FlexibleLands} flexible land(s)" : "") +
                     (UnclassifiedLands > 0
                         ? $"\n{UnclassifiedLands} land(s) with no recognized colored production; still count toward land total."
@@ -61,7 +78,7 @@ public static class EdhLabManaPlanner
                     (UnverifiedCards.Count > 0
                         ? $"\nAutomatic balancing paused: {UnverifiedCards.Count} names have no eligible local catalog match."
                         : "") +
-                    "\nEstimated access only; fetchlands, restrictions and colored pip demand are not fully modeled.";
+                    "\nEstimated access only; hybrid costs, fetchlands, conditional sources and commander recasts are approximate.";
             }
         }
     }
@@ -110,7 +127,7 @@ public static class EdhLabManaPlanner
 
     public static Plan Analyze(EdhLabDraftCatalog catalog,
         IEnumerable<(string Name, int Quantity)> entries, string commanderColors,
-        int targetLands = 36)
+        int targetLands = 36, bool weightSpellPips = false)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(entries);
@@ -120,6 +137,8 @@ public static class EdhLabManaPlanner
         int fixedLands = 0, currentLands = 0, fixedCopies = 0;
         int flexible = 0, unclassified = 0;
         double[] coverage = new double[5];
+        double[] pipDemand = new double[5];
+        int parsedCostCopies = 0, missingCostCopies = 0;
         var unverified = new List<string>();
 
         foreach (var entry in entries)
@@ -139,7 +158,18 @@ public static class EdhLabManaPlanner
                 continue;
             }
             if (!card.Type.Contains("Land", StringComparison.OrdinalIgnoreCase))
+            {
+                if (card.ManaCost.Length > 0)
+                {
+                    parsedCostCopies = checked(parsedCostCopies + entry.Quantity);
+                    double[] colorsInCost = EdhLabColoredPips.Count(card.ManaCost);
+                    for (int i = 0; i < 5; i++)
+                        if ((allowed & (1 << i)) != 0)
+                            pipDemand[i] += colorsInCost[i] * entry.Quantity;
+                }
+                else missingCostCopies = checked(missingCostCopies + entry.Quantity);
                 continue;
+            }
 
             currentLands = checked(currentLands + entry.Quantity);
             fixedLands = checked(fixedLands + entry.Quantity);
@@ -156,16 +186,37 @@ public static class EdhLabManaPlanner
         int slots = Math.Max(0, Math.Min(
             targetLands - fixedLands, 99 - fixedCopies));
         int[] basicCounts = new int[allowed == 0 ? 1 : 5];
+        int colorCount = System.Numerics.BitOperations.PopCount((uint)allowed);
+        double totalPips = pipDemand.Sum();
+        bool usingPips = weightSpellPips && catalog.HasManaCostMetadata &&
+            allowed != 0 && totalPips > 0;
+        double[] shares = new double[5];
+        if (allowed != 0)
+            for (int i = 0; i < 5; i++)
+                if ((allowed & (1 << i)) != 0)
+                    // A modest prior keeps colors with no listed pips from
+                    // being starved, especially in small/incomplete drafts.
+                    shares[i] = usingPips
+                        ? (pipDemand[i] + 2.0) / (totalPips + 2.0 * colorCount)
+                        : 1.0 / colorCount;
+        double totalColoredAccess = slots + coverage.Sum();
         if (allowed == 0)
             basicCounts[0] = slots;
         else for (int n = 0; n < slots; n++)
         {
             int best = -1;
+            double largestDeficit = double.NegativeInfinity;
             for (int i = 0; i < 5; i++)
-                if ((allowed & (1 << i)) != 0 &&
-                    (best == -1 || coverage[i] + basicCounts[i] <
-                        coverage[best] + basicCounts[best] - 0.00001))
+            {
+                if ((allowed & (1 << i)) == 0) continue;
+                double deficit = shares[i] * totalColoredAccess -
+                    (coverage[i] + basicCounts[i]);
+                if (best < 0 || deficit > largestDeficit + 0.00001)
+                {
                     best = i;
+                    largestDeficit = deficit;
+                }
+            }
             if (best < 0) throw new InvalidDataException("No commander colors available.");
             basicCounts[best]++;
         }
@@ -183,9 +234,15 @@ public static class EdhLabManaPlanner
                     sources[ColorOrder[i].ToString()] =
                         coverage[i] + basicCounts[i];
 
+        var demand = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < 5; i++)
+            if ((allowed & (1 << i)) != 0)
+                demand[ColorOrder[i].ToString()] = pipDemand[i];
         return new Plan(targetLands, currentLands, fixedLands, flexible,
             unclassified, slots, fixedLands + slots, fixedCopies + slots,
-            basics, unverified, sources);
+            basics, unverified, sources, demand, parsedCostCopies,
+            missingCostCopies, usingPips, catalog.HasManaCostMetadata,
+            weightSpellPips);
     }
 
     /// <summary>
