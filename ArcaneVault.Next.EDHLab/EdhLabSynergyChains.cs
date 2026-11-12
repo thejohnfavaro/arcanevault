@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace ArcaneVault.Next.EDHLab;
 
 /// <summary>
@@ -17,18 +19,38 @@ public static class EdhLabSynergyChains
     private static bool Any(string text, params string[] parts) =>
         parts.Any(p => Has(text, p));
 
+    // Require create and token kind to occur within a single short effect
+    // clause. A card saying "create a token. Sacrifice an artifact" must not
+    // count as an artifact-token generator.
+    private static bool CreatesKind(string oracle, string kind) =>
+        Regex.IsMatch(oracle ?? "",
+            @"\bcreate\b[^.!?;]{0,115}\b" + Regex.Escape(kind) +
+            @"(?: creature)? tokens?\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(30));
+
+    private static string Evidence(string oracle, params string[] signals)
+    {
+        if (string.IsNullOrWhiteSpace(oracle)) return "Rules text unavailable.";
+        string[] clauses = oracle.Split(['.', '\n'], StringSplitOptions.TrimEntries |
+            StringSplitOptions.RemoveEmptyEntries);
+        string? match = clauses.FirstOrDefault(c =>
+            signals.Any(s => Has(c, s))) ?? clauses.FirstOrDefault();
+        if (match is null) return "Rules text unavailable.";
+        return match.Length > 190 ? match[..190] + "…" : match;
+    }
+
     // Tight pairs only: we intentionally do not classify arbitrary Oracle
     // text as a win condition or infer infinite/cross-zone interactions.
     private static readonly LinkRule[] Rules =
     [
         new("Artifacts", "Creating artifact tokens may trigger artifact entry payoffs",
-            c => Has(c.Oracle, "create") && Has(c.Oracle, "artifact") &&
-                Has(c.Oracle, "token"),
+            c => CreatesKind(c.Oracle, "artifact") || CreatesKind(c.Oracle, "Thopter artifact") ,
             c => Any(c.Oracle, "whenever an artifact enters",
                 "whenever another artifact enters",
                 "whenever one or more artifacts enter")),
         new("Tokens", "Creating creature tokens may trigger creature entry payoffs",
-            c => Has(c.Oracle, "create") && Has(c.Oracle, "creature token"),
+            c => CreatesKind(c.Oracle, "creature"),
             c => Any(c.Oracle, "whenever a creature enters",
                 "whenever another creature enters",
                 "whenever one or more creatures enter")),
@@ -51,7 +73,8 @@ public static class EdhLabSynergyChains
 
     public sealed record Chain(string Theme, string Enabler, string Payoff,
         string Status, string Explanation, string SuggestedCard,
-        long SuggestedRecordedCopies, string SuggestedRoles)
+        long SuggestedRecordedCopies, string SuggestedRoles,
+        string EnablerEvidence = "", string PayoffEvidence = "")
     {
         public string Display => $"[{Theme}] {Enabler} → {Payoff} · {Status}";
     }
@@ -143,7 +166,9 @@ public static class EdhLabSynergyChains
                 output.Add(new Chain(rule.Theme, left.Name, right.Name, status,
                     explanation, leftIn ? right.Name : left.Name,
                     leftIn && rightIn ? 0 : available,
-                    leftIn && rightIn ? "" : missing.RoleHints));
+                    leftIn && rightIn ? "" : missing.RoleHints,
+                    Evidence(left.Oracle, "create", "put", "gain", "sacrifice"),
+                    Evidence(right.Oracle, "whenever", "for each")));
             }
         }
 
