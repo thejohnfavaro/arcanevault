@@ -104,8 +104,10 @@ internal static class NativeVisualShellChecks
              mainXaml.IndexOf("x:Name=\"SetProgressNavigationButton\"",
                  StringComparison.Ordinal),
              "EDH Lab must remain a visible, accessible sidebar workspace.");
-        Must(mainShellCode.Contains("catalogSnapshot = persisted;\n", StringComparison.Ordinal) &&
-             mainShellCode.Contains("EdhLabButton.IsEnabled = true;", StringComparison.Ordinal) &&
+        Must(Regex.IsMatch(mainShellCode,
+                 @"catalogSnapshot = persisted;[\s\S]{0,220}EdhLabButton\.IsEnabled = true;") &&
+             Regex.IsMatch(mainShellCode,
+                 @"catalogSnapshot = fresh;[\s\S]{0,220}EdhLabButton\.IsEnabled = true;") &&
              !mainShellCode.Contains("EdhLabButton.IsEnabled = false; // EDH Lab remains backlog",
                  StringComparison.Ordinal),
              "EDH Lab launch must be enabled after loading or syncing a real Scryfall catalog.");
