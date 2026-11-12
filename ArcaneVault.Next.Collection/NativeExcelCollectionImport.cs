@@ -132,8 +132,8 @@ public static class NativeExcelCollectionImport
     private static int Quantity(string text, int row)
     {
         if (!decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var value) ||
-            value != decimal.Truncate(value) || value is < 1 or > 99_999)
-            throw new InvalidDataException($"Collection row {row}: quantity must be a whole number (1–99,999).");
+            value != decimal.Truncate(value) || value is < 0 or > 99_999)
+            throw new InvalidDataException($"Collection row {row}: quantity must be a whole number (0–99,999).");
         return (int)value;
     }
 
@@ -256,7 +256,7 @@ public static class NativeExcelCollectionImport
             var result = new List<Item>(rows.Count);
             foreach (var row in rows)
             {
-                if (row.Quantity is < 1 or > 99_999 || string.IsNullOrWhiteSpace(row.Name))
+                if (row.Quantity is < 0 or > 99_999 || string.IsNullOrWhiteSpace(row.Name))
                     throw new InvalidDataException($"Excel row {row.SpreadsheetRow} is invalid.");
                 string id = row.ScryfallId, name = row.Name, set = row.SetCode,
                     collector = row.CollectorNumber, status = "Unresolved: exact printing not established";
@@ -328,6 +328,8 @@ public static class NativeExcelCollectionImport
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(preview);
+        if (preview.Items.Any(x => x.Source.Quantity == 0))
+            throw new InvalidDataException("Zero quantities are supported only by reconciliation, not additive imports.");
         var before = NativeBackupReader.Read(source);
         var root = JsonNode.Parse(source) as JsonObject ??
             throw new InvalidDataException("Native backup is not a JSON object.");

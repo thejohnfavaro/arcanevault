@@ -537,6 +537,7 @@ public partial class NativeDeckEditorWindow : Window
         EdhSynergyOnly.IsChecked = false;
         OwnedSearchBox.Text = "";
         browsingOptimizationCandidates = true;
+        EdhWorkspaceTabs.SelectedItem = EdhCardsTab;
         EdhBrowseImprovementsButton.Content = "Return to full card catalog";
         RefreshOwnedCards();
         StatusText.Text = "Browsing unused, recorded, locally legal MV 0–2 cards. " +
@@ -654,6 +655,8 @@ public partial class NativeDeckEditorWindow : Window
                     StringComparison.OrdinalIgnoreCase));
             if (choice is null) return;
             EdhRoleBox.SelectedItem = choice;
+            EdhWorkspaceTabs.SelectedItem = EdhCardsTab;
+            EdhCardsFilters.IsExpanded = true;
             OwnedSearchBox.Text = "";
             EdhRecordedOnly.IsChecked = true;
             RefreshOwnedCards();
@@ -948,6 +951,9 @@ public partial class NativeDeckEditorWindow : Window
             CommanderBox.IsReadOnly = true;
             OwnedPoolBox.IsEnabled = false;
             EdhSuggestionTools.Visibility = Visibility.Visible;
+            EdhManaTab.Visibility = Visibility.Visible;
+            EdhImproveTab.Visibility = Visibility.Visible;
+            EdhWorkspaceTabs.SelectedItem = EdhCardsTab;
             EdhRecordedOnly.IsChecked = true;
             EdhRoleBox.SelectedIndex = 0;
             // Fresh drafts get Arena-style baseline basics. Existing decks
