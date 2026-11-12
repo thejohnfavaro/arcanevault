@@ -215,10 +215,14 @@ internal static class EdhLabDraftChecks
         catch (ArgumentOutOfRangeException) { badBlueprintRejected = true; }
         Must(badBlueprintRejected, "Blueprint must reject nonpositive quantities.");
 
+        static (string Name, int Quantity)[] ManaRows(string text) =>
+            NativeDeckEditing.ParseMainboard(text)
+                .Select(x => (x.Name, x.Quantity)).ToArray();
+
         // Arena-style new deck: even baseline basics; then dual/flexible
         // lands consume land slots and change the effective color spread.
         var blankPlan = EdhLabManaPlanner.Analyze(paper,
-            Array.Empty<NativeDeckEditing.Entry>(), "WU", 36);
+            Array.Empty<(string Name, int Quantity)>(), "WU", 36);
         Must(blankPlan.CanApply && blankPlan.DesiredBasics == 36 &&
              blankPlan.TotalAfter == 36 && blankPlan.CopiesAfter == 36 &&
              blankPlan.Basics.Single(x => x.Name == "Plains").Quantity == 18 &&
@@ -226,7 +230,7 @@ internal static class EdhLabDraftChecks
              EdhLabManaPlanner.Apply("", "WU", blankPlan) ==
                  "18 Plains\n18 Island",
              "Fresh two-color Commander drafts should start with an even 36-land basic split.");
-        var dualEntries = NativeDeckEditing.ParseMainboard(
+        var dualEntries = ManaRows(
             "1 Azorius Guildgate\n18 Plains\n18 Island\n1 Brainstorm");
         var dualPlan = EdhLabManaPlanner.Analyze(paper, dualEntries, "WU", 36);
         string dualAdjusted = EdhLabManaPlanner.Apply(
@@ -241,7 +245,7 @@ internal static class EdhLabDraftChecks
              NativeDeckEditing.ParseMainboard(dualAdjusted)
                  .Sum(x => x.Quantity) == 37,
              "Adding a two-color land must consume one basic slot, not add two land slots.");
-        var utilityEntries = NativeDeckEditing.ParseMainboard(
+        var utilityEntries = ManaRows(
             "1 Azorius Guildgate\n1 Command Tower\n1 Reliquary Tower\n" +
             "1 Snow-Covered Island\n12 Plains\n12 Island");
         var utilityPlan = EdhLabManaPlanner.Analyze(paper, utilityEntries, "WU", 36);
@@ -257,7 +261,7 @@ internal static class EdhLabDraftChecks
                       utilityPlan.ApproximateColoredSources["U"]) <= 1.01,
              "Multicolor and rainbow lands should add fractional access; utility/snow lands stay intact.");
         var unknownPlan = EdhLabManaPlanner.Analyze(paper,
-            NativeDeckEditing.ParseMainboard("1 Mystery Land"), "WU", 36);
+            ManaRows("1 Mystery Land"), "WU", 36);
         bool unknownRejected = false;
         try { EdhLabManaPlanner.Apply("1 Mystery Land", "WU", unknownPlan); }
         catch (InvalidDataException) { unknownRejected = true; }
@@ -265,13 +269,13 @@ internal static class EdhLabDraftChecks
              unknownPlan.UnverifiedCards.Contains("Mystery Land"),
              "Unknown card names must never trigger destructive land rewriting.");
         var fullPlan = EdhLabManaPlanner.Analyze(paper,
-            NativeDeckEditing.ParseMainboard("70 Brainstorm\n25 Counterspell"),
+            ManaRows("70 Brainstorm\n25 Counterspell"),
             "WU", 36);
         Must(fullPlan.CopiesAfter == 99 && fullPlan.TotalAfter == 4 &&
              fullPlan.Summary.Contains("Not enough space"),
              "Auto basics must cap at 99 cards when the user adds many nonland copies.");
         var colorlessPlan = EdhLabManaPlanner.Analyze(paper,
-            Array.Empty<NativeDeckEditing.Entry>(), "", 36);
+            Array.Empty<(string Name, int Quantity)>(), "", 36);
         Must(colorlessPlan.Basics.Single().Name == "Wastes" &&
              colorlessPlan.Basics.Single().Quantity == 36,
              "Colorless commander land guidance must use Wastes, not off-identity colored basics.");
