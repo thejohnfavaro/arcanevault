@@ -69,6 +69,21 @@
                                                    VerticalAlignment="Center"/>
                                         <local:NativeCardArtImage ArtUrl="{Binding ImageUrl}"
                                                                   Width="128" Height="180"/>
+                                        <Button x:Name="CardShortlistStar"
+                                                Content="{Binding ShortlistStar}"
+                                                Tag="{Binding}"
+                                                ToolTip="{Binding ShortlistTooltip}"
+                                                Click="OnCatalogShortlistStarClicked"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Top"
+                                                Width="33" Height="33"
+                                                Margin="0,3,3,0" Padding="0"
+                                                FontSize="23" FontWeight="Bold"
+                                                Background="#DA17202E"
+                                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                                Foreground="{StaticResource VaultWarning}"
+                                                Cursor="Hand"
+                                                ToolTipService.ShowDuration="15000"/>
                                     </Grid>
                                 </Border>
                                 <TextBlock Text="{Binding Name}" FontSize="12.5"
@@ -510,25 +525,6 @@
                     </StackPanel>
                     <StackPanel Grid.Column="1"
                                 VerticalAlignment="Center">
-                        <TextBlock Text="CATALOG STATUS" Style="{StaticResource VaultEyebrow}"
-                                   Margin="0,0,0,5"/>
-                        <TextBlock x:Name="FilterStatus"
-                                   Foreground="{StaticResource VaultMuted}"
-                                   TextWrapping="Wrap" FontSize="12"
-                                   Text="No catalog loaded"/>
-                        <Button Content="View selected card  ›"
-                                Click="OnCatalogCardDetailsClicked"
-                                Style="{StaticResource VaultPrimaryButton}"
-                                Padding="11,7" Margin="0,9,0,0"
-                                HorizontalAlignment="Left"
-                                ToolTip="View locally cached Scryfall metadata and on-demand artwork for the selected printing"/>
-                        <Button x:Name="AddShortlistButton"
-                                Content="☆  Save selected to shortlist"
-                                Click="OnAddShortlistClicked"
-                                Style="{StaticResource VaultNavButton}"
-                                Padding="10,8" Margin="0,7,0,0"
-                                HorizontalAlignment="Left"
-                                ToolTip="Bookmark this card name in your native collection; no physical or Arena ownership is added"/>
                         <TextBlock Text="CATALOG VIEW" Style="{StaticResource VaultEyebrow}"
                                    Margin="0,12,0,5"/>
                         <ComboBox x:Name="CatalogViewMode" SelectedIndex="2"
@@ -648,11 +644,16 @@
                     <TextBlock Grid.Column="0" Text="●  WORKSPACE" Foreground="{StaticResource VaultGood}"
                                FontWeight="SemiBold" FontSize="11"
                                Margin="0,0,20,0" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" x:Name="ModeStatus"
-                               Foreground="{StaticResource VaultMuted}"
-                               FontSize="11.5" TextWrapping="Wrap"
-                               VerticalAlignment="Center"
-                               Text="A new vault can start empty, then add physical and Arena cards using the native collection."/>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="ModeStatus"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   FontSize="11.5" TextWrapping="Wrap"
+                                   Text="A new vault can start empty, then add physical and Arena cards using the native collection."/>
+                        <TextBlock x:Name="FilterStatus" Margin="0,3,0,0"
+                                   Foreground="{StaticResource VaultMuted}"
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Text="No catalog loaded"/>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>
