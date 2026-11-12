@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Domain;
+using ArcaneVault.Next.EDHLab;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -12,19 +13,29 @@ public partial class CommanderBrowserWindow : Window
         public string TypeLine => Card.TypeLine;
         public string ColorText => string.IsNullOrEmpty(Card.ColorIdentity)
             ? "Colorless" : EdhLabCommanderRules.CanonicalColors(Card.ColorIdentity);
+        public string InventoryText { get; init; } = "";
+
     }
 
     private readonly EdhLabCommanderIndex index;
+    private readonly CommanderInventory inventory;
+    private readonly bool hasCollection;
     private readonly EdhLabRandomPicker picker = new();
     private int page;
     private bool initialized;
     private bool updatingColors;
 
-    public CommanderBrowserWindow(EdhLabCommanderIndex index)
+    public CommanderBrowserWindow(EdhLabCommanderIndex index,
+        CommanderInventory? inventory = null, bool hasCollection = false)
     {
         this.index = index;
+        this.inventory = inventory ?? CommanderInventory.Empty;
+        this.hasCollection = hasCollection;
         InitializeComponent();
         initialized = true;
+        RecordedOnly.IsEnabled = hasCollection;
+        if (!hasCollection)
+            RecordedOnly.ToolTip = "Open or import a native collection to filter by recorded inventory.";
         RenderPage();
     }
 
@@ -56,11 +67,31 @@ public partial class CommanderBrowserWindow : Window
     private void RenderPage(string? roll = null)
     {
         if (!initialized) return;
-        var result = index.Browse(GetQuery());
-        CommanderList.ItemsSource = result.Cards.Select(c => new CommanderRow(c)).ToArray();
-        var pages = Math.Max(1, result.TotalPages);
-        ResultStatus.Text = $"{result.Total:N0} eligible identities · page {page + 1} of {pages}" +
+        var query = GetQuery();
+        var result = index.Filter(query);
+        var cards = inventory.Filter(result, query.Format, RecordedOnly.IsChecked == true);
+        var pages = Math.Max(1, (cards.Count + query.PageSize - 1) / query.PageSize);
+        page = Math.Clamp(page, 0, pages - 1);
+        CommanderList.ItemsSource = cards.Skip(page * query.PageSize)
+            .Take(query.PageSize).Select(c => new CommanderRow(c)
+            {
+                InventoryText = hasCollection
+                    ? (inventory.Count(c.Name, query.Format) is var count && count > 0
+                        ? $"Recorded: {count}" : "Not in inventory")
+                    : "Inventory not loaded"
+            }).ToArray();
+        ResultStatus.Text = $"{cards.Count:N0} eligible identities · page {page + 1} of {pages}" +
             (roll is null ? "" : $" · Random: {roll}");
+        PreviousButton.IsEnabled = page > 0;
+        NextButton.IsEnabled = page < pages - 1;
+    }
+
+    private void OnRecordedOnlyChanged(object sender, RoutedEventArgs e)
+    {
+        if (!initialized) return;
+        page = 0;
+        picker.Reset();
+        RenderPage();
     }
 
     private void OnFiltersChanged(object sender, EventArgs e)
@@ -114,8 +145,10 @@ public partial class CommanderBrowserWindow : Window
 
     private void OnNext(object sender, RoutedEventArgs e)
     {
-        var result = index.Browse(GetQuery());
-        if (page + 1 >= result.TotalPages) return;
+        var query = GetQuery();
+        var candidates = inventory.Filter(index.Filter(query), query.Format,
+            RecordedOnly.IsChecked == true);
+        if ((page + 1) * query.PageSize >= candidates.Count) return;
         page++;
         RenderPage();
     }
@@ -123,13 +156,17 @@ public partial class CommanderBrowserWindow : Window
     private void OnRandomClicked(object sender, RoutedEventArgs e)
     {
         var query = GetQuery();
-        var selected = picker.Roll(index, query, AvoidRepeats.IsChecked == true);
+        // Random must draw only from the SAME pool the list currently shows.
+        var eligible = inventory.Filter(index.Filter(query), query.Format,
+            RecordedOnly.IsChecked == true);
+        var ownedIndex = new EdhLabCommanderIndex(eligible);
+        var selected = picker.Roll(ownedIndex, query, AvoidRepeats.IsChecked == true);
         if (selected is null)
         {
             ResultStatus.Text = "No eligible commanders match these filters. Clear colors or search.";
             return;
         }
-        var filtered = index.Filter(query);
+        var filtered = eligible;
         var position = -1;
         for (var i = 0; i < filtered.Count; i++)
         {
