@@ -279,9 +279,15 @@ internal static class NativeVisualShellChecks
              "Responsive catalog tile grid controls or handlers are missing.");
         Must(CatalogTileLayout.ColumnsForWidth(365) == 1 &&
              CatalogTileLayout.ColumnsForWidth(675) == 2 &&
-             CatalogTileLayout.ColumnsForWidth(955) == 3 &&
-             CatalogTileLayout.ColumnsForWidth(1600) == 4,
-             "Catalog tile grid width breakpoints regressed.");
+             CatalogTileLayout.ColumnsForWidth(955) == 4 &&
+             CatalogTileLayout.ColumnsForWidth(1600) == 5 &&
+             CatalogTileLayout.ColumnsForWidth(double.NaN) == 2,
+             "Compact Catalog tile grid width breakpoints regressed.");
+        Must(main.Contains("Height=\"302\"", StringComparison.Ordinal) &&
+             main.Contains("Width=\"132\" Height=\"184\"", StringComparison.Ordinal) &&
+             main.Contains("ArtUrl=\"{Binding ImageUrl}\"", StringComparison.Ordinal) &&
+             main.Contains("PreviewMouseLeftButtonDown=\"OnCatalogTileMouseDown\"", StringComparison.Ordinal),
+             "Compact tile design must retain art, metadata and card-click handling.");
         var markerCards = Enumerable.Range(1, 8).Cast<object>().ToArray();
         var tileRows = CatalogTileLayout.BuildRows(markerCards, 3);
         Must(tileRows.Count == 3 &&
@@ -291,6 +297,12 @@ internal static class NativeVisualShellChecks
              Equals(tileRows[2].Cards[1], 8) &&
              tileRows[2].Cards[2] is null,
              "Tile rows lost card order or final-row padding.");
+        var wideRows = CatalogTileLayout.BuildRows(markerCards, 5);
+        Must(wideRows.Count == 2 && wideRows.All(row => row.Cards.Count == 5) &&
+             Equals(wideRows[0].Cards[4], 5) &&
+             Equals(wideRows[1].Cards[2], 8) &&
+             wideRows[1].Cards[3] is null,
+             "Five-column compact rows must preserve every card and pad only the last row.");
         Must(tileRows.SelectMany(row => row.Cards).Where(x => x is not null)
                 .SequenceEqual(markerCards.Cast<object?>()),
              "Responsive grid must preserve exact printing objects and order.");
