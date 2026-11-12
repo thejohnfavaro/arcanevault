@@ -471,6 +471,32 @@ public partial class NativeDeckEditorWindow : Window
         RefreshCurveAdvice(entries, plan);
     }
 
+    private EdhLabStrategyFocus SelectedStrategyFocus
+    {
+        get
+        {
+            if (EdhStrategyFocusBox?.SelectedItem is
+                    System.Windows.Controls.ComboBoxItem item &&
+                Enum.TryParse<EdhLabStrategyFocus>(item.Tag?.ToString(),
+                    ignoreCase: false, out var focus) &&
+                Enum.IsDefined(focus))
+                return focus;
+            return EdhLabStrategyFocus.Balanced;
+        }
+    }
+
+    private void OnEdhStrategyFocusChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (EdhStrategyExplanation is null) return;
+        EdhStrategyExplanation.Text =
+            EdhLabStrategyGoals.Description(SelectedStrategyFocus);
+        // An intent change only recomputes read-only suggestions. Never
+        // invoke ApplyManaBalance or change saved deck/collection state.
+        if (edhLabCommander is not null && edhCatalog is not null)
+            RefreshDraftSummary();
+    }
+
     private void RefreshCurveAdvice(
         IReadOnlyList<NativeDeckEditing.Entry> entries, EdhLabManaPlanner.Plan plan)
     {
@@ -481,7 +507,8 @@ public partial class NativeDeckEditorWindow : Window
         EdhCurveHeadline.Text = report.Headline;
         EdhCurveDetails.Text = report.Display;
         lastOptimization = EdhLabDeckOptimizer.Analyze(
-            edhCatalog, entries.Select(x => (x.Name, x.Quantity)));
+            edhCatalog, entries.Select(x => (x.Name, x.Quantity)),
+            focus: SelectedStrategyFocus);
         EdhOptimizationHeadline.Text = lastOptimization.Headline;
         EdhOptimizationDetails.Text = lastOptimization.Display;
         EdhBrowseImprovementsButton.IsEnabled = !busy && lastOptimization.CanBrowse;
@@ -505,7 +532,8 @@ public partial class NativeDeckEditorWindow : Window
         int landTarget = TryLandTarget(out int userTarget)
             ? userTarget : 36;
         lastSwapAdvice = EdhLabSwapAdvisor.Analyze(edhCatalog,
-            entries.Select(x => (x.Name, x.Quantity)), landTarget);
+            entries.Select(x => (x.Name, x.Quantity)), landTarget,
+            focus: SelectedStrategyFocus);
         EdhSwapHeadline.Text = lastSwapAdvice.Headline;
         EdhSwapStatus.Text = lastSwapAdvice.Display;
         EdhSwapProposalsList.ItemsSource = lastSwapAdvice.Proposals;
@@ -551,7 +579,8 @@ public partial class NativeDeckEditorWindow : Window
             int landTarget = TryLandTarget(out int userTarget)
                 ? userTarget : 36;
             var fresh = EdhLabSwapAdvisor.Analyze(edhCatalog,
-                entries.Select(x => (x.Name, x.Quantity)), landTarget);
+                entries.Select(x => (x.Name, x.Quantity)), landTarget,
+                focus: SelectedStrategyFocus);
             if (!EdhLabSwapAdvisor.IsCurrent(fresh, selected))
             {
                 RefreshSwapAdvice(entries);
@@ -1053,6 +1082,7 @@ public partial class NativeDeckEditorWindow : Window
             EdhWorkspaceTabs.SelectedItem = EdhCardsTab;
             EdhRecordedOnly.IsChecked = true;
             EdhRoleBox.SelectedIndex = 0;
+            EdhStrategyFocusBox.SelectedIndex = 0; // Per-session default, never stored.
             // Fresh drafts get Arena-style baseline basics. Existing decks
             // never opt into edits without a deliberate user choice.
             EdhAutoBalanceLands.IsChecked = selected is null;
