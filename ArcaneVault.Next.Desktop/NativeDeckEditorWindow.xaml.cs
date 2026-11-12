@@ -16,6 +16,8 @@ public partial class NativeDeckEditorWindow : Window
     private readonly string? catalogPath;
     private bool busy;
     private int draftVersion;
+    private int previewVersion;
+    private CancellationTokenSource? previewRequest;
     private sealed record OwnedDisplay(string Name, long Owned)
     {
         public string Display => $"{Name}  ·  {Owned:N0} owned";
@@ -30,6 +32,132 @@ public partial class NativeDeckEditorWindow : Window
         OwnedCardsList.ItemsSource = NativeDeckOwnedPicker.Search(
             ownership, pool, OwnedSearchBox.Text)
             .Select(x => new OwnedDisplay(x.Name, x.Owned)).ToArray();
+    }
+
+    private async void OnOwnedCardSelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        // Selection is user-driven. Never fetch art during list population or
+        // scrolling; cancel prior requests and wait for selection to settle.
+        previewRequest?.Cancel();
+        int version = ++previewVersion;
+        if (PreviewCardName is null || PreviewArtwork is null ||
+            PreviewStatus is null || PreviewMetadata is null ||
+            PreviewOracleText is null || PreviewArtFallback is null ||
+            PreviewOwnership is null || OwnedCardsList is null)
+            return;
+
+        PreviewArtwork.Source = null;
+        PreviewArtwork.Visibility = Visibility.Collapsed;
+        PreviewArtFallback.Visibility = Visibility.Visible;
+        PreviewOracleText.Text = "";
+        PreviewMetadata.Text = "";
+        if (OwnedCardsList.SelectedItem is not OwnedDisplay card)
+        {
+            PreviewCardName.Text = "Select an owned card";
+            PreviewOwnership.Text = "";
+            PreviewStatus.Text = "Preview is read-only; selecting a card does not modify your deck.";
+            return;
+        }
+
+        PreviewCardName.Text = card.Name;
+        PreviewOwnership.Text = $"{card.Owned:N0} copies owned in the selected inventory";
+        if (string.IsNullOrWhiteSpace(catalogPath))
+        {
+            PreviewMetadata.Text = "No offline Scryfall catalog available.";
+            PreviewStatus.Text = "Use Full Sync to load card metadata and artwork.";
+            return;
+        }
+
+        bool arena = OwnedPoolBox.SelectedIndex == 1;
+        var request = new CancellationTokenSource();
+        previewRequest = request;
+        var token = request.Token;
+        PreviewStatus.Text = "Loading local card details…";
+        try
+        {
+            // Rapid keyboard navigation should not generate one network
+            // request per transient selection.
+            await Task.Delay(220, token);
+            var preview = await Task.Run(() =>
+            {
+                token.ThrowIfCancellationRequested();
+                var info = CollectionCatalogReview.ReadDetails(catalogPath!, card.Name);
+                string imageUrl = arena ? "" : info?.ArtworkUrl ?? "";
+                if (arena && info is not null)
+                {
+                    // Never use a potentially paper-only card image for Arena.
+                    // Printing gallery returns one representative Arena image,
+                    // not a claimed owned digital cosmetic style.
+                    try
+                    {
+                        imageUrl = NativePrintingArtwork.Read(catalogPath!,
+                            card.Name, limit: 1, cancellation: token,
+                            arenaOnly: true).Printings.FirstOrDefault()?.ImageUrl ?? "";
+                    }
+                    catch (Exception ex) when (ex is InvalidDataException or
+                        Microsoft.Data.Sqlite.SqliteException)
+                    {
+                        imageUrl = "";
+                    }
+                }
+                return (Info: info, ImageUrl: imageUrl);
+            }, token);
+            if (token.IsCancellationRequested || version != previewVersion) return;
+            if (preview.Info is null)
+            {
+                PreviewMetadata.Text = "This card is not present in the offline catalog.";
+                PreviewStatus.Text = "Ownership remains available; refresh card metadata to preview.";
+                return;
+            }
+
+            PreviewMetadata.Text = preview.Info.TypeLine +
+                $"  ·  Mana value {preview.Info.ManaValue:G}" +
+                (string.IsNullOrWhiteSpace(preview.Info.ColorIdentity)
+                    ? "  ·  Colorless" : "  ·  Identity: " + preview.Info.ColorIdentity);
+            PreviewOracleText.Text = preview.Info.OracleText;
+            if (!NativeCardArtwork.IsTrustedArtworkUrl(preview.ImageUrl))
+            {
+                PreviewStatus.Text = "No suitable official artwork in the current catalog. " +
+                    "This preview does not identify an owned printing.";
+                return;
+            }
+
+            PreviewStatus.Text = "Loading illustrative official artwork…";
+            var bytes = await NativeCardArtwork.LoadAsync(preview.ImageUrl, token);
+            if (token.IsCancellationRequested || version != previewVersion) return;
+            if (bytes is null)
+            {
+                PreviewStatus.Text = "Artwork unavailable; offline card text is still shown.";
+                return;
+            }
+            using var stream = new MemoryStream(bytes);
+            var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bitmap.DecodePixelWidth = 320;
+            bitmap.StreamSource = stream;
+            bitmap.EndInit();
+            bitmap.Freeze();
+            PreviewArtwork.Source = bitmap;
+            PreviewArtwork.Visibility = Visibility.Visible;
+            PreviewArtFallback.Visibility = Visibility.Collapsed;
+            PreviewStatus.Text = "Illustrative catalog artwork · not verification of an owned printing.";
+        }
+        catch (OperationCanceledException) { /* Selection changed or editor closed. */ }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
+            InvalidDataException or Microsoft.Data.Sqlite.SqliteException or
+            ArgumentException or HttpRequestException or System.NotSupportedException)
+        {
+            if (!token.IsCancellationRequested && version == previewVersion)
+                PreviewStatus.Text = "Card preview unavailable: " + ex.Message;
+        }
+        finally
+        {
+            if (ReferenceEquals(previewRequest, request))
+                previewRequest = null;
+            request.Dispose();
+        }
     }
 
     private void InvalidateAnalytics()
@@ -174,6 +302,39 @@ public partial class NativeDeckEditorWindow : Window
 
     private void OnAddOwnedClicked(object sender, RoutedEventArgs e) => AddSelectedOwnedCard();
 
+    private void OnRemoveOwnedClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || OwnedCardsList.SelectedItem is not OwnedDisplay card) return;
+        try
+        {
+            MainboardBox.Text = NativeDeckOwnedPicker.RemoveOne(MainboardBox.Text, card.Name);
+            StatusText.Text = $"Removed 1 {card.Name} from the unsaved draft. " +
+                "Collection quantities are unchanged.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or OverflowException)
+        {
+            StatusText.Text = "Could not remove card: " + ex.Message;
+        }
+    }
+
+    private void OnSortMainboardClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        try
+        {
+            string sorted = NativeDeckOwnedPicker.SortAlphabetically(MainboardBox.Text);
+            if (sorted != MainboardBox.Text)
+                MainboardBox.Text = sorted;
+            StatusText.Text = "Sorted the unsaved mainboard alphabetically. " +
+                "Commander, ownership and saved decks are unchanged.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or OverflowException)
+        {
+            StatusText.Text = "Could not sort draft: " + ex.Message;
+        }
+    }
+
+
     private void AddSelectedOwnedCard()
     {
         if (busy || OwnedCardsList.SelectedItem is not OwnedDisplay card) return;
@@ -199,6 +360,7 @@ public partial class NativeDeckEditorWindow : Window
         this.catalogPath = catalogPath;
         original = selected;
         InitializeComponent();
+        Closed += (_, _) => { previewVersion++; previewRequest?.Cancel(); };
         OwnedPoolBox.SelectedIndex = selected?.Format.Equals("Arena Brawl",
             StringComparison.OrdinalIgnoreCase) == true ? 1 : 0;
         RefreshOwnedCards();
