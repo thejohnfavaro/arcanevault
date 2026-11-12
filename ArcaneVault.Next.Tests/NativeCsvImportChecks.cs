@@ -152,5 +152,115 @@ internal static class NativeCsvImportChecks
             workspace, catalog, rows, first.BackupSha256));
         Must(NativeWorkspace.Open(workspace).Collection.PhysicalCopies == 16,
             "Stale collection checksum must prevent unintentional double import.");
+
+        // v0.9.41: repeated CSV import reconciles snapshot quantities.
+        // It must never double-count, delete local-only cards, or modify decks.
+        string reconciledPath = Path.Combine(root, "csv-reconciled.sqlite");
+        var original = NativeWorkspace.ImportNewBytes(
+            Backup(), "csv diff fixture", reconciledPath);
+        var physicalDiff = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
+            reconciledPath, catalog, rows, original.BackupSha256);
+        Must(physicalDiff.HasChanges && physicalDiff.AddedRows == 3 &&
+             physicalDiff.AdjustedRows == 1 && physicalDiff.NetCopies == 14 &&
+             physicalDiff.Lines.Single(x => x.Card == "Sol Ring").Current == 1 &&
+             physicalDiff.Lines.Single(x => x.Card == "Sol Ring").Imported == 3 &&
+             physicalDiff.Lines.Single(x => x.Card == "Sol Ring").Delta == 2,
+             "Physical CSV diff must consolidate file duplicates and show precise desired-minus-local quantities.");
+        var physicalCommitted = NativeWorkspaceSafety.ReconcilePhysicalImport(
+            reconciledPath, catalog, rows, original.BackupSha256,
+            physicalDiff.CandidateSha256);
+        Must(physicalCommitted.Current.Collection.PhysicalCopies == 15 &&
+             physicalCommitted.Current.Collection.Decks == original.Collection.Decks &&
+             physicalCommitted.Current.Collection.ArenaCopies == original.Collection.ArenaCopies &&
+             NativeWorkspace.Open(physicalCommitted.RecoveryPath)
+                 .Collection.PhysicalCopies == 1,
+             "Physical CSV reconciliation must apply only net differences with full rollback.");
+        var noChange = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
+            reconciledPath, catalog, rows, physicalCommitted.Current.BackupSha256);
+        Must(!noChange.HasChanges && noChange.UnchangedRows == 4 &&
+             noChange.NetCopies == 0,
+             "Importing identical CSV a second time must become a genuine no-op.");
+        Reject(() => NativeWorkspaceSafety.ReconcilePhysicalImport(
+            reconciledPath, catalog, rows, physicalCommitted.Current.BackupSha256,
+            noChange.CandidateSha256));
+        Reject(() => NativeWorkspaceSafety.ReconcilePhysicalImport(
+            reconciledPath, catalog, rows, original.BackupSha256,
+            physicalDiff.CandidateSha256));
+
+        string decreaseCsv = Path.Combine(root, "reconcile-lower.csv");
+        File.WriteAllText(decreaseCsv,
+            "Name,Quantity,Set Code,Collector Number,Finish,Scryfall ID\n" +
+            "Sol Ring,1,tst,21,foil," + SolId + "\n");
+        var smaller = NativeCsvCollectionImport.Read(decreaseCsv);
+        var smallerDiff = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
+            reconciledPath, catalog, smaller, physicalCommitted.Current.BackupSha256);
+        Must(smallerDiff.HasChanges && smallerDiff.NetCopies == -2 &&
+             smallerDiff.LocalOnlyRows == 3 && smallerDiff.Lines.Single().Action == "Adjusted",
+             "Lower imported quantities must subtract only the difference while preserving unlisted local cards.");
+        var smallerCommit = NativeWorkspaceSafety.ReconcilePhysicalImport(
+            reconciledPath, catalog, smaller, physicalCommitted.Current.BackupSha256,
+            smallerDiff.CandidateSha256);
+        Must(smallerCommit.Current.Collection.PhysicalCopies == 13 &&
+             smallerCommit.Current.Collection.PhysicalCards.Any(x =>
+                 x.Name == "Island" && x.Quantity == 3),
+             "Decreasing one physical printing must not remove unmentioned holdings.");
+
+        string zeroCsv = Path.Combine(root, "reconcile-zero.csv");
+        File.WriteAllText(zeroCsv,
+            "Name,Quantity,Set Code,Collector Number,Finish,Scryfall ID\n" +
+            "Sol Ring,0,tst,21,foil," + SolId + "\n");
+        var zeroRows = NativeCsvCollectionImport.Read(zeroCsv);
+        var zeroDiff = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
+            reconciledPath, catalog, zeroRows, smallerCommit.Current.BackupSha256);
+        Must(zeroDiff.RemovedRows == 1 && zeroDiff.NetCopies == -1,
+             "An explicit zero should preview removal of exactly that printing.");
+        var zeroCommit = NativeWorkspaceSafety.ReconcilePhysicalImport(
+            reconciledPath, catalog, zeroRows, smallerCommit.Current.BackupSha256,
+            zeroDiff.CandidateSha256);
+        Must(zeroCommit.Current.Collection.PhysicalCopies == 12 &&
+             !zeroCommit.Current.Collection.PhysicalCards.Any(x => x.Name == "Sol Ring") &&
+             zeroCommit.Current.Collection.PhysicalCards.Any(x => x.Name == "Island"),
+             "Explicit zero should remove only the matched printing, never unrelated rows.");
+
+        string arenaPath = Path.Combine(root, "arena-reconciled.sqlite");
+        var arenaStart = NativeWorkspace.ImportNewBytes(
+            Backup(), "arena diff fixture", arenaPath);
+        var arenaRows = new NativeExcelCollectionImport.Row[]
+        {
+            new(1, "Arena Card", 4, "", "", "unspecified", ""),
+            new(2, "New Digital Card", 3, "", "", "unspecified", ""),
+            new(3, "New Digital Card", 2, "", "", "unspecified", "")
+        };
+        var arenaDiff = NativeWorkspaceSafety.PreviewArenaReconciliation(
+            arenaPath, arenaRows, arenaStart.BackupSha256);
+        Must(arenaDiff.AddedRows == 1 && arenaDiff.UnchangedRows == 1 &&
+             arenaDiff.NetCopies == 5 && arenaDiff.Lines.Single(x =>
+                 x.Card == "New Digital Card").Imported == 5,
+             "Arena diff should merge duplicate source names but leave equal existing quantities alone.");
+        var arenaCommit = NativeWorkspaceSafety.ReconcileArenaImport(
+            arenaPath, arenaRows, arenaStart.BackupSha256, arenaDiff.CandidateSha256);
+        Must(arenaCommit.Current.Collection.ArenaCopies == 9 &&
+             arenaCommit.Current.Collection.PhysicalCopies == 1 &&
+             arenaCommit.Current.Collection.Decks == arenaStart.Collection.Decks,
+             "Arena reconciliation must not touch physical cards or saved decks.");
+        Must(!NativeWorkspaceSafety.PreviewArenaReconciliation(
+            arenaPath, arenaRows, arenaCommit.Current.BackupSha256).HasChanges,
+            "Repeated Arena CSV import must not add copies again.");
+        var downArena = new[]
+        {
+            new NativeExcelCollectionImport.Row(1, "Arena Card", 2,
+                "", "", "unspecified", "")
+        };
+        var arenaDecrease = NativeWorkspaceSafety.PreviewArenaReconciliation(
+            arenaPath, downArena, arenaCommit.Current.BackupSha256);
+        Must(arenaDecrease.NetCopies == -2 && arenaDecrease.LocalOnlyRows == 1,
+             "Arena snapshot decreases must preserve names absent from the import.");
+        var arenaReduced = NativeWorkspaceSafety.ReconcileArenaImport(
+            arenaPath, downArena, arenaCommit.Current.BackupSha256,
+            arenaDecrease.CandidateSha256);
+        Must(arenaReduced.Current.Collection.ArenaCopies == 7 &&
+             arenaReduced.Current.Collection.ArenaCards.Any(x =>
+                 x.Name == "New Digital Card" && x.Quantity == 5),
+             "Arena quantities should be reconciled, not incremented or globally replaced.");
     }
 }
