@@ -312,6 +312,16 @@ internal static class EdhLabDraftChecks
             using var change = db.CreateCommand();
             change.CommandText = """
                 ALTER TABLE cards ADD COLUMN mana_cost TEXT NOT NULL DEFAULT '';
+                ALTER TABLE cards ADD COLUMN mv REAL NOT NULL DEFAULT 0;
+                UPDATE cards SET mv = CASE name
+                    WHEN 'Brainstorm' THEN 1
+                    WHEN 'Swords to Plowshares' THEN 1
+                    WHEN 'Counterspell' THEN 2
+                    WHEN 'Sol Ring' THEN 1
+                    WHEN 'Arcane Signet' THEN 2
+                    WHEN 'Thopter Foundry' THEN 2
+                    WHEN 'Board Clear' THEN 5
+                    ELSE 0 END;
                 UPDATE cards SET mana_cost = CASE name
                     WHEN 'Brainstorm' THEN '{U}'
                     WHEN 'Swords to Plowshares' THEN '{W}'
@@ -360,6 +370,84 @@ internal static class EdhLabDraftChecks
                  Array.Empty<(string Name,int Quantity)>(), "WU", 36,
                  weightSpellPips: true).UsingSpellPips,
              "Empty decks must retain the even split even when weighting is enabled.");
+
+        // Land-drop probabilities are exact hypergeometric estimates for
+        // the explicitly described sampling assumption: a shuffled 99-card
+        // mainboard, 7-card opening hand and a draw from turn two onward.
+        Must(Math.Abs(EdhLabCurveAnalysis.ProbabilityAtLeast(36, 8, 2) - .8609) < .002 &&
+             Math.Abs(EdhLabCurveAnalysis.ProbabilityAtLeast(36, 9, 3) - .7037) < .002 &&
+             EdhLabCurveAnalysis.ProbabilityAtLeast(0, 10, 1) == 0 &&
+             EdhLabCurveAnalysis.ProbabilityAtLeast(99, 10, 5) == 1 &&
+             EdhLabCurveAnalysis.ProbabilityAtLeast(36, 0, 0) == 1 &&
+             EdhLabCurveAnalysis.ProbabilityAtLeast(36, 9, 3) >
+                 EdhLabCurveAnalysis.ProbabilityAtLeast(30, 9, 3),
+             "Land-drop estimator must match known 99-card hypergeometric results.");
+
+        var curveEntries = ManaRows(
+            "6 Brainstorm\n2 Swords to Plowshares\n1 Counterspell");
+        var curvePlan = EdhLabManaPlanner.Analyze(pipPaper,
+            curveEntries, "WU", 36, weightSpellPips: true);
+        var curve = EdhLabCurveAnalysis.Analyze(pipPaper, curveEntries, curvePlan);
+        Must(curve.MainboardCopies == 9 &&
+             curve.VerifiedNonlandCopies == 9 &&
+             curve.Buckets[1] == 8 && curve.Buckets[2] == 1 &&
+             curve.Buckets.Sum() == 9 &&
+             Math.Abs(curve.AverageManaValue - (10.0 / 9)) < .001 &&
+             curve.ManaCostCopies == 9 && curve.MissingCostCopies == 0 &&
+             !curve.UsesActualLands && curve.LandCountForOdds == 36 &&
+             curve.LandDrops.Count == 4 &&
+             Math.Abs(curve.LandDrops.Single(x => x.Turn == 3).Chance -
+                 .7037) < .002 &&
+             curve.Display.Contains("Projected land-drop odds") &&
+             curve.Display.Contains("Nonland mana curve") &&
+             curve.Display.Contains("not simulated", StringComparison.OrdinalIgnoreCase),
+             "Projected curve should use cached mana values, live draft counts and explicit odds assumptions.");
+
+        // Two U pips on turn two in a white-heavy deck create a measurable
+        // blue-source bottleneck. Marginal odds are NOT cast probabilities.
+        var pressureRows = ManaRows("1 Counterspell\n10 Swords to Plowshares");
+        var pressurePlan = EdhLabManaPlanner.Analyze(pipPaper,
+            pressureRows, "WU", 36, weightSpellPips: true);
+        var pressure = EdhLabCurveAnalysis.Analyze(
+            pipPaper, pressureRows, pressurePlan);
+        Must(pressure.ColorWarnings.Any(x => x.Name == "Counterspell" &&
+                x.Color == "U" && x.RequiredSources == 2 &&
+                x.ByTurn == 2 && x.MarginalChance < .60) &&
+             pressure.Display.Contains("NOT cast odds"),
+             "Strict double-colored spells should show marginal source pressure, not invented cast odds.");
+
+        var completeEntries = ManaRows(
+            "30 Plains\n22 Island\n47 Brainstorm");
+        var completePlan = EdhLabManaPlanner.Analyze(pipPaper,
+            completeEntries, "WU", 36, weightSpellPips: true);
+        var complete = EdhLabCurveAnalysis.Analyze(
+            pipPaper, completeEntries, completePlan);
+        Must(complete.UsesActualLands && complete.MainboardCopies == 99 &&
+             complete.LandCountForOdds == 52 &&
+             completePlan.CurrentColoredSources["W"] == 30 &&
+             completePlan.CurrentColoredSources["U"] == 22 &&
+             complete.LandDrops.Single(x => x.Turn == 3).Chance >
+                curve.LandDrops.Single(x => x.Turn == 3).Chance &&
+             complete.Display.Contains("current 99-card mainboard"),
+             "Complete saved decks must use actual lands rather than planned targets.");
+
+        var legacyCurve = EdhLabCurveAnalysis.Analyze(paper,
+            ManaRows("1 Brainstorm\n1 Counterspell"),
+            EdhLabManaPlanner.Analyze(paper,
+                ManaRows("1 Brainstorm\n1 Counterspell"), "WU", 36));
+        Must(!legacyCurve.HasManaCosts &&
+             legacyCurve.ColorWarnings.Count == 0 &&
+             legacyCurve.Display.Contains("Full Sync") &&
+             legacyCurve.LandDrops.Count == 4,
+             "Old catalogs must keep numerical land odds without fabricating pip data.");
+        var unknownCurveRows = ManaRows("1 Mystery Land");
+        var unknownCurve = EdhLabCurveAnalysis.Analyze(pipPaper,
+            unknownCurveRows,
+            EdhLabManaPlanner.Analyze(pipPaper, unknownCurveRows, "WU", 36));
+        Must(unknownCurve.UnverifiedCopies == 1 &&
+             unknownCurve.LandDrops.Count == 0 &&
+             unknownCurve.Display.Contains("unavailable"),
+             "Unknown card names must halt probability estimates rather than silently assuming their type.");
 
         Must(originalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))),
              "Deck drafting candidate search must never write or alter the Scryfall catalog.");

@@ -13,7 +13,7 @@ public sealed class EdhLabDraftCatalog
 {
     public sealed record Card(string Name, string Type, string Oracle,
         string Colors, string RoleHints, long RecordedCopies, bool IsBasicLand,
-        int SuggestedCopyLimit, string ManaCost = "")
+        int SuggestedCopyLimit, string ManaCost = "", double ManaValue = 0)
     {
         public string Display => Name + "  ·  " +
             (RecordedCopies > 0 ? RecordedCopies + " recorded" : "Missing") +
@@ -156,20 +156,25 @@ public sealed class EdhLabDraftCatalog
         }
         var synergy = EdhLabSynergyAdvisor.FromCommander(
             commanderType, commanderOracle);
-        bool hasManaCosts = false;
+        bool hasManaCosts = false, hasManaValues = false;
         using (var schema = db.CreateCommand())
         {
             schema.CommandText = "PRAGMA table_info(cards)";
             using var columns = schema.ExecuteReader();
             while (columns.Read())
-                if (columns.GetString(1).Equals("mana_cost",
-                    StringComparison.OrdinalIgnoreCase))
+            {
+                string name = columns.GetString(1);
+                if (name.Equals("mana_cost", StringComparison.OrdinalIgnoreCase))
                     hasManaCosts = true;
+                if (name.Equals("mv", StringComparison.OrdinalIgnoreCase))
+                    hasManaValues = true;
+            }
         }
         using var cmd = db.CreateCommand();
         cmd.CommandText =
             "SELECT name,type,oracle,colors,legalities,arena," +
-            (hasManaCosts ? "mana_cost" : "'' AS mana_cost") +
+            (hasManaCosts ? "mana_cost" : "'' AS mana_cost") + "," +
+            (hasManaValues ? "mv" : "0.0 AS mv") +
             " FROM cards ORDER BY name COLLATE NOCASE";
         var results = new List<Card>();
         using var reader = cmd.ExecuteReader();
@@ -196,7 +201,8 @@ public sealed class EdhLabDraftCatalog
             results.Add(new Card(name, type, oracle, colors,
                 string.Join(" · ", Roles(type, oracle)),
                 counts.GetValueOrDefault(name), basic, CopyLimit(type, oracle),
-                reader.IsDBNull(6) ? "" : reader.GetString(6)));
+                reader.IsDBNull(6) ? "" : reader.GetString(6),
+                reader.IsDBNull(7) ? 0.0 : Convert.ToDouble(reader.GetValue(7))));
         }
         return new EdhLabDraftCatalog(results, synergy, hasManaCosts);
     }
