@@ -32,6 +32,11 @@ public sealed class CatalogSnapshot : IDisposable
 
     private readonly string snapshotPath;
     private readonly object gate = new();
+    // A card name may occur in dozens of printings. Its rules text/type are
+    // identical for role classification, so derive roles once per name per
+    // snapshot instead of running 18 regexes for every printing and filter.
+    private readonly Dictionary<string, string> cachedRoleLabels =
+        new(StringComparer.OrdinalIgnoreCase);
     private bool disposed;
     private readonly bool ownsTemporaryFile;
     public bool HasFullMetadata { get; }
@@ -105,7 +110,19 @@ public sealed class CatalogSnapshot : IDisposable
     private static bool HasPaperFields(SqliteConnection db) =>
         HasFields(db, "variants", "games", "digital");
 
-    private static PrintingRow ReadRow(SqliteDataReader reader,
+    private string RoleLabels(SqliteDataReader reader)
+    {
+        string name = reader.GetString(1);
+        if (cachedRoleLabels.TryGetValue(name, out var result))
+            return result;
+        result = string.Join(" · ", NativeCardRoles.Derive(
+            reader.IsDBNull(7) ? "" : reader.GetString(7),
+            reader.IsDBNull(8) ? "" : reader.GetString(8)));
+        cachedRoleLabels[name] = result;
+        return result;
+    }
+
+    private PrintingRow ReadRow(SqliteDataReader reader,
         NativeCatalogOwnership? ownership, bool includeRoles, bool arenaPresentation = false)
     {
         string name = reader.GetString(1);
@@ -114,11 +131,7 @@ public sealed class CatalogSnapshot : IDisposable
         var counts = ownership?.ForPrinting(reader.GetString(0), name, set,
             collector, IsPaper(reader));
         string image = reader.IsDBNull(6) ? "" : reader.GetString(6);
-        string roles = includeRoles
-            ? string.Join(" · ", NativeCardRoles.Derive(
-                reader.IsDBNull(7) ? "" : reader.GetString(7),
-                reader.IsDBNull(8) ? "" : reader.GetString(8)))
-            : "";
+        string roles = includeRoles ? RoleLabels(reader) : "";
         return new PrintingRow(name, set, collector,
             counts?.VerifiedPhysical ?? 0, counts?.Arena ?? 0,
             counts?.UnresolvedName ?? 0, image, roles, arenaPresentation);
@@ -448,6 +461,14 @@ public sealed class CatalogSnapshot : IDisposable
             while (reader.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                // Skip nonmatching card names before allocating a printing row
+                // or resolving ownership. Each name's role tags are computed
+                // at most once, even across multiple filter selections.
+                if (filters.Role.Length > 0 &&
+                    !RoleLabels(reader).Split(" · ",
+                        StringSplitOptions.RemoveEmptyEntries)
+                    .Contains(filters.Role, StringComparer.OrdinalIgnoreCase))
+                    continue;
                 var row = ReadRow(reader, ownership, HasRoleMetadata, arenaScope);
                 bool matches = filters.Ownership switch
                 {
@@ -457,11 +478,7 @@ public sealed class CatalogSnapshot : IDisposable
                     OwnershipMode.ArenaNotOwned => row.ArenaOwned == 0,
                     _ => true
                 };
-                if (!matches ||
-                    (filters.Role.Length > 0 &&
-                     !row.RolesLabel.Split(" · ", StringSplitOptions.RemoveEmptyEntries)
-                        .Contains(filters.Role, StringComparer.OrdinalIgnoreCase)))
-                    continue;
+                if (!matches) continue;
                 if (encounteredArenaNames is not null &&
                     !encounteredArenaNames.Add(row.Name)) continue;
                 if (rows.Count >= limit) { hasExtra = true; break; }
