@@ -21,6 +21,12 @@
         <SolidColorBrush x:Key="VaultGood" Color="#8BD3AC"/>
         <SolidColorBrush x:Key="VaultWarning" Color="#E5BF79"/>
         <SolidColorBrush x:Key="VaultDanger" Color="#9A5277"/>
+        <!-- The original color-identity themes had visible mana gradients.
+             Runtime changes replace this shared brush with a new gradient. -->
+        <LinearGradientBrush x:Key="VaultThemeBanner" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#B59BFC" Offset="0"/>
+            <GradientStop Color="#7FCAE1" Offset="1"/>
+        </LinearGradientBrush>
 
         <Style TargetType="{x:Type Window}">
             <Setter Property="Background" Value="{DynamicResource VaultBackground}"/>
