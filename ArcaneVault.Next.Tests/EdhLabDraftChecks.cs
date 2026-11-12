@@ -258,7 +258,7 @@ internal static class EdhLabDraftChecks
         var paperOwned = paper.Search("", recordedOnly: true);
         var arenaOwned = arena.Search("", recordedOnly: true);
         Must(paperOwned.Select(x => x.Name).OrderBy(x => x)
-                .SequenceEqual(new[] { "Counterspell", "Sol Ring", "Swords to Plowshares", "Tiny Insight" }) &&
+                .SequenceEqual(new[] { "Artifact Arrival", "Counterspell", "Sol Ring", "Swords to Plowshares", "Tiny Insight" }) &&
              arenaOwned.Select(x => x.Name).OrderBy(x => x)
                 .SequenceEqual(new[] { "Brainstorm", "Island" }),
              "Physical and Arena inventory names may not be combined.");
