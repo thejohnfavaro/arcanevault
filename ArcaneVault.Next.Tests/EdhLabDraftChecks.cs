@@ -56,6 +56,13 @@ internal static class EdhLabDraftChecks
                 type: "Legendary Artifact Creature — Human");
             Card("Sol Ring", "", "Add {C}.", type: "Artifact");
             Card("Island", "U", "Add {U}.", type: "Basic Land — Island");
+            Card("Plains", "W", "Add {W}.", type: "Basic Land — Plains");
+            Card("Azorius Guildgate", "WU", "{T}: Add {W} or {U}.",
+                type: "Land — Gate");
+            Card("Command Tower", "", "{T}: Add one mana of any color in your commander's color identity.",
+                type: "Land");
+            Card("Reliquary Tower", "", "{T}: Add {C}.", type: "Land");
+            Card("Snow-Covered Island", "U", "", type: "Basic Snow Land — Island");
             Card("Brainstorm", "U", "Draw three cards.");
             Card("Counterspell", "U", "Counter target spell.", brawlLegal: "banned");
             Card("Swords to Plowshares", "W", "Exile target creature.", arena: false);
@@ -207,6 +214,71 @@ internal static class EdhLabDraftChecks
         }
         catch (ArgumentOutOfRangeException) { badBlueprintRejected = true; }
         Must(badBlueprintRejected, "Blueprint must reject nonpositive quantities.");
+
+        // Arena-style new deck: even baseline basics; then dual/flexible
+        // lands consume land slots and change the effective color spread.
+        var blankPlan = EdhLabManaPlanner.Analyze(paper,
+            Array.Empty<NativeDeckEditing.Entry>(), "WU", 36);
+        Must(blankPlan.CanApply && blankPlan.DesiredBasics == 36 &&
+             blankPlan.TotalAfter == 36 && blankPlan.CopiesAfter == 36 &&
+             blankPlan.Basics.Single(x => x.Name == "Plains").Quantity == 18 &&
+             blankPlan.Basics.Single(x => x.Name == "Island").Quantity == 18 &&
+             EdhLabManaPlanner.Apply("", "WU", blankPlan) ==
+                 "18 Plains\n18 Island",
+             "Fresh two-color Commander drafts should start with an even 36-land basic split.");
+        var dualEntries = NativeDeckEditing.ParseMainboard(
+            "1 Azorius Guildgate\n18 Plains\n18 Island\n1 Brainstorm");
+        var dualPlan = EdhLabManaPlanner.Analyze(paper, dualEntries, "WU", 36);
+        string dualAdjusted = EdhLabManaPlanner.Apply(
+            "1 Azorius Guildgate\n18 Plains\n18 Island\n1 Brainstorm",
+            "WU", dualPlan);
+        Must(dualPlan.CurrentLands == 37 && dualPlan.FixedLands == 1 &&
+             dualPlan.FlexibleLands == 1 && dualPlan.DesiredBasics == 35 &&
+             dualPlan.TotalAfter == 36 &&
+             dualPlan.Basics.Sum(x => x.Quantity) == 35 &&
+             dualAdjusted.Contains("1 Azorius Guildgate") &&
+             dualAdjusted.Contains("1 Brainstorm") &&
+             NativeDeckEditing.ParseMainboard(dualAdjusted)
+                 .Sum(x => x.Quantity) == 37,
+             "Adding a two-color land must consume one basic slot, not add two land slots.");
+        var utilityEntries = NativeDeckEditing.ParseMainboard(
+            "1 Azorius Guildgate\n1 Command Tower\n1 Reliquary Tower\n" +
+            "1 Snow-Covered Island\n12 Plains\n12 Island");
+        var utilityPlan = EdhLabManaPlanner.Analyze(paper, utilityEntries, "WU", 36);
+        string utilityAdjusted = EdhLabManaPlanner.Apply(
+            "1 Azorius Guildgate\n1 Command Tower\n1 Reliquary Tower\n" +
+            "1 Snow-Covered Island\n12 Plains\n12 Island", "WU", utilityPlan);
+        Must(utilityPlan.FixedLands == 4 && utilityPlan.FlexibleLands == 2 &&
+             utilityPlan.UnclassifiedLands == 1 &&
+             utilityPlan.DesiredBasics == 32 && utilityPlan.TotalAfter == 36 &&
+             utilityAdjusted.Contains("1 Snow-Covered Island") &&
+             utilityAdjusted.Contains("1 Reliquary Tower") &&
+             Math.Abs(utilityPlan.ApproximateColoredSources["W"] -
+                      utilityPlan.ApproximateColoredSources["U"]) <= 1.01,
+             "Multicolor and rainbow lands should add fractional access; utility/snow lands stay intact.");
+        var unknownPlan = EdhLabManaPlanner.Analyze(paper,
+            NativeDeckEditing.ParseMainboard("1 Mystery Land"), "WU", 36);
+        bool unknownRejected = false;
+        try { EdhLabManaPlanner.Apply("1 Mystery Land", "WU", unknownPlan); }
+        catch (InvalidDataException) { unknownRejected = true; }
+        Must(!unknownPlan.CanApply && unknownRejected &&
+             unknownPlan.UnverifiedCards.Contains("Mystery Land"),
+             "Unknown card names must never trigger destructive land rewriting.");
+        var fullPlan = EdhLabManaPlanner.Analyze(paper,
+            NativeDeckEditing.ParseMainboard("70 Brainstorm\n25 Counterspell"),
+            "WU", 36);
+        Must(fullPlan.CopiesAfter == 99 && fullPlan.TotalAfter == 4 &&
+             fullPlan.Summary.Contains("Not enough space"),
+             "Auto basics must cap at 99 cards when the user adds many nonland copies.");
+        var colorlessPlan = EdhLabManaPlanner.Analyze(paper,
+            Array.Empty<NativeDeckEditing.Entry>(), "", 36);
+        Must(colorlessPlan.Basics.Single().Name == "Wastes" &&
+             colorlessPlan.Basics.Single().Quantity == 36,
+             "Colorless commander land guidance must use Wastes, not off-identity colored basics.");
+        var shiftedBlueprint = EdhLabDeckBlueprint.Analyze(paper,
+            new[] { (Name: "Island", Quantity: 12) }, landTarget: 40);
+        Must(shiftedBlueprint.Roles.Single(x => x.Role == "Land").SuggestedMinimum == 40,
+             "Changing the land target must also update the live blueprint guidance.");
 
         Must(originalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))),
              "Deck drafting candidate search must never write or alter the Scryfall catalog.");
