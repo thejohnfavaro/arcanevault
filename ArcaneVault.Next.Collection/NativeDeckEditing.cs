@@ -87,6 +87,36 @@ public static class NativeDeckEditing
         return names.Values.ToArray();
     }
 
+    /// <summary>
+    /// Resolve only the mainboard line under a text editor's caret. This is a
+    /// read-only preview hint, NOT validation of the entire draft or evidence
+    /// that the card is owned/locally legal. It deliberately leaves split and
+    /// double-faced names intact.
+    /// </summary>
+    public static string? PreviewNameAtCaret(string text, int caretIndex)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (text.Length > 64_000 || caretIndex < 0 || caretIndex > text.Length)
+            return null;
+
+        int before = Math.Max(0, caretIndex - 1);
+        int start = text.LastIndexOf('\n', before) + 1;
+        int end = text.IndexOf('\n', start);
+        if (end < 0) end = text.Length;
+        string line = text[start..end].Trim();
+        if (line.Length == 0) return null;
+
+        var match = Regex.Match(line, @"^([0-9]{1,4})\s+(.+)$",
+            RegexOptions.CultureInvariant);
+        if (!match.Success ||
+            !int.TryParse(match.Groups[1].Value, out int quantity) ||
+            quantity is < 1 or > 250)
+            return null;
+        string name = match.Groups[2].Value.Trim();
+        return name.Length is > 0 and <= 255 && !name.Any(char.IsControl)
+            ? name : null;
+    }
+
     private static IReadOnlyList<DeckRow> Describe(byte[] backup,
         out JsonObject root, out JsonArray library)
     {
