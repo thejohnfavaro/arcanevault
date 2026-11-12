@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ArcaneVault.Next.Collection;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -61,55 +62,77 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        // The old version launches the new version, then closes. Do not open
-        // the same private native SQLite workspace from both processes at once.
-        foreach (string arg in e.Args)
-        {
-            const string prefix = "--upgrade-from-pid=";
-            if (!arg.StartsWith(prefix, StringComparison.Ordinal)) continue;
-            if (!int.TryParse(arg[prefix.Length..], out int pid) || pid <= 0 ||
-                pid == Environment.ProcessId)
-            {
-                MessageBox.Show("Invalid native upgrade restart argument.",
-                    "Arcane Vault Native", MessageBoxButton.OK, MessageBoxImage.Warning);
-                Shutdown(1);
-                return;
-            }
-            try
-            {
-                using var previous = Process.GetProcessById(pid);
-                if (!previous.WaitForExit(30_000))
-                {
-                    MessageBox.Show(
-                        "The previous Arcane Vault Native instance is still open. " +
-                        "Close it before starting the new version to protect your collection.",
-                        "Native update paused", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    Shutdown(1);
-                    return;
-                }
-            }
-            catch (ArgumentException)
-            {
-                // The previous process has already exited. Normal upgrade path.
-            }
-            break;
-        }
-        // Restore appearance before the main window is constructed. Theme
-        // preferences are separate from the collection; a corrupt preference
-        // must never stop startup or modify the private workspace.
-        try { VaultThemeManager.LoadSaved(); }
-        catch (Exception ex) when (ex is InvalidDataException or
-            InvalidOperationException or FormatException)
-        {
-            RecordFailure("Theme preference fallback", ex);
-            VaultThemeManager.Apply(ArcaneVault.Next.Collection.NativeThemes.Default.Id);
-        }
+        // Register reporting BEFORE any theme or handoff work. Previously an
+        // early startup exception could escape without a diagnostic.
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
             if (args.ExceptionObject is Exception error)
                 RecordFailure("AppDomain unhandled", error);
         };
+
+        int? previousPid = null;
+        string? readyId = null;
+        foreach (string arg in e.Args)
+        {
+            if (arg.StartsWith("--upgrade-from-pid=", StringComparison.Ordinal))
+            {
+                var value = arg["--upgrade-from-pid=".Length..];
+                if (!int.TryParse(value, out int pid) || pid <= 0 ||
+                    pid == Environment.ProcessId)
+                {
+                    RecordFailure("Native relaunch validation",
+                        new InvalidDataException("Invalid previous process ID."));
+                    Shutdown(1);
+                    return;
+                }
+                previousPid = pid;
+            }
+            else if (arg.StartsWith(NativeUpgradeHandoff.ArgumentPrefix,
+                StringComparison.Ordinal))
+                readyId = arg[NativeUpgradeHandoff.ArgumentPrefix.Length..];
+        }
+
+        // Appearance is optional and never a reason to lose access to cards.
+        // In particular, do not re-run a failed Apply on the same resources.
+        try { VaultThemeManager.LoadSaved(); }
+        catch (Exception ex)
+        {
+            RecordFailure("Theme preference fallback", ex);
+            // The default XAML brushes remain available.
+        }
+
+        if (previousPid is not null)
+        {
+            if (readyId is not null)
+            {
+                try { NativeUpgradeHandoff.Signal(readyId); }
+                catch (Exception ex)
+                {
+                    RecordFailure("Native relaunch handshake", ex);
+                    Shutdown(1);
+                    return;
+                }
+            }
+            else
+            {
+                // Compatible with previous updater installations that only
+                // supply the parent PID. Never open a live workspace twice.
+                try
+                {
+                    using var previous = Process.GetProcessById(previousPid.Value);
+                    if (!previous.WaitForExit(30_000))
+                    {
+                        RecordFailure("Legacy native relaunch",
+                            new TimeoutException("Previous app did not exit."));
+                        Shutdown(1);
+                        return;
+                    }
+                }
+                catch (ArgumentException) { }
+            }
+        }
         base.OnStartup(e);
     }
+
 }
