@@ -125,7 +125,8 @@ public partial class NativeDeckEditorWindow : Window
     }
 
     private void OnMainboardSelectionChanged(object sender,
-        System.Windows.RoutedEventArgs e) => PreviewMainboardSelection();
+        System.Windows.Controls.SelectionChangedEventArgs e) =>
+        PreviewMainboardSelection();
 
     private void OnMainboardGotKeyboardFocus(object sender,
         System.Windows.Input.KeyboardFocusChangedEventArgs e) =>
@@ -837,6 +838,21 @@ public partial class NativeDeckEditorWindow : Window
     {
         RefreshOwnedCards();
         RefreshDraftSummary();
+        // Mainboard previews are available even when a card is unowned.
+        // Switching physical/Arena pools must never leave a stale owned
+        // quantity or an image for the previous pool in the preview.
+        if (previewedCard is { } previous && OwnedPoolBox is not null &&
+            previewedPool != OwnedPoolBox.SelectedIndex)
+        {
+            var pool = OwnedPoolBox.SelectedIndex == 1
+                ? NativeDeckOwnedPicker.Pool.Arena
+                : NativeDeckOwnedPicker.Pool.Physical;
+            var updated = previous with
+            {
+                Owned = NativeDeckOwnedPicker.CountOwned(ownership, pool, previous.Name)
+            };
+            _ = ShowCardPreviewAsync(updated);
+        }
     }
 
     private async void OnAnalyzeDeckClicked(object sender, RoutedEventArgs e)
