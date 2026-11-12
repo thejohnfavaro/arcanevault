@@ -152,8 +152,9 @@ internal static class NativeUpdateChecks
         Reject(() => NativeUpdateService.InstallVerifiedArchive(
             malformedJsonZip, Sha(malformedJsonZip), new Version(0, 9, 10), root));
         string nonStringChannel = Zip(upgrade, "nonstring-channel-manifest.zip", "0.9.11",
-            badManifest: "{\\\"version\\\":\\\"0.9.11\\\",\\\"sourceSha\\\":\\\"" +
-                new string('a', 40) + "\\\",\\\"channel\\\":123}");
+            badManifest: JsonSerializer.Serialize(new {
+                version = "0.9.11", sourceSha = new string('a', 40), channel = 123
+            }));
         Reject(() => NativeUpdateService.InstallVerifiedArchive(
             nonStringChannel, Sha(nonStringChannel), new Version(0, 9, 11), root));
         Must(!Directory.Exists(Path.Combine(root, "v0.9.10")) &&
