@@ -1587,7 +1587,9 @@ public partial class MainWindow : Window
                  (sender == ColorWBox || sender == ColorUBox || sender == ColorBBox ||
                   sender == ColorRBox || sender == ColorGBox) && ColorlessOnlyBox is not null)
             ColorlessOnlyBox.IsChecked = false;
-        _ = FilterAsync();
+        // ComboBox/checkbox selections are complete values; unlike typing,
+        // they do not need the search box's 140 ms debounce.
+        _ = FilterAsync(debounce: false);
     }
 
     private CatalogSnapshot.SearchOptions SelectedCatalogFilters()
@@ -1612,7 +1614,7 @@ public partial class MainWindow : Window
             (RoleFilterBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "");
     }
 
-    private async Task FilterAsync()
+    private async Task FilterAsync(bool debounce = true)
     {
         CancelPendingSearch();
         var cts = new CancellationTokenSource();
@@ -1625,7 +1627,7 @@ public partial class MainWindow : Window
         var version = modeVersion;
         try
         {
-            await Task.Delay(140, token);
+            if (debounce) await Task.Delay(140, token);
             if (active is null)
             {
                 if (!syntheticMode)
