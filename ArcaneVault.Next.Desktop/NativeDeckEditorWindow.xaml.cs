@@ -553,11 +553,12 @@ public partial class NativeDeckEditorWindow : Window
             .Concat(package.MissingOptions.Select(x => new PackageDisplay(
                 x.Name, package.Theme, "Missing", x.Kind, x.Why,
                 x.RecordedCopies, x.RoleHints)))).ToArray();
-        EdhPackagesStatus.Text = string.Join(" · ",
+        EdhPackagesStatus.Text = string.Join("\n",
             report.Packages.Select(p => p.Theme + ": " +
-                p.InDeckCount + " in deck, " + p.OwnedOptions.Count +
-                " owned options, " + p.MissingOptions.Count +
-                " missing examples")) +
+                p.InDeckCount + " matching copies in deck; " +
+                p.OwnedOptions.Count + " owned options; " +
+                p.MissingOptions.Count + " missing examples.\n" +
+                p.Coverage + "\nNext review: " + p.NextStep)) +
             (report.UnknownDeckCopies > 0
                 ? $". {report.UnknownDeckCopies} unverified deck copies."
                 : "") +
