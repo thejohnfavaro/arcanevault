@@ -426,6 +426,13 @@
                                   BorderBrush="{DynamicResource VaultLine}"
                                   BorderThickness="1" Padding="7">
                             <StackPanel Margin="0,5,0,3">
+                                <TextBlock Text="MECHANIC" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,3"/>
+                                <ComboBox x:Name="EdhPackageThemeBox" Margin="0,0,0,6"
+                                          SelectionChanged="OnEdhPackageThemeChanged"
+                                          Background="{DynamicResource VaultPanel}"
+                                          Foreground="{DynamicResource VaultText}"
+                                          ToolTip="Choose one recognized commander mechanic or show all."/>
                                 <TextBlock x:Name="EdhPackagesStatus" TextWrapping="Wrap"
                                            FontSize="11" Margin="0,0,0,7"
                                            Foreground="{DynamicResource VaultText}"
