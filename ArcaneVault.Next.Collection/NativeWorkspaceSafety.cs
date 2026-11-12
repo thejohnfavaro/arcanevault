@@ -319,6 +319,89 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    /// <summary>
+    /// Preview CSV/XLSX as an idempotent quantity snapshot. Import file rows
+    /// missing from the file leave local-only rows alone, and unchanged
+    /// quantities never create a recovery point.
+    /// </summary>
+    public static NativeCollectionReconciliation.Result PreviewPhysicalReconciliation(
+        string nativePath, string? catalogPath,
+        IReadOnlyList<NativeExcelCollectionImport.Row> rows,
+        string expectedCurrentBackupSha)
+    {
+        lock (UpdateGate)
+        {
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var prepared = NativeExcelCollectionImport.Prepare(rows, catalogPath);
+            return NativeCollectionReconciliation.Physical(
+                ReadPreservedBackup(path), prepared);
+        }
+    }
+
+    public static Replacement ReconcilePhysicalImport(
+        string nativePath, string? catalogPath,
+        IReadOnlyList<NativeExcelCollectionImport.Row> rows,
+        string expectedCurrentBackupSha, string expectedCandidateSha,
+        CancellationToken cancellation = default)
+    {
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var prepared = NativeExcelCollectionImport.Prepare(rows, catalogPath);
+            var preview = NativeCollectionReconciliation.Physical(
+                ReadPreservedBackup(path), prepared);
+            if (!preview.HasChanges)
+                throw new InvalidDataException(
+                    "The imported quantities already match your collection.");
+            if (!preview.CandidateSha256.Equals(expectedCandidateSha,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(
+                    "Import diff changed since review. Review the latest quantities again.");
+            return Refresh(path, preview.Candidate, "native-physical-csv-xlsx-reconciliation",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
+    public static NativeCollectionReconciliation.Result PreviewArenaReconciliation(
+        string nativePath, IReadOnlyList<NativeExcelCollectionImport.Row> rows,
+        string expectedCurrentBackupSha)
+    {
+        lock (UpdateGate)
+        {
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            return NativeCollectionReconciliation.Arena(
+                ReadPreservedBackup(path), rows);
+        }
+    }
+
+    public static Replacement ReconcileArenaImport(
+        string nativePath, IReadOnlyList<NativeExcelCollectionImport.Row> rows,
+        string expectedCurrentBackupSha, string expectedCandidateSha,
+        CancellationToken cancellation = default)
+    {
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var preview = NativeCollectionReconciliation.Arena(
+                ReadPreservedBackup(path), rows);
+            if (!preview.HasChanges)
+                throw new InvalidDataException(
+                    "The imported quantities already match your Arena collection.");
+            if (!preview.CandidateSha256.Equals(expectedCandidateSha,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(
+                    "Arena import diff changed since review. Review the latest quantities again.");
+            return Refresh(path, preview.Candidate, "native-arena-csv-xlsx-reconciliation",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static Replacement AddVerifiedPhysical(string nativePath,
         string catalogPath, Guid printId, int quantity, string finish,
         string expectedCurrentBackupSha, CancellationToken cancellation = default)
