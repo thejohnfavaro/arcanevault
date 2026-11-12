@@ -582,8 +582,16 @@ public partial class NativeCollectionWorkspace : UserControl
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         DeckLibraryList.ItemsSource = filtered;
-        if (selected is not null && filtered.Contains(selected))
-            DeckLibraryList.SelectedItem = selected;
+        // Applying asynchronous cached cover metadata creates new display
+        // record instances. Keep the deck selection by stable saved identity.
+        if (selected is not null)
+        {
+            var current = filtered.FirstOrDefault(x =>
+                x.Ordinal == selected.Ordinal &&
+                x.SourceSha256.Equals(selected.SourceSha256,
+                    StringComparison.OrdinalIgnoreCase));
+            if (current is not null) DeckLibraryList.SelectedItem = current;
+        }
     }
 
     private void OnDeckSelected(object sender, SelectionChangedEventArgs e)
