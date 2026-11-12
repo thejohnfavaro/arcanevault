@@ -420,6 +420,30 @@
                                         ToolTip="Filter the existing EDH Lab card browser to owned, format-eligible early-play options; does not swap, remove, add, craft or save anything"/>
                             </StackPanel>
                         </Expander>
+                        <Expander Header="Commander synergy packages — preview only"
+                                  IsExpanded="False" Margin="0,3,0,9"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock x:Name="EdhPackagesStatus" TextWrapping="Wrap"
+                                           FontSize="11" Margin="0,0,0,7"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Reading cached commander mechanics…"/>
+                                <ListBox x:Name="EdhPackagesList" Height="166"
+                                         SelectionChanged="OnEdhPackageSelectionChanged"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultAccentBorder}"
+                                         DisplayMemberPath="Display"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                <TextBlock x:Name="EdhPackagePreviewText"
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Margin="0,7,0,0"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Select a package card to preview its exact text and artwork. Nothing is added, crafted, removed or saved."/>
+                            </StackPanel>
+                        </Expander>
                         <TextBlock x:Name="EdhSwapHeadline" Margin="0,10,0,3"
                                    TextWrapping="Wrap" FontSize="11"
                                    Foreground="{DynamicResource VaultAccent}"
