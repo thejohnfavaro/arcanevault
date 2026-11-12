@@ -1,6 +1,19 @@
 # Arcane Vault Native Windows — v1.0 Release Readiness Checklist
 
 Status: **candidate checklist, not a v1.0 release approval**.
+
+### Verified Windows v0.9.22 Deck Studio smoke test — user reported 7/7 PASS
+
+The installed native v0.9.22 passed all seven manually reported tests:
+1. Open Deck Library and create/edit a saved deck.
+2. Search owned cards and add one to the mainboard.
+3. Switch between Physical and Arena ownership pools.
+4. Verify live card counts and missing-copy warnings.
+5. Analyze the mana curve, color identity, and primary card types.
+6. Change a card and verify old charts are invalidated.
+7. Review/save and reopen the deck.
+
+This closes the **v0.9.22 Deck Studio smoke-test gate only**. It does not certify the new v0.9.23 card-preview UI, cached commander artwork, updater migration, remaining v1.0 feature parity, or backup restore on a real installation.
 Baseline: published native v0.9.22; planned v0.9.23 Deck Studio usability update in PR #101. Android and the previously shipped legacy WebView Windows channel are outside this native Windows release gate.
 
 ## 1. Blockers and objective exit criteria
