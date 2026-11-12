@@ -86,6 +86,17 @@ internal static class NativeUpdateChecks
         Must(selected is not null && selected.Tag == "native-v0.9.2" &&
              selected.Version == new Version(0, 9, 2),
             "Only newer, official, complete native preview releases can be selected.");
+        Reject(() => NativeUpdateService.SelectLatest("[{not valid JSON",
+            installedVersion));
+        var badReleaseShape = JsonSerializer.Serialize(new object[] {
+            new { tag_name = "native-v0.9.99", prerelease = true, draft = false,
+                  html_url = 123, assets = Array.Empty<object>() },
+            Release("0.9.1")
+        });
+        Must(NativeUpdateService.SelectLatest(badReleaseShape, installedVersion)?.Tag ==
+             "native-v0.9.1",
+            "Non-string URLs in malformed releases must be ignored without crashing.");
+
         Must(NativeUpdateService.SelectLatest(json, new Version(0, 9, 2)) is null,
             "Must not reinstall older versions or incorrectly treat untrusted releases as updates.");
         var crowded = new List<object>();
@@ -135,6 +146,21 @@ internal static class NativeUpdateChecks
             manifestUtf8Bom: true);
         Reject(() => NativeUpdateService.InstallVerifiedArchive(
             bomMismatch, Sha(bomMismatch), new Version(0, 9, 8), root));
+
+        string malformedJsonZip = Zip(upgrade, "broken-json-manifest.zip", "0.9.10",
+            badManifest: "{not valid JSON");
+        Reject(() => NativeUpdateService.InstallVerifiedArchive(
+            malformedJsonZip, Sha(malformedJsonZip), new Version(0, 9, 10), root));
+        string nonStringChannel = Zip(upgrade, "nonstring-channel-manifest.zip", "0.9.11",
+            badManifest: JsonSerializer.Serialize(new {
+                version = "0.9.11", sourceSha = new string('a', 40), channel = 123
+            }));
+        Reject(() => NativeUpdateService.InstallVerifiedArchive(
+            nonStringChannel, Sha(nonStringChannel), new Version(0, 9, 11), root));
+        Must(!Directory.Exists(Path.Combine(root, "v0.9.10")) &&
+             !Directory.Exists(Path.Combine(root, "v0.9.11")) &&
+             !Directory.GetDirectories(root, ".stage-*").Any(),
+            "Malformed manifests must never publish an install or leave staging files.");
 
         var after = new[] { nativeWorkspace, catalog, recovery }.Select(Sha).ToArray();
         Must(before.SequenceEqual(after),

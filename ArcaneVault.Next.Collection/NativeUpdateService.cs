@@ -42,6 +42,16 @@ public static class NativeUpdateService
         return Version.TryParse(tag["native-v".Length..], out version!);
     }
 
+    private static JsonDocument ParseReleaseList(string json)
+    {
+        try { return JsonDocument.Parse(json); }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException(
+                "The GitHub native release response is not valid JSON.", ex);
+        }
+    }
+
     private static bool TrustedPage(Uri url, string tag) =>
         url.Scheme == Uri.UriSchemeHttps && url.Port == 443 &&
         url.UserInfo.Length == 0 &&
@@ -62,7 +72,7 @@ public static class NativeUpdateService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(releasesJson);
         ArgumentNullException.ThrowIfNull(installed);
-        using var json = JsonDocument.Parse(releasesJson);
+        using var json = ParseReleaseList(releasesJson);
         if (json.RootElement.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("GitHub release response is not an array.");
         Candidate? newest = null;
@@ -80,6 +90,7 @@ public static class NativeUpdateService
             if (!release.TryGetProperty("prerelease", out var prerelease) ||
                 prerelease.ValueKind != JsonValueKind.True) continue;
             if (!release.TryGetProperty("html_url", out var html) ||
+                html.ValueKind != JsonValueKind.String ||
                 !Uri.TryCreate(html.GetString(), UriKind.Absolute, out var page) ||
                 !TrustedPage(page, tag)) continue;
             if (!release.TryGetProperty("assets", out var assets) ||
@@ -196,7 +207,7 @@ public static class NativeUpdateService
             var result = SelectLatest(json, current);
             if (result is not null && (best is null || result.Version > best.Version))
                 best = result;
-            using var pageData = JsonDocument.Parse(json);
+            using var pageData = ParseReleaseList(json);
             int count = pageData.RootElement.GetArrayLength();
             if (count < 100) return best;
         }
@@ -249,7 +260,14 @@ public static class NativeUpdateService
         if (manifestBytes.Length >= 3 && manifestBytes[0] == 0xEF &&
             manifestBytes[1] == 0xBB && manifestBytes[2] == 0xBF)
             jsonBytes = manifestBytes.AsMemory(3);
-        using var manifest = JsonDocument.Parse(jsonBytes);
+        JsonDocument parsed;
+        try { parsed = JsonDocument.Parse(jsonBytes); }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException(
+                "The native update version manifest is malformed JSON.", ex);
+        }
+        using var manifest = parsed;
         var root = manifest.RootElement;
         if (root.ValueKind != JsonValueKind.Object ||
             !root.TryGetProperty("version", out var v) ||
@@ -260,6 +278,7 @@ public static class NativeUpdateService
             sourceSha.ValueKind != JsonValueKind.String ||
             !Regex.IsMatch(sourceSha.GetString() ?? "", @"^[a-fA-F0-9]{40}$") ||
             !root.TryGetProperty("channel", out var channel) ||
+            channel.ValueKind != JsonValueKind.String ||
             channel.GetString() != "preview")
             throw new InvalidDataException("Native update manifest identity does not match the release.");
     }
