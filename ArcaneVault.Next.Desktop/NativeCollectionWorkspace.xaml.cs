@@ -271,51 +271,42 @@ public partial class NativeCollectionWorkspace : UserControl
         if (picker.ShowDialog(Window.GetWindow(this)) != true) return;
         excelBusy = true;
         ImportExcelButton.IsEnabled = false;
-        StatusText.Text = "Reading collection file and verifying exact paper printings…";
+        StatusText.Text = "Reading CSV/Excel and comparing existing physical printing quantities…";
         try
         {
-            var (rows, preview) = await Task.Run(() =>
+            var (rows, diff) = await Task.Run(() =>
             {
-                var source = System.IO.Path.GetExtension(picker.FileName).Equals(
+                var source = Path.GetExtension(picker.FileName).Equals(
                     ".csv", StringComparison.OrdinalIgnoreCase)
                     ? NativeCsvCollectionImport.Read(picker.FileName)
                     : NativeExcelCollectionImport.Read(picker.FileName);
-                var summary = NativeExcelCollectionImport.Prepare(source, catalogPath);
-                return (source, summary);
+                var comparison = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
+                    nativePath, catalogPath, source, expectedBackupSha);
+                return (source, comparison);
             });
             if (closing) return;
-            var sample = preview.Items.Where(x => !x.Verified).Take(8)
-                .Select(x => $"Source row {x.Source.SpreadsheetRow}: {x.Name} — {x.Status}");
-            string details = string.Join("\n", sample);
-            string prompt =
-                $"Collection file: {System.IO.Path.GetFileName(picker.FileName)}\n" +
-                $"{preview.Items.Count:N0} rows, {preview.Copies:N0} copies\n" +
-                $"Catalog-verified: {preview.VerifiedRows:N0} rows / {preview.VerifiedCopies:N0} copies\n" +
-                $"Unresolved: {preview.UnresolvedRows:N0} rows / {preview.UnresolvedCopies:N0} copies\n\n" +
-                (details.Length > 0 ? details + "\n\n" : "") +
-                "This ADDs quantities to the current physical collection. " +
-                "It does NOT replace, remove, or synchronize any existing inventory. " +
-                "Reimporting the same file will ADD the same quantities again.\n\n" +
-                "Unresolved rows remain visible but do not count toward verified Set Progress. " +
-                "Missing finish is preserved as unspecified, never guessed as foil/nonfoil.\n\n" +
-                "The complete previous native collection will be saved as a recovery point. " +
-                "Add these collection quantities now?";
-            if (MessageBox.Show(Window.GetWindow(this), prompt, "Review physical collection import",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            var review = new NativeImportDiffWindow(
+                Path.GetFileName(picker.FileName), diff)
+            { Owner = Window.GetWindow(this) };
+            if (review.ShowDialog() != true || !diff.HasChanges)
             {
-                StatusText.Text = "Import canceled; existing collection unchanged.";
+                StatusText.Text = diff.HasChanges
+                    ? "Physical reconciliation canceled; collection unchanged."
+                    : "Physical collection already matches all imported quantities. No writes or backups created.";
                 return;
             }
 
-            StatusText.Text = "Importing physical quantities into a verified native recovery transaction…";
-            var outcome = await Task.Run(() => NativeWorkspaceSafety.AddPhysicalImport(
-                nativePath, catalogPath, rows, expectedBackupSha));
+            StatusText.Text = "Applying reviewed physical differences with rollback verification…";
+            var outcome = await Task.Run(() =>
+                NativeWorkspaceSafety.ReconcilePhysicalImport(
+                    nativePath, catalogPath, rows, expectedBackupSha,
+                    diff.CandidateSha256));
             if (closing) return;
             MessageBox.Show(Window.GetWindow(this),
-                $"Collection import completed: {preview.Copies:N0} copies added.\n\n" +
-                "The complete previous native collection is preserved here:\n" +
-                outcome.RecoveryPath,
-                "Physical collection imported", MessageBoxButton.OK, MessageBoxImage.Information);
+                "Physical reconciliation completed.\n" + diff.Summary + "\n\n" +
+                "Complete prior collection recovery: " + outcome.RecoveryPath,
+                "Physical collection reconciled", MessageBoxButton.OK,
+                MessageBoxImage.Information);
             Close();
             if (reopenNative is not null) await reopenNative();
         }
@@ -864,43 +855,40 @@ public partial class NativeCollectionWorkspace : UserControl
         if (picker.ShowDialog(Window.GetWindow(this)) != true) return;
         arenaImportBusy = true;
         ImportArenaButton.IsEnabled = false;
-        StatusText.Text = "Reading Arena names and quantities…";
+        StatusText.Text = "Comparing imported Arena card names and quantities with local collection…";
         try
         {
-            var rows = await Task.Run(() =>
-                Path.GetExtension(picker.FileName).Equals(".csv", StringComparison.OrdinalIgnoreCase)
-                    ? NativeCsvCollectionImport.Read(picker.FileName)
-                    : NativeExcelCollectionImport.Read(picker.FileName));
-            if (closing) return;
-            // Arena is name-based: ignore physical printing columns, but preserve
-            // all names and quantities. Validate the full import at commit time.
-            long copies = rows.Sum(x => (long)x.Quantity);
-            int names = rows.Select(x => x.Name.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase).Count();
-            var confirmation =
-                $"File: {Path.GetFileName(picker.FileName)}\n" +
-                $"Rows: {rows.Count:N0} | Unique card names: {names:N0} | Copies: {copies:N0}\n\n" +
-                "This ADDS the quantities to your Arena collection by card name. " +
-                "Duplicate names in the file are combined. Existing rows will be incremented; " +
-                "existing physical printings, saved decks, and artwork remain unchanged.\n\n" +
-                "Reimporting the same file will ADD these quantities again. " +
-                "A complete recovery point is saved before the change.\n\n" +
-                "Import these Arena quantities?";
-            if (MessageBox.Show(Window.GetWindow(this), confirmation,
-                "Review Arena collection import", MessageBoxButton.YesNo,
-                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            var (rows, diff) = await Task.Run(() =>
             {
-                StatusText.Text = "Arena import canceled; inventory unchanged.";
+                var imported = Path.GetExtension(picker.FileName)
+                    .Equals(".csv", StringComparison.OrdinalIgnoreCase)
+                    ? NativeCsvCollectionImport.Read(picker.FileName)
+                    : NativeExcelCollectionImport.Read(picker.FileName);
+                var comparison = NativeWorkspaceSafety.PreviewArenaReconciliation(
+                    nativePath, imported, expectedBackupSha);
+                return (imported, comparison);
+            });
+            if (closing) return;
+            var review = new NativeImportDiffWindow(
+                Path.GetFileName(picker.FileName), diff)
+            { Owner = Window.GetWindow(this) };
+            if (review.ShowDialog() != true || !diff.HasChanges)
+            {
+                StatusText.Text = diff.HasChanges
+                    ? "Arena reconciliation canceled; collection unchanged."
+                    : "Arena collection already matches all imported quantities. No writes or backups created.";
                 return;
             }
-            StatusText.Text = "Adding Arena quantities with verified rollback…";
+            StatusText.Text = "Applying reviewed Arena quantity differences with rollback…";
             var outcome = await Task.Run(() =>
-                NativeWorkspaceSafety.AddArenaImport(nativePath, rows, expectedBackupSha));
+                NativeWorkspaceSafety.ReconcileArenaImport(
+                    nativePath, rows, expectedBackupSha, diff.CandidateSha256));
             if (closing) return;
             MessageBox.Show(Window.GetWindow(this),
-                $"Arena import completed: {copies:N0} copies added across {names:N0} names.\n\n" +
-                "Recovery copy: " + outcome.RecoveryPath,
-                "Arena collection imported", MessageBoxButton.OK, MessageBoxImage.Information);
+                "Arena reconciliation completed.\n" + diff.Summary +
+                "\n\nComplete prior collection recovery: " + outcome.RecoveryPath,
+                "Arena collection reconciled", MessageBoxButton.OK,
+                MessageBoxImage.Information);
             Close();
             if (reopenNative is not null) await reopenNative();
         }
