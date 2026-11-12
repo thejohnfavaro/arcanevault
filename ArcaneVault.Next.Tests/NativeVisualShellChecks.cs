@@ -126,6 +126,62 @@ internal static class NativeVisualShellChecks
              mainShellCode.Contains("await RefreshNativeWorkspaceAsync();",
                  StringComparison.Ordinal),
              "EDH Lab Build must launch shared Deck Studio and refresh verified library on save.");
+        // A new tabbed layout keeps the card list full-height and puts
+        // analysis/improvements in independent scrollable workspaces.
+        var editorDoc = XDocument.Parse(deckEditorXaml);
+        var tabs = editorDoc.Descendants().SingleOrDefault(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "EdhWorkspaceTabs");
+        static string? NearestTab(XElement element) =>
+            element.Ancestors().FirstOrDefault(x => x.Name.LocalName == "TabItem")
+                ?.Attribute(XName.Get("Name", XamlNs))?.Value;
+        XElement NamedEditor(string name) =>
+            editorDoc.Descendants().Single(x =>
+                x.Attribute(XName.Get("Name", XamlNs))?.Value == name);
+        Must(tabs is not null && tabs.Name.LocalName == "TabControl" &&
+             NearestTab(NamedEditor("OwnedCardsList")) == "EdhCardsTab" &&
+             NearestTab(NamedEditor("EdhRoleBox")) == "EdhCardsTab" &&
+             NearestTab(NamedEditor("EdhManaDetails")) == "EdhManaTab" &&
+             NearestTab(NamedEditor("EdhCurveDetails")) == "EdhManaTab" &&
+             NearestTab(NamedEditor("EdhSwapProposalsList")) == "EdhImproveTab" &&
+             NearestTab(NamedEditor("EdhOptimizationDetails")) == "EdhImproveTab" &&
+             NamedEditor("EdhManaTab").Ancestors().Any(x =>
+                 x.Name.LocalName == "TabControl") &&
+             deckEditorXaml.Contains("x:Name=\"EdhCardsFilters\"") &&
+             deckEditorXaml.Contains("ResizeBehavior=\"PreviousAndNext\"") &&
+             draftEditorCode.Contains("EdhWorkspaceTabs.SelectedItem = EdhCardsTab;",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhImproveTab.Visibility = Visibility.Visible;",
+                 StringComparison.Ordinal),
+             "EDH Lab navigation must separate full-height Cards, Mana and Improve workspaces, with routed card browsing.");
+
+        var reconciliationXaml = File.ReadAllText(
+            Path.Combine(dir, "NativeImportDiffWindow.xaml"));
+        var reconciliationCode = File.ReadAllText(
+            Path.Combine(dir, "NativeImportDiffWindow.xaml.cs"));
+        var workspaceCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
+        Must(reconciliationXaml.Contains("x:Name=\"ChangesTable\"",
+                 StringComparison.Ordinal) &&
+             reconciliationXaml.Contains("Binding=\"{Binding Delta}\"",
+                 StringComparison.Ordinal) == false &&
+             reconciliationXaml.Contains("Binding=\"{Binding ChangeLabel}\"",
+                 StringComparison.Ordinal) &&
+             reconciliationXaml.Contains("Click=\"OnApplyClicked\"",
+                 StringComparison.Ordinal) &&
+             reconciliationCode.Contains("ApplyButton.IsEnabled = report.HasChanges;",
+                 StringComparison.Ordinal) &&
+             workspaceCode.Contains("PreviewPhysicalReconciliation(",
+                 StringComparison.Ordinal) &&
+             workspaceCode.Contains("ReconcilePhysicalImport(",
+                 StringComparison.Ordinal) &&
+             workspaceCode.Contains("PreviewArenaReconciliation(",
+                 StringComparison.Ordinal) &&
+             workspaceCode.Contains("ReconcileArenaImport(",
+                 StringComparison.Ordinal) &&
+             !workspaceCode.Contains("Reimporting the same file will ADD",
+                 StringComparison.Ordinal),
+             "CSV/Excel physical and Arena imports must show an auditable quantity diff and commit only reviewed changes.");
+
         Must(deckEditorXaml.Contains("x:Name=\"EdhRecordedOnly\"",
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("x:Name=\"EdhRoleBox\"",
@@ -279,7 +335,7 @@ internal static class NativeVisualShellChecks
         {
             "MainWindow", "NativeCollectionWindow", "NativeCollectionWorkspace",
             "NativeCardDetailsWindow",
-            "NativeDeckEditorWindow", "NativeAddPrintingWindow",
+            "NativeDeckEditorWindow", "NativeImportDiffWindow", "NativeAddPrintingWindow",
             "NativeAdjustPhysicalWindow", "NativeArenaEditorWindow",
             "NativeFreshStartWindow", "CommanderBrowserWindow"
         };
