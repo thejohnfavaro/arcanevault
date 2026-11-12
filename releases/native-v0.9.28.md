@@ -16,6 +16,17 @@ This preview addresses theme names not visually matching the palette shown in th
 ## Tests
 - Windows WPF build and .NET 10 native regression tests for all 37 palettes (five classic themes plus 32 color identities), precise mana-color ordering, dynamic UI accents and prior frozen-brush startup crash guard.
 
+## Fixed
+
+- Restored distinct identity-theme color combinations that were visually reduced to a single muted accent in the native Windows port.
+- Removed the hard-coded purple Catalog hero that made unrelated themes look alike.
+- Corrected contrast of navigation text and Catalog hero text for the light theme.
+- Theme preview now displays the actual accent colors rather than relying on the name alone.
+
+## Removed
+
+- No application features or collection data were removed. The fixed-purple Catalog banner was replaced with a theme-aware surface.
+
 ## Not changed
 - No changes to native collection, printings, card artwork ownership, saved decks, deck revisions, backups, Scryfall database, or updater protocol.
 - No new EDH Lab or Android features.
