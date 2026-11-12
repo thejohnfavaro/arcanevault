@@ -106,7 +106,25 @@ public partial class App : Application
         {
             if (readyId is not null)
             {
-                try { NativeUpgradeHandoff.Signal(readyId); }
+                try
+                {
+                    NativeUpgradeHandoff.Signal(readyId);
+                    // The parent waits for this signal BEFORE closing. Now
+                    // the new process waits for its exit, preventing two
+                    // native windows from opening the same SQLite workspace.
+                    try
+                    {
+                        using var previous = Process.GetProcessById(previousPid.Value);
+                        if (!previous.WaitForExit(30_000))
+                        {
+                            RecordFailure("Native relaunch parent wait",
+                                new TimeoutException("Parent app remained open after readiness."));
+                            Shutdown(1);
+                            return;
+                        }
+                    }
+                    catch (ArgumentException) { /* Previous instance already exited. */ }
+                }
                 catch (Exception ex)
                 {
                     RecordFailure("Native relaunch handshake", ex);
