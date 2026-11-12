@@ -23,17 +23,25 @@ public sealed class EdhLabDraftCatalog
     private readonly IReadOnlyList<Card> cards;
     private readonly IReadOnlyDictionary<string, Card> eligibleByName;
     private readonly int recordedEligibleCount;
+    private readonly IReadOnlyDictionary<string, EdhLabSynergyAdvisor.Fit> synergyByName;
 
-    private EdhLabDraftCatalog(IReadOnlyList<Card> candidates)
+    private EdhLabDraftCatalog(IReadOnlyList<Card> candidates, EdhLabSynergyAdvisor synergy)
     {
+        Synergy = synergy;
         cards = candidates.OrderByDescending(x => x.RecordedCopies > 0)
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         eligibleByName = cards.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
         recordedEligibleCount = cards.Count(x => x.RecordedCopies > 0);
+        synergyByName = cards.ToDictionary(x => x.Name,
+            x => Synergy.Evaluate(x.Type, x.Oracle), StringComparer.OrdinalIgnoreCase);
     }
 
+    public EdhLabSynergyAdvisor Synergy { get; }
     public int EligibleCount => cards.Count;
     public int RecordedEligibleCount => recordedEligibleCount;
+    public int SynergyEligibleCount => synergyByName.Values.Count(x => x.Matches);
+    public EdhLabSynergyAdvisor.Fit? SynergyFor(string name) =>
+        synergyByName.TryGetValue(name, out var fit) ? fit : null;
 
     private static IReadOnlyList<string> Roles(string type, string oracle)
     {
@@ -131,6 +139,20 @@ public sealed class EdhLabDraftCatalog
             Pooling = false
         }.ToString());
         db.Open();
+        string commanderType = "", commanderOracle = "";
+        using (var leader = db.CreateCommand())
+        {
+            leader.CommandText = "SELECT type,oracle FROM cards WHERE name = $name COLLATE NOCASE LIMIT 1";
+            leader.Parameters.AddWithValue("$name", commander);
+            using var found = leader.ExecuteReader();
+            if (found.Read())
+            {
+                commanderType = found.IsDBNull(0) ? "" : found.GetString(0);
+                commanderOracle = found.IsDBNull(1) ? "" : found.GetString(1);
+            }
+        }
+        var synergy = EdhLabSynergyAdvisor.FromCommander(
+            commanderType, commanderOracle);
         using var cmd = db.CreateCommand();
         cmd.CommandText = "SELECT name,type,oracle,colors,legalities,arena FROM cards ORDER BY name COLLATE NOCASE";
         var results = new List<Card>();
@@ -159,22 +181,30 @@ public sealed class EdhLabDraftCatalog
                 string.Join(" · ", Roles(type, oracle)),
                 counts.GetValueOrDefault(name), basic, CopyLimit(type, oracle)));
         }
-        return new EdhLabDraftCatalog(results);
+        return new EdhLabDraftCatalog(results, synergy);
     }
 
     public IReadOnlyList<Card> Search(string? text, bool recordedOnly,
-        string? role = null, int limit = 200)
+        string? role = null, int limit = 200,
+        bool synergyOnly = false, bool prioritizeSynergy = false)
     {
         if (limit is < 1 or > 500) throw new ArgumentOutOfRangeException(nameof(limit));
         text = (text ?? "").Trim();
         if (text.Length > 255) throw new ArgumentException("Search is too long.", nameof(text));
         var selectedRole = (role ?? "").Trim();
-        return cards.Where(x => (!recordedOnly || x.RecordedCopies > 0) &&
+        var matches = cards.Where(x => (!recordedOnly || x.RecordedCopies > 0) &&
+                (!synergyOnly || synergyByName[x.Name].Matches) &&
                 (selectedRole.Length == 0 || x.RoleHints.Split(" · ",
                     StringSplitOptions.RemoveEmptyEntries)
                     .Contains(selectedRole, StringComparer.OrdinalIgnoreCase)) &&
-                (text.Length == 0 || x.Name.Contains(text, StringComparison.OrdinalIgnoreCase)))
-            .Take(limit).ToArray();
+                (text.Length == 0 || x.Name.Contains(text, StringComparison.OrdinalIgnoreCase)));
+        // Recorded-first remains the primary key; an unowned card can never
+        // displace an owned candidate just because it shares more mechanic tags.
+        if (prioritizeSynergy)
+            matches = matches.OrderByDescending(x => x.RecordedCopies > 0)
+                .ThenByDescending(x => synergyByName[x.Name].Score)
+                .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase);
+        return matches.Take(limit).ToArray();
     }
 
     public bool Contains(string name) => eligibleByName.ContainsKey(name);
