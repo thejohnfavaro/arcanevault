@@ -13,7 +13,7 @@ public static class EdhLabSynergyPackages
 
     public sealed record Package(string Theme, int InDeckCount,
         IReadOnlyList<Option> InDeck, IReadOnlyList<Option> OwnedOptions,
-        IReadOnlyList<Option> MissingOptions)
+        IReadOnlyList<Option> MissingOptions, string Coverage, string NextStep)
     {
         public bool HasSuggestions => OwnedOptions.Count > 0 || MissingOptions.Count > 0;
     }
@@ -39,6 +39,34 @@ public static class EdhLabSynergyPackages
             o.Contains("mill ", StringComparison.OrdinalIgnoreCase))
             return "Potential enabler";
         return "Supporting match";
+    }
+
+    private static string RoleCoverage(
+        IEnumerable<(EdhLabDraftCatalog.Card Card, int InDeck)> selected)
+    {
+        var counts = selected.Where(x => x.InDeck > 0)
+            .GroupBy(x => Kind(x.Card))
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.InDeck),
+                StringComparer.OrdinalIgnoreCase);
+        return $"In-deck text signals: {counts.GetValueOrDefault("Potential enabler")} potential enablers, " +
+            $"{counts.GetValueOrDefault("Potential payoff")} potential payoffs, " +
+            $"{counts.GetValueOrDefault("Supporting match")} supporting matches.";
+    }
+
+    private static string NextStep(
+        IReadOnlyList<(EdhLabDraftCatalog.Card Card, int InDeck, long Unused)> selected)
+    {
+        bool hasEnabler = selected.Any(x => x.InDeck > 0 && Kind(x.Card) == "Potential enabler");
+        bool hasPayoff = selected.Any(x => x.InDeck > 0 && Kind(x.Card) == "Potential payoff");
+        if (!hasEnabler && selected.Any(x => x.Unused > 0 &&
+                x.InDeck == 0 && Kind(x.Card) == "Potential enabler"))
+            return "Review an owned potential enabler; none is recognized in the current draft.";
+        if (!hasPayoff && selected.Any(x => x.Unused > 0 &&
+                x.InDeck == 0 && Kind(x.Card) == "Potential payoff"))
+            return "Review an owned potential payoff; none is recognized in the current draft.";
+        if (!hasEnabler || !hasPayoff)
+            return "No complete enabler/payoff pairing is established by these text hints; inspect individual cards.";
+        return "Both potential enabler and payoff signals appear in the draft; verify actual interactions manually.";
     }
 
     public static Report Analyze(EdhLabDraftCatalog catalog,
@@ -107,7 +135,9 @@ public static class EdhLabSynergyPackages
 
             packages.Add(new Package(theme,
                 options.Where(x => x.InDeck > 0).Sum(x => x.InDeck),
-                inDeckCards, owned, missing));
+                inDeckCards, owned, missing,
+                RoleCoverage(options.Select(x => (x.Card, x.InDeck))),
+                NextStep(options.Select(x => (x.Card, x.InDeck, x.Unused)).ToArray())));
         }
         return new Report(packages, unknown,
             "Commander mechanic packages are cached-text hints, not verified combos or upgrades. " +
