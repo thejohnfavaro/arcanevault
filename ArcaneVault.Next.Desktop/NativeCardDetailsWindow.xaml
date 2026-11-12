@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Arcane Vault — Card Details"
         Width="960" Height="700" MinWidth="720" MinHeight="555"
-        Background="{StaticResource VaultBackground}"
-        Foreground="{StaticResource VaultText}">
+        Background="{DynamicResource VaultBackground}"
+        Foreground="{DynamicResource VaultText}">
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -17,7 +17,7 @@
                        Margin="0,0,0,7"/>
             <TextBlock x:Name="CardName"
                        FontSize="28" FontWeight="Bold"
-                       Foreground="{StaticResource VaultText}"
+                       Foreground="{DynamicResource VaultText}"
                        TextWrapping="Wrap"/>
         </StackPanel>
 
@@ -35,7 +35,7 @@
                     Padding="14" VerticalAlignment="Top">
                 <StackPanel>
                     <Border Height="384" CornerRadius="12"
-                            BorderBrush="{StaticResource VaultAccentBorder}"
+                            BorderBrush="{DynamicResource VaultAccentBorder}"
                             BorderThickness="1" ClipToBounds="True">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -49,11 +49,11 @@
                                         VerticalAlignment="Center"
                                         HorizontalAlignment="Center">
                                 <TextBlock Text="✦" FontSize="80"
-                                           Foreground="{StaticResource VaultAccent}"
+                                           Foreground="{DynamicResource VaultAccent}"
                                            Opacity="0.6" TextAlignment="Center"/>
                                 <TextBlock Text="ARCANE VAULT"
                                            FontSize="13" FontWeight="Bold"
-                                           Foreground="{StaticResource VaultMuted}"
+                                           Foreground="{DynamicResource VaultMuted}"
                                            TextAlignment="Center"/>
                             </StackPanel>
                             <Image x:Name="CardArtwork"
@@ -62,26 +62,26 @@
                         </Grid>
                     </Border>
                     <TextBlock x:Name="ArtworkStatus" TextWrapping="Wrap"
-                               Foreground="{StaticResource VaultMuted}"
+                               Foreground="{DynamicResource VaultMuted}"
                                FontSize="11" Margin="4,12,4,0"
                                Text="Checking cached Scryfall artwork…"/>
                     <Button x:Name="OpenArtworkGalleryButton" Content="Browse printings &amp; artwork"
                             Click="OnOpenArtworkGalleryClicked"
                             Padding="11,9" Margin="3,12,3,0"
-                            Background="{StaticResource VaultAccentSurface}"
-                            Foreground="{StaticResource VaultText}"
-                            BorderBrush="{StaticResource VaultAccentBorder}"
+                            Background="{DynamicResource VaultAccentSurface}"
+                            Foreground="{DynamicResource VaultText}"
+                            BorderBrush="{DynamicResource VaultAccentBorder}"
                             ToolTip="Explore official Scryfall printings; choose saved display artwork without changing ownership"/>
                     <Button x:Name="BookmarkCardButton"
                             Content="☆  Bookmark in My Shortlist"
                             Click="OnBookmarkClicked"
                             Padding="11,9" Margin="3,9,3,0"
-                            Background="{StaticResource VaultPanelRaised}"
-                            Foreground="{StaticResource VaultText}"
-                            BorderBrush="{StaticResource VaultLine}"
+                            Background="{DynamicResource VaultPanelRaised}"
+                            Foreground="{DynamicResource VaultText}"
+                            BorderBrush="{DynamicResource VaultLine}"
                             ToolTip="Save or remove this card name from your planning shortlist; never changes owned copies"/>
                     <TextBlock x:Name="BookmarkStatus"
-                               Foreground="{StaticResource VaultMuted}"
+                               Foreground="{DynamicResource VaultMuted}"
                                TextWrapping="Wrap" FontSize="11"
                                Margin="4,5,4,0"/>
                 </StackPanel>
@@ -99,7 +99,7 @@
                         <TextBlock Style="{StaticResource VaultEyebrow}"
                                    Text="YOUR OWNERSHIP" Margin="0,0,0,8"/>
                         <TextBlock x:Name="Ownership"
-                                   FontSize="13" Foreground="{StaticResource VaultGood}"
+                                   FontSize="13" Foreground="{DynamicResource VaultGood}"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
@@ -109,23 +109,23 @@
                         <TextBlock Style="{StaticResource VaultEyebrow}"
                                    Text="CARD METADATA" Margin="0,0,0,8"/>
                         <TextBlock x:Name="CardMetadata"
-                                   Foreground="{StaticResource VaultText}"
+                                   Foreground="{DynamicResource VaultText}"
                                    TextWrapping="Wrap" FontSize="12.5"/>
                         <!-- The Scryfall database stores format legalities as JSON.
                              Never render its raw serialization to the user. -->
                         <Expander IsExpanded="True" Margin="0,13,0,0"
-                                  Foreground="{StaticResource VaultText}">
+                                  Foreground="{DynamicResource VaultText}">
                             <Expander.Header>
                                 <TextBlock x:Name="LegalitySummary"
                                            FontWeight="SemiBold"
-                                           Foreground="{StaticResource VaultAccent}"
+                                           Foreground="{DynamicResource VaultAccent}"
                                            FontSize="12"
                                            Text="FORMAT LEGALITIES"/>
                             </Expander.Header>
                             <StackPanel Margin="0,9,0,0">
                                 <TextBlock x:Name="LegalityNotice"
                                            Text="Cached Scryfall data · verify current bans before play"
-                                           Foreground="{StaticResource VaultMuted}"
+                                           Foreground="{DynamicResource VaultMuted}"
                                            TextWrapping="Wrap"
                                            FontSize="11" Margin="0,0,0,8"/>
                                 <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -139,8 +139,8 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="{StaticResource VaultPanelRaised}"
-                                                        BorderBrush="{StaticResource VaultLine}"
+                                                <Border Background="{DynamicResource VaultPanelRaised}"
+                                                        BorderBrush="{DynamicResource VaultLine}"
                                                         BorderThickness="1" CornerRadius="6"
                                                         Padding="8,6" Margin="0,0,9,7">
                                                     <DockPanel LastChildFill="True">
@@ -152,29 +152,29 @@
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="Foreground"
-                                                                            Value="{StaticResource VaultMuted}"/>
+                                                                            Value="{DynamicResource VaultMuted}"/>
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="legal">
                                                                             <Setter Property="Foreground"
-                                                                                    Value="{StaticResource VaultGood}"/>
+                                                                                    Value="{DynamicResource VaultGood}"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="banned">
                                                                             <Setter Property="Foreground" Value="#F0A9C4"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="restricted">
                                                                             <Setter Property="Foreground"
-                                                                                    Value="{StaticResource VaultWarning}"/>
+                                                                                    Value="{DynamicResource VaultWarning}"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="unknown">
                                                                             <Setter Property="Foreground"
-                                                                                    Value="{StaticResource VaultWarning}"/>
+                                                                                    Value="{DynamicResource VaultWarning}"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
                                                             </TextBlock.Style>
                                                         </TextBlock>
                                                         <TextBlock Text="{Binding Name}"
-                                                                   Foreground="{StaticResource VaultText}"
+                                                                   Foreground="{DynamicResource VaultText}"
                                                                    TextTrimming="CharacterEllipsis"
                                                                    ToolTip="{Binding Name}"
                                                                    FontSize="11.5"/>
@@ -199,9 +199,9 @@
                                    Style="{StaticResource VaultEyebrow}"
                                    Margin="0,0,0,11"/>
                         <TextBox Grid.Row="1" x:Name="OracleText"
-                                 Background="{StaticResource VaultPanelRaised}"
-                                 Foreground="{StaticResource VaultText}"
-                                 BorderBrush="{StaticResource VaultLine}"
+                                 Background="{DynamicResource VaultPanelRaised}"
+                                 Foreground="{DynamicResource VaultText}"
+                                 BorderBrush="{DynamicResource VaultLine}"
                                  IsReadOnly="True" TextWrapping="Wrap"
                                  VerticalScrollBarVisibility="Auto"
                                  Padding="14,12" FontSize="13.5"/>
@@ -210,10 +210,10 @@
             </Grid>
         </Grid>
 
-        <Border Grid.Row="2" BorderBrush="{StaticResource VaultLine}"
+        <Border Grid.Row="2" BorderBrush="{DynamicResource VaultLine}"
                 BorderThickness="0,1,0,0" Margin="0,15,0,0"
                 Padding="0,12,0,0">
-            <TextBlock Foreground="{StaticResource VaultMuted}"
+            <TextBlock Foreground="{DynamicResource VaultMuted}"
                        FontSize="11" TextWrapping="Wrap"
                        Text="Art may be a different printing from the one you own. Saving a preferred image changes display only and creates a complete, recoverable native backup."/>
         </Border>
