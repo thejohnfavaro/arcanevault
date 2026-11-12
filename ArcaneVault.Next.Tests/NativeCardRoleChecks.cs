@@ -106,6 +106,75 @@ internal static class NativeCardRoleChecks
         Must(checksum==Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
             "Image/role search must never modify offline Scryfall catalog.");
 
+        // Many printings reference the same card text. Switching utilization
+        // tags must give the same exact answers without re-deriving regexes for
+        // every printing. Record diagnostics, but do not gate on CI wall time.
+        string repeated = Path.Combine(work, "many-role-printings.sqlite");
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+            { DataSource = repeated, Mode = SqliteOpenMode.ReadWriteCreate,
+              Pooling = false }.ToString()))
+        {
+            db.Open();
+            using var create = db.CreateCommand();
+            create.CommandText = """
+                CREATE TABLE cards (name TEXT PRIMARY KEY COLLATE NOCASE,
+                    type TEXT, oracle TEXT, colors TEXT);
+                CREATE TABLE variants (print_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL COLLATE NOCASE, setcode TEXT,
+                    collector TEXT, rarity TEXT, arena INTEGER);
+                INSERT INTO cards VALUES
+                    ('Duplicated Draw','Instant','Draw two cards.','U'),
+                    ('Duplicated Removal','Sorcery','Destroy target creature.','B'),
+                    ('Duplicated Treasure','Artifact','Create a Treasure token.','R');
+                """;
+            create.ExecuteNonQuery();
+            using var tx = db.BeginTransaction();
+            using var insert = db.CreateCommand();
+            insert.Transaction = tx;
+            insert.CommandText = """
+                INSERT INTO variants VALUES($id,$name,'tst',$number,'common',0)
+                """;
+            var id = insert.Parameters.Add("$id", SqliteType.Text);
+            var name = insert.Parameters.Add("$name", SqliteType.Text);
+            var number = insert.Parameters.Add("$number", SqliteType.Text);
+            string[] names = { "Duplicated Draw", "Duplicated Removal",
+                "Duplicated Treasure" };
+            for (int i = 0; i < 1800; i++)
+            {
+                id.Value = "print-" + i;
+                name.Value = names[i % 3];
+                number.Value = (i + 1).ToString();
+                insert.ExecuteNonQuery();
+            }
+            tx.Commit();
+        }
+        var untouched = Convert.ToHexString(
+            SHA256.HashData(File.ReadAllBytes(repeated)));
+        using (var many = CatalogSnapshot.Open(repeated))
+        {
+            var measured = System.Diagnostics.Stopwatch.StartNew();
+            var draw1 = many.SearchFiltered("", new(Role: "Card Draw"));
+            var draw2 = many.SearchFiltered("", new(Role: "Card Draw"));
+            var removal2 = many.SearchFiltered("", new(Role: "Removal"));
+            var ramp2 = many.SearchFiltered("", new(Role: "Ramp"));
+            Must(draw1.Rows.Count == 200 && draw1.MayHaveMore &&
+                 draw2.Rows.Count == 200 && draw2.MayHaveMore &&
+                 draw1.Rows.All(x => x.Name == "Duplicated Draw") &&
+                 draw2.Rows.All(x => x.RolesLabel == "Card Draw") &&
+                 removal2.Rows.Count == 200 && removal2.MayHaveMore &&
+                 removal2.Rows.All(x => x.Name == "Duplicated Removal") &&
+                 ramp2.Rows.Count == 200 && ramp2.MayHaveMore &&
+                 ramp2.Rows.All(x => x.Name == "Duplicated Treasure"),
+                 "Repeated-printing role changes lost exact results or result limits.");
+            Console.WriteLine($"PASS: repeated-printing role filter (1,800 printings; " +
+                $"first draw {draw1.SqlMilliseconds:F0} ms, " +
+                $"warm draw {draw2.SqlMilliseconds:F0} ms, " +
+                $"three roles {measured.ElapsedMilliseconds} ms)");
+        }
+        Must(untouched == Convert.ToHexString(
+            SHA256.HashData(File.ReadAllBytes(repeated))),
+            "Role optimization must never write to the catalog.");
+
         string legacy=Path.Combine(work,"role-legacy.sqlite");
         using(var db=new SqliteConnection(new SqliteConnectionStringBuilder
         {DataSource=legacy,Mode=SqliteOpenMode.ReadWriteCreate,Pooling=false}.ToString()))
