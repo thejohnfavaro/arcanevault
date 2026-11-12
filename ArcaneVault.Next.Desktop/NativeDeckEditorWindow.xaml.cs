@@ -760,8 +760,10 @@ public partial class NativeDeckEditorWindow : Window
             busy || OwnedPoolBox is null) return;
         EdhChainDetails.Text = chain.Explanation + "\n" +
             chain.Status + ": " + chain.Enabler + " → " + chain.Payoff +
-            "\nSelect either card to inspect its actual cached Oracle text. " +
-            "Art is illustrative, not verified ownership. No changes are made.";
+            "\nEnabler text: " + chain.EnablerEvidence +
+            "\nPayoff text: " + chain.PayoffEvidence +
+            "\nInspect either card for complete Oracle text. Artwork is illustrative, " +
+            "not verified ownership. Nothing is modified.";
         EdhChainEnablerButton.Content = "Inspect " + chain.Enabler;
         EdhChainPayoffButton.Content = "Inspect " + chain.Payoff;
         EdhChainEnablerButton.IsEnabled = true;
