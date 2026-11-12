@@ -417,6 +417,56 @@ internal static class EdhLabDraftChecks
         Must(blueprint.Display.Contains("Mainboard 18/99") &&
              blueprint.Display.Contains("Suggested targets only"),
              "Deck role estimates must be explicitly advisory, not deck legality rules.");
+        // v0.9.50: honest coverage estimates and real locally owned
+        // options, never a fabricated numerical power score.
+        var partialHealth = EdhLabDeckHealth.Analyze(paper,
+            new[] { (Name: "Island", Quantity: 12),
+                    (Name: "Board Clear", Quantity: 1) },
+            focus: EdhLabStrategyFocus.CardAdvantage);
+        var drawHealth = partialHealth.Areas.Single(x => x.Key == "Card Draw");
+        Must(partialHealth.MainboardCopies == 13 &&
+             partialHealth.SafeToSuggest &&
+             partialHealth.Explanation.Contains("Partial deck") &&
+             drawHealth.Copies == 0 &&
+             drawHealth.SuggestedTarget == 10 &&
+             drawHealth.CanBrowse &&
+             drawHealth.CandidateName == "Tiny Insight" &&
+             partialHealth.ReviewNext.Contains("Tiny Insight") &&
+             partialHealth.Areas.Single(x => x.Key == "Early")
+                .State == "Mana values unavailable",
+             "Deck health should distinguish early drafts, locally owned draw roles and legacy missing MV.");
+        var unknownHealth = EdhLabDeckHealth.Analyze(paper,
+            new[] { (Name: "Lightning Bolt", Quantity: 1),
+                    (Name: "Island", Quantity: 12) });
+        Must(unknownHealth.UnknownCopies == 1 &&
+             !unknownHealth.SafeToSuggest &&
+             unknownHealth.Areas.All(x => !x.CanBrowse) &&
+             unknownHealth.ReviewNext.Contains("Correct"),
+             "Unknown or off-color draft names must pause actionable health recommendations.");
+        var synergyHealth = EdhLabDeckHealth.Analyze(paper,
+            new[] { (Name: "Island", Quantity: 10) },
+            focus: EdhLabStrategyFocus.CommanderSynergy);
+        Must(synergyHealth.Areas.Single(x => x.Key == "Synergy").Copies == 0 &&
+             synergyHealth.ReviewNext.Contains("Sol Ring") &&
+             synergyHealth.Focus == EdhLabStrategyFocus.CommanderSynergy &&
+             synergyHealth.Explanation.Contains("not Commander format requirements"),
+             "Commander-synergy focus should prioritize a recorded eligible direct match without a power score.");
+        var isolatedArenaHealth = EdhLabDeckHealth.Analyze(arena,
+            new[] { (Name: "Brainstorm", Quantity: 1) },
+            focus: EdhLabStrategyFocus.CardAdvantage);
+        Must(isolatedArenaHealth.Areas.Single(x => x.Key == "Card Draw")
+                .CandidateName != "Tiny Insight" &&
+             isolatedArenaHealth.Areas.All(x =>
+                x.CandidateName != "Sol Ring" &&
+                x.CandidateName != "Swords to Plowshares"),
+             "Health suggestions must not borrow paper-owned or Arena-unavailable candidates.");
+        bool badHealthQuantity = false;
+        try
+        {
+            EdhLabDeckHealth.Analyze(paper, new[] { (Name: "Island", Quantity: 0) });
+        }
+        catch (ArgumentOutOfRangeException) { badHealthQuantity = true; }
+        Must(badHealthQuantity, "Health analysis must reject malformed quantities.");
         bool badBlueprintRejected = false;
         try
         {
@@ -549,6 +599,18 @@ internal static class EdhLabDraftChecks
         }
         var pipPaper = EdhLabDraftCatalog.OpenReadOnly(costCatalog, ownership,
             "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        var knownCurveHealth = EdhLabDeckHealth.Analyze(pipPaper,
+            new[] { (Name: "Board Clear", Quantity: 26),
+                    (Name: "Brainstorm", Quantity: 4) },
+            focus: EdhLabStrategyFocus.FastStart);
+        Must(knownCurveHealth.Areas.Single(x => x.Key == "Early")
+                .State == "Thin early options" &&
+             knownCurveHealth.Areas.Single(x => x.Key == "Early")
+                .Copies == 4 &&
+             knownCurveHealth.Areas.Single(x => x.Key == "Early")
+                .CanBrowse &&
+             knownCurveHealth.ReviewNext.Contains("low-cost"),
+             "Mature high-cost drafts need an MV-aware early-plays review, not fabricated win odds.");
         var spells = ManaRows("6 Brainstorm\n2 Swords to Plowshares");
         var even = EdhLabManaPlanner.Analyze(pipPaper, spells, "WU", 36);
         var weighted = EdhLabManaPlanner.Analyze(pipPaper, spells, "WU",

@@ -390,6 +390,47 @@
                                                Foreground="{DynamicResource VaultMuted}"/>
                                 </StackPanel>
                             </Border>
+                        <Expander Header="Deck health — strategy and coverage review"
+                                  IsExpanded="True" Margin="0,2,0,9"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock x:Name="EdhHealthHeadline" FontSize="12"
+                                           FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource VaultAccent}"
+                                           Text="Evaluating deck construction…"/>
+                                <TextBlock x:Name="EdhHealthOverview" FontSize="11"
+                                           Margin="0,5,0,7" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Checking local card metadata and role hints…"/>
+                                <ListBox x:Name="EdhHealthAreasList" Height="164"
+                                         SelectionChanged="OnEdhHealthSelectionChanged"
+                                         DisplayMemberPath="Display"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultAccentBorder}"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                <TextBlock x:Name="EdhHealthAreaDetails" FontSize="11"
+                                           TextWrapping="Wrap" Margin="0,8,0,6"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Select a coverage area to see its assumptions and recorded eligible alternatives."/>
+                                <TextBlock x:Name="EdhHealthNextStep" FontSize="11"
+                                           TextWrapping="Wrap" Margin="0,0,0,7"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Recommendations are optional."/>
+                                <Button x:Name="EdhHealthBrowseButton"
+                                        Content="Inspect owned candidate in Cards"
+                                        Click="OnEdhHealthBrowseClicked"
+                                        IsEnabled="False"
+                                        Padding="9,5"
+                                        HorizontalAlignment="Left"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Open the existing manual deck-building search; this does not change your deck, collection or saved data."/>
+                            </StackPanel>
+                        </Expander>
                         <TextBlock x:Name="EdhOptimizationHeadline"
                                    Margin="0,10,0,3" TextWrapping="Wrap"
                                    FontSize="11"

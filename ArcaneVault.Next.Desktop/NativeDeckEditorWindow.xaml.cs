@@ -22,6 +22,7 @@ public partial class NativeDeckEditorWindow : Window
     private readonly string? edhLabColors;
     private EdhLabDraftCatalog? edhCatalog;
     private EdhLabDeckOptimizer.Report? lastOptimization;
+    private EdhLabDeckHealth.Report? lastHealthReport;
     private EdhLabSwapAdvisor.Report? lastSwapAdvice;
     private EdhLabSynergyPackages.Report? lastPackageReport;
     private EdhLabSynergyChains.Report? lastChainReport;
@@ -525,6 +526,7 @@ public partial class NativeDeckEditorWindow : Window
         EdhOptimizationHeadline.Text = lastOptimization.Headline;
         EdhOptimizationDetails.Text = lastOptimization.Display;
         EdhBrowseImprovementsButton.IsEnabled = !busy && lastOptimization.CanBrowse;
+        RefreshHealthReview(entries);
         RefreshSwapAdvice(entries);
         RefreshSynergyPackages(entries);
         RefreshSynergyChains(entries);
@@ -534,6 +536,95 @@ public partial class NativeDeckEditorWindow : Window
             if (!lastOptimization.CanBrowse)
                 ResetOptimizationBrowsing();
             RefreshOwnedCards();
+        }
+    }
+
+    private void RefreshHealthReview(
+        IReadOnlyList<NativeDeckEditing.Entry> entries)
+    {
+        if (edhCatalog is null || EdhHealthAreasList is null ||
+            EdhHealthHeadline is null) return;
+        var selected = EdhHealthAreasList.SelectedItem as EdhLabDeckHealth.Area;
+        int landTarget = TryLandTarget(out var custom) ? custom : 36;
+        lastHealthReport = EdhLabDeckHealth.Analyze(edhCatalog,
+            entries.Select(x => (x.Name, x.Quantity)),
+            landTarget, SelectedStrategyFocus, lastOptimization);
+        EdhHealthHeadline.Text = lastHealthReport.Headline;
+        EdhHealthOverview.Text = lastHealthReport.Explanation;
+        EdhHealthNextStep.Text = "Suggested next review: " +
+            lastHealthReport.ReviewNext;
+        EdhHealthAreasList.ItemsSource = lastHealthReport.Areas;
+        EdhHealthAreasList.SelectedItem = selected is null ? null :
+            lastHealthReport.Areas.FirstOrDefault(x => x.Key == selected.Key);
+        if (EdhHealthAreasList.SelectedItem is null)
+        {
+            EdhHealthBrowseButton.IsEnabled = false;
+            EdhHealthAreaDetails.Text =
+                "Select a coverage area. Targets are starting points, not a power ranking.";
+        }
+    }
+
+    private void OnEdhHealthSelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (EdhHealthAreasList is null || EdhHealthBrowseButton is null ||
+            EdhHealthAreaDetails is null) return;
+        if (EdhHealthAreasList.SelectedItem is not EdhLabDeckHealth.Area area)
+        {
+            EdhHealthBrowseButton.IsEnabled = false;
+            return;
+        }
+        EdhHealthAreaDetails.Text = area.Title + ": " + area.Explanation +
+            (area.CanBrowse
+                ? $"\nEligible owned example: {area.CandidateName} " +
+                  $"({area.CandidateUnused} unused recorded). Check the full card text."
+                : "\nNo unused eligible recorded suggestion is offered for this area.");
+        EdhHealthBrowseButton.IsEnabled = !busy &&
+            lastHealthReport?.SafeToSuggest == true && area.CanBrowse;
+        EdhHealthBrowseButton.Content = area.CanBrowse
+            ? "Inspect owned " + area.CandidateName + " in Cards"
+            : "No owned candidate to inspect";
+    }
+
+    private void OnEdhHealthBrowseClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || edhCatalog is null || edhLabCommander is null ||
+            EdhHealthAreasList?.SelectedItem is not EdhLabDeckHealth.Area selected ||
+            !selected.CanBrowse) return;
+        try
+        {
+            // Validate fresh against the current unsaved draft, format-filtered
+            // local catalog and ownership. A stale suggestion cannot be used.
+            var current = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
+            int landTarget = TryLandTarget(out int custom) ? custom : 36;
+            var fresh = EdhLabDeckHealth.Analyze(edhCatalog,
+                current.Select(x => (x.Name, x.Quantity)),
+                landTarget, SelectedStrategyFocus);
+            var match = fresh.Areas.FirstOrDefault(x => x.Key == selected.Key);
+            if (!fresh.SafeToSuggest || match is null || !match.CanBrowse ||
+                !match.CandidateName.Equals(selected.CandidateName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                RefreshHealthReview(current);
+                StatusText.Text = "That recommendation changed. Review the refreshed deck health analysis.";
+                return;
+            }
+            ResetOptimizationBrowsing();
+            EdhRoleBox.SelectedIndex = 0;
+            EdhSynergyOnly.IsChecked = false;
+            EdhRecordedOnly.IsChecked = true;
+            OwnedSearchBox.Text = match.CandidateName;
+            EdhWorkspaceTabs.SelectedItem = EdhCardsTab;
+            EdhCardsFilters.IsExpanded = true;
+            RefreshOwnedCards();
+            StatusText.Text = "Inspecting eligible recorded " + match.CandidateName +
+                " in Cards. Adding and saving remain separate manual actions.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException)
+        {
+            StatusText.Text = "Correct the draft before following deck health advice: " +
+                ex.Message;
         }
     }
 
@@ -1105,6 +1196,13 @@ public partial class NativeDeckEditorWindow : Window
                 EdhCurveDetails.Text = "No draw estimates are available for invalid draft text.";
                 ResetOptimizationBrowsing();
                 lastOptimization = null;
+                lastHealthReport = null;
+                EdhHealthAreasList.ItemsSource = null;
+                EdhHealthHeadline.Text = "Deck health: correct the decklist";
+                EdhHealthOverview.Text = "Role review and suggestions are paused until all draft lines are valid.";
+                EdhHealthNextStep.Text = "No deck or collection changes were made.";
+                EdhHealthAreaDetails.Text = "Fix the decklist first.";
+                EdhHealthBrowseButton.IsEnabled = false;
                 EdhOptimizationHeadline.Text = "Optimization: correct the decklist";
                 EdhOptimizationDetails.Text = "Recommendations are paused until every draft line is valid.";
                 EdhBrowseImprovementsButton.IsEnabled = false;

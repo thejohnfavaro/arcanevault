@@ -120,6 +120,23 @@ internal static class NativeVisualShellChecks
              draftEditorCode.Contains("engine.Status != \"Owned missing link\"") &&
              draftEditorCode.Contains("ResetOptimizationBrowsing();"),
              "Three-card actions must only inspect candidates or navigate to the existing manual picker.");
+        // v0.9.50: health checklist is an integrated read-only Improve panel.
+        // Its optional browse button must route through the existing picker
+        // after revalidating current draft legality and ownership.
+        var healthUi = XDocument.Parse(deckEditorXaml);
+        foreach (var control in new[] { "EdhHealthHeadline", "EdhHealthOverview",
+            "EdhHealthAreasList", "EdhHealthAreaDetails", "EdhHealthNextStep",
+            "EdhHealthBrowseButton" })
+            Must(healthUi.Descendants().Any(x =>
+                    x.Attribute(XName.Get("Name", XamlNs))?.Value == control),
+                "Deck health panel control missing: " + control);
+        Must(deckEditorXaml.Contains("SelectionChanged=\"OnEdhHealthSelectionChanged\"") &&
+             deckEditorXaml.Contains("Click=\"OnEdhHealthBrowseClicked\"") &&
+             draftEditorCode.Contains("EdhLabDeckHealth.Analyze") &&
+             draftEditorCode.Contains("if (!fresh.SafeToSuggest") &&
+             draftEditorCode.Contains("ResetOptimizationBrowsing();") &&
+             draftEditorCode.Contains("EdhWorkspaceTabs.SelectedItem = EdhCardsTab;"),
+             "Deck health interactions must refresh and use the protected manual card browser.");
         // Regression: v0.9.32 shipped the EDH Lab builder but hid its only
         // launcher with Visibility=Collapsed, making it inaccessible.
         var edhLauncher = XDocument.Parse(mainXaml).Descendants()
