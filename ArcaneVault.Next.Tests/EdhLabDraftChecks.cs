@@ -594,7 +594,7 @@ internal static class EdhLabDraftChecks
         // v0.9.44 strategy intent is a transient, read-only ranking lens.
         // The same local catalog, inventory and mainboard produce differently
         // ranked suggestions without changing quantity or legality gates.
-        var intentRows = ManaRows("10 Plains\\n10 Island\\n1 Brainstorm".Replace("\\\\n", "\\n"));
+        var intentRows = ManaRows("10 Plains\n10 Island\n1 Brainstorm");
         var faster = EdhLabDeckOptimizer.Analyze(pipPaper, intentRows,
             focus: EdhLabStrategyFocus.FastStart);
         var cardAdvantage = EdhLabDeckOptimizer.Analyze(pipPaper, intentRows,
