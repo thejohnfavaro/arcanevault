@@ -206,6 +206,14 @@ public static class EdhLabDeckHealth
             .ToArray();
         var next = !safe
             ? "Correct unknown/ineligible cards or an overfull draft before browsing suggestions."
+            : focus == EdhLabStrategyFocus.CommanderSynergy &&
+              synergy == 0 && synergyPick.Item2 > 0
+                ? $"Review owned commander-mechanic match: {synergyPick.Item1}. " +
+                  "Read the full card text before choosing a slot."
+            : focus == EdhLabStrategyFocus.FastStart &&
+              earlyState == "Thin early options" && earlyPick.Item2 > 0
+                ? $"Review owned low-cost option: {earlyPick.Item1} " +
+                  $"({earlyPick.Item2} unused recorded). Manual choice only."
             : focusOrder.FirstOrDefault(x =>
                 x.SuggestedTarget is int t && x.Copies < t &&
                 x.CanBrowse) is { } gap
