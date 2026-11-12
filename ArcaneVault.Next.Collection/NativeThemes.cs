@@ -25,6 +25,43 @@ public static class NativeThemes
             ["VaultTeal"] = Teal, ["VaultGood"] = Good,
             ["VaultWarning"] = Warning
         };
+
+        // Match the old WebView mana-identity gradient rather than presenting
+        // an entire guild/wedge as a single blended accent color. This also
+        // powers the theme picker's honest, per-color preview.
+        public IReadOnlyList<string> PreviewColors
+        {
+            get
+            {
+                if (!Id.StartsWith("mtg-", StringComparison.Ordinal))
+                    return new[] { Background, Accent, Teal };
+                const string symbols = "WUBRG";
+                var mana = new Dictionary<char, string>
+                {
+                    ['W'] = "#EDCD82", ['U'] = "#4B9DEC",
+                    ['B'] = "#A66FD4", ['R'] = "#F76A65",
+                    ['G'] = "#63CB90"
+                };
+                string identity = Id["mtg-".Length..];
+                if (identity == "C") return new[] { "#BAC3D3" };
+                return identity.Where(x => symbols.Contains(x))
+                    .Select(x => mana[x]).ToArray();
+            }
+        }
+
+        public string Description => Id switch
+        {
+            "noir" => "Dark charcoal with lavender accents",
+            "light" => "Light panels with violet accents",
+            "emerald" => "Deep forest-green panels with mint accents",
+            "ember" => "Warm charcoal, copper and orange accents",
+            "ocean" => "Midnight-blue panels with cyan accents",
+            _ => Id.StartsWith("mtg-", StringComparison.Ordinal)
+                ? "Dark foundation with " +
+                  (PreviewColors.Count > 1 ? "separate" : "one") +
+                  " mana-color accent" + (PreviewColors.Count > 1 ? "s" : "")
+                : "Arcane Vault theme"
+        };
     }
 
     public static IReadOnlyList<Palette> All { get; } = new Palette[]

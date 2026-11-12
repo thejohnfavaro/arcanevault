@@ -61,6 +61,23 @@ internal static class NativeVisualShellChecks
                     Path.GetFileName(filename) + " / " + match.Groups[1].Value);
         }
 
+        string mainXaml = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
+        string optionsXaml = File.ReadAllText(Path.Combine(dir, "NativeOptionsWindow.xaml"));
+        Must(appXaml.Contains("x:Key=\"VaultThemeBanner\"", StringComparison.Ordinal) &&
+             themeManagerCode.Contains("resources[\"VaultThemeBanner\"] = gradient;",
+                 StringComparison.Ordinal) &&
+             mainXaml.Contains("Background=\"{DynamicResource VaultThemeBanner}\"",
+                 StringComparison.Ordinal) &&
+             optionsXaml.Contains("SelectedItem.PreviewColors",
+                 StringComparison.Ordinal) &&
+             optionsXaml.Contains("SelectedItem.Description",
+                 StringComparison.Ordinal) &&
+             optionsXaml.Contains("Background=\"{DynamicResource VaultThemeBanner}\"",
+                 StringComparison.Ordinal),
+             "Named theme previews and the actual shell must display matching palette gradients.");
+        Must(!mainXaml.Contains("Color=\"#302748\"", StringComparison.Ordinal),
+             "Hard-coded purple catalog banner must not override non-purple themes.");
+
         var keys = app.Descendants()
             .Select(e => e.Attribute(XName.Get("Key", XamlNs))?.Value)
             .Where(s => !string.IsNullOrWhiteSpace(s))

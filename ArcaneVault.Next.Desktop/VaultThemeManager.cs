@@ -33,8 +33,31 @@ public static class VaultThemeManager
             return (Key: pair.Key, Brush: new SolidColorBrush(color));
         }).ToArray();
 
+        var colors = theme.PreviewColors
+            .Select(value => (Color)ColorConverter.ConvertFromString(value)!)
+            .ToArray();
+        if (colors.Length == 0)
+            throw new InvalidOperationException("Theme has no visible accent colors.");
+        if (resources["VaultThemeBanner"] is not LinearGradientBrush)
+            throw new InvalidOperationException("Missing theme banner brush.");
+        var gradient = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0.5),
+            EndPoint = new Point(1, 0.5)
+        };
+        if (colors.Length == 1)
+        {
+            gradient.GradientStops.Add(new GradientStop(colors[0], 0));
+            gradient.GradientStops.Add(new GradientStop(colors[0], 1));
+        }
+        else
+            for (int i = 0; i < colors.Length; i++)
+                gradient.GradientStops.Add(new GradientStop(colors[i],
+                    (double)i / (colors.Length - 1)));
+
         foreach (var replacement in replacements)
             resources[replacement.Key] = replacement.Brush;
+        resources["VaultThemeBanner"] = gradient;
         CurrentId = theme.Id;
     }
 }
