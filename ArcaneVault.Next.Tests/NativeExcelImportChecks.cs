@@ -165,5 +165,36 @@ internal static class NativeExcelImportChecks
             original.BackupSha256));
         Must(NativeWorkspace.Open(native).Collection.PhysicalCopies == 12,
             "Stale-SHA import should not double-increment quantities.");
+        // The same XLSX source can now be treated as a target snapshot.
+        // Existing additive APIs are retained only for older integrations.
+        string reconcilePath = Path.Combine(prefix, "excel-reconciled.sqlite");
+        var origin = NativeWorkspace.ImportNewBytes(
+            Collection(), "xlsx reconcile test", reconcilePath);
+        var difference = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
+            reconcilePath, catalog, rows, origin.BackupSha256);
+        Must(difference.HasChanges && difference.AddedRows == 2 &&
+             difference.AdjustedRows == 1 &&
+             difference.Lines.Single(x => x.Card == "Sol Ring").Imported == 3 &&
+             difference.NetCopies == 10,
+             "Excel reconciliation must aggregate duplicate printings, compare current to imported values and show net changes.");
+        var applied = NativeWorkspaceSafety.ReconcilePhysicalImport(
+            reconcilePath, catalog, rows, origin.BackupSha256,
+            difference.CandidateSha256);
+        Must(applied.Current.Collection.PhysicalCopies == 11 &&
+             applied.Current.Collection.PhysicalCards.Single(x =>
+                 x.Name == "Sol Ring").Quantity == 3 &&
+             applied.Current.Collection.ArenaCopies == origin.Collection.ArenaCopies &&
+             applied.Current.Collection.Decks == origin.Collection.Decks,
+             "Excel reconciliation must apply desired print quantities without touching unrelated native data.");
+        var idempotent = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
+            reconcilePath, catalog, rows, applied.Current.BackupSha256);
+        Must(!idempotent.HasChanges && idempotent.UnchangedRows == 3 &&
+             idempotent.NetCopies == 0 &&
+             NativeWorkspace.Open(applied.RecoveryPath).Collection.PhysicalCopies == 1,
+             "Excel reimport should become a no-op and preserve a recoverable original.");
+        Reject(() => NativeWorkspaceSafety.ReconcilePhysicalImport(
+            reconcilePath, catalog, rows, applied.Current.BackupSha256,
+            difference.CandidateSha256 + "stale"));
+
     }
 }
