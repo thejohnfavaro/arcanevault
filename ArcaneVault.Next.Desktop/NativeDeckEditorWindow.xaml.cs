@@ -28,6 +28,8 @@ public partial class NativeDeckEditorWindow : Window
     private int draftVersion;
     private int previewVersion;
     private CancellationTokenSource? previewRequest;
+    private OwnedDisplay? previewedCard;
+    private int previewedPool = -1;
     private sealed record OwnedDisplay(string Name, long Owned, string RoleHints = "",
         bool LabSuggestion = false, string SynergyExplanation = "", bool MechanicMatch = false)
     {
@@ -116,30 +118,80 @@ public partial class NativeDeckEditorWindow : Window
     private async void OnOwnedCardSelectionChanged(object sender,
         System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        // Selection is user-driven. Never fetch art during list population or
-        // scrolling; cancel prior requests and wait for selection to settle.
+        // Refreshing filters clears the ListBox selection. That should not
+        // blank a deliberate mainboard card preview (or start an art fetch).
+        if (OwnedCardsList?.SelectedItem is OwnedDisplay card)
+            await ShowCardPreviewAsync(card);
+    }
+
+    private void OnMainboardSelectionChanged(object sender,
+        System.Windows.RoutedEventArgs e) => PreviewMainboardSelection();
+
+    private void OnMainboardGotKeyboardFocus(object sender,
+        System.Windows.Input.KeyboardFocusChangedEventArgs e) =>
+        PreviewMainboardSelection();
+
+    private void OnMainboardMouseReleased(object sender,
+        System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Mouse-up can precede the TextBox's final caret update. Resolve
+        // the active line once the mouse selection has been committed.
+        Dispatcher.BeginInvoke(new Action(PreviewMainboardSelection),
+            System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private void PreviewMainboardSelection()
+    {
+        if (busy || MainboardBox is null || !MainboardBox.IsKeyboardFocusWithin ||
+            OwnedPoolBox is null) return;
+        string? name = NativeDeckEditing.PreviewNameAtCaret(
+            MainboardBox.Text, MainboardBox.CaretIndex);
+        // A blank/malformed line is not a card. Keep the previous preview
+        // rather than showing unrelated art or discarding in-progress text.
+        if (name is null) return;
+
+        // Switching from browser selection to a deck line must not leave the
+        // Add (+1) action targeting the previously selected browser card.
+        OwnedCardsList?.UnselectAll();
+        if (previewedCard?.Name.Equals(name,
+                StringComparison.OrdinalIgnoreCase) == true &&
+            previewedPool == OwnedPoolBox.SelectedIndex)
+            return;
+
+        var pool = OwnedPoolBox.SelectedIndex == 1
+            ? NativeDeckOwnedPicker.Pool.Arena
+            : NativeDeckOwnedPicker.Pool.Physical;
+        long owned = NativeDeckOwnedPicker.CountOwned(ownership, pool, name);
+        var catalogCard = edhCatalog?.Find(name);
+        var fit = edhCatalog?.SynergyFor(name);
+        var selected = new OwnedDisplay(name, owned,
+            catalogCard?.RoleHints ?? "",
+            LabSuggestion: edhLabCommander is not null && catalogCard is not null,
+            SynergyExplanation: fit?.Why ?? "No verified commander mechanic match.",
+            MechanicMatch: fit?.Matches == true);
+        _ = ShowCardPreviewAsync(selected);
+    }
+
+    private async Task ShowCardPreviewAsync(OwnedDisplay card)
+    {
+        // Any new preview cancels earlier in-flight artwork requests, whether
+        // triggered by Cards-tab browsing or mainboard caret navigation.
         previewRequest?.Cancel();
         int version = ++previewVersion;
         if (PreviewCardName is null || PreviewArtwork is null ||
             PreviewStatus is null || PreviewMetadata is null ||
             PreviewOracleText is null || PreviewArtFallback is null ||
-            PreviewOwnership is null || OwnedCardsList is null)
+            PreviewOwnership is null || OwnedPoolBox is null)
             return;
 
+        previewedCard = card;
+        previewedPool = OwnedPoolBox.SelectedIndex;
         PreviewArtwork.Source = null;
         PreviewArtwork.Visibility = Visibility.Collapsed;
         PreviewArtFallback.Visibility = Visibility.Visible;
         PreviewOracleText.Text = "";
         PreviewMetadata.Text = "";
         PreviewSynergyText.Text = "";
-        if (OwnedCardsList.SelectedItem is not OwnedDisplay card)
-        {
-            PreviewCardName.Text = "Select an owned card";
-            PreviewOwnership.Text = "";
-            PreviewStatus.Text = "Preview is read-only; selecting a card does not modify your deck.";
-            return;
-        }
-
         PreviewCardName.Text = card.Name;
         PreviewSynergyText.Text = card.LabSuggestion
             ? "Commander mechanic hint: " + card.SynergyExplanation
@@ -246,7 +298,7 @@ public partial class NativeDeckEditorWindow : Window
     private void RefreshPreviewOwnership()
     {
         if (PreviewOwnership is null || MainboardBox is null ||
-            OwnedCardsList?.SelectedItem is not OwnedDisplay card)
+            previewedCard is not OwnedDisplay card)
             return;
         try
         {
