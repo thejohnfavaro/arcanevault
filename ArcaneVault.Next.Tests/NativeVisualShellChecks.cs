@@ -94,6 +94,10 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              mainShellCode.Contains("draftCommander: commander.Name",
                  StringComparison.Ordinal) &&
+             mainShellCode.Contains("workspace.Collection, active.ReadOnlySnapshotPath",
+                 StringComparison.Ordinal) &&
+             mainShellCode.Contains("currentVersion != modeVersion",
+                 StringComparison.Ordinal) &&
              mainShellCode.Contains("await RefreshNativeWorkspaceAsync();",
                  StringComparison.Ordinal),
              "EDH Lab Build must launch shared Deck Studio and refresh verified library on save.");
