@@ -66,6 +66,8 @@ internal static class EdhLabDraftChecks
             Card("Not Legal", "W", commanderLegal: "not_legal", brawlLegal: "not_legal");
             Card("Malformed Identity", "X", "Draw a card.");
             Card("Commander Only", "W", "Create a 1/1 token.", brawlLegal: "not_legal");
+            Card("Special Scholar", "W", "A deck can have up to seven cards named Special Scholar.");
+            Card("Unlimited Scholar", "U", "A deck can have any number of cards named Unlimited Scholar.");
             tx.Commit();
         }
 
@@ -119,6 +121,11 @@ internal static class EdhLabDraftChecks
              paper.Search("", false, "Tutor").Any(x => x.Name == "Mystic Tutor") &&
              paper.Search("", false, "Removal").Any(x => x.Name == "Swords to Plowshares"),
              "Role hints should support practical collection-aware suggestions.");
+        Must(paper.Find("Sol Ring")?.SuggestedCopyLimit == 1 &&
+             paper.Find("Island")?.SuggestedCopyLimit == int.MaxValue &&
+             paper.Find("Special Scholar")?.SuggestedCopyLimit == 7 &&
+             paper.Find("Unlimited Scholar")?.SuggestedCopyLimit == int.MaxValue,
+             "EDH draft additions must respect singleton, basic land and printed copy exceptions.");
         Must(paper.Search("", false, limit: 1).Count == 1 &&
              paper.Search("", false, limit: 1)[0].RecordedCopies > 0,
              "Bounded suggestions should put recorded eligible cards first.");
