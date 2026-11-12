@@ -25,6 +25,8 @@ public partial class NativeDeckEditorWindow : Window
     private EdhLabSwapAdvisor.Report? lastSwapAdvice;
     private EdhLabSynergyPackages.Report? lastPackageReport;
     private EdhLabSynergyChains.Report? lastChainReport;
+    private CancellationTokenSource? chainArtworkRequest;
+    private int chainArtworkVersion;
     private bool updatingPackageTheme;
 
     private sealed record PackageDisplay(string Name, string Theme,
@@ -642,6 +644,8 @@ public partial class NativeDeckEditorWindow : Window
                 ? $"\n{lastChainReport.UnknownCopies} unknown/ineligible deck copies excluded."
                 : "");
         EdhChainsList.ItemsSource = lastChainReport.Chains;
+        if (lastChainReport.Chains.Count == 0)
+            ClearChainExplorer();
         if (previous is not null)
             EdhChainsList.SelectedItem = lastChainReport.Chains.FirstOrDefault(x =>
                 x.Theme == previous.Theme &&
@@ -652,6 +656,103 @@ public partial class NativeDeckEditorWindow : Window
                 "Select a chain to inspect its suggested card and read both Oracle texts.";
     }
 
+    private void ClearChainExplorer()
+    {
+        chainArtworkRequest?.Cancel();
+        ++chainArtworkVersion;
+        if (EdhChainEnablerArt is null || EdhChainPayoffArt is null) return;
+        EdhChainEnablerArt.Source = null;
+        EdhChainPayoffArt.Source = null;
+        EdhChainEnablerArt.Visibility = Visibility.Collapsed;
+        EdhChainPayoffArt.Visibility = Visibility.Collapsed;
+        EdhChainEnablerFallback.Visibility = Visibility.Visible;
+        EdhChainPayoffFallback.Visibility = Visibility.Visible;
+        EdhChainEnablerFallback.Text = "Choose a chain";
+        EdhChainPayoffFallback.Text = "Choose a chain";
+        EdhChainEnablerButton.IsEnabled = false;
+        EdhChainPayoffButton.IsEnabled = false;
+        EdhChainJumpButton.IsEnabled = false;
+    }
+
+    private async Task LoadChainArtworkAsync(EdhLabSynergyChains.Chain chain)
+    {
+        chainArtworkRequest?.Cancel();
+        var request = new CancellationTokenSource();
+        chainArtworkRequest = request;
+        int version = ++chainArtworkVersion;
+        EdhChainEnablerArt.Source = null;
+        EdhChainPayoffArt.Source = null;
+        EdhChainEnablerArt.Visibility = Visibility.Collapsed;
+        EdhChainPayoffArt.Visibility = Visibility.Collapsed;
+        EdhChainEnablerFallback.Visibility = Visibility.Visible;
+        EdhChainPayoffFallback.Visibility = Visibility.Visible;
+        EdhChainEnablerFallback.Text = chain.Enabler;
+        EdhChainPayoffFallback.Text = chain.Payoff;
+        if (string.IsNullOrWhiteSpace(catalogPath)) return;
+        try
+        {
+            bool arena = edhLabFormat == EdhLabFormat.ArenaBrawl;
+            // Use the same trusted-artwork and Arena-printing restrictions as
+            // the existing preview. All blocking catalog reads are off the UI
+            // thread; requests are canceled when the selection changes.
+            async Task<System.Windows.Media.Imaging.BitmapImage?> Fetch(string name)
+            {
+                string url = await Task.Run(() =>
+                {
+                    request.Token.ThrowIfCancellationRequested();
+                    var details = CollectionCatalogReview.ReadDetails(catalogPath!, name);
+                    if (!arena) return details?.ArtworkUrl ?? "";
+                    if (details is null) return "";
+                    return NativePrintingArtwork.Read(catalogPath!, name,
+                        limit: 1, cancellation: request.Token, arenaOnly: true)
+                        .Printings.FirstOrDefault()?.ImageUrl ?? "";
+                }, request.Token);
+                if (!NativeCardArtwork.IsTrustedArtworkUrl(url)) return null;
+                var bytes = await NativeCardArtwork.LoadAsync(url, request.Token);
+                if (bytes is null || request.Token.IsCancellationRequested) return null;
+                using var stream = new MemoryStream(bytes);
+                var image = new System.Windows.Media.Imaging.BitmapImage();
+                image.BeginInit();
+                image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                image.DecodePixelWidth = 160;
+                image.StreamSource = stream;
+                image.EndInit();
+                image.Freeze();
+                return image;
+            }
+            var left = await Fetch(chain.Enabler);
+            if (request.Token.IsCancellationRequested || version != chainArtworkVersion) return;
+            if (left is not null)
+            {
+                EdhChainEnablerArt.Source = left;
+                EdhChainEnablerArt.Visibility = Visibility.Visible;
+                EdhChainEnablerFallback.Visibility = Visibility.Collapsed;
+            }
+            var right = await Fetch(chain.Payoff);
+            if (request.Token.IsCancellationRequested || version != chainArtworkVersion) return;
+            if (right is not null)
+            {
+                EdhChainPayoffArt.Source = right;
+                EdhChainPayoffArt.Visibility = Visibility.Visible;
+                EdhChainPayoffFallback.Visibility = Visibility.Collapsed;
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
+            InvalidDataException or Microsoft.Data.Sqlite.SqliteException or
+            ArgumentException or System.Net.Http.HttpRequestException or
+            System.NotSupportedException)
+        {
+            // Text fallbacks and inspection controls continue to work offline.
+        }
+        finally
+        {
+            if (ReferenceEquals(chainArtworkRequest, request))
+                chainArtworkRequest = null;
+            request.Dispose();
+        }
+    }
+
     private async void OnEdhChainSelectionChanged(object sender,
         System.Windows.Controls.SelectionChangedEventArgs e)
     {
@@ -659,20 +760,56 @@ public partial class NativeDeckEditorWindow : Window
             busy || OwnedPoolBox is null) return;
         EdhChainDetails.Text = chain.Explanation + "\n" +
             chain.Status + ": " + chain.Enabler + " → " + chain.Payoff +
-            "\nShown card: " + chain.SuggestedCard +
-            (chain.Status == "Owned missing link"
-                ? $" ({chain.SuggestedRecordedCopies} unused recorded copies)"
-                : chain.Status == "Not recorded"
-                    ? " (not in recorded collection)"
-                    : " (already in deck)") +
-            "\nNothing was added, removed, purchased or saved.";
+            "\nSelect either card to inspect its actual cached Oracle text. " +
+            "Art is illustrative, not verified ownership. No changes are made.";
+        EdhChainEnablerButton.Content = "Inspect " + chain.Enabler;
+        EdhChainPayoffButton.Content = "Inspect " + chain.Payoff;
+        EdhChainEnablerButton.IsEnabled = true;
+        EdhChainPayoffButton.IsEnabled = true;
+        EdhChainJumpButton.IsEnabled = chain.Status == "Owned missing link";
+        await PreviewChainCardAsync(chain.SuggestedCard, chain.Explanation);
+        await LoadChainArtworkAsync(chain);
+    }
+
+    private Task PreviewChainCardAsync(string name, string why)
+    {
+        if (busy || edhCatalog is null || OwnedPoolBox is null)
+            return Task.CompletedTask;
         OwnedCardsList?.UnselectAll();
-        var record = edhCatalog?.Find(chain.SuggestedCard);
-        await ShowCardPreviewAsync(new OwnedDisplay(chain.SuggestedCard,
-            record?.RecordedCopies ?? 0, chain.SuggestedRoles,
-            LabSuggestion: true,
-            SynergyExplanation: chain.Explanation,
-            MechanicMatch: true));
+        var record = edhCatalog.Find(name);
+        return ShowCardPreviewAsync(new OwnedDisplay(name,
+            record?.RecordedCopies ?? 0, record?.RoleHints ?? "",
+            LabSuggestion: true, SynergyExplanation: why, MechanicMatch: true));
+    }
+
+    private async void OnEdhInspectEnablerClicked(object sender, RoutedEventArgs e)
+    {
+        if (EdhChainsList?.SelectedItem is EdhLabSynergyChains.Chain chain)
+            await PreviewChainCardAsync(chain.Enabler, chain.Explanation);
+    }
+
+    private async void OnEdhInspectPayoffClicked(object sender, RoutedEventArgs e)
+    {
+        if (EdhChainsList?.SelectedItem is EdhLabSynergyChains.Chain chain)
+            await PreviewChainCardAsync(chain.Payoff, chain.Explanation);
+    }
+
+    private void OnEdhChainJumpClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || EdhChainsList?.SelectedItem is not EdhLabSynergyChains.Chain chain ||
+            chain.Status != "Owned missing link" || edhCatalog is null)
+            return;
+        // Browse through the existing manually-operated Cards picker. Never
+        // call add/edit/save from an analyzer suggestion.
+        ResetOptimizationBrowsing();
+        EdhRecordedOnly.IsChecked = true;
+        EdhRoleBox.SelectedIndex = 0;
+        EdhSynergyOnly.IsChecked = false;
+        OwnedSearchBox.Text = chain.SuggestedCard;
+        EdhWorkspaceTabs.SelectedItem = EdhCardsTab;
+        RefreshOwnedCards();
+        StatusText.Text = "Showing owned eligible missing link " + chain.SuggestedCard +
+            " in Cards. Inspect it before making any manual deck change.";
     }
 
     private void RefreshSwapAdvice(
@@ -876,6 +1013,7 @@ public partial class NativeDeckEditorWindow : Window
                 EdhPackagesStatus.Text = "Packages paused until the decklist is valid.";
                 lastChainReport = null;
                 EdhChainsList.ItemsSource = null;
+                ClearChainExplorer();
                 EdhChainsStatus.Text = "Chains paused until the decklist is valid.";
                 EdhChainDetails.Text = "No changes made.";
                 EdhPackagePreviewText.Text = "No draft changes were made.";
