@@ -129,6 +129,39 @@ internal static class EdhLabDraftChecks
         Must(paper.Search("", false, limit: 1).Count == 1 &&
              paper.Search("", false, limit: 1)[0].RecordedCopies > 0,
              "Bounded suggestions should put recorded eligible cards first.");
+        var emptyBlueprint = EdhLabDeckBlueprint.Analyze(paper,
+            Array.Empty<(string Name, int Quantity)>());
+        Must(emptyBlueprint.MainboardCopies == 0 &&
+             emptyBlueprint.NextGap?.Role == "Land",
+             "An empty 99-card draft should suggest a land foundation.");
+
+        var blueprint = EdhLabDeckBlueprint.Analyze(paper,
+            new (string Name, int Quantity)[]
+            {
+                ("Island", 12), ("Sol Ring", 1), ("Arcane Signet", 1),
+                ("Brainstorm", 2), ("Board Clear", 1), ("Lightning Bolt", 1)
+            });
+        int CountRole(string role) =>
+            blueprint.Roles.Single(x => x.Role == role).Copies;
+        Must(blueprint.MainboardCopies == 18 &&
+             blueprint.UnverifiedCopies == 1 &&
+             CountRole("Land") == 12 && CountRole("Ramp") == 2 &&
+             CountRole("Card Draw") == 2 && CountRole("Board Wipe") == 1 &&
+             CountRole("Removal") == 0 &&
+             blueprint.NextGap?.Role == "Removal",
+             "Blueprint should count quantities, overlapping roles and unknown catalog entries.");
+        Must(blueprint.Display.Contains("Mainboard 18/99") &&
+             blueprint.Display.Contains("Suggested targets only"),
+             "Deck role estimates must be explicitly advisory, not deck legality rules.");
+        bool badBlueprintRejected = false;
+        try
+        {
+            EdhLabDeckBlueprint.Analyze(paper,
+                new[] { (Name: "Island", Quantity: 0) });
+        }
+        catch (ArgumentOutOfRangeException) { badBlueprintRejected = true; }
+        Must(badBlueprintRejected, "Blueprint must reject nonpositive quantities.");
+
         Must(originalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))),
              "Deck drafting candidate search must never write or alter the Scryfall catalog.");
 
