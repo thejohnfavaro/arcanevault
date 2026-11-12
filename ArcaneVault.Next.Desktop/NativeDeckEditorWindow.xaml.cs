@@ -23,6 +23,9 @@ public partial class NativeDeckEditorWindow : Window
     private EdhLabDraftCatalog? edhCatalog;
     private EdhLabDeckOptimizer.Report? lastOptimization;
     private EdhLabSwapAdvisor.Report? lastSwapAdvice;
+    private EdhLabSynergyPackages.Report? lastPackageReport;
+    private bool updatingPackageTheme;
+
     private sealed record PackageDisplay(string Name, string Theme,
         string Group, string Kind, string Explanation, long Recorded, string Roles)
     {
@@ -532,18 +535,53 @@ public partial class NativeDeckEditorWindow : Window
         IReadOnlyList<NativeDeckEditing.Entry> entries)
     {
         if (edhCatalog is null || EdhPackagesList is null ||
-            EdhPackagesStatus is null) return;
-        var previous = EdhPackagesList.SelectedItem as PackageDisplay;
-        var report = EdhLabSynergyPackages.Analyze(edhCatalog,
+            EdhPackagesStatus is null || EdhPackageThemeBox is null) return;
+        lastPackageReport = EdhLabSynergyPackages.Analyze(edhCatalog,
             entries.Select(x => (x.Name, x.Quantity)));
+        // Preserve the mechanic selection between edits, but reset it if
+        // switching commander/format removes that mechanic from the catalog.
+        string previousTheme = EdhPackageThemeBox.SelectedItem as string ?? "All mechanics";
+        var names = new[] { "All mechanics" }.Concat(
+            lastPackageReport.Packages.Select(p => p.Theme)).ToArray();
+        if (!names.SequenceEqual(EdhPackageThemeBox.ItemsSource as IEnumerable<string>
+                ?? Array.Empty<string>(), StringComparer.Ordinal))
+        {
+            updatingPackageTheme = true;
+            try
+            {
+                EdhPackageThemeBox.ItemsSource = names;
+                EdhPackageThemeBox.SelectedItem = names.Contains(previousTheme,
+                    StringComparer.Ordinal) ? previousTheme : "All mechanics";
+            }
+            finally { updatingPackageTheme = false; }
+        }
+        RenderSynergyPackages();
+    }
+
+    private void OnEdhPackageThemeChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!updatingPackageTheme) RenderSynergyPackages();
+    }
+
+    private void RenderSynergyPackages()
+    {
+        if (EdhPackagesList is null || EdhPackagesStatus is null ||
+            EdhPackageThemeBox is null || lastPackageReport is null) return;
+        var previous = EdhPackagesList.SelectedItem as PackageDisplay;
+        var report = lastPackageReport;
         if (!report.HasRecognizedThemes)
         {
             EdhPackagesStatus.Text = report.Explanation;
             EdhPackagesList.ItemsSource = null;
-            EdhPackagePreviewText.Text = "No confirmed mechanic package is available.";
+            EdhPackagePreviewText.Text = "No recognized mechanic package is available.";
             return;
         }
-        var display = report.Packages.SelectMany(package =>
+        string theme = EdhPackageThemeBox.SelectedItem as string ?? "All mechanics";
+        var visible = theme == "All mechanics"
+            ? report.Packages
+            : report.Packages.Where(p => p.Theme == theme).ToArray();
+        var display = visible.SelectMany(package =>
             package.InDeck.Select(x => new PackageDisplay(
                 x.Name, package.Theme, "In deck", x.Kind, x.Why,
                 x.RecordedCopies, x.RoleHints))
@@ -553,16 +591,16 @@ public partial class NativeDeckEditorWindow : Window
             .Concat(package.MissingOptions.Select(x => new PackageDisplay(
                 x.Name, package.Theme, "Missing", x.Kind, x.Why,
                 x.RecordedCopies, x.RoleHints)))).ToArray();
-        EdhPackagesStatus.Text = string.Join("\n",
-            report.Packages.Select(p => p.Theme + ": " +
+        EdhPackagesStatus.Text = string.Join("\n\n",
+            visible.Select(p => p.Theme + ": " +
                 p.InDeckCount + " matching copies in deck; " +
                 p.OwnedOptions.Count + " owned options; " +
                 p.MissingOptions.Count + " missing examples.\n" +
                 p.Coverage + "\nNext review: " + p.NextStep)) +
             (report.UnknownDeckCopies > 0
-                ? $". {report.UnknownDeckCopies} unverified deck copies."
+                ? $"\n{report.UnknownDeckCopies} unverified deck copies."
                 : "") +
-            "\nRead-only local text hints; option lists capped at five per category.";
+            "\nRead-only cached-text hints; lists capped at five per category.";
         EdhPackagesList.ItemsSource = display;
         if (previous is not null)
             EdhPackagesList.SelectedItem = display.FirstOrDefault(x =>
@@ -784,6 +822,7 @@ public partial class NativeDeckEditorWindow : Window
                 EdhBrowseImprovementsButton.IsEnabled = false;
                 lastSwapAdvice = null;
                 EdhSwapProposalsList.ItemsSource = null;
+                lastPackageReport = null;
                 EdhPackagesList.ItemsSource = null;
                 EdhPackagesStatus.Text = "Packages paused until the decklist is valid.";
                 EdhPackagePreviewText.Text = "No draft changes were made.";
