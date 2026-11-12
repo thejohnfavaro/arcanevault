@@ -4,6 +4,7 @@ using ArcaneVault.Next.EDHLab;
 using Microsoft.Win32;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 
 namespace ArcaneVault.Next.Desktop;
@@ -20,6 +21,7 @@ public partial class NativeDeckEditorWindow : Window
     private readonly EdhLabFormat? edhLabFormat;
     private readonly string? edhLabColors;
     private EdhLabDraftCatalog? edhCatalog;
+    private bool applyingManaBalance;
     private int draftVersion;
     private int previewVersion;
     private CancellationTokenSource? previewRequest;
@@ -223,6 +225,10 @@ public partial class NativeDeckEditorWindow : Window
     private void OnDraftChanged(object sender,
         System.Windows.Controls.TextChangedEventArgs e)
     {
+        if (applyingManaBalance) return;
+        if (edhLabCommander is not null && edhCatalog is not null &&
+            EdhAutoBalanceLands?.IsChecked == true)
+            ApplyManaBalance(automatic: true);
         InvalidateAnalytics();
         RefreshDraftSummary();
         RefreshPreviewOwnership();
@@ -235,6 +241,120 @@ public partial class NativeDeckEditorWindow : Window
             InvalidateAnalytics();
             RefreshDraftSummary();
         }));
+
+    private bool TryLandTarget(out int target)
+    {
+        target = 36;
+        return EdhLandTargetBox is not null &&
+            int.TryParse(EdhLandTargetBox.Text, out target) &&
+            target is >= 20 and <= 60;
+    }
+
+    private void OnEdhAutoBalanceChanged(object sender, RoutedEventArgs e)
+    {
+        if (edhLabCommander is null || EdhManaHeadline is null) return;
+        if (EdhAutoBalanceLands.IsChecked == true)
+            ApplyManaBalance(automatic: true);
+        RefreshDraftSummary();
+    }
+
+    private void OnEdhLandTargetChanged(object sender,
+        System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (edhLabCommander is null || EdhManaHeadline is null) return;
+        if (EdhAutoBalanceLands?.IsChecked == true)
+            ApplyManaBalance(automatic: true);
+        RefreshDraftSummary();
+    }
+
+    private void OnEdhBalanceNowClicked(object sender, RoutedEventArgs e)
+    {
+        if (edhLabCommander is null || busy) return;
+        ApplyManaBalance(automatic: false);
+        RefreshDraftSummary();
+    }
+
+    private bool ApplyManaBalance(bool automatic)
+    {
+        if (applyingManaBalance || busy || edhLabCommander is null ||
+            edhCatalog is null || MainboardBox is null) return false;
+        if (!TryLandTarget(out int target))
+        {
+            if (EdhManaDetails is not null)
+                EdhManaDetails.Text = "Enter a land target between 20 and 60.";
+            return false;
+        }
+        try
+        {
+            var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
+            var plan = EdhLabManaPlanner.Analyze(edhCatalog, entries.Select(x => (x.Name, x.Quantity)),
+                edhLabColors ?? "", target);
+            if (!plan.CanApply)
+            {
+                EdhManaDetails.Text = plan.Summary;
+                return false;
+            }
+            string updated = EdhLabManaPlanner.Apply(
+                MainboardBox.Text, edhLabColors ?? "", plan);
+            string previous = MainboardBox.Text.Replace("\r\n", "\n")
+                .Replace('\r', '\n');
+            if (updated.Equals(previous, StringComparison.Ordinal)) return false;
+
+            // Only the editable mainboard text changes. Preserve text entry
+            // position and never write to native storage or catalog here.
+            int caret = MainboardBox.CaretIndex;
+            applyingManaBalance = true;
+            try
+            {
+                MainboardBox.Text = updated;
+                MainboardBox.CaretIndex = Math.Min(caret, MainboardBox.Text.Length);
+            }
+            finally { applyingManaBalance = false; }
+            StatusText.Text = (automatic ? "Auto-balanced" : "Balanced") +
+                $" the unsaved basic lands toward {target} total lands. " +
+                "Existing nonbasic and snow lands were not changed. " +
+                "Nothing is saved until Review and save deck.";
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException or RegexMatchTimeoutException)
+        {
+            // Users may still be typing an incomplete card. Never rewrite or
+            // delete lines when parser or local metadata is uncertain.
+            if (!automatic && EdhManaDetails is not null)
+                EdhManaDetails.Text = "Balance unavailable: " + ex.Message;
+            return false;
+        }
+    }
+
+    private void RefreshLandAdvice(
+        IReadOnlyList<NativeDeckEditing.Entry> entries)
+    {
+        if (edhLabCommander is null || EdhManaHeadline is null ||
+            EdhManaDetails is null || EdhBalanceNowButton is null) return;
+        if (edhCatalog is null)
+        {
+            EdhManaHeadline.Text = "Mana base: waiting for local catalog…";
+            EdhManaDetails.Text = "Complete local Scryfall sync to calculate land sources.";
+            EdhBalanceNowButton.IsEnabled = false;
+            return;
+        }
+        if (!TryLandTarget(out int target))
+        {
+            EdhManaHeadline.Text = "Mana base: invalid target";
+            EdhManaDetails.Text = "Choose 20–60 lands (36 is the initial recommendation).";
+            EdhBalanceNowButton.IsEnabled = false;
+            return;
+        }
+        var plan = EdhLabManaPlanner.Analyze(edhCatalog, entries.Select(x => (x.Name, x.Quantity)),
+            edhLabColors ?? "", target);
+        string mode = EdhAutoBalanceLands?.IsChecked == true ? "Auto on" : "Manual";
+        EdhManaHeadline.Text =
+            $"Mana base: {plan.CurrentLands}/{target} current · " +
+            $"{plan.TotalAfter}/{target} planned · {mode}";
+        EdhManaDetails.Text = plan.Summary;
+        EdhBalanceNowButton.IsEnabled = !busy && plan.CanApply;
+    }
 
     private void RefreshDraftSummary()
     {
@@ -274,6 +394,7 @@ public partial class NativeDeckEditorWindow : Window
                           ". Save will show warnings; no card is removed automatically.";
                 }
                 RefreshEdhBlueprint(entries);
+                RefreshLandAdvice(entries);
             }
         }
         catch (Exception ex) when (ex is InvalidDataException or
@@ -286,6 +407,9 @@ public partial class NativeDeckEditorWindow : Window
                 EdhBlueprintText.Text = "Correct the decklist to update role coverage.";
                 EdhFindGapButton.IsEnabled = false;
                 EdhFindGapButton.Content = "Find next role";
+                EdhManaHeadline.Text = "Mana base: correct the decklist to continue";
+                EdhManaDetails.Text = ex.Message;
+                EdhBalanceNowButton.IsEnabled = false;
             }
         }
     }
@@ -302,8 +426,10 @@ public partial class NativeDeckEditorWindow : Window
             return;
         }
 
+        int landTarget = TryLandTarget(out var customLandTarget)
+            ? customLandTarget : 36;
         var blueprint = EdhLabDeckBlueprint.Analyze(edhCatalog,
-            entries.Select(x => (x.Name, x.Quantity)));
+            entries.Select(x => (x.Name, x.Quantity)), landTarget);
         EdhBlueprintText.Text = blueprint.Display;
         var gap = blueprint.NextGap;
         EdhFindGapButton.IsEnabled = !busy && gap is not null;
@@ -317,9 +443,10 @@ public partial class NativeDeckEditorWindow : Window
         if (busy || edhCatalog is null || edhLabCommander is null) return;
         try
         {
+            int landTarget = TryLandTarget(out var target) ? target : 36;
             var blueprint = EdhLabDeckBlueprint.Analyze(edhCatalog,
                 NativeDeckEditing.ParseMainboard(MainboardBox.Text)
-                    .Select(x => (x.Name, x.Quantity)));
+                    .Select(x => (x.Name, x.Quantity)), landTarget);
             var gap = blueprint.NextGap;
             if (gap is null) return;
             var choice = EdhRoleBox.Items.OfType<System.Windows.Controls.ComboBoxItem>()
@@ -371,6 +498,8 @@ public partial class NativeDeckEditorWindow : Window
             if (!hasSignals)
                 EdhSynergyOnly.IsChecked = false;
             RefreshOwnedCards();
+            if (EdhAutoBalanceLands.IsChecked == true)
+                ApplyManaBalance(automatic: true);
             RefreshDraftSummary();
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
@@ -383,6 +512,9 @@ public partial class NativeDeckEditorWindow : Window
             EdhSynergyOnly.IsEnabled = false;
             EdhPrioritizeSynergy.IsEnabled = false;
             EdhFindGapButton.IsEnabled = false;
+            EdhManaHeadline.Text = "Mana base: catalog unavailable";
+            EdhManaDetails.Text = "No automatic land changes were made.";
+            EdhBalanceNowButton.IsEnabled = false;
         }
     }
 
@@ -600,6 +732,9 @@ public partial class NativeDeckEditorWindow : Window
             EdhSuggestionTools.Visibility = Visibility.Visible;
             EdhRecordedOnly.IsChecked = true;
             EdhRoleBox.SelectedIndex = 0;
+            // Fresh drafts get Arena-style baseline basics. Existing decks
+            // never opt into edits without a deliberate user choice.
+            EdhAutoBalanceLands.IsChecked = selected is null;
             StatusText.Text = selected is null
                 ? "Draft is unsaved. Eligible suggestions use the synced local catalog; " +
                   "all saved cards still receive native preflight review."

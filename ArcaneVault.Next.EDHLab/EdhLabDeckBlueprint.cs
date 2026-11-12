@@ -47,10 +47,12 @@ public static class EdhLabDeckBlueprint
     }
 
     public static Snapshot Analyze(EdhLabDraftCatalog catalog,
-        IEnumerable<(string Name, int Quantity)> mainboard)
+        IEnumerable<(string Name, int Quantity)> mainboard, int landTarget = 36)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(mainboard);
+        if (landTarget is < 0 or > 99)
+            throw new ArgumentOutOfRangeException(nameof(landTarget));
         var counts = new int[Targets.Length];
         int total = 0, unverified = 0;
 
@@ -75,6 +77,7 @@ public static class EdhLabDeckBlueprint
         }
 
         return new Snapshot(total, unverified, Targets.Select((x, i) =>
-            new RoleProgress(x.Role, x.Label, counts[i], x.Minimum)).ToArray());
+            new RoleProgress(x.Role, x.Label, counts[i],
+                x.Role == "Land" ? landTarget : x.Minimum)).ToArray());
     }
 }
