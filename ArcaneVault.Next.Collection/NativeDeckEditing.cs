@@ -96,7 +96,8 @@ public static class NativeDeckEditing
     public static string? PreviewNameAtCaret(string text, int caretIndex)
     {
         ArgumentNullException.ThrowIfNull(text);
-        if (text.Length > 64_000 || caretIndex < 0 || caretIndex > text.Length)
+        if (text.Length == 0 || text.Length > 64_000 ||
+            caretIndex < 0 || caretIndex > text.Length)
             return null;
 
         int before = Math.Max(0, caretIndex - 1);
