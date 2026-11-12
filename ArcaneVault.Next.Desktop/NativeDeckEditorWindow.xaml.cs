@@ -147,7 +147,7 @@ public partial class NativeDeckEditorWindow : Window
         catch (OperationCanceledException) { /* Selection changed or editor closed. */ }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
             InvalidDataException or Microsoft.Data.Sqlite.SqliteException or
-            ArgumentException or HttpRequestException or System.NotSupportedException)
+            ArgumentException or System.Net.Http.HttpRequestException or System.NotSupportedException)
         {
             if (!token.IsCancellationRequested && version == previewVersion)
                 PreviewStatus.Text = "Card preview unavailable: " + ex.Message;
