@@ -424,6 +424,19 @@ public partial class NativeDeckEditorWindow : Window
         if (busy || OwnedCardsList.SelectedItem is not OwnedDisplay card) return;
         try
         {
+            if (edhCatalog is not null)
+            {
+                var suggested = edhCatalog.Find(card.Name);
+                if (suggested is null)
+                    throw new InvalidDataException("This card is not eligible for the selected EDH Lab draft.");
+                int inDraft = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
+                    .FirstOrDefault(x => x.Name.Equals(card.Name,
+                        StringComparison.OrdinalIgnoreCase))?.Quantity ?? 0;
+                if (inDraft >= suggested.SuggestedCopyLimit)
+                    throw new InvalidDataException(
+                        $"{card.Name} has reached the locally supported " +
+                        $"copy limit ({suggested.SuggestedCopyLimit}).");
+            }
             MainboardBox.Text = NativeDeckOwnedPicker.AddOne(MainboardBox.Text, card.Name);
             StatusText.Text = $"Added 1 {card.Name} to the unsaved draft. " +
                 "Collection quantities are unchanged; save still requires preflight review.";
@@ -473,6 +486,7 @@ public partial class NativeDeckEditorWindow : Window
         if (edhDraftCommander is not null)
         {
             HeaderText.Text = "EDH Lab — Construct a deck";
+            OwnedCardsHeading.Text = "Eligible cards (catalog verified)";
             Title = "EDH Lab — " + edhDraftCommander;
             DeckNameBox.Text = edhDraftCommander + " · New Deck";
             CommanderBox.Text = edhDraftCommander;
