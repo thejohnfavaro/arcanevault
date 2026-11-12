@@ -1,28 +1,65 @@
-# AVN-014 — EDH Lab native commander browser (initial preview)
+# EDH Lab — native commander browser and collection-aware draft
 
-**State: implemented in isolated native WPF prototype, not in the shipping Arcane Vault app.**
+**State:** Native Windows preview. Commander discovery and collection-aware
+Draft in Deck Studio shipped in the v0.9.31 preview; the **role blueprint
+follow-up is proposed here**, pending CI and local acceptance testing.
 
-## What is implemented
-- Load unique commander identities from the installed app's existing Scryfall `cards` SQLite table using a **read-only connection to the prototype's isolated catalog snapshot**. The existing app data is never modified by EDH Lab.
-- Open the `EDH Lab — Commanders` window in the .NET 10 WPF preview after selecting an existing Scryfall catalog.
-- Switch between paper Commander and Arena Brawl, each with distinct commander eligibility/format legality checks.
-- Search all candidates by card name or Oracle text; browse **all** matches across 50-row pages (not capped at 200).
-- Color identity W/U/B/R/G, exact/contains-all/contains-any selection, colorless-only, and clear filters.
-- `Surprise Me!` securely chooses among **only** the current eligible filtered pool. Optional no-repeat until exhausted; reroll retains filters and shows the selection in the list.
-- Local 260+ commander fixture exercises paging, legality, special commander cases, filters, random replay, and never writing the original SQLite file.
+## Commander discovery
 
-## Important coverage and safety limits
+- Browse eligible commanders from a locally synced Scryfall catalog by format:
+  paper Commander or Arena Brawl.
+- Search by name and Oracle text; filter by color identity, owned status and
+  supported commander rules; choose **Surprise Me!** from filtered results.
+- Choose **Build with selected commander** to open a fresh, unsaved native Deck
+  Studio draft with that commander and format selected.
 
-**This is a candidate browser prototype, not a complete live legality oracle.** The source SQLite card schema currently stores type, Oracle text, color identity, legalities, image and Arena availability, but not printed P/T or full `oracle_id`. Therefore special Vehicle/Spacecraft commanders whose eligibility depends on P/T are excluded for now. Paired commanders/Background combinations are not supported. Brawl's banlist is the last synced Scryfall data, not a live rules lookup. A paper card may have no Arena printing, so Arena candidates require `arena=1`.
+## Collection-aware drafting
 
-Ownership is deliberately not inferred from the catalog. The preview does not load the user's actual paper/Arena collection into the commander browser, craft cards, create decks, or edit stored profiles. EDH Lab deck-building, collection-first recommendations, card art caching, camera scanning, signed app update and Android companion functionality remain follow-ups.
+- Candidates are read from an isolated **read-only** SQLite catalog snapshot.
+  Format legality, Arena availability and commander color identity narrow the
+  candidate list. Ownership is read separately from the verified physical or
+  Arena collection — never inferred from catalog presence.
+- Default candidate browsing shows recorded cards. Unchecking **Recorded in my
+  inventory only** adds locally eligible missing cards without claiming ownership.
+- Search by card name or select role hints: lands, ramp, draw, removal, wipes,
+  tutors, protection and tokens. Ordinary mana-producing lands are not labeled
+  ramp just because they tap for mana.
+- The **Deck Blueprint** shows live mainboard progress out of 99 (commander is
+  separate), rough roles, and a count of draft copies not matched to an eligible
+  local catalog card.
+- **Browse next role** chooses the largest proportional shortfall against a
+  simple starting guideline (36 lands, 10 ramp, 10 draw, 8 removal, 2 wipes,
+  2 protection), clears prior search text and shows recorded candidate cards.
+  Uncheck recorded-only to see missing candidates. It never inserts cards.
+- Role hints may overlap and are text heuristics, not a statement of optimal
+  construction, card strength, or tournament legality. The guidelines are
+  optional and do not restrict deck saves.
 
-## Run and test
+## Storage / safety contract
 
-1. Build/run the **ArcaneVault.Next.Desktop** WPF native prototype using .NET 10 on Windows, or download the `ArcaneVaultNext-NativeUI-SPIKE` artifact from a passing native workflow run.
-2. Choose **Open a read-only catalog snapshot** and select `%LOCALAPPDATA%\ArcaneVault\scryfall-catalog.sqlite`. A completed Scryfall card catalog is required.
-3. Click **EDH Lab — Commanders**, choose the format, colors, filters, then **Surprise Me!**.
+- Everything remains unsaved until the user chooses the existing **Review and
+  save deck** flow. NativeDeckPreflight runs local legality and copy checks.
+- Saving remains in NativeWorkspaceSafety.SaveDeck with expected-backup SHA,
+  recovery backup and deck revision handling. EDH Lab does not change owned
+  cards, printings, catalog rows, or existing saved decks merely by browsing.
+- Ownership is currently at the card-name level. Exact physical printing
+  verification and real-time banlist certification are **not** implemented.
+- Paired commanders, specialized commander eligibility and other unusual deck
+  rules remain future work; manually imported cards still receive preflight
+  warnings instead of silent removal.
 
-CI checks the native WPF build and `EdhLabChecks.Run(work)` synthetic fixture. **Local on-device behavior and p95 performance remain to be measured** before calling this a release-ready feature.
+## Test pass before release
 
-Next EDH Lab milestones: enrich catalog for special commander eligibility and stable oracle identity; test per-format bans, then add saved-deck support, owned/unowned filtering and Android read-only browsing.
+1. Open a verified native collection and a synced catalog in Windows.
+2. Browse commanders for both formats; select a commander and start a draft.
+3. Type or add a card; confirm the blueprint counts refresh with no lag.
+4. Verify an ordinary basic land counts as land but **not** ramp, and a mana
+   rock counts as ramp. Test missing and wrong-identity card names.
+5. Select **Browse next role** and verify search/role/recorded filters,
+   including when no recorded matching cards exist.
+6. Save and reopen a deck, inspect backup + revisions, and verify physical
+   and Arena ownership remain unchanged.
+7. Confirm the native test fixture, WPF build and on-device startup pass.
+
+Next milestones: manual role target tuning; synergy/archetype tags; better mana-base
+advice; fully legal specialty commander partnerships; exact owned-printing support.
