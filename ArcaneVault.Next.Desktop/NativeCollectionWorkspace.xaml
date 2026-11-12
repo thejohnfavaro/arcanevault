@@ -321,6 +321,13 @@
                                 IsEnabled="False" Margin="0,0,10,0"
                                 Background="{DynamicResource VaultPanelRaised}" Foreground="White"
                                 BorderBrush="#65778B"/>
+                        <Button x:Name="EditDeckInEdhLabButton" Content="Edit in EDH Lab"
+                                Click="OnEditDeckInEdhLabClicked" Padding="14,8"
+                                IsEnabled="False" Margin="0,0,10,0"
+                                Background="{DynamicResource VaultAccentMuted}"
+                                Foreground="{DynamicResource VaultText}"
+                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                ToolTip="Open a saved Commander or Arena Brawl deck with the EDH Lab blueprint and eligible collection suggestions; requires locally verified commander metadata"/>
                         <Button x:Name="DuplicateDeckButton" Content="Duplicate selected deck"
                                 Click="OnDuplicateDeckClicked" Padding="14,8"
                                 IsEnabled="False" Margin="0,0,10,0"
