@@ -237,6 +237,26 @@
                                            Text="Loading land advice…"/>
                             </StackPanel>
                         </Expander>
+                        <TextBlock x:Name="EdhCurveHeadline" Margin="0,10,0,3"
+                                   TextWrapping="Wrap" FontSize="11"
+                                   Foreground="{DynamicResource VaultAccent}"
+                                   Text="Curve and casting consistency: evaluating draft…"/>
+                        <Expander Header="Mana curve &amp; casting consistency" IsExpanded="False"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,6"
+                                           Text="Read-only estimates: natural land drops from a 7-card opener with no mulligans; colored-source warnings are separate, approximate signals, not complete casting probabilities."/>
+                                <TextBlock x:Name="EdhCurveDetails"
+                                           FontFamily="Consolas" FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Waiting for local card metadata…"/>
+                            </StackPanel>
+                        </Expander>
                     </StackPanel>
                 </StackPanel>
                 <ComboBox Grid.Row="1" x:Name="OwnedPoolBox"
