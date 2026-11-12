@@ -96,6 +96,28 @@ internal static class NativeDeckEditingChecks
              mainboard[2].Name == "Split // Back",
              "Duplicate case-insensitive land lines or split card names were parsed incorrectly.");
 
+        // Mainboard preview resolves only the active caret line; it must
+        // never rewrite or parse an unrelated in-progress invalid line.
+        const string previewDraft = "1 Sol Ring\r\n2 Fire // Ice\n\n4 Island\nbad line";
+        int fire = previewDraft.IndexOf("Fire // Ice", StringComparison.Ordinal);
+        int island = previewDraft.IndexOf("Island", StringComparison.Ordinal);
+        int blank = previewDraft.IndexOf("\n\n", StringComparison.Ordinal) + 1;
+        Must(NativeDeckEditing.PreviewNameAtCaret(previewDraft, 0) == "Sol Ring" &&
+             NativeDeckEditing.PreviewNameAtCaret(previewDraft, fire) == "Fire // Ice" &&
+             NativeDeckEditing.PreviewNameAtCaret(previewDraft, fire + 5) == "Fire // Ice" &&
+             NativeDeckEditing.PreviewNameAtCaret(previewDraft, island) == "Island" &&
+             NativeDeckEditing.PreviewNameAtCaret(previewDraft, blank) is null &&
+             NativeDeckEditing.PreviewNameAtCaret(previewDraft, previewDraft.Length) is null &&
+             NativeDeckEditing.PreviewNameAtCaret("1 Sol Ring", 0) == "Sol Ring" &&
+             NativeDeckEditing.PreviewNameAtCaret("", 0) is null &&
+             NativeDeckEditing.PreviewNameAtCaret(previewDraft, -1) is null &&
+             NativeDeckEditing.PreviewNameAtCaret(previewDraft, previewDraft.Length + 1) is null &&
+             NativeDeckEditing.PreviewNameAtCaret("0 Island", 4) is null &&
+             NativeDeckEditing.PreviewNameAtCaret("251 Island", 5) is null,
+             "Card preview must resolve split names and keyboard/mouse caret lines without accepting invalid or blank entries.");
+        Must(previewDraft == "1 Sol Ring\r\n2 Fire // Ice\n\n4 Island\nbad line",
+             "Previewing an in-progress draft must not normalize or mutate its text.");
+
         Reject(() => NativeDeckEditing.ParseMainboard("Sol Ring"));
         Reject(() => NativeDeckEditing.ParseMainboard("0 Island"));
         Reject(() => NativeDeckEditing.ParseMainboard("251 Forest"));
