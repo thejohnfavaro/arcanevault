@@ -634,7 +634,9 @@ internal static class EdhLabDraftChecks
                  x.InName == "Thopter Foundry" &&
                  x.Explanation.Contains("Commander synergy")) &&
              !focusedSwaps.Proposals.Any(x => x.OutName == "Board Clear") &&
-             !focusedSwaps.Proposals.Any(x => x.OutName == "Artifact Engine") &&
+             focusedSwaps.Proposals.All(x =>
+                 (strategyCatalog.SynergyFor(x.InName)?.Score ?? 0) >=
+                 (strategyCatalog.SynergyFor(x.OutName)?.Score ?? 0)) &&
              !EdhLabSwapAdvisor.IsCurrent(baselineSwaps,
                  focusedSwaps.Proposals.First()) &&
              focusedSwaps.Proposals.All(x => x.Focus ==
