@@ -12,20 +12,21 @@ public sealed record CatalogTileRow(IReadOnlyList<object?> Cards);
 
 public static class CatalogTileLayout
 {
-    // At least 285 effective pixels per card. The 4-column ceiling also bounds
-    // artwork created per visible row even on ultra-wide monitors.
+    // Compact tile widths leave room for more cards at typical desktop sizes.
+    // Five tiles maximum still bounds per-row artwork controls, while the
+    // outer ListView virtualizes rows and image loading stays throttled.
     public static int ColumnsForWidth(double availableWidth)
     {
         if (double.IsNaN(availableWidth) || double.IsInfinity(availableWidth) ||
             availableWidth <= 0) return 2;
-        return Math.Clamp((int)Math.Floor((availableWidth - 16) / 285), 1, 4);
+        return Math.Clamp((int)Math.Floor((availableWidth - 16) / 225), 1, 5);
     }
 
     public static IReadOnlyList<CatalogTileRow> BuildRows(
         IEnumerable<object> cards, int columnCount)
     {
         ArgumentNullException.ThrowIfNull(cards);
-        int columns = Math.Clamp(columnCount, 1, 4);
+        int columns = Math.Clamp(columnCount, 1, 5);
         object[] all = cards.ToArray();
         var rows = new List<CatalogTileRow>((all.Length + columns - 1) / columns);
         for (int i = 0; i < all.Length; i += columns)
