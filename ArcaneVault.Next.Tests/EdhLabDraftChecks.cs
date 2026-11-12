@@ -449,7 +449,7 @@ internal static class EdhLabDraftChecks
         Must(synergyHealth.Areas.Single(x => x.Key == "Synergy").Copies == 0 &&
              synergyHealth.ReviewNext.Contains("Sol Ring") &&
              synergyHealth.Focus == EdhLabStrategyFocus.CommanderSynergy &&
-             synergyHealth.Explanation.Contains("not a power"),
+             synergyHealth.Explanation.Contains("not Commander format requirements"),
              "Commander-synergy focus should prioritize a recorded eligible direct match without a power score.");
         var isolatedArenaHealth = EdhLabDeckHealth.Analyze(arena,
             new[] { (Name: "Brainstorm", Quantity: 1) },
