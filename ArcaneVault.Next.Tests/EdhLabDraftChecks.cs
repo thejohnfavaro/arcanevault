@@ -51,13 +51,21 @@ internal static class EdhLabDraftChecks
                 add.Parameters["$arena"].Value = arena ? 1 : 0;
                 add.ExecuteNonQuery();
             }
-            Card("Selected Leader", "WU", type: "Legendary Creature — Human");
+            Card("Selected Leader", "WU",
+                oracle: "Whenever an artifact enters under your control, create a 1/1 colorless Thopter artifact creature token.",
+                type: "Legendary Artifact Creature — Human");
             Card("Sol Ring", "", "Add {C}.", type: "Artifact");
             Card("Island", "U", "Add {U}.", type: "Basic Land — Island");
             Card("Brainstorm", "U", "Draw three cards.");
             Card("Counterspell", "U", "Counter target spell.", brawlLegal: "banned");
             Card("Swords to Plowshares", "W", "Exile target creature.", arena: false);
             Card("Arcane Signet", "", "Add one mana of any color.", type: "Artifact");
+            Card("Thopter Foundry", "U", "Create a 1/1 Thopter artifact creature token.", type: "Artifact");
+            Card("Artifact Hater", "W", "Destroy target artifact.", type: "Instant");
+            Card("Non-Arena Thopters", "U", "Create a Thopter artifact creature token.",
+                type: "Artifact", arena: false);
+            Card("Paper Banned Thopter", "U", "Create a Thopter artifact creature token.",
+                type: "Artifact", commanderLegal: "banned");
             Card("Board Clear", "W", "Destroy all creatures.", type: "Sorcery");
             Card("Mystic Tutor", "U", "Search your library for a card.");
             Card("Lightning Bolt", "R", "Deal 3 damage.");
@@ -130,6 +138,43 @@ internal static class EdhLabDraftChecks
         Must(paper.Search("", false, limit: 1).Count == 1 &&
              paper.Search("", false, limit: 1)[0].RecordedCopies > 0,
              "Bounded suggestions should put recorded eligible cards first.");
+        Must(paper.Synergy.ThemeCount >= 2 &&
+             paper.Synergy.ThemeSummary.Contains("Artifacts") &&
+             paper.Synergy.ThemeSummary.Contains("Tokens") &&
+             paper.SynergyEligibleCount > 0,
+             "Commander text must activate transparent artifact/token mechanic signals.");
+        var match = paper.SynergyFor("Thopter Foundry");
+        Must(match is { Matches: true } &&
+             match.Score > paper.SynergyFor("Sol Ring")!.Score &&
+             match.Why.Contains("Artifacts") && match.Why.Contains("Tokens") &&
+             paper.SynergyFor("Artifact Hater") is { Matches: false } &&
+             paper.SynergyFor("Not In Catalog") is null,
+             "Only positive artifact/token signals should match, with a specific explanation.");
+        Must(paper.Search("Thopter Foundry", false, synergyOnly: true).Count == 1 &&
+             paper.Search("Artifact Hater", false, synergyOnly: true).Count == 0 &&
+             paper.Search("", false, synergyOnly: true, prioritizeSynergy: true)
+                 .First().Name == "Sol Ring" &&
+             paper.Search("", true, synergyOnly: true, prioritizeSynergy: true)
+                 .All(x => x.RecordedCopies > 0),
+             "Synergy-only search must remain recorded-first and cannot disguise missing cards as owned.");
+        Must(!paper.Contains("Paper Banned Thopter") &&
+             !arena.Contains("Non-Arena Thopters") &&
+             !paper.Search("", false, synergyOnly: true)
+                 .Any(x => x.Name == "Paper Banned Thopter") &&
+             !arena.Search("", false, synergyOnly: true)
+                 .Any(x => x.Name == "Non-Arena Thopters"),
+             "Synergy ranking must never bypass the paper/Arena format filters.");
+        var noSignal = EdhLabSynergyAdvisor.FromCommander(
+            "Legendary Creature — Human", "Draw a card.");
+        Must(noSignal.ThemeCount == 0 &&
+             !noSignal.Evaluate("Artifact", "Create a treasure token.").Matches,
+             "A commander with no identified strategy must not receive invented recommendations.");
+        var typal = EdhLabSynergyAdvisor.FromCommander(
+            "Legendary Artifact Creature — Borg", "Other Borg you control get +1/+1.");
+        Must(typal.ThemeSummary.Contains("Borg typal") &&
+             typal.Evaluate("Artifact Creature — Borg", "").Matches &&
+             !typal.Evaluate("Instant", "Destroy target Borg creature.").Matches,
+             "Typal matching must require commander rules-text evidence and favor actual type membership.");
         var emptyBlueprint = EdhLabDeckBlueprint.Analyze(paper,
             Array.Empty<(string Name, int Quantity)>());
         Must(emptyBlueprint.MainboardCopies == 0 &&

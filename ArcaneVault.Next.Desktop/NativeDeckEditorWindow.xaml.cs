@@ -24,10 +24,11 @@ public partial class NativeDeckEditorWindow : Window
     private int previewVersion;
     private CancellationTokenSource? previewRequest;
     private sealed record OwnedDisplay(string Name, long Owned, string RoleHints = "",
-        bool LabSuggestion = false)
+        bool LabSuggestion = false, string SynergyExplanation = "", bool MechanicMatch = false)
     {
         public string Display => LabSuggestion
             ? Name + (Owned > 0 ? $"  ·  {Owned:N0} recorded" : "  ·  missing") +
+              (MechanicMatch ? "  ·  Mechanic match" : "") +
               (RoleHints.Length > 0 ? "  ·  " + RoleHints : "")
             : $"{Name}  ·  {Owned:N0} owned";
     }
@@ -41,9 +42,17 @@ public partial class NativeDeckEditorWindow : Window
             OwnedCardsList.ItemsSource = edhCatalog?.Search(
                 OwnedSearchBox.Text, EdhRecordedOnly.IsChecked == true,
                 EdhRoleBox.SelectedItem is System.Windows.Controls.ComboBoxItem role
-                    ? role.Tag?.ToString() : "", limit: 200)
-                .Select(x => new OwnedDisplay(x.Name, x.RecordedCopies,
-                    x.RoleHints, LabSuggestion: true)).ToArray() ??
+                    ? role.Tag?.ToString() : "", limit: 200,
+                synergyOnly: EdhSynergyOnly?.IsChecked == true,
+                prioritizeSynergy: EdhPrioritizeSynergy?.IsChecked == true)
+                .Select(x =>
+                {
+                    var fit = edhCatalog.SynergyFor(x.Name);
+                    return new OwnedDisplay(x.Name, x.RecordedCopies,
+                        x.RoleHints, LabSuggestion: true,
+                        SynergyExplanation: fit?.Why ?? "",
+                        MechanicMatch: fit?.Matches == true);
+                }).ToArray() ??
                 Array.Empty<OwnedDisplay>();
             return;
         }
@@ -72,6 +81,7 @@ public partial class NativeDeckEditorWindow : Window
         PreviewArtFallback.Visibility = Visibility.Visible;
         PreviewOracleText.Text = "";
         PreviewMetadata.Text = "";
+        PreviewSynergyText.Text = "";
         if (OwnedCardsList.SelectedItem is not OwnedDisplay card)
         {
             PreviewCardName.Text = "Select an owned card";
@@ -81,6 +91,9 @@ public partial class NativeDeckEditorWindow : Window
         }
 
         PreviewCardName.Text = card.Name;
+        PreviewSynergyText.Text = card.LabSuggestion
+            ? "Commander mechanic hint: " + card.SynergyExplanation
+            : "";
         RefreshPreviewOwnership();
         if (string.IsNullOrWhiteSpace(catalogPath))
         {
@@ -350,6 +363,13 @@ public partial class NativeDeckEditorWindow : Window
                 $"{suggestions.RecordedEligibleCount:N0} eligible recorded names · " +
                 $"{suggestions.EligibleCount:N0} locally legal card names. " +
                 "Only card-name holdings are counted, not verified printings.";
+            EdhSynergyStatus.Text = suggestions.Synergy.ThemeSummary +
+                $" {suggestions.SynergyEligibleCount:N0} legal candidate names share recognized signals.";
+            bool hasSignals = suggestions.Synergy.ThemeCount > 0;
+            EdhSynergyOnly.IsEnabled = hasSignals;
+            EdhPrioritizeSynergy.IsEnabled = hasSignals;
+            if (!hasSignals)
+                EdhSynergyOnly.IsChecked = false;
             RefreshOwnedCards();
             RefreshDraftSummary();
         }
@@ -359,6 +379,9 @@ public partial class NativeDeckEditorWindow : Window
             EdhSuggestionsStatus.Text = "Suggestions unavailable: " + ex.Message +
                 ". You can still edit a deck manually; saving runs preflight.";
             EdhBlueprintText.Text = "Blueprint unavailable without a local catalog.";
+            EdhSynergyStatus.Text = "Mechanic recommendations unavailable without a synced catalog.";
+            EdhSynergyOnly.IsEnabled = false;
+            EdhPrioritizeSynergy.IsEnabled = false;
             EdhFindGapButton.IsEnabled = false;
         }
     }
