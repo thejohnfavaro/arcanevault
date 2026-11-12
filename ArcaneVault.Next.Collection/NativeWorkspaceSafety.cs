@@ -357,8 +357,9 @@ public static class NativeWorkspaceSafety
     public static IReadOnlyList<NativeDeckEditing.DeckRow> ListDecks(
         string nativePath, CancellationToken cancellation = default)
     {
-        NativeWorkspace.Open(nativePath, cancellation);
-        return NativeDeckEditing.List(ReadPreservedBackup(nativePath));
+        var verified = NativeWorkspace.Open(nativePath, cancellation);
+        return NativeDeckLibraryCache.List(verified.BackupSha256,
+            () => ReadPreservedBackup(nativePath), cancellation: cancellation);
     }
 
     /// <summary>
