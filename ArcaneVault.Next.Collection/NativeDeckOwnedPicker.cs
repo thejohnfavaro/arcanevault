@@ -122,4 +122,38 @@ public static class NativeDeckOwnedPicker
         if (current is null) lines.Add("1 " + name.Trim());
         return string.Join("\n", lines);
     }
+    /// <summary>
+    /// Decrement one draft copy. Remove the row entirely at quantity one.
+    /// Ownership is never consulted or modified. Refuse malformed drafts or
+    /// unlisted card names rather than silently discarding user text.
+    /// </summary>
+    public static string RemoveOne(string mainboard, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 255 ||
+            name.Any(char.IsControl))
+            throw new ArgumentException("Invalid selected card name.", nameof(name));
+        var entries = NativeDeckEditing.ParseMainboard(mainboard);
+        var current = entries.FirstOrDefault(x =>
+            x.Name.Equals(name.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (current is null)
+            throw new InvalidDataException("This card is not in the current mainboard.");
+        return string.Join("\n", entries.Where(x =>
+                !x.Name.Equals(current.Name, StringComparison.OrdinalIgnoreCase) ||
+                x.Quantity > 1)
+            .Select(x => (x.Name.Equals(current.Name, StringComparison.OrdinalIgnoreCase)
+                ? x.Quantity - 1 : x.Quantity) + " " + x.Name));
+    }
+
+    /// <summary>
+    /// Normalized, deterministic sorting for name/quantity-only mainboards.
+    /// Parsing first prevents incomplete or unsupported lines being lost.
+    /// </summary>
+    public static string SortAlphabetically(string mainboard)
+    {
+        return string.Join("\n", NativeDeckEditing.ParseMainboard(mainboard)
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Name, StringComparer.Ordinal)
+            .Select(x => x.Quantity + " " + x.Name));
+    }
+
 }
