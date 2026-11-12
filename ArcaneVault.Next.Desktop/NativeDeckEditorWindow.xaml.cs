@@ -22,6 +22,7 @@ public partial class NativeDeckEditorWindow : Window
     private readonly string? edhLabColors;
     private EdhLabDraftCatalog? edhCatalog;
     private EdhLabDeckOptimizer.Report? lastOptimization;
+    private EdhLabSwapAdvisor.Report? lastSwapAdvice;
     private bool browsingOptimizationCandidates;
     private bool applyingManaBalance;
     private int draftVersion;
@@ -402,11 +403,110 @@ public partial class NativeDeckEditorWindow : Window
         EdhOptimizationHeadline.Text = lastOptimization.Headline;
         EdhOptimizationDetails.Text = lastOptimization.Display;
         EdhBrowseImprovementsButton.IsEnabled = !busy && lastOptimization.CanBrowse;
+        RefreshSwapAdvice(entries);
         if (browsingOptimizationCandidates)
         {
             if (!lastOptimization.CanBrowse)
                 ResetOptimizationBrowsing();
             RefreshOwnedCards();
+        }
+    }
+
+    private void RefreshSwapAdvice(
+        IReadOnlyList<NativeDeckEditing.Entry> entries)
+    {
+        if (edhCatalog is null || EdhSwapHeadline is null ||
+            EdhSwapProposalsList is null || EdhApplySwapButton is null)
+            return;
+        var previous = EdhSwapProposalsList.SelectedItem as
+            EdhLabSwapAdvisor.Proposal;
+        int landTarget = TryLandTarget(out int userTarget)
+            ? userTarget : 36;
+        lastSwapAdvice = EdhLabSwapAdvisor.Analyze(edhCatalog,
+            entries.Select(x => (x.Name, x.Quantity)), landTarget);
+        EdhSwapHeadline.Text = lastSwapAdvice.Headline;
+        EdhSwapStatus.Text = lastSwapAdvice.Display;
+        EdhSwapProposalsList.ItemsSource = lastSwapAdvice.Proposals;
+        if (previous is not null)
+            EdhSwapProposalsList.SelectedItem = lastSwapAdvice.Proposals
+                .FirstOrDefault(x =>
+                    x.OutName.Equals(previous.OutName,
+                        StringComparison.OrdinalIgnoreCase) &&
+                    x.InName.Equals(previous.InName,
+                        StringComparison.OrdinalIgnoreCase));
+        UpdateSwapSelection();
+    }
+
+    private void OnEdhSwapSelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e) =>
+        UpdateSwapSelection();
+
+    private void UpdateSwapSelection()
+    {
+        if (EdhSwapPreviewText is null || EdhApplySwapButton is null ||
+            EdhSwapProposalsList is null) return;
+        var selected = EdhSwapProposalsList.SelectedItem as
+            EdhLabSwapAdvisor.Proposal;
+        EdhSwapPreviewText.Text = selected?.Explanation ??
+            "Select a proposed cut and replacement to inspect the tradeoff.";
+        EdhApplySwapButton.IsEnabled = !busy && selected is not null &&
+            lastSwapAdvice is not null &&
+            EdhLabSwapAdvisor.IsCurrent(lastSwapAdvice, selected);
+    }
+
+    private void OnEdhApplySwapClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || edhCatalog is null || edhLabCommander is null ||
+            EdhSwapProposalsList.SelectedItem is not
+                EdhLabSwapAdvisor.Proposal selected)
+            return;
+        // Revalidate immediately before applying. The in-memory catalog is
+        // already format/color filtered; refresh the selected proposal
+        // against the latest draft, role counts and recorded quantities.
+        try
+        {
+            var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
+            int landTarget = TryLandTarget(out int userTarget)
+                ? userTarget : 36;
+            var fresh = EdhLabSwapAdvisor.Analyze(edhCatalog,
+                entries.Select(x => (x.Name, x.Quantity)), landTarget);
+            if (!EdhLabSwapAdvisor.IsCurrent(fresh, selected))
+            {
+                RefreshSwapAdvice(entries);
+                StatusText.Text = "That swap is no longer eligible. Review the " +
+                    "refreshed proposals before choosing again.";
+                return;
+            }
+            int before = entries.Sum(x => x.Quantity);
+            string message = selected.Explanation + "\n\n" +
+                "Apply this ONE-FOR-ONE change to the UNSAVED draft? " +
+                "If Auto-balance basics is enabled, its suggested basics " +
+                "may also update. No collection or saved deck is modified. " +
+                "Review and save deck remains a separate action.";
+            if (MessageBox.Show(this, message, "Review proposed EDH Lab swap",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question,
+                    MessageBoxResult.No) != MessageBoxResult.Yes)
+                return;
+            // A single assignment makes both requested changes atomic in the
+            // editor; no intermediate removal event can auto-balance the
+            // partially modified list or touch the native save path.
+            string removed = NativeDeckOwnedPicker.RemoveOne(
+                MainboardBox.Text, selected.OutName);
+            string swapped = NativeDeckOwnedPicker.AddOne(
+                removed, selected.InName);
+            if (NativeDeckEditing.ParseMainboard(swapped)
+                    .Sum(x => x.Quantity) != before)
+                throw new InvalidDataException(
+                    "Proposed swap did not preserve deck copy count.");
+            MainboardBox.Text = swapped;
+            StatusText.Text = $"Applied unsaved swap: -1 {selected.OutName}, " +
+                $"+1 {selected.InName}. Collection, deck library and revision " +
+                "history are unchanged until you explicitly review and save.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException)
+        {
+            StatusText.Text = "Swap was not applied: " + ex.Message;
         }
     }
 
@@ -503,6 +603,12 @@ public partial class NativeDeckEditorWindow : Window
                 EdhOptimizationHeadline.Text = "Optimization: correct the decklist";
                 EdhOptimizationDetails.Text = "Recommendations are paused until every draft line is valid.";
                 EdhBrowseImprovementsButton.IsEnabled = false;
+                lastSwapAdvice = null;
+                EdhSwapProposalsList.ItemsSource = null;
+                EdhSwapHeadline.Text = "Swap Lab: correct the decklist first";
+                EdhSwapStatus.Text = "Proposals paused until every draft line is valid.";
+                EdhSwapPreviewText.Text = "No draft changes were made.";
+                EdhApplySwapButton.IsEnabled = false;
                 EdhBalanceNowButton.IsEnabled = false;
             }
         }
@@ -618,6 +724,12 @@ public partial class NativeDeckEditorWindow : Window
             EdhOptimizationHeadline.Text = "Optimization: catalog unavailable";
             EdhOptimizationDetails.Text = "Refresh local Scryfall metadata; no deck changes were made.";
             EdhBrowseImprovementsButton.IsEnabled = false;
+            lastSwapAdvice = null;
+            EdhSwapProposalsList.ItemsSource = null;
+            EdhSwapHeadline.Text = "Swap Lab: catalog unavailable";
+            EdhSwapStatus.Text = "Synced Scryfall metadata is needed for safe swaps.";
+            EdhSwapPreviewText.Text = "No draft changes were made.";
+            EdhApplySwapButton.IsEnabled = false;
             EdhBalanceNowButton.IsEnabled = false;
         }
     }
