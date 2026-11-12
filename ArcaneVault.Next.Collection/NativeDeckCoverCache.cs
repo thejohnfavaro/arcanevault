@@ -58,7 +58,8 @@ public static class NativeDeckCoverCache
                 if (saved is not null && saved.Stamp == stamp &&
                     saved.Covers is not null && saved.Covers.Count <= 10_000 &&
                     saved.Covers.All(x => x.Key.Length is > 0 and <= 255 &&
-                       x.Value.Length <= 2048 && (x.Value.Length == 0 || Trusted(x.Value))))
+                       x.Value is not null && x.Value.Length <= 2048 &&
+                       (x.Value.Length == 0 || Trusted(x.Value))))
                     cached = new Dictionary<string, string>(saved.Covers,
                         StringComparer.OrdinalIgnoreCase);
             }
