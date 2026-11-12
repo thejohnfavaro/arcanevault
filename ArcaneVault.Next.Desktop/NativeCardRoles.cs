@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
 namespace ArcaneVault.Next.Desktop;
@@ -17,10 +18,16 @@ public static class NativeCardRoles
         "Graveyard Hate", "Finisher", "Equipment"
     };
 
+    // Native role rules use more regexes than .NET's small built-in static
+    // regex cache can retain. Compiling on every printing makes broad role
+    // filters sluggish. Keep a single safe, time-bounded instance per rule.
+    private static readonly ConcurrentDictionary<string, Regex> Patterns = new(
+        StringComparer.Ordinal);
+
     private static bool Matches(string text, string regex) =>
-        Regex.IsMatch(text, regex, RegexOptions.IgnoreCase |
-            RegexOptions.CultureInvariant,
-            TimeSpan.FromMilliseconds(50));
+        Patterns.GetOrAdd(regex, pattern => new Regex(pattern,
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant |
+            RegexOptions.Compiled, TimeSpan.FromMilliseconds(50))).IsMatch(text);
 
     public static IReadOnlyList<string> Derive(string? type, string? oracle)
     {
