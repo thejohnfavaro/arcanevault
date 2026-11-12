@@ -4,6 +4,7 @@ using ArcaneVault.Next.EDHLab;
 using Microsoft.Win32;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 
 namespace ArcaneVault.Next.Desktop;
