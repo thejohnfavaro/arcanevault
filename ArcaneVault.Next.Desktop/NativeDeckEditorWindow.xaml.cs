@@ -38,6 +38,36 @@ public partial class NativeDeckEditorWindow : Window
             : $"{Name}  ·  {Owned:N0} owned";
     }
 
+    // TabControl may measure a TabItem's content at its desired full height.
+    // Without an explicit viewport, expanding two tall sections can put
+    // actions outside the visible editor instead of enabling scrolling.
+    // Keep both analysis tabs bounded to the real center-pane height, and
+    // recompute after window sizing, splitter moves and DPI changes.
+    private void OnEdhWorkspaceLoaded(object sender, RoutedEventArgs e) =>
+        ConstrainEdhWorkspaceScrollers();
+
+    private void OnEdhWorkspaceSizeChanged(object sender,
+        SizeChangedEventArgs e) => ConstrainEdhWorkspaceScrollers();
+
+    private void ConstrainEdhWorkspaceScrollers()
+    {
+        if (EdhWorkspaceTabs is null ||
+            EdhManaScroll is null || EdhImproveScroll is null)
+            return;
+        double available = EdhWorkspaceTabs.ActualHeight;
+        if (!double.IsFinite(available) || available <= 0) return;
+
+        // The selected TabItem's ActualHeight is its tab-strip header in the
+        // stock WPF template. Reserve a little more room for border/padding,
+        // and use the same viewport for both separately scrollable workspaces.
+        double header = EdhCardsTab?.ActualHeight ?? 0;
+        if (!double.IsFinite(header) || header is < 22 or > 72)
+            header = 38;
+        double viewport = Math.Max(72, available - header - 20);
+        EdhManaScroll.MaxHeight = viewport;
+        EdhImproveScroll.MaxHeight = viewport;
+    }
+
     private void RefreshOwnedCards()
     {
         if (OwnedCardsList is null || OwnedPoolBox is null || OwnedSearchBox is null)
