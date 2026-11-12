@@ -199,6 +199,25 @@ internal static class NativeVisualShellChecks
              deckEditorCode.Contains("InvalidateAnalytics()", StringComparison.Ordinal),
             "Deck chart visuals must bind computed series and hide stale values.");
 
+        foreach (string name in new[] {
+            "PreviewCardName", "PreviewOwnership", "PreviewArtwork",
+            "PreviewArtFallback", "PreviewMetadata", "PreviewOracleText",
+            "PreviewStatus", "OwnedCardsList"
+        })
+            Must(deckEditor.Contains("x:Name=\"" + name + "\"", StringComparison.Ordinal),
+                "Deck Studio preview field missing: " + name);
+        Must(deckEditor.Contains("SelectionChanged=\"OnOwnedCardSelectionChanged\"",
+                 StringComparison.Ordinal) &&
+             deckEditor.Contains("Click=\"OnSortMainboardClicked\"", StringComparison.Ordinal) &&
+             deckEditor.Contains("Click=\"OnRemoveOwnedClicked\"", StringComparison.Ordinal) &&
+             deckEditorCode.Contains("NativeCardArtwork.LoadAsync(", StringComparison.Ordinal) &&
+             deckEditorCode.Contains("NativePrintingArtwork.Read(", StringComparison.Ordinal) &&
+             deckEditorCode.Contains("arenaOnly: true", StringComparison.Ordinal) &&
+             deckEditorCode.Contains("previewRequest?.Cancel()", StringComparison.Ordinal) &&
+             deckEditorCode.Contains("NativeDeckOwnedPicker.RemoveOne(", StringComparison.Ordinal) &&
+             deckEditorCode.Contains("NativeDeckOwnedPicker.SortAlphabetically(", StringComparison.Ordinal),
+            "Deck preview must be scoped/cancellable, and copy/sort actions must use safe draft helpers.");
+
         string setSymbolCode = File.ReadAllText(
             Path.Combine(dir, "NativeSetSymbol.cs"));
         Must(setSymbolCode.Contains("svgs.scryfall.io/sets/", StringComparison.Ordinal) &&
