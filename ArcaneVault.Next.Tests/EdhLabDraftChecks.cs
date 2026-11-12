@@ -591,6 +591,63 @@ internal static class EdhLabDraftChecks
                  ManaRows(swapDraft + "\n100 Plains")).CanSwap,
              "Underdeveloped, old-schema, unknown and oversized decks should not receive unverified cut proposals.");
 
+        // v0.9.44 strategy intent is a transient, read-only ranking lens.
+        // The same local catalog, inventory and mainboard produce differently
+        // ranked suggestions without changing quantity or legality gates.
+        var intentRows = ManaRows("10 Plains\\n10 Island\\n1 Brainstorm".Replace("\\\\n", "\\n"));
+        var faster = EdhLabDeckOptimizer.Analyze(pipPaper, intentRows,
+            focus: EdhLabStrategyFocus.FastStart);
+        var cardAdvantage = EdhLabDeckOptimizer.Analyze(pipPaper, intentRows,
+            focus: EdhLabStrategyFocus.CardAdvantage);
+        var interaction = EdhLabDeckOptimizer.Analyze(pipPaper, intentRows,
+            focus: EdhLabStrategyFocus.Interaction);
+        Must(faster.OwnedCandidates.First().Name == "Sol Ring" &&
+             cardAdvantage.OwnedCandidates.First().Name == "Tiny Insight" &&
+             interaction.OwnedCandidates.First().Name == "Swords to Plowshares" &&
+             cardAdvantage.Display.Contains("Card advantage") &&
+             faster.OwnedCandidates.All(x => x.UnusedRecordedCopies > 0) &&
+             interaction.OwnedCandidates.All(x => x.ManaValue <= 2),
+             "Intent selection must re-rank only locally eligible recorded early cards, not alter inventory.");
+        var strategyInventory = ownership with
+        {
+            PhysicalCards = ownership.PhysicalCards.Concat(new[]
+            {
+                new NativePhysicalRow("Thopter Foundry", 1, "", "", "", "")
+            }).ToArray()
+        };
+        var strategyCatalog = EdhLabDraftCatalog.OpenReadOnly(costCatalog,
+            strategyInventory, "Selected Leader", "WU",
+            EdhLabFormat.PaperCommander);
+        var synergyFirst = EdhLabDeckOptimizer.Analyze(strategyCatalog,
+            intentRows, focus: EdhLabStrategyFocus.CommanderSynergy);
+        Must(synergyFirst.OwnedCandidates.First().Name == "Thopter Foundry" &&
+             synergyFirst.OwnedCandidates.First().SynergyScore > 0 &&
+             !synergyFirst.OwnedCandidates.Any(x => x.Name == "Lightning Bolt"),
+             "Commander-synergy focus must prioritize actual recognized mechanics without admitting off-color cards.");
+        var focusedSwaps = EdhLabSwapAdvisor.Analyze(strategyCatalog,
+            ManaRows(swapDraft), focus: EdhLabStrategyFocus.CommanderSynergy);
+        var baselineSwaps = EdhLabSwapAdvisor.Analyze(strategyCatalog,
+            ManaRows(swapDraft));
+        Must(focusedSwaps.CanSwap &&
+             focusedSwaps.Proposals.Any(x =>
+                 x.OutName == "Heavy Generic" &&
+                 x.InName == "Thopter Foundry" &&
+                 x.Explanation.Contains("Commander synergy")) &&
+             !focusedSwaps.Proposals.Any(x => x.OutName == "Board Clear") &&
+             !focusedSwaps.Proposals.Any(x => x.OutName == "Artifact Engine") &&
+             !EdhLabSwapAdvisor.IsCurrent(baselineSwaps,
+                 focusedSwaps.Proposals.First()) &&
+             focusedSwaps.Proposals.All(x => x.Focus ==
+                 EdhLabStrategyFocus.CommanderSynergy),
+             "Swap proposals must honor the chosen priority, preserve guarded roles, and reject stale focus changes.");
+        var strategyArena = EdhLabDeckOptimizer.Analyze(pipArena,
+            ManaRows("1 Island"), focus: EdhLabStrategyFocus.Interaction);
+        Must(strategyArena.OwnedCandidates.All(x =>
+                x.Name != "Swords to Plowshares" &&
+                x.Name != "Tiny Insight" &&
+                x.Name != "Sol Ring"),
+             "Strategy preferences must never bypass Arena Brawl format or recorded inventory limits.");
+
         Must(originalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))),
              "Deck drafting candidate search must never write or alter the Scryfall catalog.");
 
