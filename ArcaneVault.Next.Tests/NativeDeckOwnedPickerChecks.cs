@@ -34,6 +34,17 @@ internal static class NativeDeckOwnedPickerChecks
             "Printings and case variants must aggregate within physical inventory.");
         Must(arena.Count == 1 && arena[0].Owned == 1,
             "Arena quantities must not be combined with physical quantities.");
+        Must(NativeDeckOwnedPicker.CountOwned(owned, NativeDeckOwnedPicker.Pool.Physical,
+                 "sol ring") == 5 &&
+             NativeDeckOwnedPicker.CountOwned(owned, NativeDeckOwnedPicker.Pool.Arena,
+                 "Sol Ring") == 1 &&
+             NativeDeckOwnedPicker.CountOwned(owned, NativeDeckOwnedPicker.Pool.Physical,
+                 "Arena Exclusive") == 0 &&
+             NativeDeckOwnedPicker.CountOwned(owned, NativeDeckOwnedPicker.Pool.Arena,
+                 "Arena Exclusive") == 4 &&
+             NativeDeckOwnedPicker.CountOwned(owned, NativeDeckOwnedPicker.Pool.Physical,
+                 "Unowned Card") == 0,
+             "Mainboard preview must count exact card-name copies in the selected pool, including unowned names outside the picker.");
         Must(NativeDeckOwnedPicker.Search(owned, NativeDeckOwnedPicker.Pool.Arena, "")
             .All(x => x.Name != "Unused"), "Zero-count cards must not appear.");
         Must(NativeDeckOwnedPicker.Search(owned, NativeDeckOwnedPicker.Pool.Physical, "forest")

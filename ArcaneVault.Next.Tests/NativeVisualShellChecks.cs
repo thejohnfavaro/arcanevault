@@ -163,6 +163,27 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal),
              "EDH Lab navigation must separate full-height Cards, Mana and Improve workspaces, with routed card browsing.");
 
+        // The editor's mainboard remains a normal editable TextBox, while
+        // selecting a valid line drives the same read-only card preview used
+        // by the Cards tab. No list filter/selection is required.
+        var board = NamedEditor("MainboardBox");
+        Must(board.Name.LocalName == "TextBox" &&
+             board.Attribute("SelectionChanged")?.Value == "OnMainboardSelectionChanged" &&
+             board.Attribute("GotKeyboardFocus")?.Value == "OnMainboardGotKeyboardFocus" &&
+             board.Attribute("PreviewMouseLeftButtonUp")?.Value == "OnMainboardMouseReleased" &&
+             draftEditorCode.Contains("NativeDeckEditing.PreviewNameAtCaret(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("NativeDeckOwnedPicker.CountOwned(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("OwnedCardsList?.UnselectAll();",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("ShowCardPreviewAsync(", StringComparison.Ordinal) &&
+             draftEditorCode.Contains("previewedCard is not OwnedDisplay card",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("if (OwnedCardsList?.SelectedItem is OwnedDisplay card)",
+                 StringComparison.Ordinal),
+             "Mainboard click, keyboard selection and ownership must share a read-only preview without depending on the Cards tab.");
+
         var reconciliationXaml = File.ReadAllText(
             Path.Combine(dir, "NativeImportDiffWindow.xaml"));
         var reconciliationCode = File.ReadAllText(
