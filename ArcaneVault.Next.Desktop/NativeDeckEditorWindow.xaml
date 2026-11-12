@@ -151,12 +151,12 @@
                 <StackPanel Grid.Row="0" Margin="0,0,0,8">
                     <TextBlock x:Name="OwnedCardsHeading" Text="Add from owned cards"
                                Foreground="{DynamicResource VaultAccent}"/>
-                    <StackPanel x:Name="EdhSuggestionTools" Visibility="Collapsed"
+                    <StackPanel x:Name="EdhSuggestionTools"
+                                Visibility="Collapsed" Margin="0,8,0,0">
                         <Expander x:Name="EdhCardsFilters" Header="Filters &amp; commander matches"
                                   IsExpanded="False" Background="{DynamicResource VaultPanelRaised}"
                                   BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" Padding="7">
                             <StackPanel Margin="0,5,0,3">
-                                Margin="0,8,0,0">
                         <CheckBox x:Name="EdhRecordedOnly" Content="Recorded in my inventory only"
                                   Margin="0,0,0,7" IsChecked="True"
                                   Checked="OnEdhSuggestionsChanged"
