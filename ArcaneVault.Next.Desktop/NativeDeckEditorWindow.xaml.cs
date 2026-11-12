@@ -287,7 +287,7 @@ public partial class NativeDeckEditorWindow : Window
         try
         {
             var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
-            var plan = EdhLabManaPlanner.Analyze(edhCatalog, entries,
+            var plan = EdhLabManaPlanner.Analyze(edhCatalog, entries.Select(x => (x.Name, x.Quantity)),
                 edhLabColors ?? "", target);
             if (!plan.CanApply)
             {
@@ -346,7 +346,7 @@ public partial class NativeDeckEditorWindow : Window
             EdhBalanceNowButton.IsEnabled = false;
             return;
         }
-        var plan = EdhLabManaPlanner.Analyze(edhCatalog, entries,
+        var plan = EdhLabManaPlanner.Analyze(edhCatalog, entries.Select(x => (x.Name, x.Quantity)),
             edhLabColors ?? "", target);
         string mode = EdhAutoBalanceLands?.IsChecked == true ? "Auto on" : "Manual";
         EdhManaHeadline.Text =
