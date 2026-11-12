@@ -23,8 +23,8 @@
         <SolidColorBrush x:Key="VaultDanger" Color="#9A5277"/>
 
         <Style TargetType="{x:Type Window}">
-            <Setter Property="Background" Value="{StaticResource VaultBackground}"/>
-            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
@@ -32,9 +32,9 @@
         </Style>
 
         <Style TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
-            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="13,9"/>
             <Setter Property="FontSize" Value="12.5"/>
@@ -60,14 +60,14 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ButtonSurface" Property="BorderBrush"
-                                        Value="{StaticResource VaultAccent}"/>
+                                        Value="{DynamicResource VaultAccent}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.82"/>
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="ButtonSurface" Property="BorderBrush"
-                                        Value="{StaticResource VaultAccent}"/>
+                                        Value="{DynamicResource VaultAccent}"/>
                                 <Setter TargetName="ButtonSurface" Property="BorderThickness" Value="2"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
@@ -81,8 +81,8 @@
 
         <Style x:Key="VaultPrimaryButton" TargetType="{x:Type Button}"
                BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{StaticResource VaultAccentMuted}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource VaultAccent}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultAccentMuted}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
         <Style x:Key="VaultNavButton" TargetType="{x:Type Button}"
@@ -97,8 +97,8 @@
         </Style>
         <Style x:Key="VaultNavPrimary" TargetType="{x:Type Button}"
                BasedOn="{StaticResource VaultNavButton}">
-            <Setter Property="Background" Value="{StaticResource VaultAccentSurface}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource VaultAccentBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultAccentBorder}"/>
             <Setter Property="Foreground" Value="#E4D9FF"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
@@ -110,10 +110,10 @@
         </Style>
 
         <Style TargetType="{x:Type TextBox}">
-            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
-            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
-            <Setter Property="CaretBrush" Value="{StaticResource VaultAccent}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource VaultAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <!-- Ensure the text line fits inside the border even with DPI rounding. -->
             <Setter Property="Padding" Value="11,5"/>
@@ -134,7 +134,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocusWithin" Value="True">
                                 <Setter TargetName="TextBoxSurface" Property="BorderBrush"
-                                        Value="{StaticResource VaultAccent}"/>
+                                        Value="{DynamicResource VaultAccent}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="TextBoxSurface" Property="Opacity" Value="0.52"/>
@@ -150,8 +150,8 @@
              with inherited white text (white-on-white). Editable ComboBoxes keep
              their system text editor, but receive contrasting popup item colors. -->
         <Style TargetType="{x:Type ComboBoxItem}">
-            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
-            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Template">
@@ -167,11 +167,11 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="ItemSurface" Property="Background"
-                                        Value="{StaticResource VaultAccentSurface}"/>
+                                        Value="{DynamicResource VaultAccentSurface}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="ItemSurface" Property="Background"
-                                        Value="{StaticResource VaultAccentBorder}"/>
+                                        Value="{DynamicResource VaultAccentBorder}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="ItemSurface" Property="Opacity" Value="0.45"/>
@@ -182,9 +182,9 @@
             </Setter>
         </Style>
         <Style TargetType="{x:Type ComboBox}">
-            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
-            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="9,5"/>
             <Setter Property="MinHeight" Value="28"/>
@@ -213,7 +213,7 @@
                                                           HorizontalAlignment="Right"
                                                           VerticalAlignment="Center"
                                                           Margin="0,0,12,0"
-                                                          Stroke="{StaticResource VaultText}"
+                                                          Stroke="{DynamicResource VaultText}"
                                                           StrokeThickness="1.5"/>
                                                 </Grid>
                                             </ControlTemplate>
@@ -238,8 +238,8 @@
                                                 MinWidth="{Binding ActualWidth,
                                                     RelativeSource={RelativeSource TemplatedParent}}"
                                                 MaxHeight="{TemplateBinding MaxDropDownHeight}"
-                                                Background="{StaticResource VaultPanelRaised}"
-                                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                                Background="{DynamicResource VaultPanelRaised}"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"
                                                 BorderThickness="1"
                                                 CornerRadius="6">
                                             <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -254,7 +254,7 @@
                                     <Trigger Property="IsKeyboardFocusWithin" Value="True">
                                         <Setter TargetName="ComboSurface"
                                                 Property="BorderBrush"
-                                                Value="{StaticResource VaultAccent}"/>
+                                                Value="{DynamicResource VaultAccent}"/>
                                     </Trigger>
                                     <Trigger Property="IsEnabled" Value="False">
                                         <Setter TargetName="ComboSurface" Property="Opacity" Value="0.5"/>
@@ -268,38 +268,38 @@
         </Style>
 
         <Style TargetType="{x:Type CheckBox}">
-            <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultMuted}"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
         <Style TargetType="{x:Type ListView}">
-            <Setter Property="Background" Value="{StaticResource VaultPanel}"/>
-            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanel}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
             <Setter Property="VirtualizingStackPanel.IsVirtualizing" Value="True"/>
             <Setter Property="VirtualizingStackPanel.VirtualizationMode" Value="Recycling"/>
         </Style>
         <Style TargetType="{x:Type ListViewItem}">
-            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Padding" Value="6,5"/>
             <Setter Property="Margin" Value="0,1"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
+                    <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="{StaticResource VaultAccentSurface}"/>
+                    <Setter Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
                     <Setter Property="Foreground" Value="#E5DBFF"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
         <Style TargetType="{x:Type GridViewColumnHeader}">
-            <Setter Property="Background" Value="{StaticResource VaultPanelRaised}"/>
-            <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultMuted}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="Padding" Value="10,10"/>
             <Setter Property="FontSize" Value="11"/>
@@ -307,8 +307,8 @@
         </Style>
 
         <Style TargetType="{x:Type ProgressBar}">
-            <Setter Property="Background" Value="{StaticResource VaultLine}"/>
-            <Setter Property="Foreground" Value="{StaticResource VaultAccent}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultLine}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultAccent}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Height" Value="7"/>
             <Setter Property="Minimum" Value="0"/>
@@ -316,12 +316,12 @@
         </Style>
 
         <Style TargetType="{x:Type TabControl}">
-            <Setter Property="Background" Value="{StaticResource VaultPanel}"/>
-            <Setter Property="Foreground" Value="{StaticResource VaultText}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanel}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
         </Style>
         <Style TargetType="{x:Type TabItem}">
-            <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultMuted}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="Padding" Value="18,10"/>
@@ -345,18 +345,18 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="TabSurface" Property="Background"
-                                        Value="{StaticResource VaultAccentSurface}"/>
+                                        Value="{DynamicResource VaultAccentSurface}"/>
                                 <Setter TargetName="TabSurface" Property="BorderBrush"
-                                        Value="{StaticResource VaultAccentBorder}"/>
+                                        Value="{DynamicResource VaultAccentBorder}"/>
                                 <Setter Property="Foreground" Value="#E5D9FF"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="TabSurface" Property="BorderBrush"
-                                        Value="{StaticResource VaultAccent}"/>
+                                        Value="{DynamicResource VaultAccent}"/>
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="TabSurface" Property="BorderBrush"
-                                        Value="{StaticResource VaultAccent}"/>
+                                        Value="{DynamicResource VaultAccent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -365,18 +365,18 @@
         </Style>
 
         <Style x:Key="VaultEyebrow" TargetType="{x:Type TextBlock}">
-            <Setter Property="Foreground" Value="{StaticResource VaultAccent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultAccent}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
         <Style x:Key="VaultMutedText" TargetType="{x:Type TextBlock}">
-            <Setter Property="Foreground" Value="{StaticResource VaultMuted}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultMuted}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style x:Key="VaultPanelCard" TargetType="{x:Type Border}">
-            <Setter Property="Background" Value="{StaticResource VaultPanel}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource VaultLine}"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanel}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="13"/>
             <Setter Property="Padding" Value="16"/>
