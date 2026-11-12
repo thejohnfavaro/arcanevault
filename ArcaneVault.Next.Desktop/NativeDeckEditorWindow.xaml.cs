@@ -16,9 +16,9 @@ public partial class NativeDeckEditorWindow : Window
     private readonly NativeBackupView ownership;
     private readonly string? catalogPath;
     private bool busy;
-    private readonly string? edhDraftCommander;
-    private readonly EdhLabFormat? edhDraftFormat;
-    private readonly string? edhDraftColors;
+    private readonly string? edhLabCommander;
+    private readonly EdhLabFormat? edhLabFormat;
+    private readonly string? edhLabColors;
     private EdhLabDraftCatalog? edhCatalog;
     private int draftVersion;
     private int previewVersion;
@@ -36,7 +36,7 @@ public partial class NativeDeckEditorWindow : Window
     {
         if (OwnedCardsList is null || OwnedPoolBox is null || OwnedSearchBox is null)
             return;
-        if (edhDraftCommander is not null)
+        if (edhLabCommander is not null)
         {
             OwnedCardsList.ItemsSource = edhCatalog?.Search(
                 OwnedSearchBox.Text, EdhRecordedOnly.IsChecked == true,
@@ -246,7 +246,7 @@ public partial class NativeDeckEditorWindow : Window
                   (summary.Shortages.Count > 6
                       ? $"\n… plus {summary.Shortages.Count - 6} more card names."
                       : "");
-            if (edhDraftCommander is not null)
+            if (edhLabCommander is not null)
             {
                 var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
                 if (edhCatalog is not null)
@@ -268,7 +268,7 @@ public partial class NativeDeckEditorWindow : Window
         {
             DeckSummaryText.Text = "Deck draft needs review";
             DeckShortageText.Text = ex.Message;
-            if (edhDraftCommander is not null)
+            if (edhLabCommander is not null)
             {
                 EdhBlueprintText.Text = "Correct the decklist to update role coverage.";
                 EdhFindGapButton.IsEnabled = false;
@@ -280,7 +280,7 @@ public partial class NativeDeckEditorWindow : Window
     private void RefreshEdhBlueprint(
         IReadOnlyList<NativeDeckEditing.Entry> entries)
     {
-        if (edhDraftCommander is null || EdhBlueprintText is null ||
+        if (edhLabCommander is null || EdhBlueprintText is null ||
             EdhFindGapButton is null) return;
         if (edhCatalog is null)
         {
@@ -301,7 +301,7 @@ public partial class NativeDeckEditorWindow : Window
 
     private void OnEdhFindGapClicked(object sender, RoutedEventArgs e)
     {
-        if (busy || edhCatalog is null || edhDraftCommander is null) return;
+        if (busy || edhCatalog is null || edhLabCommander is null) return;
         try
         {
             var blueprint = EdhLabDeckBlueprint.Analyze(edhCatalog,
@@ -330,20 +330,20 @@ public partial class NativeDeckEditorWindow : Window
 
     private void OnEdhSuggestionsChanged(object sender, RoutedEventArgs e)
     {
-        if (edhDraftCommander is not null)
+        if (edhLabCommander is not null)
             RefreshOwnedCards();
     }
 
     private async Task LoadEdhSuggestionsAsync()
     {
-        if (edhDraftCommander is null || edhDraftFormat is null ||
+        if (edhLabCommander is null || edhLabFormat is null ||
             string.IsNullOrWhiteSpace(catalogPath)) return;
         EdhSuggestionsStatus.Text = "Checking local format legality and color identity…";
         try
         {
             var suggestions = await Task.Run(() => EdhLabDraftCatalog.OpenReadOnly(
-                catalogPath!, ownership, edhDraftCommander,
-                edhDraftColors ?? "", edhDraftFormat.Value));
+                catalogPath!, ownership, edhLabCommander,
+                edhLabColors ?? "", edhLabFormat.Value));
             if (!IsLoaded) return;
             edhCatalog = suggestions;
             EdhSuggestionsStatus.Text =
@@ -516,24 +516,34 @@ public partial class NativeDeckEditorWindow : Window
         NativeDeckEditing.DeckRow? selected = null,
         string? draftCommander = null,
         EdhLabFormat? draftFormat = null,
-        string? draftColors = null)
+        string? draftColors = null,
+        EdhLabFormat? savedLabFormat = null,
+        string? savedLabColors = null)
     {
         this.nativePath = nativePath;
         this.expectedSha = expectedSha;
         this.ownership = ownership ?? throw new ArgumentNullException(nameof(ownership));
         this.catalogPath = catalogPath;
         original = selected;
-        edhDraftCommander = selected is null ? draftCommander : null;
-        edhDraftFormat = edhDraftCommander is null ? null : draftFormat;
-        edhDraftColors = draftColors;
+        if (selected is not null && savedLabFormat is not null &&
+            (EdhLabSavedDeckAccess.FormatFor(selected.Format) != savedLabFormat ||
+             string.IsNullOrWhiteSpace(selected.Commander) ||
+             savedLabColors is null))
+            throw new ArgumentException(
+                "A saved EDH Lab deck needs its verified commander, format, and identity.");
+        edhLabCommander = selected is null
+            ? draftCommander : savedLabFormat is not null ? selected.Commander : null;
+        edhLabFormat = edhLabCommander is null ? null :
+            selected is null ? draftFormat : savedLabFormat;
+        edhLabColors = selected is null ? draftColors : savedLabColors;
         InitializeComponent();
         Closed += (_, _) => { previewVersion++; previewRequest?.Cancel(); };
-        OwnedPoolBox.SelectedIndex = edhDraftFormat == EdhLabFormat.ArenaBrawl ||
+        OwnedPoolBox.SelectedIndex = edhLabFormat == EdhLabFormat.ArenaBrawl ||
             selected?.Format.Equals("Arena Brawl",
                 StringComparison.OrdinalIgnoreCase) == true ? 1 : 0;
         RefreshOwnedCards();
-        FormatBox.Text = selected?.Format ?? (edhDraftFormat is null
-            ? "60-card" : edhDraftFormat == EdhLabFormat.ArenaBrawl
+        FormatBox.Text = selected?.Format ?? (edhLabFormat is null
+            ? "60-card" : edhLabFormat == EdhLabFormat.ArenaBrawl
                 ? "Arena Brawl" : "Commander");
         FolderBox.Text = selected?.Folder ?? "Unfiled";
         FavoriteDeckBox.IsChecked = selected?.Favorite ?? false;
@@ -547,22 +557,31 @@ public partial class NativeDeckEditorWindow : Window
                 $"{selected.TotalCopies:N0} mainboard copies and {selected.Revisions:N0} revisions. " +
                 "The prior deck is appended to its revision history before changes are committed.";
         }
-        if (edhDraftCommander is not null)
+        if (edhLabCommander is not null)
         {
-            HeaderText.Text = "EDH Lab — Construct a deck";
+            HeaderText.Text = selected is null
+                ? "EDH Lab — Construct a deck" : "EDH Lab — Edit saved deck";
             OwnedCardsHeading.Text = "Eligible cards (catalog verified)";
-            Title = "EDH Lab — " + edhDraftCommander;
-            DeckNameBox.Text = edhDraftCommander + " · New Deck";
-            CommanderBox.Text = edhDraftCommander;
-            FolderBox.Text = "EDH Lab";
+            Title = "EDH Lab — " + edhLabCommander;
+            if (selected is null)
+            {
+                // A new draft gets defaults; a saved deck keeps its actual name,
+                // folder, favorite, commander and mainboard unchanged.
+                DeckNameBox.Text = edhLabCommander + " · New Deck";
+                CommanderBox.Text = edhLabCommander;
+                FolderBox.Text = "EDH Lab";
+            }
             FormatBox.IsEnabled = false;
             CommanderBox.IsReadOnly = true;
             OwnedPoolBox.IsEnabled = false;
             EdhSuggestionTools.Visibility = Visibility.Visible;
             EdhRecordedOnly.IsChecked = true;
             EdhRoleBox.SelectedIndex = 0;
-            StatusText.Text = "Draft is unsaved. Eligible suggestions use the synced local catalog; " +
-                "all saved cards still receive native preflight review.";
+            StatusText.Text = selected is null
+                ? "Draft is unsaved. Eligible suggestions use the synced local catalog; " +
+                  "all saved cards still receive native preflight review."
+                : $"Editing saved EDH Lab deck with {selected.Revisions:N0} revisions. " +
+                  "Changes remain unsaved until Review and save; prior versions are retained.";
             Loaded += async (_, _) => await LoadEdhSuggestionsAsync();
         }
         RefreshDraftSummary();
