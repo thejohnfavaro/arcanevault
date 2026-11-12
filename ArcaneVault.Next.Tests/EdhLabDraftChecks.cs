@@ -320,7 +320,7 @@ internal static class EdhLabDraftChecks
                     WHEN 'Sol Ring' THEN 1
                     WHEN 'Arcane Signet' THEN 2
                     WHEN 'Thopter Foundry' THEN 2
-                    WHEN 'Board Clear' THEN 5
+                    WHEN 'Board Clear' THEN 7
                     ELSE 0 END;
                 UPDATE cards SET mana_cost = CASE name
                     WHEN 'Brainstorm' THEN '{U}'
@@ -448,6 +448,83 @@ internal static class EdhLabDraftChecks
              unknownCurve.LandDrops.Count == 0 &&
              unknownCurve.Display.Contains("unavailable"),
              "Unknown card names must halt probability estimates rather than silently assuming their type.");
+
+        // Advisory v0.9.39 optimization: no false high-curve diagnosis
+        // from a sparse unfinished draft, and no replacement without consent.
+        var earlyPicks = EdhLabDeckOptimizer.Analyze(pipPaper,
+            ManaRows("10 Plains\n10 Island\n1 Brainstorm"));
+        Must(pipPaper.HasManaValueMetadata &&
+             !earlyPicks.IsMatureEnoughToJudge &&
+             earlyPicks.Opportunities.Count == 0 &&
+             earlyPicks.CanBrowse &&
+             earlyPicks.OwnedCandidates.All(x => x.ManaValue <= 2 &&
+                 x.UnusedRecordedCopies > 0) &&
+             earlyPicks.OwnedCandidates.Any(x => x.Name == "Sol Ring") &&
+             earlyPicks.OwnedCandidates.Any(x => x.Name == "Swords to Plowshares") &&
+             !earlyPicks.OwnedCandidates.Any(x => x.Name == "Lightning Bolt") &&
+             !earlyPicks.OwnedCandidates.Any(x => x.Name == "Board Clear"),
+             "Incomplete decks must avoid premature curve diagnoses and suggest only legal recorded early spells.");
+
+        var exhausted = EdhLabDeckOptimizer.Analyze(pipPaper,
+            ManaRows("1 Sol Ring\n1 Swords to Plowshares"));
+        Must(!exhausted.OwnedCandidates.Any(x => x.Name == "Sol Ring" ||
+                x.Name == "Swords to Plowshares") &&
+             exhausted.OwnedCandidates.Any(x => x.Name == "Counterspell"),
+             "A recorded copy already in the draft must not appear as an unused singleton upgrade.");
+
+        var pipArena = EdhLabDraftCatalog.OpenReadOnly(costCatalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
+        var arenaPicks = EdhLabDeckOptimizer.Analyze(pipArena,
+            ManaRows("1 Island"));
+        Must(arenaPicks.OwnedCandidates.Any(x => x.Name == "Brainstorm") &&
+             !arenaPicks.OwnedCandidates.Any(x =>
+                 x.Name == "Counterspell" ||
+                 x.Name == "Swords to Plowshares" ||
+                 x.Name == "Sol Ring"),
+             "Arena suggestions must use Arena quantities and Brawl legality, never physical inventory.");
+        var noManaValues = EdhLabDeckOptimizer.Analyze(paper,
+            ManaRows("1 Brainstorm"));
+        Must(!paper.HasManaValueMetadata &&
+             !noManaValues.HasManaValues && !noManaValues.CanBrowse &&
+             noManaValues.Display.Contains("Full Sync"),
+             "Legacy catalogs without mana value data must not fabricate cheap-card suggestions.");
+
+        // These quantities are purely synthetic deck-shape inputs to the
+        // read-only engine; legal singleton/save checks remain independent.
+        // A substantial, top-heavy list warrants a prompt to review slots.
+        var topHeavy = EdhLabDeckOptimizer.Analyze(pipPaper,
+            ManaRows("10 Board Clear\n20 Brainstorm"));
+        Must(topHeavy.IsMatureEnoughToJudge &&
+             topHeavy.KnownNonlandCopies == 30 &&
+             topHeavy.EarlySpellCopies == 20 &&
+             topHeavy.ExpensiveSpellCopies == 10 &&
+             topHeavy.Opportunities.Any(x => x.Code == "high-end") &&
+             !topHeavy.Opportunities.Any(x => x.Code == "early") &&
+             topHeavy.ExpensiveCards.Contains("Board Clear") &&
+             topHeavy.Display.Contains("not automatic cuts"),
+             "Heavy 6+ mana concentration should flag a review, never delete or condemn finishers.");
+
+        var thinEarly = EdhLabDeckOptimizer.Analyze(pipPaper,
+            ManaRows("5 Brainstorm\n25 Board Clear"));
+        Must(thinEarly.Opportunities.Any(x => x.Code == "early") &&
+             thinEarly.Opportunities.Any(x => x.Code == "high-end") &&
+             thinEarly.Display.Contains("Thin early spell coverage"),
+             "Substantial drafts with few 0–2 MV spells need an actionable low-curve warning.");
+
+        var unknownOptimization = EdhLabDeckOptimizer.Analyze(pipPaper,
+            ManaRows("1 Totally Unmatched Card"));
+        Must(unknownOptimization.UnknownCopies == 1 &&
+             !unknownOptimization.CanBrowse &&
+             unknownOptimization.Opportunities.Count == 0 &&
+             unknownOptimization.Display.Contains("Advice paused"),
+             "Unknown cards must pause concrete improvement advice rather than guessing mana value.");
+
+        var fullOptimization = EdhLabDeckOptimizer.Analyze(pipPaper,
+            ManaRows("30 Plains\n34 Island\n35 Brainstorm"));
+        Must(fullOptimization.MainboardCopies == 99 &&
+             fullOptimization.Display.Contains("Mainboard is full") &&
+             fullOptimization.CanBrowse,
+             "A full mainboard can suggest review-only swaps but must never add cards automatically.");
 
         Must(originalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))),
              "Deck drafting candidate search must never write or alter the Scryfall catalog.");
