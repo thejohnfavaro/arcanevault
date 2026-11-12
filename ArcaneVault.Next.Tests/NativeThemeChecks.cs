@@ -26,6 +26,34 @@ internal static class NativeThemeChecks
                     x.Value.Skip(1).All(Uri.IsHexDigit)),
                  "Every theme must provide valid full-color values for shared WPF brushes.");
         }
+        // Identity names must actually expose their constituent mana colors.
+        // The old WebView used multi-stop mana gradients; a blended accent
+        // alone makes Boros/Orzhov/Esper/Grixis nearly indistinguishable.
+        var mana = new Dictionary<char, string>
+        {
+            ['W'] = "#EDCD82", ['U'] = "#4B9DEC", ['B'] = "#A66FD4",
+            ['R'] = "#F76A65", ['G'] = "#63CB90"
+        };
+        foreach (var theme in all.Where(x => x.Id.StartsWith("mtg-", StringComparison.Ordinal)))
+        {
+            string identity = theme.Id["mtg-".Length..];
+            var expected = identity == "C"
+                ? new[] { "#BAC3D3" }
+                : identity.Select(symbol => mana[symbol]).ToArray();
+            Must(theme.PreviewColors.SequenceEqual(expected),
+                 "Theme identity must show its named mana colors in WUBRG order: " + theme.Id);
+            Must(theme.Description.Contains("mana-color", StringComparison.Ordinal),
+                 "Mana identity theme needs an accurate UI explanation: " + theme.Id);
+        }
+        foreach (string classic in new[] { "noir", "light", "emerald", "ember", "ocean" })
+        {
+            var theme = NativeThemes.Find(classic)!;
+            Must(theme.PreviewColors.Count == 3 &&
+                 theme.PreviewColors[1] == theme.Accent &&
+                 !string.IsNullOrWhiteSpace(theme.Description),
+                 "Classic theme needs representative swatches and a description: " + classic);
+        }
+
         string file = Path.Combine(work, "appearance-regression", "settings.json");
         Must(NativeThemeSettings.Load(file) == "noir",
              "Unconfigured theme must keep the existing default.");
