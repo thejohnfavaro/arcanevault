@@ -148,6 +148,12 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("x:Name=\"EdhLandTargetBox\"",
                  StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhWeightSpellPips\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("Checked=\"OnEdhPipModeChanged\"",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("weightSpellPips: EdhWeightSpellPips",
+                 StringComparison.Ordinal) &&
              deckEditorXaml.Contains("x:Name=\"EdhManaDetails\"",
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("Click=\"OnEdhBalanceNowClicked\"",
