@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Arcane Vault — My Shortlist"
         Width="980" Height="680" MinWidth="780" MinHeight="530"
-        Background="{StaticResource VaultBackground}"
-        Foreground="{StaticResource VaultText}">
+        Background="{DynamicResource VaultBackground}"
+        Foreground="{DynamicResource VaultText}">
     <Grid Margin="22">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -17,9 +17,9 @@
             <TextBlock Text="SAVED CARDS" Style="{StaticResource VaultEyebrow}"
                        Margin="0,0,0,5"/>
             <TextBlock Text="My Shortlist" FontWeight="Bold" FontSize="26"
-                       Foreground="{StaticResource VaultText}"/>
+                       Foreground="{DynamicResource VaultText}"/>
             <TextBlock Text="Bookmarks for future decks, not additional owned cards. Legacy WebView favorites carry forward in your native full backup."
-                       Foreground="{StaticResource VaultMuted}"
+                       Foreground="{DynamicResource VaultMuted}"
                        FontSize="12" TextWrapping="Wrap" Margin="0,7,0,0"/>
         </StackPanel>
         <WrapPanel Grid.Row="1" Margin="0,0,0,12">
@@ -29,27 +29,27 @@
                 <TextBox x:Name="SearchBox" Width="290" Height="32"
                          TextChanged="OnFilterChanged"
                          ToolTip="Filter saved card names without changing the shortlist"
-                         Background="{StaticResource VaultPanelRaised}"
-                         Foreground="{StaticResource VaultText}"
-                         BorderBrush="{StaticResource VaultLine}"
+                         Background="{DynamicResource VaultPanelRaised}"
+                         Foreground="{DynamicResource VaultText}"
+                         BorderBrush="{DynamicResource VaultLine}"
                          Padding="8,5"/>
             </StackPanel>
             <CheckBox x:Name="NotConfirmedOnly" Content="No verified owned copies"
-                      Foreground="{StaticResource VaultText}"
+                      Foreground="{DynamicResource VaultText}"
                       VerticalAlignment="Center" Margin="0,0,15,0"
                       Checked="OnFilterChanged" Unchecked="OnFilterChanged"
                       ToolTip="Shows cards without verified paper copies or Arena copies; may include unresolved paper holdings"/>
             <Button Content="Refresh ownership" Click="OnRefreshClicked"
-                    Padding="11,6" Background="{StaticResource VaultPanelRaised}"
-                    Foreground="{StaticResource VaultText}"
-                    BorderBrush="{StaticResource VaultLine}"/>
+                    Padding="11,6" Background="{DynamicResource VaultPanelRaised}"
+                    Foreground="{DynamicResource VaultText}"
+                    BorderBrush="{DynamicResource VaultLine}"/>
         </WrapPanel>
         <Border Grid.Row="2" Style="{StaticResource VaultPanelCard}" Padding="8">
             <ListView x:Name="ShortlistList" SelectionChanged="OnCardSelected"
                       MouseDoubleClick="OnCardDoubleClicked"
-                      Background="{StaticResource VaultPanelRaised}"
-                      Foreground="{StaticResource VaultText}"
-                      BorderBrush="{StaticResource VaultLine}"
+                      Background="{DynamicResource VaultPanelRaised}"
+                      Foreground="{DynamicResource VaultText}"
+                      BorderBrush="{DynamicResource VaultLine}"
                       ScrollViewer.CanContentScroll="True"
                       VirtualizingStackPanel.IsVirtualizing="True"
                       VirtualizingStackPanel.VirtualizationMode="Recycling">
@@ -70,7 +70,7 @@
             </ListView>
         </Border>
         <TextBlock x:Name="StatusText" Grid.Row="3" Margin="0,11,0,8"
-                   TextWrapping="Wrap" Foreground="{StaticResource VaultMuted}"
+                   TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}"
                    Text="Reading the saved shortlist…"/>
         <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
@@ -78,31 +78,31 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Text="Double-click a saved card for its offline details. Export uses one copy per bookmarked name, just like the legacy app."
-                       FontSize="11" Foreground="{StaticResource VaultMuted}"
+                       FontSize="11" Foreground="{DynamicResource VaultMuted}"
                        TextWrapping="Wrap" VerticalAlignment="Center"
                        Margin="0,0,14,0"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
                 <Button x:Name="CopyAllButton" Content="Copy as Arena list"
                         Click="OnCopyClicked" Padding="12,8" Margin="0,0,8,0"
                         IsEnabled="False"
-                        Background="{StaticResource VaultPanelRaised}"
-                        Foreground="{StaticResource VaultText}"
-                        BorderBrush="{StaticResource VaultLine}"/>
+                        Background="{DynamicResource VaultPanelRaised}"
+                        Foreground="{DynamicResource VaultText}"
+                        BorderBrush="{DynamicResource VaultLine}"/>
                 <Button x:Name="ViewDetailsButton" Content="Card details"
                         Click="OnDetailsClicked" Padding="12,8" Margin="0,0,8,0"
                         IsEnabled="False"
-                        Background="{StaticResource VaultPanelRaised}"
-                        Foreground="{StaticResource VaultText}"
-                        BorderBrush="{StaticResource VaultLine}"/>
+                        Background="{DynamicResource VaultPanelRaised}"
+                        Foreground="{DynamicResource VaultText}"
+                        BorderBrush="{DynamicResource VaultLine}"/>
                 <Button x:Name="RemoveButton" Content="Remove bookmark"
                         Click="OnRemoveClicked" Padding="12,8" Margin="0,0,8,0"
                         IsEnabled="False"
-                        Background="{StaticResource VaultAccent}"
+                        Background="{DynamicResource VaultAccent}"
                         Foreground="White"/>
                 <Button Content="Close" Click="OnCloseClicked" Padding="12,8"
-                        Background="{StaticResource VaultPanelRaised}"
-                        Foreground="{StaticResource VaultText}"
-                        BorderBrush="{StaticResource VaultLine}"/>
+                        Background="{DynamicResource VaultPanelRaised}"
+                        Foreground="{DynamicResource VaultText}"
+                        BorderBrush="{DynamicResource VaultLine}"/>
             </StackPanel>
         </Grid>
     </Grid>
