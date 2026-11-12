@@ -599,16 +599,16 @@ public partial class NativeCollectionWorkspace : UserControl
     {
         if (DeckLibraryList is null || EditDeckButton is null ||
             DeleteDeckButton is null || DuplicateDeckButton is null) return;
-        bool editable = DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow row &&
-            row.Editable && !deckBusy &&
+        var selectedDeck = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+        bool editable = selectedDeck?.Editable == true && !deckBusy &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
         EditDeckButton.IsEnabled = editable;
         EditDeckInEdhLabButton.IsEnabled = editable &&
             !string.IsNullOrWhiteSpace(catalogPath) &&
             File.Exists(catalogPath) &&
-            row is not null &&
-            !string.IsNullOrWhiteSpace(row.Commander) &&
-            EdhLabSavedDeckAccess.FormatFor(row.Format) is not null;
+            selectedDeck is not null &&
+            !string.IsNullOrWhiteSpace(selectedDeck.Commander) &&
+            EdhLabSavedDeckAccess.FormatFor(selectedDeck.Format) is not null;
         DeleteDeckButton.IsEnabled = !deckBusy &&
             DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
