@@ -144,6 +144,22 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("x:Name=\"PreviewSynergyText\"",
                  StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhAutoBalanceLands\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhLandTargetBox\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhManaDetails\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("Click=\"OnEdhBalanceNowClicked\"",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhLabManaPlanner.Analyze(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhLabManaPlanner.Apply(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhAutoBalanceLands.IsChecked = selected is null",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("if (applyingManaBalance) return;",
+                 StringComparison.Ordinal) &&
              draftEditorCode.Contains("SynergyExplanation: fit?.Why",
                  StringComparison.Ordinal) &&
              draftEditorCode.Contains("synergyOnly: EdhSynergyOnly",
