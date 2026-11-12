@@ -26,10 +26,12 @@ public sealed class EdhLabDraftCatalog
     private readonly IReadOnlyDictionary<string, EdhLabSynergyAdvisor.Fit> synergyByName;
 
     private EdhLabDraftCatalog(IReadOnlyList<Card> candidates,
-        EdhLabSynergyAdvisor synergy, bool hasManaCosts)
+        EdhLabSynergyAdvisor synergy, bool hasManaCosts,
+        bool hasManaValues)
     {
         Synergy = synergy;
         HasManaCostMetadata = hasManaCosts;
+        HasManaValueMetadata = hasManaValues;
         cards = candidates.OrderByDescending(x => x.RecordedCopies > 0)
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         eligibleByName = cards.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
@@ -40,6 +42,15 @@ public sealed class EdhLabDraftCatalog
 
     public EdhLabSynergyAdvisor Synergy { get; }
     public bool HasManaCostMetadata { get; }
+    public bool HasManaValueMetadata { get; }
+    /// <summary>
+    /// This inventory-positive subset was already filtered by format,
+    /// commander color identity and Arena availability at catalog load.
+    /// No Scryfall network or collection writes occur in enumeration.
+    /// </summary>
+    public IEnumerable<Card> RecordedNonlandCards =>
+        cards.Where(x => x.RecordedCopies > 0 &&
+            !x.Type.Contains("Land", StringComparison.OrdinalIgnoreCase));
     public int EligibleCount => cards.Count;
     public int RecordedEligibleCount => recordedEligibleCount;
     public int SynergyEligibleCount => synergyByName.Values.Count(x => x.Matches);
@@ -204,7 +215,8 @@ public sealed class EdhLabDraftCatalog
                 reader.IsDBNull(6) ? "" : reader.GetString(6),
                 reader.IsDBNull(7) ? 0.0 : Convert.ToDouble(reader.GetValue(7))));
         }
-        return new EdhLabDraftCatalog(results, synergy, hasManaCosts);
+        return new EdhLabDraftCatalog(results, synergy,
+            hasManaCosts, hasManaValues);
     }
 
     public IReadOnlyList<Card> Search(string? text, bool recordedOnly,
