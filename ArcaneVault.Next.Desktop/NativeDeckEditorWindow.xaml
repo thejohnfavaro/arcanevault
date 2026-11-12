@@ -226,6 +226,12 @@
                                             Foreground="{DynamicResource VaultText}"
                                             BorderBrush="{DynamicResource VaultAccentBorder}"/>
                                 </WrapPanel>
+                                <CheckBox x:Name="EdhWeightSpellPips"
+                                          Content="Weight basics by spell mana symbols"
+                                          IsChecked="True" Margin="0,1,0,6"
+                                          Checked="OnEdhPipModeChanged"
+                                          Unchecked="OnEdhPipModeChanged"
+                                          ToolTip="Smoothed colored mana requirements of nonland spells; requires a refreshed native Scryfall catalog, otherwise falls back to even split"/>
                                 <TextBlock x:Name="EdhManaDetails" TextWrapping="Wrap"
                                            FontSize="11" Foreground="{DynamicResource VaultText}"
                                            Text="Loading land advice…"/>
