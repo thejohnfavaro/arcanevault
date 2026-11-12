@@ -23,6 +23,12 @@ public partial class NativeDeckEditorWindow : Window
     private EdhLabDraftCatalog? edhCatalog;
     private EdhLabDeckOptimizer.Report? lastOptimization;
     private EdhLabSwapAdvisor.Report? lastSwapAdvice;
+    private sealed record PackageDisplay(string Name, string Theme,
+        string Group, string Kind, string Explanation, long Recorded, string Roles)
+    {
+        public string Display => $"[{Theme}] {Group}: {Name} · {Kind}";
+    }
+
     private bool browsingOptimizationCandidates;
     private bool applyingManaBalance;
     private int draftVersion;
@@ -513,12 +519,72 @@ public partial class NativeDeckEditorWindow : Window
         EdhOptimizationDetails.Text = lastOptimization.Display;
         EdhBrowseImprovementsButton.IsEnabled = !busy && lastOptimization.CanBrowse;
         RefreshSwapAdvice(entries);
+        RefreshSynergyPackages(entries);
         if (browsingOptimizationCandidates)
         {
             if (!lastOptimization.CanBrowse)
                 ResetOptimizationBrowsing();
             RefreshOwnedCards();
         }
+    }
+
+    private void RefreshSynergyPackages(
+        IReadOnlyList<NativeDeckEditing.Entry> entries)
+    {
+        if (edhCatalog is null || EdhPackagesList is null ||
+            EdhPackagesStatus is null) return;
+        var previous = EdhPackagesList.SelectedItem as PackageDisplay;
+        var report = EdhLabSynergyPackages.Analyze(edhCatalog,
+            entries.Select(x => (x.Name, x.Quantity)));
+        if (!report.HasRecognizedThemes)
+        {
+            EdhPackagesStatus.Text = report.Explanation;
+            EdhPackagesList.ItemsSource = null;
+            EdhPackagePreviewText.Text = "No confirmed mechanic package is available.";
+            return;
+        }
+        var display = report.Packages.SelectMany(package =>
+            package.InDeck.Select(x => new PackageDisplay(
+                x.Name, package.Theme, "In deck", x.Kind, x.Why,
+                x.RecordedCopies, x.RoleHints))
+            .Concat(package.OwnedOptions.Select(x => new PackageDisplay(
+                x.Name, package.Theme, "Owned option", x.Kind, x.Why,
+                x.RecordedCopies, x.RoleHints)))
+            .Concat(package.MissingOptions.Select(x => new PackageDisplay(
+                x.Name, package.Theme, "Missing", x.Kind, x.Why,
+                x.RecordedCopies, x.RoleHints)))).ToArray();
+        EdhPackagesStatus.Text = string.Join(" · ",
+            report.Packages.Select(p => p.Theme + ": " +
+                p.InDeckCount + " in deck, " + p.OwnedOptions.Count +
+                " owned options, " + p.MissingOptions.Count +
+                " missing examples")) +
+            (report.UnknownDeckCopies > 0
+                ? $". {report.UnknownDeckCopies} unverified deck copies."
+                : "") +
+            "\nRead-only local text hints; option lists capped at five per category.";
+        EdhPackagesList.ItemsSource = display;
+        if (previous is not null)
+            EdhPackagesList.SelectedItem = display.FirstOrDefault(x =>
+                x.Name.Equals(previous.Name, StringComparison.OrdinalIgnoreCase) &&
+                x.Theme == previous.Theme && x.Group == previous.Group);
+    }
+
+    private async void OnEdhPackageSelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (EdhPackagesList?.SelectedItem is not PackageDisplay selected ||
+            busy || OwnedPoolBox is null) return;
+        EdhPackagePreviewText.Text = selected.Theme + " · " +
+            selected.Group + " · " + selected.Kind + "\n" +
+            selected.Explanation + "\n" +
+            "Read-only suggestion; no draft, ownership or save action.";
+        // A suggestion preview must never leave the Cards-tab Add/Remove
+        // controls targeting a different highlighted card.
+        OwnedCardsList?.UnselectAll();
+        await ShowCardPreviewAsync(new OwnedDisplay(selected.Name,
+            selected.Recorded, selected.Roles, LabSuggestion: true,
+            SynergyExplanation: selected.Explanation,
+            MechanicMatch: true));
     }
 
     private void RefreshSwapAdvice(
@@ -717,6 +783,9 @@ public partial class NativeDeckEditorWindow : Window
                 EdhBrowseImprovementsButton.IsEnabled = false;
                 lastSwapAdvice = null;
                 EdhSwapProposalsList.ItemsSource = null;
+                EdhPackagesList.ItemsSource = null;
+                EdhPackagesStatus.Text = "Packages paused until the decklist is valid.";
+                EdhPackagePreviewText.Text = "No draft changes were made.";
                 EdhSwapHeadline.Text = "Swap Lab: correct the decklist first";
                 EdhSwapStatus.Text = "Proposals paused until every draft line is valid.";
                 EdhSwapPreviewText.Text = "No draft changes were made.";
