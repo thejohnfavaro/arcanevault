@@ -372,7 +372,7 @@
                                    FontWeight="Bold" Margin="0,0,0,8"/>
                         <TextBlock Text="Every printing tells a story."
                                    FontSize="21" FontWeight="SemiBold"
-                                   Foreground="White"/>
+                                   Foreground="{DynamicResource VaultText}"/>
                         <TextBlock Text="A complete local collection, with exact editions and recoverable edits."
                                    Style="{StaticResource VaultMutedText}"
                                    Margin="0,7,0,0"/>
