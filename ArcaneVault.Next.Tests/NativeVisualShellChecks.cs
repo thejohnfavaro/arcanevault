@@ -353,9 +353,17 @@ internal static class NativeVisualShellChecks
             Must(named.Length == named.Distinct(StringComparer.Ordinal).Count(),
                 name + " has duplicate x:Name controls.");
 
+            // StaticResource may be defined locally within a Window or
+            // UserControl rather than in App.xaml. Keep validation strict,
+            // but accept resources available in the owning XAML document.
+            var localKeys = doc.Descendants()
+                .Select(e => e.Attribute(XName.Get("Key", XamlNs))?.Value)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.Ordinal);
             foreach (Match match in Regex.Matches(xml,
                 @"\{StaticResource (Vault[a-zA-Z0-9]+)\}"))
-                Must(keys.Contains(match.Groups[1].Value),
+                Must(keys.Contains(match.Groups[1].Value) ||
+                     localKeys.Contains(match.Groups[1].Value),
                     name + " references undefined theme resource " + match.Groups[1].Value);
 
             foreach (Match match in Regex.Matches(xml,
