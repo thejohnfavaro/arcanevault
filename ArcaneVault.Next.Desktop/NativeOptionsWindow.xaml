@@ -64,7 +64,7 @@
                                 <Border Background="{StaticResource VaultPanelRaised}"
                                         BorderBrush="{StaticResource VaultLine}"
                                         BorderThickness="1" CornerRadius="7" Padding="10,6">
-                                    <TextBlock Text="Collection: 2,783 cards"
+                                    <TextBlock Text="Sample collection preview"
                                                Foreground="{StaticResource VaultText}"/>
                                 </Border>
                             </StackPanel>
