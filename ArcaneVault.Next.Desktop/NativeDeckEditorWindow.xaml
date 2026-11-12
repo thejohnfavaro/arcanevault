@@ -153,6 +153,21 @@
                                 <ComboBoxItem Content="Token Maker" Tag="Token Maker"/>
                             </ComboBox>
                         </DockPanel>
+                        <CheckBox x:Name="EdhPrioritizeSynergy"
+                                  Content="Commander mechanic matches first (owned first)"
+                                  IsChecked="True" Margin="0,0,0,6"
+                                  Checked="OnEdhSuggestionsChanged"
+                                  Unchecked="OnEdhSuggestionsChanged"
+                                  ToolTip="Advisory Oracle-text mechanic matches; does not estimate power or guarantee combos"/>
+                        <CheckBox x:Name="EdhSynergyOnly"
+                                  Content="Only show commander mechanic matches"
+                                  Margin="0,0,0,6"
+                                  Checked="OnEdhSuggestionsChanged"
+                                  Unchecked="OnEdhSuggestionsChanged"/>
+                        <TextBlock x:Name="EdhSynergyStatus" TextWrapping="Wrap"
+                                   Margin="0,0,0,6" FontSize="11"
+                                   Foreground="{DynamicResource VaultText}"
+                                   Text="Reading cached commander text for mechanic matches…"/>
                         <TextBlock x:Name="EdhSuggestionsStatus" TextWrapping="Wrap"
                                    FontSize="11" Foreground="{DynamicResource VaultMuted}"
                                    Text="Local color-identity and legality suggestions loading…"/>
@@ -253,6 +268,10 @@
                                            Stretch="Uniform" SnapsToDevicePixels="True"/>
                                 </Grid>
                             </Border>
+                            <TextBlock x:Name="PreviewSynergyText" Margin="0,9,0,4"
+                                       TextWrapping="Wrap" FontSize="11"
+                                       Foreground="{DynamicResource VaultAccent}"
+                                       Text="Commander mechanic matches appear here."/>
                             <TextBlock x:Name="PreviewMetadata" Margin="0,9,0,4"
                                        TextWrapping="Wrap" FontSize="11"
                                        Foreground="#D8DEEB"
