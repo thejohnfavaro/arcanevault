@@ -23,6 +23,8 @@ public static class NativeDeckEditing
         bool Editable, string MainboardText, string SourceSha256,
         string Format = "", bool Favorite = false)
     {
+        // Presentation-only catalog art, never persisted into the deck library.
+        public string CoverArtworkUrl { get; init; } = "";
         public string FavoriteLabel => Favorite ? "★ Favorite" : "";
     }
 
