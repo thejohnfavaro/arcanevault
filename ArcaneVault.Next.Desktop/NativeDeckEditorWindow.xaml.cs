@@ -24,6 +24,7 @@ public partial class NativeDeckEditorWindow : Window
     private EdhLabDeckOptimizer.Report? lastOptimization;
     private EdhLabSwapAdvisor.Report? lastSwapAdvice;
     private EdhLabSynergyPackages.Report? lastPackageReport;
+    private EdhLabSynergyChains.Report? lastChainReport;
     private bool updatingPackageTheme;
 
     private sealed record PackageDisplay(string Name, string Theme,
@@ -523,6 +524,7 @@ public partial class NativeDeckEditorWindow : Window
         EdhBrowseImprovementsButton.IsEnabled = !busy && lastOptimization.CanBrowse;
         RefreshSwapAdvice(entries);
         RefreshSynergyPackages(entries);
+        RefreshSynergyChains(entries);
         if (browsingOptimizationCandidates)
         {
             if (!lastOptimization.CanBrowse)
@@ -623,6 +625,53 @@ public partial class NativeDeckEditorWindow : Window
         await ShowCardPreviewAsync(new OwnedDisplay(selected.Name,
             selected.Recorded, selected.Roles, LabSuggestion: true,
             SynergyExplanation: selected.Explanation,
+            MechanicMatch: true));
+    }
+
+    private void RefreshSynergyChains(
+        IReadOnlyList<NativeDeckEditing.Entry> entries)
+    {
+        if (edhCatalog is null || EdhChainsList is null ||
+            EdhChainsStatus is null) return;
+        var previous = EdhChainsList.SelectedItem as EdhLabSynergyChains.Chain;
+        lastChainReport = EdhLabSynergyChains.Analyze(edhCatalog,
+            entries.Select(x => (x.Name, x.Quantity)));
+        EdhChainsStatus.Text = lastChainReport.Headline + "\n" +
+            lastChainReport.Disclaimer +
+            (lastChainReport.UnknownCopies > 0
+                ? $"\n{lastChainReport.UnknownCopies} unknown/ineligible deck copies excluded."
+                : "");
+        EdhChainsList.ItemsSource = lastChainReport.Chains;
+        if (previous is not null)
+            EdhChainsList.SelectedItem = lastChainReport.Chains.FirstOrDefault(x =>
+                x.Theme == previous.Theme &&
+                x.Enabler.Equals(previous.Enabler, StringComparison.OrdinalIgnoreCase) &&
+                x.Payoff.Equals(previous.Payoff, StringComparison.OrdinalIgnoreCase));
+        else
+            EdhChainDetails.Text =
+                "Select a chain to inspect its suggested card and read both Oracle texts.";
+    }
+
+    private async void OnEdhChainSelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (EdhChainsList?.SelectedItem is not EdhLabSynergyChains.Chain chain ||
+            busy || OwnedPoolBox is null) return;
+        EdhChainDetails.Text = chain.Explanation + "\n" +
+            chain.Status + ": " + chain.Enabler + " → " + chain.Payoff +
+            "\nShown card: " + chain.SuggestedCard +
+            (chain.Status == "Owned missing link"
+                ? $" ({chain.SuggestedRecordedCopies} unused recorded copies)"
+                : chain.Status == "Not recorded"
+                    ? " (not in recorded collection)"
+                    : " (already in deck)") +
+            "\nNothing was added, removed, purchased or saved.";
+        OwnedCardsList?.UnselectAll();
+        var record = edhCatalog?.Find(chain.SuggestedCard);
+        await ShowCardPreviewAsync(new OwnedDisplay(chain.SuggestedCard,
+            record?.RecordedCopies ?? 0, chain.SuggestedRoles,
+            LabSuggestion: true,
+            SynergyExplanation: chain.Explanation,
             MechanicMatch: true));
     }
 
@@ -825,6 +874,10 @@ public partial class NativeDeckEditorWindow : Window
                 lastPackageReport = null;
                 EdhPackagesList.ItemsSource = null;
                 EdhPackagesStatus.Text = "Packages paused until the decklist is valid.";
+                lastChainReport = null;
+                EdhChainsList.ItemsSource = null;
+                EdhChainsStatus.Text = "Chains paused until the decklist is valid.";
+                EdhChainDetails.Text = "No changes made.";
                 EdhPackagePreviewText.Text = "No draft changes were made.";
                 EdhSwapHeadline.Text = "Swap Lab: correct the decklist first";
                 EdhSwapStatus.Text = "Proposals paused until every draft line is valid.";
