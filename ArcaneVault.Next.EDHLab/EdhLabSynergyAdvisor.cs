@@ -97,6 +97,25 @@ public sealed class EdhLabSynergyAdvisor
 
     public int ThemeCount => active.Count;
 
+    /// <summary>Only themes supported by the commander's cached Oracle text.</summary>
+    public IReadOnlyList<string> Themes => active.Select(x => x.Name).ToArray();
+
+    /// <summary>
+    /// Evaluate an individual recognized theme, so package suggestions cannot
+    /// borrow a high score from an unrelated commander mechanic.
+    /// </summary>
+    public Fit EvaluateTheme(string theme, string candidateType, string candidateOracle)
+    {
+        var rule = active.FirstOrDefault(x =>
+            x.Name.Equals(theme, StringComparison.OrdinalIgnoreCase));
+        if (rule is null) return new Fit(0, "No matching commander mechanic signal.");
+        int score = rule.CandidateStrength(candidateType ?? "", candidateOracle ?? "");
+        return score > 0
+            ? new Fit(score, rule.Name + ": " + rule.Explanation + " (heuristic text match).")
+            : new Fit(0, "No direct text match for " + rule.Name + ".");
+    }
+
+
     public static EdhLabSynergyAdvisor FromCommander(string type, string oracle)
     {
         type ??= "";
