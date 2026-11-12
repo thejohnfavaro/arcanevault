@@ -114,6 +114,50 @@ internal static class EdhLabDraftChecks
             "Selected Leader", "WU", EdhLabFormat.PaperCommander);
         var arena = EdhLabDraftCatalog.OpenReadOnly(catalog, ownership,
             "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
+
+        // Package views share the existing offline commander rules and legal
+        // snapshot. They must not mistake exhausted cards for available copies.
+        var packageDraft = new (string Name, int Quantity)[]
+        {
+            ("Sol Ring", 1), ("Brainstorm", 1)
+        };
+        var paperPackages = EdhLabSynergyPackages.Analyze(paper, packageDraft);
+        var artifactPackage = paperPackages.Packages.Single(x => x.Theme == "Artifacts");
+        var tokenPackage = paperPackages.Packages.Single(x => x.Theme == "Tokens");
+        Must(paperPackages.HasRecognizedThemes && paperPackages.Packages.Count >= 2 &&
+             artifactPackage.InDeck.Any(x => x.Name == "Sol Ring") &&
+             !artifactPackage.OwnedOptions.Any(x => x.Name == "Sol Ring") &&
+             artifactPackage.MissingOptions.Any(x => x.Name == "Thopter Foundry") &&
+             tokenPackage.MissingOptions.Any(x => x.Name == "Thopter Foundry"),
+             "Packages must separate existing, exhausted, and missing synergy cards by recognized mechanic.");
+        Must(!paperPackages.Packages.SelectMany(x => x.OwnedOptions.Concat(x.MissingOptions))
+                 .Any(x => x.Name is "Lightning Bolt" or "Paper Banned Thopter" or "Selected Leader"),
+             "Package lists must preserve identity, bans and commander exclusion.");
+        var emptyPackageDraft = EdhLabSynergyPackages.Analyze(paper,
+            Array.Empty<(string Name, int Quantity)>());
+        Must(emptyPackageDraft.Packages.Single(x => x.Theme == "Artifacts")
+                .OwnedOptions.Any(x => x.Name == "Sol Ring") &&
+             emptyPackageDraft.Packages.Single(x => x.Theme == "Artifacts")
+                .MissingOptions.Any(x => x.Name == "Thopter Foundry"),
+             "Empty decks must show owned versus not recorded candidates distinctly.");
+        var arenaPackages = EdhLabSynergyPackages.Analyze(arena, packageDraft);
+        Must(!arenaPackages.Packages.SelectMany(x => x.OwnedOptions.Concat(x.MissingOptions))
+                .Any(x => x.Name is "Non-Arena Thopters" or "Counterspell" or "Swords to Plowshares") &&
+             arenaPackages.Packages.SelectMany(x => x.InDeck)
+                .All(x => x.Name != "Sol Ring") &&
+             arenaPackages.UnknownDeckCopies == 1,
+             "Arena suggestions must not borrow paper-owned cards or unavailable cards.");
+        bool badPackageQuantity = false;
+        try
+        {
+            EdhLabSynergyPackages.Analyze(paper, new[] { (Name: "Sol Ring", Quantity: 0) });
+        }
+        catch (ArgumentOutOfRangeException) { badPackageQuantity = true; }
+        Must(badPackageQuantity, "Package analysis must reject zero quantities.");
+        Must(paper.Synergy.EvaluateTheme("Artifacts", "Artifact", "Add {C}.").Matches &&
+             !paper.Synergy.EvaluateTheme("Tokens", "Artifact", "Add {C}.").Matches &&
+             !paper.Synergy.EvaluateTheme("Invented", "Artifact", "Add {C}.").Matches,
+             "Package scoring must not copy fit scores across unrelated commander mechanics.");
         Must(paper.Contains("Sol Ring") && paper.Contains("Swords to Plowshares") &&
              paper.Contains("Counterspell") && paper.Contains("Commander Only") &&
              !paper.Contains("Lightning Bolt") && !paper.Contains("Three Color") &&
