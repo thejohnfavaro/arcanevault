@@ -136,7 +136,9 @@
                           Background="#343A4D"/>
             <TabControl x:Name="EdhWorkspaceTabs" Grid.Column="2" TabStripPlacement="Top"
                         Background="#171C28" Foreground="#F2F5FA"
-                        BorderBrush="{DynamicResource VaultLine}" Padding="3">
+                        BorderBrush="{DynamicResource VaultLine}" Padding="3"
+                        Loaded="OnEdhWorkspaceLoaded"
+                        SizeChanged="OnEdhWorkspaceSizeChanged">
                 <TabItem x:Name="EdhCardsTab" Header="Cards" Style="{StaticResource VaultDeckTabStyle}">
                     <Grid Margin="6,6,6,4">
                 <Grid.RowDefinitions>
@@ -244,8 +246,12 @@
                 </TabItem>
                 <TabItem x:Name="EdhManaTab" Header="Mana &amp; Roles" Visibility="Collapsed"
                          Style="{StaticResource VaultDeckTabStyle}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
+                    <!-- Height is bounded at runtime to the available tab viewport;
+                         expanding multiple sections scrolls instead of overflowing. -->
+                    <ScrollViewer x:Name="EdhManaScroll" VerticalAlignment="Top"
+                                  VerticalScrollBarVisibility="Visible"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  CanContentScroll="False" PanningMode="VerticalOnly">
                         <StackPanel Margin="10,8,10,12">
                             <TextBlock Text="Mana base &amp; deck roles" FontSize="15"
                                        FontWeight="SemiBold" Margin="0,0,0,8"
@@ -341,8 +347,10 @@
                 </TabItem>
                 <TabItem x:Name="EdhImproveTab" Header="Improve" Visibility="Collapsed"
                          Style="{StaticResource VaultDeckTabStyle}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
+                    <ScrollViewer x:Name="EdhImproveScroll" VerticalAlignment="Top"
+                                  VerticalScrollBarVisibility="Visible"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  CanContentScroll="False" PanningMode="VerticalOnly">
                         <StackPanel Margin="10,8,10,12">
                             <TextBlock Text="Collection-aware improvements" FontSize="15"
                                        FontWeight="SemiBold" Margin="0,0,0,8"
