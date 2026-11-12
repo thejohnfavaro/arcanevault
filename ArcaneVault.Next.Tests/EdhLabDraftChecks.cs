@@ -83,6 +83,9 @@ internal static class EdhLabDraftChecks
             Card("Clockwork Maker", "U",
                 "Create a 1/1 colorless Thopter artifact creature token.",
                 type: "Artifact Creature — Artificer");
+            Card("Misleading Artifact Wording", "U",
+                "Create a 1/1 blue creature token. Sacrifice an artifact.",
+                type: "Creature — Artificer");
             Card("Artifact Arrival", "U",
                 "Whenever an artifact enters the battlefield under your control, draw a card.",
                 type: "Creature — Artificer");
@@ -185,6 +188,12 @@ internal static class EdhLabDraftChecks
             Array.Empty<NativeArenaRow>(), 0, 0, 0, 1, 0, 0, 1);
         var payoffPaper = EdhLabDraftCatalog.OpenReadOnly(catalog,
             payoffInventory, "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        var falseTokenLink = EdhLabSynergyChains.Analyze(paper,
+            new[] { (Name: "Misleading Artifact Wording", Quantity: 1) });
+        Must(!falseTokenLink.Chains.Any(x =>
+                x.Theme == "Artifacts" &&
+                x.Enabler == "Misleading Artifact Wording"),
+             "Unrelated artifact mention after token creation must not count as an artifact-token engine.");
         var ownedLink = EdhLabSynergyChains.Analyze(payoffPaper,
             new[] { (Name: "Clockwork Maker", Quantity: 1) });
         Must(ownedLink.Chains.Any(x =>
@@ -192,7 +201,9 @@ internal static class EdhLabDraftChecks
                 x.Payoff == "Artifact Arrival" &&
                 x.Status == "Owned missing link" &&
                 x.SuggestedCard == "Artifact Arrival" &&
-                x.SuggestedRecordedCopies == 1),
+                x.SuggestedRecordedCopies == 1 &&
+                x.EnablerEvidence.Contains("Create a 1/1") &&
+                x.PayoffEvidence.Contains("Whenever an artifact enters")),
              "Deck enabler must find recorded owned payoff as an unsaved suggestion.");
         Must(ownedLink.Chains.All(x =>
                 x.Enabler != x.Payoff &&

@@ -86,6 +86,23 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "NativeDeckEditorWindow.xaml.cs"));
         var mainShellCode = File.ReadAllText(
             Path.Combine(dir, "MainWindow.xaml.cs"));
+        // v0.9.48: the side-by-side Explorer must retain the existing
+        // collapsed Improve workspace and never call deck edits from a
+        // suggestion inspection or navigation event.
+        var explorerUi = XDocument.Parse(deckEditorXaml);
+        foreach (string name in new[] { "EdhChainEnablerArt", "EdhChainPayoffArt",
+            "EdhChainEnablerButton", "EdhChainPayoffButton", "EdhChainJumpButton" })
+            Must(explorerUi.Descendants().Any(x =>
+                    x.Attribute(XName.Get("Name", XamlNs))?.Value == name),
+                "Chain Explorer is missing UI control: " + name);
+        Must(deckEditorXaml.Contains("Click=\"OnEdhInspectEnablerClicked\"") &&
+             deckEditorXaml.Contains("Click=\"OnEdhInspectPayoffClicked\"") &&
+             deckEditorXaml.Contains("Click=\"OnEdhChainJumpClicked\"") &&
+             draftEditorCode.Contains("NativeCardArtwork.IsTrustedArtworkUrl(url)") &&
+             draftEditorCode.Contains("arenaOnly: true") &&
+             draftEditorCode.Contains("ResetOptimizationBrowsing();") &&
+             !draftEditorCode.Contains("OnEdhChainJumpClicked(object sender, RoutedEventArgs e) =>"),
+             "Explorer buttons must point to safe inspection and catalog browsing handlers.");
         // Regression: v0.9.32 shipped the EDH Lab builder but hid its only
         // launcher with Visibility=Collapsed, making it inaccessible.
         var edhLauncher = XDocument.Parse(mainXaml).Descendants()
