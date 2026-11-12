@@ -173,6 +173,25 @@ public static class NativeScryfallCatalogSync
     private static void Set(SqliteCommand command, string name, object value) =>
         command.Parameters[name].Value = value;
 
+    /// <summary>
+    /// Older standalone catalogs remain valid for browsing; only new bulk
+    /// imports carry spell mana costs. Use the schema check to force a new
+    /// bulk snapshot even when its Scryfall source timestamp is unchanged.
+    /// </summary>
+    public static bool HasManaCostColumn(string catalogPath)
+    {
+        if (!File.Exists(catalogPath)) return false;
+        using var db = Connect(catalogPath, SqliteOpenMode.ReadOnly);
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info(cards)";
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+            if (reader.GetString(1).Equals("mana_cost",
+                StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
+    }
+
     private static void Record(JsonElement element, SqliteCommand card, SqliteCommand print,
         ref long inserted)
     {
@@ -219,6 +238,27 @@ public static class NativeScryfallCatalogSync
             }
         }
 
+        // Prefer the card-level cost; for multiface cards that store costs
+        // only on faces, use the FRONT face as an explicit approximation.
+        // Never concatenate both sides: those are alternate casts, not
+        // simultaneous mana requirements.
+        string manaCost = Text(element, "mana_cost");
+        if (manaCost.Length == 0 &&
+            element.TryGetProperty("card_faces", out var costFaces) &&
+            costFaces.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var face in costFaces.EnumerateArray())
+            {
+                if (face.ValueKind != JsonValueKind.Object) continue;
+                manaCost = Text(face, "mana_cost");
+                break;
+            }
+        }
+        // Split cards can report costs for both choices with " // ".
+        // Their mana requirements are alternatives, not a combined spell.
+        if (manaCost.Contains(" // ", StringComparison.Ordinal))
+            manaCost = manaCost.Split(" // ", 2, StringSplitOptions.None)[0];
+        if (manaCost.Length > 512) manaCost = "";
         double mv = element.TryGetProperty("cmc", out var cmc) &&
             cmc.ValueKind == JsonValueKind.Number && cmc.TryGetDouble(out var number)
             ? number : 0;
@@ -233,6 +273,7 @@ public static class NativeScryfallCatalogSync
         Set(card, "$o", oracle);
         Set(card, "$r", rarity);
         Set(card, "$mv", mv);
+        Set(card, "$mc", manaCost);
         Set(card, "$c", colors);
         Set(card, "$i", image);
         Set(card, "$u", url);
@@ -390,7 +431,8 @@ public static class NativeScryfallCatalogSync
                         CREATE TABLE cards(
                           name TEXT PRIMARY KEY COLLATE NOCASE,
                           type TEXT NOT NULL,oracle TEXT NOT NULL,rarity TEXT NOT NULL,
-                          mv REAL NOT NULL,colors TEXT NOT NULL,image TEXT NOT NULL,
+                          mv REAL NOT NULL,mana_cost TEXT NOT NULL DEFAULT '',
+                          colors TEXT NOT NULL,image TEXT NOT NULL,
                           uri TEXT NOT NULL,legalities TEXT NOT NULL,layout TEXT NOT NULL,
                           setcode TEXT NOT NULL,arena INTEGER NOT NULL DEFAULT 0
                         );
@@ -413,11 +455,14 @@ public static class NativeScryfallCatalogSync
                 using (var tx = db.BeginTransaction())
                 {
                     using var card = Prepare(db, tx, """
-                        INSERT INTO cards(name,type,oracle,rarity,mv,colors,image,uri,legalities,layout,setcode,arena)
-                        VALUES($n,$t,$o,$r,$mv,$c,$i,$u,$l,$ly,$s,$a)
+                        INSERT INTO cards(name,type,oracle,rarity,mv,mana_cost,colors,image,uri,legalities,layout,setcode,arena)
+                        VALUES($n,$t,$o,$r,$mv,$mc,$c,$i,$u,$l,$ly,$s,$a)
                         ON CONFLICT(name) DO UPDATE SET
-                          arena=MAX(cards.arena,excluded.arena)
-                        """, "$n","$t","$o","$r","$mv","$c","$i","$u","$l","$ly","$s","$a");
+                          arena=MAX(cards.arena,excluded.arena),
+                          mana_cost=CASE
+                            WHEN cards.mana_cost='' AND excluded.mana_cost<>''
+                            THEN excluded.mana_cost ELSE cards.mana_cost END
+                        """, "$n","$t","$o","$r","$mv","$mc","$c","$i","$u","$l","$ly","$s","$a");
                     using var art = Prepare(db, tx, """
                         INSERT INTO variants(print_id,name,setcode,setname,collector,rarity,
                             image,image_back,art_id,games,arena,digital,promo,full_art,border,release,url,
@@ -544,7 +589,8 @@ public static class NativeScryfallCatalogSync
                 {
                     var current = Verify(targetPath, minimumPrintings);
                     if (current.UpdatedAt == chosen.UpdatedAt &&
-                        current.Printings >= minimumPrintings)
+                        current.Printings >= minimumPrintings &&
+                        HasManaCostColumn(targetPath))
                         return new Result(false, current.Printings,
                             current.CardNames, current.UpdatedAt, null);
                 }

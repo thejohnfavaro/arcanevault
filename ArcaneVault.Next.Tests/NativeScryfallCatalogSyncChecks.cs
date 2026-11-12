@@ -47,6 +47,7 @@ internal static class NativeScryfallCatalogSyncChecks
             type_line = "Artifact Creature — Test",
             oracle_text = "Test Oracle text",
             cmc = 3.0,
+            mana_cost = "{1}{U}{B}",
             layout = "normal",
             border_color = "black",
             released_at = "2026-10-01",
@@ -137,6 +138,19 @@ internal static class NativeScryfallCatalogSyncChecks
             first.Printings == 3 && first.CardNames == 2,
             "JSON array first sync was not verified.");
         var info = NativeScryfallCatalogSync.Verify(catalog, 2);
+        Must(NativeScryfallCatalogSync.HasManaCostColumn(catalog),
+             "Fresh native Scryfall catalog must include the mana-cost field.");
+        using (var manaDb = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = catalog, Mode = SqliteOpenMode.ReadOnly, Pooling = false
+        }.ToString()))
+        {
+            manaDb.Open();
+            using var command = manaDb.CreateCommand();
+            command.CommandText = "SELECT mana_cost FROM cards WHERE name='Catalog Test'";
+            Must(command.ExecuteScalar()?.ToString() == "{1}{U}{B}",
+                 "Scryfall mana symbols must persist unmodified in the offline cards table.");
+        }
         Must(info.Printings == 3 && info.CardNames == 2 && info.UpdatedAt == stampOne,
             "Native catalog was not re-openable and verified.");
 
@@ -249,6 +263,32 @@ internal static class NativeScryfallCatalogSyncChecks
         Must(network.Updated && !noOp.Updated && fixture.DownloadCount == 1 &&
              NativeScryfallCatalogSync.Verify(thirdPath, 2).Printings == 4,
              "Full offline HTTP pipeline failed or downloaded unchanged dataset twice.");
+
+        // Older catalogs lack mana_cost. Even with an unchanged source
+        // timestamp Full Sync must rebuild, verifying rollback safety.
+        var legacyPath = Path.Combine(work, "native-old-mana-schema.sqlite");
+        File.Copy(thirdPath, legacyPath);
+        using (var legacyDb = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = legacyPath, Mode = SqliteOpenMode.ReadWrite, Pooling = false
+        }.ToString()))
+        {
+            legacyDb.Open();
+            using var drop = legacyDb.CreateCommand();
+            drop.CommandText = "ALTER TABLE cards DROP COLUMN mana_cost";
+            drop.ExecuteNonQuery();
+        }
+        Must(!NativeScryfallCatalogSync.HasManaCostColumn(legacyPath),
+             "Legacy test catalog must begin without mana_cost.");
+        int previousDownloads = fixture.DownloadCount;
+        var upgraded = await NativeScryfallCatalogSync.SyncAsync(
+            legacyPath, http, minimumPrintings: 2);
+        Must(upgraded.Updated && fixture.DownloadCount == previousDownloads + 1 &&
+             upgraded.RecoveryPath is not null &&
+             File.Exists(upgraded.RecoveryPath) &&
+             NativeScryfallCatalogSync.HasManaCostColumn(legacyPath) &&
+             !NativeScryfallCatalogSync.HasManaCostColumn(upgraded.RecoveryPath),
+             "Same-timestamp old catalog must rebuild with mana costs, preserving rollback.");
 
         fixture.Stamp = "2026-11-12T12:00:00Z";
         fixture.FailDownload = true;

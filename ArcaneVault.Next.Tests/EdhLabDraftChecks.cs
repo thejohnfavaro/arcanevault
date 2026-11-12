@@ -287,6 +287,80 @@ internal static class EdhLabDraftChecks
         Must(shiftedBlueprint.Roles.Single(x => x.Role == "Land").SuggestedMinimum == 40,
              "Changing the land target must also update the live blueprint guidance.");
 
+        // v0.9.36 catalogs without mana_cost continue to be readable and
+        // retain the proven even-color split until Full Sync rebuilds them.
+        var legacyPips = EdhLabManaPlanner.Analyze(paper,
+            ManaRows("6 Brainstorm\n2 Swords to Plowshares"), "WU",
+            36, weightSpellPips: true);
+        Must(!paper.HasManaCostMetadata && !legacyPips.UsingSpellPips &&
+             legacyPips.Basics.Single(x => x.Name == "Plains").Quantity == 18 &&
+             legacyPips.Basics.Single(x => x.Name == "Island").Quantity == 18 &&
+             legacyPips.Summary.Contains("Full Sync"),
+             "Older catalogs must fall back safely and disclose that a refresh is needed.");
+
+        // Create a separate *new-schema* fixture; original read-only catalog
+        // must remain byte-identical after recommendation and balancing.
+        string costCatalog = Path.Combine(work, "edh-pip-catalog.sqlite");
+        File.Copy(catalog, costCatalog);
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = costCatalog, Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false
+        }.ToString()))
+        {
+            db.Open();
+            using var change = db.CreateCommand();
+            change.CommandText = """
+                ALTER TABLE cards ADD COLUMN mana_cost TEXT NOT NULL DEFAULT '';
+                UPDATE cards SET mana_cost = CASE name
+                    WHEN 'Brainstorm' THEN '{U}'
+                    WHEN 'Swords to Plowshares' THEN '{W}'
+                    WHEN 'Counterspell' THEN '{U}{U}'
+                    WHEN 'Thopter Foundry' THEN '{1}{U}'
+                    ELSE '' END;
+                """;
+            change.ExecuteNonQuery();
+        }
+        var pipPaper = EdhLabDraftCatalog.OpenReadOnly(costCatalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        var spells = ManaRows("6 Brainstorm\n2 Swords to Plowshares");
+        var even = EdhLabManaPlanner.Analyze(pipPaper, spells, "WU", 36);
+        var weighted = EdhLabManaPlanner.Analyze(pipPaper, spells, "WU",
+            36, weightSpellPips: true);
+        Must(pipPaper.HasManaCostMetadata && !even.UsingSpellPips &&
+             weighted.UsingSpellPips && weighted.ParsedManaCostCopies == 8 &&
+             weighted.MissingManaCostCopies == 0 &&
+             weighted.ColoredPipDemand["U"] == 6 &&
+             weighted.ColoredPipDemand["W"] == 2 &&
+             even.Basics.Single(x => x.Name == "Plains").Quantity == 18 &&
+             weighted.Basics.Single(x => x.Name == "Plains").Quantity <
+                weighted.Basics.Single(x => x.Name == "Island").Quantity &&
+             weighted.TotalAfter == 36 &&
+             weighted.Summary.Contains("Spell-pip mode"),
+             "A blue-heavy draft must shift basics toward blue without changing land target.");
+        var weightedWithDual = EdhLabManaPlanner.Analyze(pipPaper,
+            ManaRows("6 Brainstorm\n2 Swords to Plowshares\n1 Azorius Guildgate"),
+            "WU", 36, weightSpellPips: true);
+        Must(weightedWithDual.TotalAfter == 36 &&
+             weightedWithDual.FlexibleLands == 1 &&
+             weightedWithDual.DesiredBasics == 35 &&
+             weightedWithDual.Basics.Single(x => x.Name == "Island").Quantity >
+                weightedWithDual.Basics.Single(x => x.Name == "Plains").Quantity,
+             "Blue-heavy color demand must survive adding a dual as exactly one land.");
+        var hybrid = EdhLabColoredPips.Count("{W/U}{2/W}{U/P}{3}{X}{C}");
+        Must(Math.Abs(hybrid[0] - 1.0) < .00001 &&
+             Math.Abs(hybrid[1] - 1.0) < .00001 &&
+             hybrid.Skip(2).All(x => x == 0) &&
+             EdhLabColoredPips.Count("{2}{W}{W} // {4}{U}")[0] == 2 &&
+             EdhLabColoredPips.Count("{2}{W}{W} // {4}{U}")[1] == 0,
+             "Hybrid, phyrexian, generic, split and colorless cost symbols must be approximated explicitly.");
+        var onlyGeneric = EdhLabColoredPips.Count("{X}{C}{4}{S}");
+        Must(onlyGeneric.All(x => x == 0) &&
+             !EdhLabManaPlanner.Analyze(pipPaper,
+                 Array.Empty<(string Name,int Quantity)>(), "WU", 36,
+                 weightSpellPips: true).UsingSpellPips,
+             "Empty decks must retain the even split even when weighting is enabled.");
+
         Must(originalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))),
              "Deck drafting candidate search must never write or alter the Scryfall catalog.");
 

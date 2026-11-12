@@ -267,6 +267,14 @@ public partial class NativeDeckEditorWindow : Window
         RefreshDraftSummary();
     }
 
+    private void OnEdhPipModeChanged(object sender, RoutedEventArgs e)
+    {
+        if (edhLabCommander is null || EdhManaHeadline is null) return;
+        if (EdhAutoBalanceLands?.IsChecked == true)
+            ApplyManaBalance(automatic: true);
+        RefreshDraftSummary();
+    }
+
     private void OnEdhBalanceNowClicked(object sender, RoutedEventArgs e)
     {
         if (edhLabCommander is null || busy) return;
@@ -288,7 +296,8 @@ public partial class NativeDeckEditorWindow : Window
         {
             var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
             var plan = EdhLabManaPlanner.Analyze(edhCatalog, entries.Select(x => (x.Name, x.Quantity)),
-                edhLabColors ?? "", target);
+                edhLabColors ?? "", target,
+                weightSpellPips: EdhWeightSpellPips?.IsChecked == true);
             if (!plan.CanApply)
             {
                 EdhManaDetails.Text = plan.Summary;
@@ -347,7 +356,8 @@ public partial class NativeDeckEditorWindow : Window
             return;
         }
         var plan = EdhLabManaPlanner.Analyze(edhCatalog, entries.Select(x => (x.Name, x.Quantity)),
-            edhLabColors ?? "", target);
+            edhLabColors ?? "", target,
+            weightSpellPips: EdhWeightSpellPips?.IsChecked == true);
         string mode = EdhAutoBalanceLands?.IsChecked == true ? "Auto on" : "Manual";
         EdhManaHeadline.Text =
             $"Mana base: {plan.CurrentLands}/{target} current · " +
