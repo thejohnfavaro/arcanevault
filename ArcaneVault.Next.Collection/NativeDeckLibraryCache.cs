@@ -85,8 +85,8 @@ public static class NativeDeckLibraryCache
             string.IsNullOrWhiteSpace(x.SourceSha256) ||
             x.SourceSha256.Length != 64 ||
             !x.SourceSha256.All(Uri.IsHexDigit) ||
-            x.MainboardText.Length > 64_000 ||
-            x.CoverArtworkUrl.Length != 0))
+            (x.MainboardText?.Length ?? 64_001) > 64_000 ||
+            x.CoverArtworkUrl is null || x.CoverArtworkUrl.Length != 0))
             return false;
         return rows.Select(x => x.Ordinal).Distinct().Count() == rows.Length;
     }
