@@ -25,6 +25,7 @@ public partial class NativeDeckEditorWindow : Window
     private EdhLabSwapAdvisor.Report? lastSwapAdvice;
     private EdhLabSynergyPackages.Report? lastPackageReport;
     private EdhLabSynergyChains.Report? lastChainReport;
+    private EdhLabThreeCardEngines.Report? lastEngineReport;
     private CancellationTokenSource? chainArtworkRequest;
     private int chainArtworkVersion;
     private bool updatingPackageTheme;
@@ -527,6 +528,7 @@ public partial class NativeDeckEditorWindow : Window
         RefreshSwapAdvice(entries);
         RefreshSynergyPackages(entries);
         RefreshSynergyChains(entries);
+        RefreshThreeCardEngines(entries);
         if (browsingOptimizationCandidates)
         {
             if (!lastOptimization.CanBrowse)
@@ -817,6 +819,101 @@ public partial class NativeDeckEditorWindow : Window
             " in Cards. Inspect it before making any manual deck change.";
     }
 
+    private void RefreshThreeCardEngines(
+        IReadOnlyList<NativeDeckEditing.Entry> entries)
+    {
+        if (edhCatalog is null || EdhEnginesList is null ||
+            EdhEnginesStatus is null) return;
+        var old = EdhEnginesList.SelectedItem as EdhLabThreeCardEngines.Engine;
+        lastEngineReport = EdhLabThreeCardEngines.Analyze(edhCatalog,
+            entries.Select(x => (x.Name, x.Quantity)));
+        EdhEnginesStatus.Text = lastEngineReport.Headline + "\n" +
+            lastEngineReport.Disclaimer +
+            (lastEngineReport.UnknownCopies > 0
+                ? $"\n{lastEngineReport.UnknownCopies} unknown or ineligible copies excluded."
+                : "");
+        EdhEnginesList.ItemsSource = lastEngineReport.Engines;
+        EdhEnginesList.SelectedItem = old is null ? null :
+            lastEngineReport.Engines.FirstOrDefault(x =>
+                x.Theme == old.Theme &&
+                x.Producer.Equals(old.Producer, StringComparison.OrdinalIgnoreCase) &&
+                x.Bridge.Equals(old.Bridge, StringComparison.OrdinalIgnoreCase) &&
+                x.Payoff.Equals(old.Payoff, StringComparison.OrdinalIgnoreCase));
+        if (EdhEnginesList.SelectedItem is null)
+            ClearThreeCardEngineSelection();
+    }
+
+    private void ClearThreeCardEngineSelection()
+    {
+        if (EdhEngineProducerButton is null) return;
+        EdhEngineProducerButton.IsEnabled = false;
+        EdhEngineBridgeButton.IsEnabled = false;
+        EdhEnginePayoffButton.IsEnabled = false;
+        EdhEngineFindMissingButton.IsEnabled = false;
+        EdhEngineDetails.Text = "Select a possible pathway to inspect each card. No cards have changed.";
+    }
+
+    private void OnEdhEngineSelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (EdhEnginesList?.SelectedItem is not EdhLabThreeCardEngines.Engine engine ||
+            busy) return;
+        EdhEngineProducerButton.Content = "Producer: " + engine.Producer;
+        EdhEngineBridgeButton.Content = "Bridge: " + engine.Bridge;
+        EdhEnginePayoffButton.Content = "Payoff: " + engine.Payoff;
+        EdhEngineProducerButton.IsEnabled = true;
+        EdhEngineBridgeButton.IsEnabled = true;
+        EdhEnginePayoffButton.IsEnabled = true;
+        EdhEngineFindMissingButton.IsEnabled = engine.Status == "Owned missing link";
+        EdhEngineDetails.Text = engine.Explanation + "\n" +
+            engine.Status + ": " + engine.Producer + " → " +
+            engine.Bridge + " → " + engine.Payoff +
+            (engine.Status == "Owned missing link"
+                ? $"\nOwned missing piece: {engine.MissingName} ({engine.UnusedRecordedCopies} unused recorded)."
+                : engine.Status == "Not recorded"
+                    ? "\nNot recorded: " + engine.MissingName
+                    : "\nAll three names are in the current mainboard.") +
+            "\nEach control opens the full cached card preview. No combo or win is guaranteed.";
+    }
+
+    private async void OnEdhInspectProducerClicked(object sender, RoutedEventArgs e)
+    {
+        if (EdhEnginesList?.SelectedItem is EdhLabThreeCardEngines.Engine engine)
+            await PreviewChainCardAsync(engine.Producer, engine.Explanation);
+    }
+
+    private async void OnEdhInspectBridgeClicked(object sender, RoutedEventArgs e)
+    {
+        if (EdhEnginesList?.SelectedItem is EdhLabThreeCardEngines.Engine engine)
+            await PreviewChainCardAsync(engine.Bridge, engine.Explanation);
+    }
+
+    private async void OnEdhInspectEnginePayoffClicked(object sender, RoutedEventArgs e)
+    {
+        if (EdhEnginesList?.SelectedItem is EdhLabThreeCardEngines.Engine engine)
+            await PreviewChainCardAsync(engine.Payoff, engine.Explanation);
+    }
+
+    private void OnEdhEngineFindMissingClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || EdhEnginesList?.SelectedItem is not
+            EdhLabThreeCardEngines.Engine engine ||
+            engine.Status != "Owned missing link" || edhCatalog is null ||
+            edhCatalog.Find(engine.MissingName) is not { } card ||
+            card.RecordedCopies < engine.UnusedRecordedCopies ||
+            engine.UnusedRecordedCopies < 1) return;
+        // A navigation-only entry point into the existing manual picker.
+        ResetOptimizationBrowsing();
+        EdhRecordedOnly.IsChecked = true;
+        EdhRoleBox.SelectedIndex = 0;
+        EdhSynergyOnly.IsChecked = false;
+        OwnedSearchBox.Text = engine.MissingName;
+        EdhWorkspaceTabs.SelectedItem = EdhCardsTab;
+        RefreshOwnedCards();
+        StatusText.Text = "Inspecting owned three-card engine candidate " +
+            engine.MissingName + ". No card was added or saved.";
+    }
+
     private void RefreshSwapAdvice(
         IReadOnlyList<NativeDeckEditing.Entry> entries)
     {
@@ -1018,6 +1115,10 @@ public partial class NativeDeckEditorWindow : Window
                 EdhPackagesStatus.Text = "Packages paused until the decklist is valid.";
                 lastChainReport = null;
                 EdhChainsList.ItemsSource = null;
+                lastEngineReport = null;
+                EdhEnginesList.ItemsSource = null;
+                EdhEnginesStatus.Text = "Three-card pathways paused until the draft is valid.";
+                ClearThreeCardEngineSelection();
                 ClearChainExplorer();
                 EdhChainsStatus.Text = "Chains paused until the decklist is valid.";
                 EdhChainDetails.Text = "No changes made.";

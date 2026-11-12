@@ -103,6 +103,23 @@ internal static class NativeVisualShellChecks
              draftEditorCode.Contains("ResetOptimizationBrowsing();") &&
              !draftEditorCode.Contains("OnEdhChainJumpClicked(object sender, RoutedEventArgs e) =>"),
              "Explorer buttons must point to safe inspection and catalog browsing handlers.");
+        // Native v0.9.49 three-card pathways must be reachable, read-only
+        // and use the existing protected preview and picker flow.
+        var threeEngineXaml = XDocument.Parse(deckEditorXaml);
+        foreach (string control in new[] { "EdhEnginesList", "EdhEngineDetails",
+            "EdhEngineProducerButton", "EdhEngineBridgeButton",
+            "EdhEnginePayoffButton", "EdhEngineFindMissingButton" })
+            Must(threeEngineXaml.Descendants().Any(x =>
+                    x.Attribute(XName.Get("Name", XamlNs))?.Value == control),
+                "Three-card engine inspector missing: " + control);
+        Must(deckEditorXaml.Contains("Click=\"OnEdhInspectProducerClicked\"") &&
+             deckEditorXaml.Contains("Click=\"OnEdhInspectBridgeClicked\"") &&
+             deckEditorXaml.Contains("Click=\"OnEdhInspectEnginePayoffClicked\"") &&
+             deckEditorXaml.Contains("Click=\"OnEdhEngineFindMissingClicked\"") &&
+             draftEditorCode.Contains("EdhLabThreeCardEngines.Analyze") &&
+             draftEditorCode.Contains("engine.Status != \"Owned missing link\"") &&
+             draftEditorCode.Contains("ResetOptimizationBrowsing();"),
+             "Three-card actions must only inspect candidates or navigate to the existing manual picker.");
         // Regression: v0.9.32 shipped the EDH Lab builder but hid its only
         // launcher with Visibility=Collapsed, making it inaccessible.
         var edhLauncher = XDocument.Parse(mainXaml).Descendants()

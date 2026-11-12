@@ -89,6 +89,9 @@ internal static class EdhLabDraftChecks
             Card("Artifact Arrival", "U",
                 "Whenever an artifact enters the battlefield under your control, draw a card.",
                 type: "Creature — Artificer");
+            Card("Draw Reward", "U",
+                "Whenever you draw a card, target opponent loses 1 life.",
+                type: "Creature — Wizard");
             Card("Token Arrival", "W",
                 "Whenever a creature enters the battlefield under your control, gain 1 life.",
                 type: "Creature — Cleric");
@@ -194,6 +197,59 @@ internal static class EdhLabDraftChecks
                 x.Theme == "Artifacts" &&
                 x.Enabler == "Misleading Artifact Wording"),
              "Unrelated artifact mention after token creation must not count as an artifact-token engine.");
+        var threeDraft = new[]
+        {
+            (Name: "Clockwork Maker", Quantity: 1),
+            (Name: "Artifact Arrival", Quantity: 1)
+        };
+        var missingThird = EdhLabThreeCardEngines.Analyze(paper, threeDraft);
+        Must(missingThird.Engines.Any(x =>
+                x.Theme == "Artifacts" &&
+                x.Producer == "Clockwork Maker" &&
+                x.Bridge == "Artifact Arrival" &&
+                x.Payoff == "Draw Reward" &&
+                x.Status == "Not recorded" &&
+                x.MissingName == "Draw Reward"),
+             "Two drafted pieces must recognize an unrecorded third piece with explicit signal links.");
+        var drawInventory = new NativeBackupView(
+            new[] { new NativePhysicalRow("Draw Reward", 1, "", "", "", "") },
+            Array.Empty<NativeArenaRow>(), 0, 0, 0, 1, 0, 0, 1);
+        var drawPaper = EdhLabDraftCatalog.OpenReadOnly(catalog,
+            drawInventory, "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        var ownedThird = EdhLabThreeCardEngines.Analyze(drawPaper, threeDraft);
+        Must(ownedThird.Engines.Any(x =>
+                x.Producer == "Clockwork Maker" &&
+                x.Bridge == "Artifact Arrival" &&
+                x.Payoff == "Draw Reward" &&
+                x.Status == "Owned missing link" &&
+                x.UnusedRecordedCopies == 1),
+             "Three-card missing link must honor actual recorded paper ownership.");
+        var allThree = EdhLabThreeCardEngines.Analyze(paper,
+            threeDraft.Append((Name: "Draw Reward", Quantity: 1)));
+        Must(allThree.Engines.Any(x =>
+                x.Producer == "Clockwork Maker" &&
+                x.Bridge == "Artifact Arrival" &&
+                x.Payoff == "Draw Reward" &&
+                x.Status == "All three in deck"),
+             "Completed draft should list all three-card pathway pieces.");
+        Must(EdhLabThreeCardEngines.Analyze(paper,
+                new[] { (Name: "Clockwork Maker", Quantity: 1) }).Engines.Count == 0 &&
+             EdhLabThreeCardEngines.Analyze(paper,
+                Array.Empty<(string Name, int Quantity)>()).Engines.Count == 0,
+             "Do not recommend three-card catalog combinations from just one drafted piece.");
+        var arenaThird = EdhLabThreeCardEngines.Analyze(arena, threeDraft);
+        Must(arenaThird.Engines.All(x => x.Status != "Owned missing link" &&
+             x.Producer != "Off Color Arrival" && x.Bridge != "Banned Arrival"),
+             "Arena three-card pathways must never borrow paper inventory or banned options.");
+        bool badThreeQuantity = false;
+        try
+        {
+            EdhLabThreeCardEngines.Analyze(paper,
+                new[] { (Name: "Clockwork Maker", Quantity: 0) });
+        }
+        catch (ArgumentOutOfRangeException) { badThreeQuantity = true; }
+        Must(badThreeQuantity,
+             "Invalid three-card quantities must be rejected without editing data.");
         var ownedLink = EdhLabSynergyChains.Analyze(payoffPaper,
             new[] { (Name: "Clockwork Maker", Quantity: 1) });
         Must(ownedLink.Chains.Any(x =>
