@@ -246,16 +246,21 @@ public partial class NativeDeckEditorWindow : Window
                   (summary.Shortages.Count > 6
                       ? $"\n… plus {summary.Shortages.Count - 6} more card names."
                       : "");
-            if (edhCatalog is not null)
+            if (edhDraftCommander is not null)
             {
-                var ineligible = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
-                    .Where(x => !edhCatalog.Contains(x.Name))
-                    .Select(x => x.Name).Take(5).ToArray();
-                EdhLegalityText.Text = ineligible.Length == 0
-                    ? "All drafted names are locally eligible by format and commander identity. Save runs deeper checks."
-                    : "Review ineligible / missing catalog metadata: " +
-                      string.Join(", ", ineligible) +
-                      ". Save will show warnings; no card is removed automatically.";
+                var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
+                if (edhCatalog is not null)
+                {
+                    var ineligible = entries
+                        .Where(x => !edhCatalog.Contains(x.Name))
+                        .Select(x => x.Name).Take(5).ToArray();
+                    EdhLegalityText.Text = ineligible.Length == 0
+                        ? "All drafted names are locally eligible by format and commander identity. Save runs deeper checks."
+                        : "Review ineligible / missing catalog metadata: " +
+                          string.Join(", ", ineligible) +
+                          ". Save will show warnings; no card is removed automatically.";
+                }
+                RefreshEdhBlueprint(entries);
             }
         }
         catch (Exception ex) when (ex is InvalidDataException or
@@ -263,6 +268,63 @@ public partial class NativeDeckEditorWindow : Window
         {
             DeckSummaryText.Text = "Deck draft needs review";
             DeckShortageText.Text = ex.Message;
+            if (edhDraftCommander is not null)
+            {
+                EdhBlueprintText.Text = "Correct the decklist to update role coverage.";
+                EdhFindGapButton.IsEnabled = false;
+                EdhFindGapButton.Content = "Find next role";
+            }
+        }
+    }
+
+    private void RefreshEdhBlueprint(
+        IReadOnlyList<NativeDeckEditing.Entry> entries)
+    {
+        if (edhDraftCommander is null || EdhBlueprintText is null ||
+            EdhFindGapButton is null) return;
+        if (edhCatalog is null)
+        {
+            EdhBlueprintText.Text = "Waiting for locally eligible card metadata…";
+            EdhFindGapButton.IsEnabled = false;
+            return;
+        }
+
+        var blueprint = EdhLabDeckBlueprint.Analyze(edhCatalog,
+            entries.Select(x => (x.Name, x.Quantity)));
+        EdhBlueprintText.Text = blueprint.Display;
+        var gap = blueprint.NextGap;
+        EdhFindGapButton.IsEnabled = !busy && gap is not null;
+        EdhFindGapButton.Content = gap is null
+            ? "Suggested role targets met"
+            : $"Browse {gap.Role} (suggest {gap.Shortfall} more)";
+    }
+
+    private void OnEdhFindGapClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || edhCatalog is null || edhDraftCommander is null) return;
+        try
+        {
+            var blueprint = EdhLabDeckBlueprint.Analyze(edhCatalog,
+                NativeDeckEditing.ParseMainboard(MainboardBox.Text)
+                    .Select(x => (x.Name, x.Quantity)));
+            var gap = blueprint.NextGap;
+            if (gap is null) return;
+            var choice = EdhRoleBox.Items.OfType<System.Windows.Controls.ComboBoxItem>()
+                .FirstOrDefault(x => string.Equals(x.Tag?.ToString(), gap.Role,
+                    StringComparison.OrdinalIgnoreCase));
+            if (choice is null) return;
+            EdhRoleBox.SelectedItem = choice;
+            OwnedSearchBox.Text = "";
+            EdhRecordedOnly.IsChecked = true;
+            RefreshOwnedCards();
+            StatusText.Text = $"Browsing recorded cards with a {gap.Role} hint. " +
+                "Uncheck 'Recorded in my inventory only' to include missing cards. " +
+                "Role targets are suggestions; no cards are added automatically.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException)
+        {
+            StatusText.Text = "Correct the decklist before browsing a role gap: " + ex.Message;
         }
     }
 
@@ -296,6 +358,8 @@ public partial class NativeDeckEditorWindow : Window
         {
             EdhSuggestionsStatus.Text = "Suggestions unavailable: " + ex.Message +
                 ". You can still edit a deck manually; saving runs preflight.";
+            EdhBlueprintText.Text = "Blueprint unavailable without a local catalog.";
+            EdhFindGapButton.IsEnabled = false;
         }
     }
 
