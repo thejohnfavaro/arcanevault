@@ -468,6 +468,61 @@
                                          Foreground="{DynamicResource VaultText}"
                                          BorderBrush="{DynamicResource VaultAccentBorder}"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                <Grid Margin="0,8,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="ENABLER" Foreground="{DynamicResource VaultAccent}"
+                                                   FontWeight="SemiBold" FontSize="10" Margin="0,0,0,3"/>
+                                        <Border Height="132" Background="{DynamicResource VaultPanel}"
+                                                BorderBrush="{DynamicResource VaultLine}" BorderThickness="1"
+                                                CornerRadius="5">
+                                            <Grid>
+                                                <TextBlock x:Name="EdhChainEnablerFallback"
+                                                           Text="Choose a chain" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource VaultMuted}"
+                                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                <Image x:Name="EdhChainEnablerArt" Visibility="Collapsed"
+                                                       Stretch="Uniform"/>
+                                            </Grid>
+                                        </Border>
+                                        <Button x:Name="EdhChainEnablerButton" Content="Inspect enabler"
+                                                Click="OnEdhInspectEnablerClicked" IsEnabled="False"
+                                                Padding="6,5" Margin="0,5,0,0"
+                                                Background="{DynamicResource VaultPanel}"
+                                                Foreground="{DynamicResource VaultText}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="PAYOFF" Foreground="{DynamicResource VaultAccent}"
+                                                   FontWeight="SemiBold" FontSize="10" Margin="0,0,0,3"/>
+                                        <Border Height="132" Background="{DynamicResource VaultPanel}"
+                                                BorderBrush="{DynamicResource VaultLine}" BorderThickness="1"
+                                                CornerRadius="5">
+                                            <Grid>
+                                                <TextBlock x:Name="EdhChainPayoffFallback"
+                                                           Text="Choose a chain" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource VaultMuted}"
+                                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                <Image x:Name="EdhChainPayoffArt" Visibility="Collapsed"
+                                                       Stretch="Uniform"/>
+                                            </Grid>
+                                        </Border>
+                                        <Button x:Name="EdhChainPayoffButton" Content="Inspect payoff"
+                                                Click="OnEdhInspectPayoffClicked" IsEnabled="False"
+                                                Padding="6,5" Margin="0,5,0,0"
+                                                Background="{DynamicResource VaultPanel}"
+                                                Foreground="{DynamicResource VaultText}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Button x:Name="EdhChainJumpButton" Content="Locate owned missing link in Cards"
+                                        Click="OnEdhChainJumpClicked" IsEnabled="False"
+                                        Padding="7,5" Margin="0,0,0,7"
+                                        Background="{DynamicResource VaultPanel}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        ToolTip="Browse the highlighted missing link with the usual manual deck editing flow; does not add a card."/>
                                 <TextBlock x:Name="EdhChainDetails" TextWrapping="Wrap"
                                            FontSize="11" Margin="0,7,0,0"
                                            Foreground="{DynamicResource VaultMuted}"
