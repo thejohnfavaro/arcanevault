@@ -4,6 +4,29 @@ This release makes EDH Lab workable at ordinary desktop window sizes and
 replaces *default additive* physical/Arena collection CSV/XLSX importing
 with **explicit reviewed, idempotent quantity reconciliation**.
 
+## Added
+
+- Tabbed EDH Lab workspaces, independent scrolling and resizable deck/card
+  panes; a reviewable CSV/XLSX quantity-diff dialog for paper and Arena.
+- Confirm-before-apply snapshot reconciliation with unchanged/new/adjusted/
+  explicitly removed row types, verification status and full recovery copies.
+
+## Changed
+
+- Visible physical and Arena CSV/XLSX imports now reconcile matching quantities
+  to file values instead of adding them unconditionally.
+- EDH deck-building tools are separated into Cards, Mana & Roles and Improve.
+
+## Fixed
+
+- Reimporting identical quantities no longer duplicates ownership counts.
+- Expanded EDH analysis no longer consumes the card browser's list area.
+
+## Removed
+
+- Nothing. Existing additive internal APIs and all native collection,
+  deck-library, backup and updater capabilities remain available.
+
 ## EDH Lab layout
 
 - **Cards**, **Mana & Roles**, and **Improve** tabs replace the old vertically
