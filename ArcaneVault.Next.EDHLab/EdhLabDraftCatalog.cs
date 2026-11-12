@@ -20,10 +20,20 @@ public sealed class EdhLabDraftCatalog
     }
 
     private readonly IReadOnlyList<Card> cards;
-    private EdhLabDraftCatalog(IReadOnlyList<Card> cards) => this.cards = cards;
+    private readonly HashSet<string> eligibleNames;
+    private readonly int recordedEligibleCount;
+
+    private EdhLabDraftCatalog(IReadOnlyList<Card> candidates)
+    {
+        cards = candidates.OrderByDescending(x => x.RecordedCopies > 0)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+        eligibleNames = new HashSet<string>(cards.Select(x => x.Name),
+            StringComparer.OrdinalIgnoreCase);
+        recordedEligibleCount = cards.Count(x => x.RecordedCopies > 0);
+    }
 
     public int EligibleCount => cards.Count;
-    public int RecordedEligibleCount => cards.Count(x => x.RecordedCopies > 0);
+    public int RecordedEligibleCount => recordedEligibleCount;
 
     private static IReadOnlyList<string> Roles(string type, string oracle)
     {
@@ -137,11 +147,8 @@ public sealed class EdhLabDraftCatalog
                     StringSplitOptions.RemoveEmptyEntries)
                     .Contains(selectedRole, StringComparer.OrdinalIgnoreCase)) &&
                 (text.Length == 0 || x.Name.Contains(text, StringComparison.OrdinalIgnoreCase)))
-            .OrderByDescending(x => x.RecordedCopies > 0)
-            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .Take(limit).ToArray();
     }
 
-    public bool Contains(string name) =>
-        cards.Any(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    public bool Contains(string name) => eligibleNames.Contains(name);
 }
