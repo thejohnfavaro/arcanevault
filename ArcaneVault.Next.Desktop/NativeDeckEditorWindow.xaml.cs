@@ -125,8 +125,7 @@ public partial class NativeDeckEditorWindow : Window
     }
 
     private void OnMainboardSelectionChanged(object sender,
-        System.Windows.Controls.SelectionChangedEventArgs e) =>
-        PreviewMainboardSelection();
+        RoutedEventArgs e) => PreviewMainboardSelection();
 
     private void OnMainboardGotKeyboardFocus(object sender,
         System.Windows.Input.KeyboardFocusChangedEventArgs e) =>
