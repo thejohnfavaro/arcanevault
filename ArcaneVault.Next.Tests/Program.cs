@@ -137,6 +137,7 @@ try
     MigrationPreviewChecks.Run(work);
     OfflineStagingChecks.Run(work);
     NativeBackupReaderChecks.Run(work);
+    NativeLargeCollectionChecks.Run(work);
     NativeWorkspaceChecks.Run(work);
     NativeWorkspaceSafetyChecks.Run(work);
     NativeFreshStartChecks.Run(work);
