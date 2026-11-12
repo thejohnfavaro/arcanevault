@@ -77,6 +77,12 @@ internal static class NativeDeckCoverCacheChecks
         Must(updated["Atraxa, Praetors' Voice"].Contains("b2222222",
                  StringComparison.Ordinal),
              "Catalog changes must invalidate saved commander cover URLs.");
+        var refreshedCollection = NativeDeckCoverCache.Get(
+            names, catalog, new string('B', 64), cache);
+        Must(refreshedCollection.Count == updated.Count &&
+             refreshedCollection["Atraxa, Praetors' Voice"] ==
+                 updated["Atraxa, Praetors' Voice"],
+             "A changed collection SHA must rebuild the cover cache without inventing new art.");
         Must(!Directory.GetFiles(cache, "*.tmp", SearchOption.AllDirectories).Any(),
              "No staging files should remain after cache writes.");
         Console.WriteLine("PASS: native deck cover cache (safe URLs, invalidation, fallback)");
