@@ -254,6 +254,10 @@ public static class NativeScryfallCatalogSync
                 break;
             }
         }
+        // Split cards can report costs for both choices with " // ".
+        // Their mana requirements are alternatives, not a combined spell.
+        if (manaCost.Contains(" // ", StringComparison.Ordinal))
+            manaCost = manaCost.Split(" // ", 2, StringSplitOptions.None)[0];
         if (manaCost.Length > 512) manaCost = "";
         double mv = element.TryGetProperty("cmc", out var cmc) &&
             cmc.ValueKind == JsonValueKind.Number && cmc.TryGetDouble(out var number)
