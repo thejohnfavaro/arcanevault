@@ -4,8 +4,8 @@
         xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
         Title="Arcane Vault — Native Windows" Width="1330" Height="850"
         MinWidth="965" MinHeight="655"
-        Background="{StaticResource VaultBackground}"
-        Foreground="{StaticResource VaultText}">
+        Background="{DynamicResource VaultBackground}"
+        Foreground="{DynamicResource VaultText}">
     <Window.Resources>
         <!-- All tile results are bounded to 200 offline catalog matches; never
              launch remote art requests during list scrolling. -->
@@ -18,19 +18,19 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Margin="9,3" Grid.Column="0">
                     <TextBlock Text="{Binding Name}" FontSize="12"
-                               Foreground="{StaticResource VaultText}"
+                               Foreground="{DynamicResource VaultText}"
                                TextTrimming="CharacterEllipsis"/>
                     <TextBlock Text="{Binding OwnershipLabel}" FontSize="10"
-                               Foreground="{StaticResource VaultAccent}"
+                               Foreground="{DynamicResource VaultAccent}"
                                TextTrimming="CharacterEllipsis"/>
                     <TextBlock Text="{Binding RolesLabel}" FontSize="10"
-                               Foreground="{StaticResource VaultGood}"
+                               Foreground="{DynamicResource VaultGood}"
                                TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="{Binding DisplaySetCode}" FontSize="11"
-                           Margin="5,5" Foreground="{StaticResource VaultAccent}"/>
+                           Margin="5,5" Foreground="{DynamicResource VaultAccent}"/>
                 <TextBlock Grid.Column="2" Text="{Binding DisplayCollectorNumber}" FontSize="11"
-                           Margin="5,5" Foreground="{StaticResource VaultMuted}"/>
+                           Margin="5,5" Foreground="{DynamicResource VaultMuted}"/>
             </Grid>
         </DataTemplate>
         <!-- Tile art is displayed in rows of 1–4 cards. The outer ListView
@@ -48,8 +48,8 @@
                     <DataTemplate>
                         <Border Margin="3,4" Padding="7"
                                 Height="302" CornerRadius="11"
-                                Background="{StaticResource VaultPanelRaised}"
-                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                Background="{DynamicResource VaultPanelRaised}"
+                                BorderBrush="{DynamicResource VaultAccentBorder}"
                                 BorderThickness="1"
                                 Tag="{Binding}"
                                 PreviewMouseLeftButtonDown="OnCatalogTileMouseDown"
@@ -57,12 +57,12 @@
                             <StackPanel>
                                 <Border HorizontalAlignment="Center"
                                         Width="132" Height="184"
-                                        Background="{StaticResource VaultBackground}"
-                                        BorderBrush="{StaticResource VaultLine}"
+                                        Background="{DynamicResource VaultBackground}"
+                                        BorderBrush="{DynamicResource VaultLine}"
                                         BorderThickness="1" CornerRadius="8">
                                     <Grid>
                                         <TextBlock Text="Image not cached"
-                                                   Foreground="{StaticResource VaultMuted}"
+                                                   Foreground="{DynamicResource VaultMuted}"
                                                    TextWrapping="Wrap"
                                                    TextAlignment="Center"
                                                    Margin="7" FontSize="11"
@@ -80,34 +80,34 @@
                                                 Margin="0,3,3,0" Padding="0"
                                                 FontSize="23" FontWeight="Bold"
                                                 Background="#DA17202E"
-                                                BorderBrush="{StaticResource VaultAccentBorder}"
-                                                Foreground="{StaticResource VaultWarning}"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                                Foreground="{DynamicResource VaultWarning}"
                                                 Cursor="Hand"
                                                 ToolTipService.ShowDuration="15000"/>
                                     </Grid>
                                 </Border>
                                 <TextBlock Text="{Binding Name}" FontSize="12.5"
                                            FontWeight="SemiBold"
-                                           Foreground="{StaticResource VaultText}"
+                                           Foreground="{DynamicResource VaultText}"
                                            TextWrapping="Wrap" TextAlignment="Center"
                                            MaxHeight="34" Margin="0,4,0,0"/>
                                 <TextBlock Text="{Binding RolesLabel}" FontSize="10.5"
-                                           Foreground="{StaticResource VaultGood}"
+                                           Foreground="{DynamicResource VaultGood}"
                                            TextAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
                                            ToolTip="{Binding RolesLabel}" Margin="0,3,0,0"/>
                                 <TextBlock Text="{Binding OwnershipLabel}" FontSize="10.5"
-                                           Foreground="{StaticResource VaultAccent}"
+                                           Foreground="{DynamicResource VaultAccent}"
                                            TextAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
                                            Margin="0,3,0,0"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
                                             Margin="0,7,0,0">
                                     <TextBlock Text="{Binding DisplaySetCode}" FontSize="11"
-                                               Foreground="{StaticResource VaultMuted}"/>
-                                    <TextBlock Text="  ·  #" Foreground="{StaticResource VaultMuted}"/>
+                                               Foreground="{DynamicResource VaultMuted}"/>
+                                    <TextBlock Text="  ·  #" Foreground="{DynamicResource VaultMuted}"/>
                                     <TextBlock Text="{Binding DisplayCollectorNumber}" FontSize="11"
-                                               Foreground="{StaticResource VaultMuted}"/>
+                                               Foreground="{DynamicResource VaultMuted}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -127,12 +127,12 @@
 
         <!-- The original WebView application's compact, grouped left navigation.
              All commands keep their existing event handlers and confirmation flow. -->
-        <Border Grid.Column="0" Background="{StaticResource VaultSidebar}"
-                BorderBrush="{StaticResource VaultLine}" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Background="{DynamicResource VaultSidebar}"
+                BorderBrush="{DynamicResource VaultLine}" BorderThickness="0,0,1,0">
             <DockPanel Margin="15,22,15,18">
                 <Border DockPanel.Dock="Bottom"
-                        Background="{StaticResource VaultPanel}"
-                        BorderBrush="{StaticResource VaultLine}" BorderThickness="1"
+                        Background="{DynamicResource VaultPanel}"
+                        BorderBrush="{DynamicResource VaultLine}" BorderThickness="1"
                         CornerRadius="12" Padding="13" Margin="2,18,2,0">
                     <StackPanel>
                         <TextBlock Style="{StaticResource VaultEyebrow}"
@@ -140,9 +140,9 @@
                         <TextBlock Style="{StaticResource VaultMutedText}"
                                    Margin="0,7,0,0"
                                    Text="Your inventory, deck library and recovery points stay in the native Windows workspace."/>
-                        <Border Margin="0,12,0,0" BorderBrush="{StaticResource VaultLine}"
+                        <Border Margin="0,12,0,0" BorderBrush="{DynamicResource VaultLine}"
                                 BorderThickness="0,1,0,0" Padding="0,10,0,0">
-                            <TextBlock Foreground="{StaticResource VaultGood}"
+                            <TextBlock Foreground="{DynamicResource VaultGood}"
                                        FontSize="11" Text="●  LOCAL DATABASE"/>
                         </Border>
                     </StackPanel>
@@ -153,8 +153,8 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="3,0,0,28">
                             <Border Width="43" Height="43" CornerRadius="11"
-                                    Background="{StaticResource VaultAccentSurface}"
-                                    BorderBrush="{StaticResource VaultAccentBorder}"
+                                    Background="{DynamicResource VaultAccentSurface}"
+                                    BorderBrush="{DynamicResource VaultAccentBorder}"
                                     BorderThickness="1" Margin="0,0,10,0">
                                 <Image Source="/ArcaneVault.Next.Desktop;component/Assets/ArcaneVaultIcon.png"
                                        Width="36" Height="36"
@@ -165,7 +165,7 @@
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock FontSize="21" FontWeight="Bold">
                                     <Run Text="ARCANE "/><Run Text="VAULT"
-                                            Foreground="{StaticResource VaultAccent}"/>
+                                            Foreground="{DynamicResource VaultAccent}"/>
                                 </TextBlock>
                                 <TextBlock Text="Windows · native edition"
                                            Style="{StaticResource VaultMutedText}"
@@ -205,11 +205,11 @@
                                 Style="{StaticResource VaultNavButton}"
                                 ToolTip="Browse saved card bookmarks from the legacy-compatible native collection"
                                 Margin="0,0,0,5"/>
-                        <Border BorderBrush="{StaticResource VaultLine}" BorderThickness="0,1,0,0"
+                        <Border BorderBrush="{DynamicResource VaultLine}" BorderThickness="0,1,0,0"
                                 Margin="8,9,8,16"/>
                         <TextBlock Text="TOOLS &amp; SETTINGS" Style="{StaticResource VaultEyebrow}" Margin="10,0,0,13"/>
                         <Expander x:Name="CardDatabaseSettings" Header="Card Database" IsExpanded="False"
-                                  Foreground="{StaticResource VaultText}"
+                                  Foreground="{DynamicResource VaultText}"
                                   Background="Transparent" Margin="0,0,0,10"
                                   ToolTip="Sync, open, and retain Scryfall catalog metadata">
                             <StackPanel Margin="11,9,0,4">
@@ -242,7 +242,7 @@
                             </StackPanel>
                         </Expander>
                         <Expander x:Name="DataSyncSettings" Header="Data &amp; Sync" IsExpanded="False"
-                                  Foreground="{StaticResource VaultText}"
+                                  Foreground="{DynamicResource VaultText}"
                                   Background="Transparent" Margin="0,0,0,10"
                                   ToolTip="Legacy data migration, full exports and recovery">
                             <StackPanel Margin="11,9,0,4">
@@ -275,7 +275,7 @@
                             </StackPanel>
                         </Expander>
                         <Expander x:Name="NativeUpdatesSettings" Header="Native Updates" IsExpanded="False"
-                                  Foreground="{StaticResource VaultText}"
+                                  Foreground="{DynamicResource VaultText}"
                                   Background="Transparent" Margin="0,0,0,10"
                                   ToolTip="Check for verified side-by-side native Windows releases">
                             <StackPanel Margin="11,9,0,4">
@@ -291,7 +291,7 @@
                             </StackPanel>
                         </Expander>
                         <Expander x:Name="GeneralOptionsSettings" Header="Options" IsExpanded="False"
-                                  Foreground="{StaticResource VaultText}"
+                                  Foreground="{DynamicResource VaultText}"
                                   Background="Transparent" Margin="0,0,0,10"
                                   ToolTip="Collection reset and local application settings">
                             <StackPanel Margin="11,9,0,4">
@@ -336,22 +336,22 @@
                     <TextBlock Text="THE ARCHIVE" Style="{StaticResource VaultEyebrow}"
                                Margin="0,0,0,7"/>
                     <TextBlock Text="Card Catalog" FontSize="31"
-                               FontWeight="Bold" Foreground="{StaticResource VaultText}"/>
+                               FontWeight="Bold" Foreground="{DynamicResource VaultText}"/>
                     <TextBlock Text="Find cards, explore printings, and manage your own vault."
                                Style="{StaticResource VaultMutedText}" Margin="0,5,0,0"/>
                 </StackPanel>
-                <Border Grid.Column="1" Background="{StaticResource VaultAccentSurface}"
-                        BorderBrush="{StaticResource VaultAccentBorder}" BorderThickness="1"
+                <Border Grid.Column="1" Background="{DynamicResource VaultAccentSurface}"
+                        BorderBrush="{DynamicResource VaultAccentBorder}" BorderThickness="1"
                         CornerRadius="18" Padding="13,7"
                         VerticalAlignment="Top" Margin="10,6,0,0">
                     <TextBlock Text="●  NATIVE WINDOWS PREVIEW"
                                FontSize="10.5" FontWeight="SemiBold"
-                               Foreground="{StaticResource VaultAccent}"/>
+                               Foreground="{DynamicResource VaultAccent}"/>
                 </Border>
             </Grid>
 
             <Border Grid.Row="1" CornerRadius="15" Padding="24,20"
-                    BorderBrush="{StaticResource VaultAccentBorder}"
+                    BorderBrush="{DynamicResource VaultAccentBorder}"
                     BorderThickness="1" Margin="0,0,0,20">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.9">
@@ -398,9 +398,9 @@
                                  ToolTip="Search catalog names by prefix, with up to 200 printings per query"
                                  FontSize="15" Height="44"
                                  Padding="14,7"
-                                 Background="{StaticResource VaultPanelRaised}"
-                                 Foreground="{StaticResource VaultText}"
-                                 BorderBrush="{StaticResource VaultLine}"/>
+                                 Background="{DynamicResource VaultPanelRaised}"
+                                 Foreground="{DynamicResource VaultText}"
+                                 BorderBrush="{DynamicResource VaultLine}"/>
                         <WrapPanel Margin="0,13,0,4">
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="SET CODE" Style="{StaticResource VaultEyebrow}"
@@ -408,8 +408,8 @@
                                 <TextBox x:Name="SetFilterBox" Width="90" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
                                          ToolTip="Exact set abbreviation (e.g. MH3, CMM)"
-                                         Padding="7,4" Background="{StaticResource VaultPanelRaised}"
-                                         Foreground="{StaticResource VaultText}"/>
+                                         Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                         Foreground="{DynamicResource VaultText}"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="RARITY" Style="{StaticResource VaultEyebrow}"
@@ -417,8 +417,8 @@
                                 <ComboBox x:Name="RarityFilterBox" Width="135" Height="36"
                                           SelectedIndex="0"
                                           SelectionChanged="OnCatalogFilterChanged"
-                                          Background="{StaticResource VaultPanelRaised}"
-                                          Foreground="{StaticResource VaultText}">
+                                          Background="{DynamicResource VaultPanelRaised}"
+                                          Foreground="{DynamicResource VaultText}">
                                     <ComboBoxItem Content="All rarities" Tag=""/>
                                     <ComboBoxItem Content="Common" Tag="common"/>
                                     <ComboBoxItem Content="Uncommon" Tag="uncommon"/>
@@ -462,12 +462,12 @@
                                 <TextBox x:Name="TypeFilterBox" Width="163" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
                                          ToolTip="Filter oracle card type line: Creature, Enchantment, Wizard, etc."
-                                         Padding="7,4" Background="{StaticResource VaultPanelRaised}"
-                                         Foreground="{StaticResource VaultText}"/>
+                                         Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                         Foreground="{DynamicResource VaultText}"/>
                             </StackPanel>
                             <CheckBox x:Name="ArenaOnlyBox" Content="On Arena"
                                       VerticalAlignment="Bottom" Margin="0,0,13,12"
-                                      Foreground="{StaticResource VaultText}"
+                                      Foreground="{DynamicResource VaultText}"
                                       Checked="OnCatalogFilterChanged"
                                       Unchecked="OnCatalogFilterChanged"
                                       ToolTip="Only printings flagged by Scryfall as available in MTG Arena"/>
@@ -478,8 +478,8 @@
                                 <ComboBox x:Name="OwnershipFilterBox" Width="227" Height="36"
                                           SelectedIndex="1"
                                           SelectionChanged="OnCatalogFilterChanged"
-                                          Background="{StaticResource VaultPanelRaised}"
-                                          Foreground="{StaticResource VaultText}"
+                                          Background="{DynamicResource VaultPanelRaised}"
+                                          Foreground="{DynamicResource VaultText}"
                                           ToolTip="Physical requires matching exact printing ID; Arena uses card names">
                                     <ComboBoxItem Content="All printings"/>
                                     <ComboBoxItem Content="Owned physical printing"/>
@@ -514,8 +514,8 @@
                             <ComboBox x:Name="ColorMatchBox" SelectedIndex="0"
                                       SelectionChanged="OnCatalogFilterChanged"
                                       Width="127" Height="28" Margin="0,0,0,6"
-                                      Background="{StaticResource VaultPanelRaised}"
-                                      Foreground="{StaticResource VaultText}"
+                                      Background="{DynamicResource VaultPanelRaised}"
+                                      Foreground="{DynamicResource VaultText}"
                                       ToolTip="Includes all: W+U shows Azorius and more colors; Exact: only WU">
                                 <ComboBoxItem Content="Contains all"/>
                                 <ComboBoxItem Content="Exact colors"/>
@@ -529,8 +529,8 @@
                                    Margin="0,12,0,5"/>
                         <ComboBox x:Name="CatalogViewMode" SelectedIndex="2"
                                   SelectionChanged="OnCatalogViewModeChanged"
-                                  Background="{StaticResource VaultPanelRaised}"
-                                  Foreground="{StaticResource VaultText}"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  Foreground="{DynamicResource VaultText}"
                                   Padding="6,4" Height="32"
                                   ToolTip="Switch between detailed, dense and tile layouts">
                             <ComboBoxItem Content="Detailed list"/>
@@ -542,8 +542,8 @@
             </Border>
 
             <Border Grid.Row="3"
-                    Background="{StaticResource VaultPanel}"
-                    BorderBrush="{StaticResource VaultLine}"
+                    Background="{DynamicResource VaultPanel}"
+                    BorderBrush="{DynamicResource VaultLine}"
                     BorderThickness="1" CornerRadius="14"
                     ClipToBounds="True">
                 <Grid>
@@ -551,7 +551,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Grid x:Name="CatalogColumnHeaders" Grid.Row="0" Background="{StaticResource VaultPanelRaised}"
+                    <Grid x:Name="CatalogColumnHeaders" Grid.Row="0" Background="{DynamicResource VaultPanelRaised}"
                           Height="45">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -560,22 +560,22 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="CARD NAME" Grid.Column="0"
                                    Style="{StaticResource VaultEyebrow}"
-                                   Foreground="{StaticResource VaultMuted}"
+                                   Foreground="{DynamicResource VaultMuted}"
                                    Margin="18,0,0,0" VerticalAlignment="Center"/>
                         <TextBlock Text="SET" Grid.Column="1"
                                    Style="{StaticResource VaultEyebrow}"
-                                   Foreground="{StaticResource VaultMuted}"
+                                   Foreground="{DynamicResource VaultMuted}"
                                    VerticalAlignment="Center"/>
                         <TextBlock Text="COLLECTOR #" Grid.Column="2"
                                    Style="{StaticResource VaultEyebrow}"
-                                   Foreground="{StaticResource VaultMuted}"
+                                   Foreground="{DynamicResource VaultMuted}"
                                    VerticalAlignment="Center"/>
                     </Grid>
                     <ListView Grid.Row="1" x:Name="CardsList"
                               SizeChanged="OnCatalogListSizeChanged"
                               HorizontalContentAlignment="Stretch"
                               MouseDoubleClick="OnCatalogCardRowDoubleClick"
-                              Background="{StaticResource VaultPanel}"
+                              Background="{DynamicResource VaultPanel}"
                               BorderThickness="0"
                               ScrollViewer.CanContentScroll="True"
                               VirtualizingStackPanel.IsVirtualizing="True"
@@ -590,7 +590,7 @@
                             <DataTemplate>
                                 <Border Margin="3,2" Padding="12,12"
                                         CornerRadius="8" BorderThickness="0,0,0,1"
-                                        BorderBrush="{StaticResource VaultLine}">
+                                        BorderBrush="{DynamicResource VaultLine}">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -601,30 +601,30 @@
                                             <TextBlock Text="{Binding Name}"
                                                        FontSize="14" FontWeight="SemiBold"
                                                        TextTrimming="CharacterEllipsis"
-                                                       Foreground="{StaticResource VaultText}"/>
+                                                       Foreground="{DynamicResource VaultText}"/>
                                             <TextBlock Text="{Binding OwnershipLabel}"
-                                                       Foreground="{StaticResource VaultAccent}"
+                                                       Foreground="{DynamicResource VaultAccent}"
                                                        FontSize="11" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding RolesLabel}"
-                                                       Foreground="{StaticResource VaultGood}"
+                                                       Foreground="{DynamicResource VaultGood}"
                                                        FontSize="11" TextTrimming="CharacterEllipsis"
                                                        ToolTip="Derived from Scryfall Oracle text and type"/>
                                         </StackPanel>
                                         <Border Grid.Column="1" CornerRadius="11"
                                                 HorizontalAlignment="Left"
                                                 Padding="10,5"
-                                                Background="{StaticResource VaultAccentSurface}"
-                                                BorderBrush="{StaticResource VaultAccentBorder}"
+                                                Background="{DynamicResource VaultAccentSurface}"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"
                                                 BorderThickness="1">
                                             <TextBlock Text="{Binding DisplaySetCode}" FontSize="11"
-                                                       Foreground="{StaticResource VaultAccent}"
+                                                       Foreground="{DynamicResource VaultAccent}"
                                                        FontWeight="SemiBold"/>
                                         </Border>
                                         <TextBlock Text="{Binding DisplayCollectorNumber}"
                                                    Grid.Column="2"
                                                    VerticalAlignment="Center"
                                                    FontSize="12"
-                                                   Foreground="{StaticResource VaultMuted}"/>
+                                                   Foreground="{DynamicResource VaultMuted}"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -634,23 +634,23 @@
             </Border>
 
             <Border Grid.Row="4" Margin="0,14,0,0"
-                    BorderBrush="{StaticResource VaultLine}"
+                    BorderBrush="{DynamicResource VaultLine}"
                     BorderThickness="0,1,0,0" Padding="4,11,4,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="●  WORKSPACE" Foreground="{StaticResource VaultGood}"
+                    <TextBlock Grid.Column="0" Text="●  WORKSPACE" Foreground="{DynamicResource VaultGood}"
                                FontWeight="SemiBold" FontSize="11"
                                Margin="0,0,20,0" VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock x:Name="ModeStatus"
-                                   Foreground="{StaticResource VaultMuted}"
+                                   Foreground="{DynamicResource VaultMuted}"
                                    FontSize="11.5" TextWrapping="Wrap"
                                    Text="A new vault can start empty, then add physical and Arena cards using the native collection."/>
                         <TextBlock x:Name="FilterStatus" Margin="0,3,0,0"
-                                   Foreground="{StaticResource VaultMuted}"
+                                   Foreground="{DynamicResource VaultMuted}"
                                    FontSize="11" TextWrapping="Wrap"
                                    Text="No catalog loaded"/>
                     </StackPanel>
