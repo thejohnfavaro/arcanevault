@@ -117,6 +117,7 @@ internal static class EdhLabDraftChecks
              arena.Search("island", false).Single().RecordedCopies == 4,
              "Unowned cards must appear as missing; ownership is name-only and format-separated.");
         Must(paper.Search("", false, "Ramp").Any(x => x.Name == "Sol Ring") &&
+             !paper.Search("", false, "Ramp").Any(x => x.Name == "Island") &&
              paper.Search("", false, "Board Wipe").Any(x => x.Name == "Board Clear") &&
              paper.Search("", false, "Tutor").Any(x => x.Name == "Mystic Tutor") &&
              paper.Search("", false, "Removal").Any(x => x.Name == "Swords to Plowshares"),
