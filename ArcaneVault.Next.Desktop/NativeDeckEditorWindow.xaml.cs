@@ -21,6 +21,8 @@ public partial class NativeDeckEditorWindow : Window
     private readonly EdhLabFormat? edhLabFormat;
     private readonly string? edhLabColors;
     private EdhLabDraftCatalog? edhCatalog;
+    private EdhLabDeckOptimizer.Report? lastOptimization;
+    private bool browsingOptimizationCandidates;
     private bool applyingManaBalance;
     private int draftVersion;
     private int previewVersion;
@@ -41,6 +43,21 @@ public partial class NativeDeckEditorWindow : Window
             return;
         if (edhLabCommander is not null)
         {
+            if (browsingOptimizationCandidates && lastOptimization is { CanBrowse: true })
+            {
+                OwnedCardsList.ItemsSource = lastOptimization.OwnedCandidates
+                    .Select(candidate =>
+                    {
+                        var recorded = edhCatalog?.Find(candidate.Name);
+                        var fit = edhCatalog?.SynergyFor(candidate.Name);
+                        return new OwnedDisplay(candidate.Name,
+                            recorded?.RecordedCopies ?? 0,
+                            candidate.RoleHints, LabSuggestion: true,
+                            SynergyExplanation: fit?.Why ?? "",
+                            MechanicMatch: fit?.Matches == true);
+                    }).ToArray();
+                return;
+            }
             OwnedCardsList.ItemsSource = edhCatalog?.Search(
                 OwnedSearchBox.Text, EdhRecordedOnly.IsChecked == true,
                 EdhRoleBox.SelectedItem is System.Windows.Controls.ComboBoxItem role
@@ -380,6 +397,50 @@ public partial class NativeDeckEditorWindow : Window
             edhCatalog, entries.Select(x => (x.Name, x.Quantity)), plan);
         EdhCurveHeadline.Text = report.Headline;
         EdhCurveDetails.Text = report.Display;
+        lastOptimization = EdhLabDeckOptimizer.Analyze(
+            edhCatalog, entries.Select(x => (x.Name, x.Quantity)));
+        EdhOptimizationHeadline.Text = lastOptimization.Headline;
+        EdhOptimizationDetails.Text = lastOptimization.Display;
+        EdhBrowseImprovementsButton.IsEnabled = !busy && lastOptimization.CanBrowse;
+        if (browsingOptimizationCandidates)
+        {
+            if (!lastOptimization.CanBrowse)
+                ResetOptimizationBrowsing();
+            RefreshOwnedCards();
+        }
+    }
+
+    private void ResetOptimizationBrowsing()
+    {
+        browsingOptimizationCandidates = false;
+        if (EdhBrowseImprovementsButton is not null)
+            EdhBrowseImprovementsButton.Content = "Browse owned early-play candidates";
+    }
+
+    private void OnEdhBrowseImprovementsClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || edhCatalog is null || lastOptimization is null)
+            return;
+        if (browsingOptimizationCandidates)
+        {
+            ResetOptimizationBrowsing();
+            RefreshOwnedCards();
+            StatusText.Text = "Showing normal EDH Lab catalog search again.";
+            return;
+        }
+        if (!lastOptimization.CanBrowse)
+            return;
+        // Prepare the standard picker, then override only its visible items.
+        // Existing add/remove and protected native save paths are unchanged.
+        EdhRecordedOnly.IsChecked = true;
+        EdhRoleBox.SelectedIndex = 0;
+        EdhSynergyOnly.IsChecked = false;
+        OwnedSearchBox.Text = "";
+        browsingOptimizationCandidates = true;
+        EdhBrowseImprovementsButton.Content = "Return to full card catalog";
+        RefreshOwnedCards();
+        StatusText.Text = "Browsing unused, recorded, locally legal MV 0–2 cards. " +
+            "Select a card for its preview; adding or replacing cards remains manual.";
     }
 
     private void RefreshDraftSummary()
@@ -437,6 +498,11 @@ public partial class NativeDeckEditorWindow : Window
                 EdhManaDetails.Text = ex.Message;
                 EdhCurveHeadline.Text = "Curve: correct the decklist to continue";
                 EdhCurveDetails.Text = "No draw estimates are available for invalid draft text.";
+                ResetOptimizationBrowsing();
+                lastOptimization = null;
+                EdhOptimizationHeadline.Text = "Optimization: correct the decklist";
+                EdhOptimizationDetails.Text = "Recommendations are paused until every draft line is valid.";
+                EdhBrowseImprovementsButton.IsEnabled = false;
                 EdhBalanceNowButton.IsEnabled = false;
             }
         }
@@ -499,7 +565,10 @@ public partial class NativeDeckEditorWindow : Window
     private void OnEdhSuggestionsChanged(object sender, RoutedEventArgs e)
     {
         if (edhLabCommander is not null)
+        {
+            ResetOptimizationBrowsing();
             RefreshOwnedCards();
+        }
     }
 
     private async Task LoadEdhSuggestionsAsync()
@@ -544,6 +613,11 @@ public partial class NativeDeckEditorWindow : Window
             EdhManaDetails.Text = "No automatic land changes were made.";
             EdhCurveHeadline.Text = "Curve: catalog unavailable";
             EdhCurveDetails.Text = "Refresh Scryfall metadata to evaluate your draft.";
+            ResetOptimizationBrowsing();
+            lastOptimization = null;
+            EdhOptimizationHeadline.Text = "Optimization: catalog unavailable";
+            EdhOptimizationDetails.Text = "Refresh local Scryfall metadata; no deck changes were made.";
+            EdhBrowseImprovementsButton.IsEnabled = false;
             EdhBalanceNowButton.IsEnabled = false;
         }
     }
@@ -551,6 +625,8 @@ public partial class NativeDeckEditorWindow : Window
     private void OnOwnedSearchChanged(object sender,
         System.Windows.Controls.TextChangedEventArgs e)
     {
+        if (edhLabCommander is not null && browsingOptimizationCandidates)
+            ResetOptimizationBrowsing();
         if (OwnedSearchBox?.Text.Length > 255)
         {
             StatusText.Text = "Owned-card search must be 255 characters or fewer.";
