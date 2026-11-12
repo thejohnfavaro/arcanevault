@@ -29,7 +29,9 @@ public partial class NativeCollectionWorkspace : UserControl
     private readonly string? nativePath;
     private readonly string? expectedBackupSha;
     private readonly Func<Task>? reopenNative;
-    private readonly IReadOnlyList<NativeDeckEditing.DeckRow> deckRows;
+    private IReadOnlyList<NativeDeckEditing.DeckRow> deckRows;
+    private bool deckCoversLoading;
+    private bool deckCoversReady;
     private bool deckBusy;
     private GridView? physicalDetailedView;
     private bool excelBusy;
@@ -94,7 +96,11 @@ public partial class NativeCollectionWorkspace : UserControl
             setQueryVersion++;
             valuationVersion++;
         };
-        Loaded += async (_, _) => await CalculateValuationAsync();
+        Loaded += async (_, _) =>
+        {
+            _ = LoadDeckCoversAsync();
+            await CalculateValuationAsync();
+        };
         TotalsText.Text =
             $"Physical: {backup.PhysicalCopies:N0} copies · {backup.PhysicalCards.Count:N0} lines · " +
             $"{backup.DistinctPhysicalNames:N0} names  |  " +
@@ -514,6 +520,50 @@ public partial class NativeCollectionWorkspace : UserControl
         }
     }
 
+    private async Task LoadDeckCoversAsync()
+    {
+        if (closing || deckCoversLoading || deckCoversReady ||
+            string.IsNullOrWhiteSpace(catalogPath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha)) return;
+        string[] commanders = deckRows
+            .Where(x => x.Format.Equals("Commander", StringComparison.OrdinalIgnoreCase) ||
+                        x.Format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Commander)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (commanders.Length == 0) { deckCoversReady = true; return; }
+        deckCoversLoading = true;
+        try
+        {
+            // Only local metadata is read here; the virtualized cover images
+            // fetch bytes through the existing throttled on-screen image cache.
+            var covers = await Task.Run(() => NativeDeckCoverCache.Get(
+                commanders, catalogPath!, expectedBackupSha!));
+            if (closing) return;
+            deckRows = deckRows.Select(x =>
+            {
+                bool commanderFormat = x.Format.Equals("Commander",
+                    StringComparison.OrdinalIgnoreCase) ||
+                    x.Format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase);
+                return commanderFormat && covers.TryGetValue(x.Commander, out var url)
+                    ? x with { CoverArtworkUrl = url }
+                    : x;
+            }).ToArray();
+            deckCoversReady = true;
+            RefreshDeckRows();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or
+            UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or
+            ArgumentException)
+        {
+            if (!closing)
+                DeckLibraryStatus.Text = "Saved decks are available, but commander cover " +
+                    "art could not be loaded: " + ex.Message;
+        }
+        finally { deckCoversLoading = false; }
+    }
+
     private void OnDeckFilterChanged(object sender, RoutedEventArgs e) => RefreshDeckRows();
 
     private void RefreshDeckRows()
@@ -532,8 +582,16 @@ public partial class NativeCollectionWorkspace : UserControl
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         DeckLibraryList.ItemsSource = filtered;
-        if (selected is not null && filtered.Contains(selected))
-            DeckLibraryList.SelectedItem = selected;
+        // Applying asynchronous cached cover metadata creates new display
+        // record instances. Keep the deck selection by stable saved identity.
+        if (selected is not null)
+        {
+            var current = filtered.FirstOrDefault(x =>
+                x.Ordinal == selected.Ordinal &&
+                x.SourceSha256.Equals(selected.SourceSha256,
+                    StringComparison.OrdinalIgnoreCase));
+            if (current is not null) DeckLibraryList.SelectedItem = current;
+        }
     }
 
     private void OnDeckSelected(object sender, SelectionChangedEventArgs e)

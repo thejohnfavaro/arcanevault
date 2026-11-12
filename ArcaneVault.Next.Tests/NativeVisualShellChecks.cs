@@ -80,6 +80,54 @@ internal static class NativeVisualShellChecks
         }
 
         string main = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
+
+        // Administrative functions remain reachable but do not occupy the
+        // main workspace navigation. Keep handlers and IDs in their groups.
+        var shell = XDocument.Parse(main);
+        var groups = shell.Descendants()
+            .Where(e => e.Name.LocalName == "Expander").ToArray();
+        foreach (var category in new[] {
+            (Name: "CardDatabaseSettings", Header: "Card Database",
+                Buttons: new[] { "SyncCatalogButton", "CancelCatalogButton",
+                    "OpenCatalogButton", "SaveNativeCatalogButton" }),
+            (Name: "DataSyncSettings", Header: "Data & Sync",
+                Buttons: new[] { "MigrateLegacyButton", "ImportNativeButton",
+                    "ExportFullBackupButton", "RestoreRecoveryButton",
+                    "CollectionBackupButton" }),
+            (Name: "NativeUpdatesSettings", Header: "Native Updates",
+                Buttons: new[] { "CheckNativeUpdatesButton" }),
+            (Name: "GeneralOptionsSettings", Header: "Options",
+                Buttons: new[] { "StartFreshButton" })
+        })
+        {
+            var group = groups.SingleOrDefault(e =>
+                e.Attribute(XName.Get("Name", XamlNs))?.Value == category.Name);
+            Must(group is not null &&
+                 group.Attribute("Header")?.Value == category.Header &&
+                 group.Attribute("IsExpanded")?.Value == "False",
+                "Collapsible sidebar category missing: " + category.Name);
+            foreach (string name in category.Buttons)
+                Must(group!.Descendants().Count(e =>
+                    e.Attribute(XName.Get("Name", XamlNs))?.Value == name) == 1,
+                    "Existing command missing from settings category: " + name);
+        }
+        foreach (var navigation in new[] {
+            "CatalogNavigationButton", "OpenNativeButton",
+            "DeckLibraryNavigationButton", "SetProgressNavigationButton"
+        })
+            Must(!groups.Any(e => e.Descendants().Any(d =>
+                d.Attribute(XName.Get("Name", XamlNs))?.Value == navigation)),
+                "Core workspace navigation must stay outside collapsed categories.");
+
+        string workspaceXaml = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
+        Must(workspaceXaml.Contains("ArtUrl=\"{Binding CoverArtworkUrl}\"",
+                 StringComparison.Ordinal) &&
+             workspaceXaml.Contains("DecodeWidth=\"220\"", StringComparison.Ordinal) &&
+             workspaceXaml.Contains("VirtualizationMode=\"Recycling\"", StringComparison.Ordinal),
+             "Deck covers must use the existing virtualized, cached card art viewer.");
+
+
         string collection = File.ReadAllText(Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
         string backupPreview = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWindow.xaml"));

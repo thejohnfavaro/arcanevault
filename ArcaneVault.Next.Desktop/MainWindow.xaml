@@ -190,83 +190,104 @@
                                 Style="{StaticResource VaultNavButton}"
                                 ToolTip="Browse saved card bookmarks from the legacy-compatible native collection"
                                 Margin="0,0,0,5"/>
-                        <Button x:Name="StartFreshButton"
-                                Content="＋   Start Fresh Collection"
-                                Click="OnStartFreshClicked"
-                                Style="{StaticResource VaultNavButton}"
-                                ToolTip="Start with zero ownership; keep a recovery point if a collection exists"
-                                Margin="0,0,0,5"/>
-
                         <Border BorderBrush="{StaticResource VaultLine}" BorderThickness="0,1,0,0"
-                                Margin="8,17,8,19"/>
-                        <TextBlock Text="CARD DATABASE" Style="{StaticResource VaultEyebrow}"
-                                   Margin="10,0,0,10"/>
-                        <Button x:Name="SyncCatalogButton"
-                                Content="⟳   Sync Scryfall Catalog"
-                                Click="OnSyncCatalogClicked"
-                                Style="{StaticResource VaultNavPrimary}"
-                                ToolTip="Download or refresh official Scryfall bulk printing data"
-                                Margin="0,0,0,5"/>
-                        <Button x:Name="CancelCatalogButton"
-                                Content="×   Cancel Catalog Sync"
-                                Click="OnCancelCatalogClicked" IsEnabled="False"
-                                Style="{StaticResource VaultDangerButton}"
-                                Margin="0,0,0,6"/>
-                        <Button x:Name="OpenCatalogButton"
-                                Content="◫   Open Local Catalog"
-                                Click="OnOpenCatalogClicked"
-                                Style="{StaticResource VaultNavButton}"
-                                ToolTip="Open an existing catalog using a private SQLite snapshot"
-                                Margin="0,0,0,5"/>
-                        <Button x:Name="SaveNativeCatalogButton"
-                                Content="↓   Keep Catalog Natively"
-                                Click="OnSaveNativeCatalogClicked" IsEnabled="False"
-                                Style="{StaticResource VaultNavButton}"
-                                Margin="0,0,0,5"/>
-                        <Button x:Name="SyntheticButton" Visibility="Collapsed"
-                                Content="Use synthetic cards"
-                                Click="OnSyntheticClicked"
-                                Style="{StaticResource VaultNavButton}"/>
-
-                        <Border BorderBrush="{StaticResource VaultLine}" BorderThickness="0,1,0,0"
-                                Margin="8,17,8,19"/>
-                        <TextBlock Text="DATA &amp; SYNC" Style="{StaticResource VaultEyebrow}"
-                                   Margin="10,0,0,10"/>
-                        <Button x:Name="MigrateLegacyButton"
-                                Content="⇄   Inspect / Refresh Old Data"
-                                Click="OnMigrateLegacyClicked"
-                                Style="{StaticResource VaultNavButton}"
-                                ToolTip="Import or compare against the installed legacy app without altering its data"
-                                Margin="0,0,0,5"/>
-                        <Button x:Name="ImportNativeButton"
-                                Content="↓   Import Full Backup"
-                                Click="OnImportNativeClicked"
-                                Style="{StaticResource VaultNavButton}"
-                                Margin="0,0,0,5"/>
-                        <Button x:Name="ExportFullBackupButton"
-                                Content="↑   Export Full Backup"
-                                Click="OnExportFullBackupClicked" IsEnabled="False"
-                                Style="{StaticResource VaultNavButton}"
-                                Margin="0,0,0,5"/>
-                        <Button x:Name="RestoreRecoveryButton"
-                                Content="↶   Restore Recovery Point"
-                                Click="OnRestoreRecoveryClicked" IsEnabled="False"
-                                Style="{StaticResource VaultNavButton}"
-                                Margin="0,0,0,5"/>
-                        <Button x:Name="CollectionBackupButton"
-                                Content="◷   Preview External Backup"
-                                Click="OnCollectionBackupClicked"
-                                Style="{StaticResource VaultNavButton}"
-                                Margin="0,0,0,5"/>
-                        <Button x:Name="CheckNativeUpdatesButton"
-                                Content="⬆   Check Native Updates"
-                                Click="OnCheckNativeUpdatesClicked"
-                                Style="{StaticResource VaultNavPrimary}"
-                                ToolTip="Find a newer native preview release, verify its checksum, and install side-by-side"
-                                Margin="0,12,0,5"/>
-                        <TextBlock x:Name="NativeVersionLabel" 
-                                   Style="{StaticResource VaultMutedText}"
-                                   Text="Native preview version" Margin="10,2,0,5"/>
+                                Margin="8,9,8,16"/>
+                        <TextBlock Text="TOOLS &amp; SETTINGS" Style="{StaticResource VaultEyebrow}" Margin="10,0,0,13"/>
+                        <Expander x:Name="CardDatabaseSettings" Header="Card Database" IsExpanded="False"
+                                  Foreground="{StaticResource VaultText}"
+                                  Background="Transparent" Margin="0,0,0,10"
+                                  ToolTip="Sync, open, and retain Scryfall catalog metadata">
+                            <StackPanel Margin="11,9,0,4">
+                                <Button x:Name="SyncCatalogButton"
+                                    Content="⟳   Sync Scryfall Catalog"
+                                    Click="OnSyncCatalogClicked"
+                                    Style="{StaticResource VaultNavPrimary}"
+                                    ToolTip="Download or refresh official Scryfall bulk printing data"
+                                    Margin="0,0,0,5"/>
+                                <Button x:Name="CancelCatalogButton"
+                                    Content="×   Cancel Catalog Sync"
+                                    Click="OnCancelCatalogClicked" IsEnabled="False"
+                                    Style="{StaticResource VaultDangerButton}"
+                                    Margin="0,0,0,6"/>
+                                <Button x:Name="OpenCatalogButton"
+                                    Content="◫   Open Local Catalog"
+                                    Click="OnOpenCatalogClicked"
+                                    Style="{StaticResource VaultNavButton}"
+                                    ToolTip="Open an existing catalog using a private SQLite snapshot"
+                                    Margin="0,0,0,5"/>
+                                <Button x:Name="SaveNativeCatalogButton"
+                                    Content="↓   Keep Catalog Natively"
+                                    Click="OnSaveNativeCatalogClicked" IsEnabled="False"
+                                    Style="{StaticResource VaultNavButton}"
+                                    Margin="0,0,0,5"/>
+                                <Button x:Name="SyntheticButton" Visibility="Collapsed"
+                                    Content="Use synthetic cards"
+                                    Click="OnSyntheticClicked"
+                                    Style="{StaticResource VaultNavButton}"/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander x:Name="DataSyncSettings" Header="Data &amp; Sync" IsExpanded="False"
+                                  Foreground="{StaticResource VaultText}"
+                                  Background="Transparent" Margin="0,0,0,10"
+                                  ToolTip="Legacy data migration, full exports and recovery">
+                            <StackPanel Margin="11,9,0,4">
+                                <Button x:Name="MigrateLegacyButton"
+                                    Content="⇄   Inspect / Refresh Old Data"
+                                    Click="OnMigrateLegacyClicked"
+                                    Style="{StaticResource VaultNavButton}"
+                                    ToolTip="Import or compare against the installed legacy app without altering its data"
+                                    Margin="0,0,0,5"/>
+                                <Button x:Name="ImportNativeButton"
+                                    Content="↓   Import Full Backup"
+                                    Click="OnImportNativeClicked"
+                                    Style="{StaticResource VaultNavButton}"
+                                    Margin="0,0,0,5"/>
+                                <Button x:Name="ExportFullBackupButton"
+                                    Content="↑   Export Full Backup"
+                                    Click="OnExportFullBackupClicked" IsEnabled="False"
+                                    Style="{StaticResource VaultNavButton}"
+                                    Margin="0,0,0,5"/>
+                                <Button x:Name="RestoreRecoveryButton"
+                                    Content="↶   Restore Recovery Point"
+                                    Click="OnRestoreRecoveryClicked" IsEnabled="False"
+                                    Style="{StaticResource VaultNavButton}"
+                                    Margin="0,0,0,5"/>
+                                <Button x:Name="CollectionBackupButton"
+                                    Content="◷   Preview External Backup"
+                                    Click="OnCollectionBackupClicked"
+                                    Style="{StaticResource VaultNavButton}"
+                                    Margin="0,0,0,5"/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander x:Name="NativeUpdatesSettings" Header="Native Updates" IsExpanded="False"
+                                  Foreground="{StaticResource VaultText}"
+                                  Background="Transparent" Margin="0,0,0,10"
+                                  ToolTip="Check for verified side-by-side native Windows releases">
+                            <StackPanel Margin="11,9,0,4">
+                                <Button x:Name="CheckNativeUpdatesButton"
+                                    Content="⬆   Check Native Updates"
+                                    Click="OnCheckNativeUpdatesClicked"
+                                    Style="{StaticResource VaultNavPrimary}"
+                                    ToolTip="Find a newer native preview release, verify its checksum, and install side-by-side"
+                                    Margin="0,12,0,5"/>
+                                <TextBlock x:Name="NativeVersionLabel"
+                                    Style="{StaticResource VaultMutedText}"
+                                    Text="Native preview version" Margin="10,2,0,5"/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander x:Name="GeneralOptionsSettings" Header="Options" IsExpanded="False"
+                                  Foreground="{StaticResource VaultText}"
+                                  Background="Transparent" Margin="0,0,0,10"
+                                  ToolTip="Collection reset and local application settings">
+                            <StackPanel Margin="11,9,0,4">
+                                <Button x:Name="StartFreshButton"
+                                    Content="＋   Start Fresh Collection"
+                                    Click="OnStartFreshClicked"
+                                    Style="{StaticResource VaultNavButton}"
+                                    ToolTip="Start with zero ownership; keep a recovery point if a collection exists"
+                                    Margin="0,0,0,5"/>
+                            </StackPanel>
+                        </Expander>
                         <Button x:Name="EdhLabButton"
                                 Content="EDH Lab — Commanders" Visibility="Collapsed"
                                 Click="OnEdhLabClicked" IsEnabled="False"

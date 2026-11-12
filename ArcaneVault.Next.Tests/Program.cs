@@ -148,6 +148,8 @@ try
     await NativeScryfallCatalogSyncChecks.RunAsync(work);
     NativeDeckEditingChecks.Run(work);
     NativeDeckOwnedPickerChecks.Run();
+    NativeDeckLibraryCacheChecks.Run(work);
+    NativeDeckCoverCacheChecks.Run(work);
     NativeDeckAnalyticsChecks.Run(work);
     NativeDeckPreflightChecks.Run(work);
     NativeDeckInterchangeChecks.Run(work);

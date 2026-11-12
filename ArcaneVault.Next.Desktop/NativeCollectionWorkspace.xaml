@@ -371,8 +371,9 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="156"/>
                                         </Grid.ColumnDefinitions>
-                                        <!-- Lightweight deck-box cover visual; no image request
-                                             during virtualized deck-list scrolling. -->
+                                        <!-- Fallback deck-box cover remains visible without local
+                                             artwork. Virtualized on-screen covers reuse the bounded
+                                             Scryfall image cache; no prefetch for off-screen decks. -->
                                         <Border Grid.Column="0" Width="85" Height="109"
                                                 CornerRadius="9" ClipToBounds="True"
                                                 BorderBrush="{StaticResource VaultAccentBorder}"
@@ -402,6 +403,10 @@
                                                 <TextBlock Text="✦" FontSize="35" FontWeight="Bold"
                                                            Foreground="#F5E8F5" HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"/>
+                                                <local:NativeCardArtImage
+                                                    ArtUrl="{Binding CoverArtworkUrl}" DecodeWidth="220"
+                                                    Stretch="UniformToFill"
+                                                    ToolTip="Illustrative commander artwork from the local Scryfall catalog; not proof of an owned printing"/>
                                                 <Border Height="27" VerticalAlignment="Bottom" Background="#D80C1623">
                                                     <TextBlock Text="{Binding Format}" FontSize="10"
                                                                FontWeight="Bold" Foreground="White"
