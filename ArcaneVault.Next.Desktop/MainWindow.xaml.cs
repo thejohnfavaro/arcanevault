@@ -45,6 +45,8 @@ public partial class MainWindow : Window
     private int modeVersion;
     private object[] catalogFlatCards = Array.Empty<object>();
     private CatalogSnapshot.PrintingRow? selectedTilePrinting;
+    private readonly HashSet<string> bookmarkedCatalogNames = new(StringComparer.OrdinalIgnoreCase);
+    private bool shortlistStarBusy;
     private int activeTileColumns;
 
     private CatalogSnapshot.PrintingRow? SelectedCatalogPrinting()
@@ -54,7 +56,9 @@ public partial class MainWindow : Window
 
     private void SetCatalogResults(IEnumerable<object> rows)
     {
-        catalogFlatCards = rows.ToArray();
+        catalogFlatCards = rows.Select(x => x is CatalogSnapshot.PrintingRow card
+            ? card with { IsShortlisted = bookmarkedCatalogNames.Contains(card.Name) }
+            : x).ToArray();
         selectedTilePrinting = null;
         activeTileColumns = 0;
         ApplyCatalogLayout();
@@ -86,6 +90,14 @@ public partial class MainWindow : Window
     {
         if (sender is not FrameworkElement { DataContext: CatalogSnapshot.PrintingRow card })
             return;
+        // The overlaid star is an independent action: it must not open the
+        // detail window, even on a rapid/double click.
+        for (System.Windows.DependencyObject? node = e.OriginalSource as System.Windows.DependencyObject;
+             node is not null; node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+        {
+            if (node is Button { Name: "CardShortlistStar" }) return;
+            if (ReferenceEquals(node, sender)) break;
+        }
         selectedTilePrinting = card;
         // ListView selection belongs to a virtualized row; this remembers the
         // exact printing selected inside the row for details and shortlist.
@@ -170,8 +182,8 @@ public partial class MainWindow : Window
             }
         }
 
-        // Load verified ownership for the catalog's owned filter, without
-        // creating or opening the collection/deck workspace at startup.
+        // Load verified ownership and bookmark names without changing the
+        // collection; stars and ownership can share the same verified read.
         if (!closing && System.IO.File.Exists(NativeWorkspace.DefaultPath))
             await LoadNativeOwnershipForCatalogAsync();
     }
@@ -181,13 +193,17 @@ public partial class MainWindow : Window
         int version = modeVersion;
         try
         {
-            var index = await Task.Run(() =>
+            var loaded = await Task.Run(() =>
             {
                 var workspace = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
-                return NativeCatalogOwnership.From(workspace.Collection);
+                var ownership = NativeCatalogOwnership.From(workspace.Collection);
+                var favorites = NativeWorkspaceSafety.ListShortlist(workspace.DatabasePath);
+                return (Ownership: ownership, Favorites: favorites);
             });
             if (closing || version != modeVersion || nativeWorkspaceRequested) return;
-            catalogOwnership = index;
+            catalogOwnership = loaded.Ownership;
+            bookmarkedCatalogNames.Clear();
+            bookmarkedCatalogNames.UnionWith(loaded.Favorites);
             _ = FilterAsync();
         }
         catch (Exception ex)
@@ -1017,26 +1033,69 @@ public partial class MainWindow : Window
             if (ReferenceEquals(shortlistWindow, view)) shortlistWindow = null;
             if (closing || !view.ShortlistChanged)
                 return;
+            await RefreshCatalogBookmarkNamesAsync();
             await RefreshNativeWorkspaceAsync(); // reload after optimistic SHA change
         };
         view.Show();
     }
 
-    private async void OnAddShortlistClicked(object sender, RoutedEventArgs e)
+    private async Task RefreshCatalogBookmarkNamesAsync()
     {
-        if (closing || catalogSnapshot is null ||
-            SelectedCatalogPrinting() is not CatalogSnapshot.PrintingRow selection)
+        if (closing || !System.IO.File.Exists(NativeWorkspace.DefaultPath)) return;
+        try
         {
-            FilterStatus.Text = "Select a real Scryfall catalog card to save it to My Shortlist.";
+            var names = await Task.Run(() =>
+            {
+                var workspace = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
+                return NativeWorkspaceSafety.ListShortlist(workspace.DatabasePath);
+            });
+            if (closing) return;
+            bookmarkedCatalogNames.Clear();
+            bookmarkedCatalogNames.UnionWith(names);
+            RebindShortlistStars();
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+                FilterStatus.Text = "Could not refresh shortlist star state: " + ex.Message;
+        }
+    }
+
+    private void RebindShortlistStars()
+    {
+        // Change presentation rows, never catalog SQLite or collection state.
+        // Multiple printings of the same name always show the same star.
+        var current = SelectedCatalogPrinting();
+        catalogFlatCards = catalogFlatCards.Select(x => x is CatalogSnapshot.PrintingRow card
+            ? card with { IsShortlisted = bookmarkedCatalogNames.Contains(card.Name) }
+            : x).ToArray();
+        selectedTilePrinting = current is null ? null :
+            catalogFlatCards.OfType<CatalogSnapshot.PrintingRow>()
+                .FirstOrDefault(x => x.Name == current.Name &&
+                                     x.SetCode == current.SetCode &&
+                                     x.CollectorNumber == current.CollectorNumber);
+        activeTileColumns = 0;
+        ApplyCatalogLayout();
+    }
+
+    private async void OnCatalogShortlistStarClicked(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not Button { Tag: CatalogSnapshot.PrintingRow selection }) return;
+        // A star is a name-level bookmark, not a printing or ownership action.
+        if (closing || shortlistStarBusy || catalogSnapshot is null) return;
+        if (bookmarkedCatalogNames.Contains(selection.Name))
+        {
+            FilterStatus.Text = "★ " + selection.Name + " is already in My Shortlist. " +
+                "Open My Shortlist to remove it.";
             return;
         }
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
         {
-            FilterStatus.Text = "Create or import your native collection before saving bookmarks.";
+            FilterStatus.Text = "Create or import a native collection before saving bookmarks.";
             return;
         }
-
-        AddShortlistButton.IsEnabled = false;
+        shortlistStarBusy = true;
         try
         {
             var result = await Task.Run(() =>
@@ -1051,10 +1110,12 @@ public partial class MainWindow : Window
                 return (Already: false, Saved: true);
             });
             if (closing) return;
+            bookmarkedCatalogNames.Add(selection.Name);
+            RebindShortlistStars();
             FilterStatus.Text = result.Already
-                ? $"☆ {selection.Name} is already in My Shortlist."
-                : $"★ {selection.Name} bookmarked in the native collection with a full rollback. " +
-                  "No owned quantity changed.";
+                ? $"★ {selection.Name} is already in My Shortlist."
+                : $"★ {selection.Name} saved to My Shortlist with native rollback protection. " +
+                  "Ownership remains unchanged.";
             if (result.Saved)
             {
                 if (shortlistWindow is not null)
@@ -1073,7 +1134,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            if (!closing) AddShortlistButton.IsEnabled = true;
+            shortlistStarBusy = false;
         }
     }
 

@@ -293,6 +293,26 @@ internal static class NativeVisualShellChecks
              main.Contains("OnCatalogTileMouseDown", StringComparison.Ordinal) &&
              main.Contains("OnCatalogListSizeChanged", StringComparison.Ordinal),
              "Responsive catalog tile grid controls or handlers are missing.");
+        Must(main.Contains("x:Name=\"CardShortlistStar\"", StringComparison.Ordinal) &&
+             main.Contains("Click=\"OnCatalogShortlistStarClicked\"", StringComparison.Ordinal) &&
+             main.Contains("Content=\"{Binding ShortlistStar}\"", StringComparison.Ordinal) &&
+             main.Contains("ToolTip=\"{Binding ShortlistTooltip}\"", StringComparison.Ordinal) &&
+             !main.Contains("View selected card  ›", StringComparison.Ordinal) &&
+             !main.Contains("x:Name=\"AddShortlistButton\"", StringComparison.Ordinal) &&
+             !main.Contains("Text=\"CATALOG STATUS\"", StringComparison.Ordinal) &&
+             main.Contains("x:Name=\"FilterStatus\"", StringComparison.Ordinal),
+             "Card art must provide inline bookmark control while preserving compact status text.");
+        Must(mainCode.Contains("OnCatalogShortlistStarClicked(", StringComparison.Ordinal) &&
+             mainCode.Contains("e.Handled = true;", StringComparison.Ordinal) &&
+             mainCode.Contains("NativeWorkspaceSafety.SetShortlistCard(", StringComparison.Ordinal) &&
+             mainCode.Contains("bookmarkedCatalogNames.Contains(card.Name)", StringComparison.Ordinal),
+             "Shortlist star must route to the verified native bookmark save and refresh state.");
+        var printing = new CatalogSnapshot.PrintingRow("Sol Ring", "CMM", "396");
+        Must(printing.ShortlistStar == "☆" && !printing.IsShortlisted &&
+             (printing with { IsShortlisted = true }).ShortlistStar == "★" &&
+             (printing with { IsShortlisted = true }).Name == printing.Name,
+             "Bookmark UI state must never modify catalog printing identity.");
+
         Must(CatalogTileLayout.ColumnsForWidth(365) == 1 &&
              CatalogTileLayout.ColumnsForWidth(675) == 2 &&
              CatalogTileLayout.ColumnsForWidth(955) == 4 &&
