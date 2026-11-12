@@ -13,7 +13,7 @@ public sealed class EdhLabDraftCatalog
 {
     public sealed record Card(string Name, string Type, string Oracle,
         string Colors, string RoleHints, long RecordedCopies, bool IsBasicLand,
-        int SuggestedCopyLimit)
+        int SuggestedCopyLimit, string ManaCost = "")
     {
         public string Display => Name + "  ·  " +
             (RecordedCopies > 0 ? RecordedCopies + " recorded" : "Missing") +
@@ -25,9 +25,11 @@ public sealed class EdhLabDraftCatalog
     private readonly int recordedEligibleCount;
     private readonly IReadOnlyDictionary<string, EdhLabSynergyAdvisor.Fit> synergyByName;
 
-    private EdhLabDraftCatalog(IReadOnlyList<Card> candidates, EdhLabSynergyAdvisor synergy)
+    private EdhLabDraftCatalog(IReadOnlyList<Card> candidates,
+        EdhLabSynergyAdvisor synergy, bool hasManaCosts)
     {
         Synergy = synergy;
+        HasManaCostMetadata = hasManaCosts;
         cards = candidates.OrderByDescending(x => x.RecordedCopies > 0)
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         eligibleByName = cards.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
@@ -37,6 +39,7 @@ public sealed class EdhLabDraftCatalog
     }
 
     public EdhLabSynergyAdvisor Synergy { get; }
+    public bool HasManaCostMetadata { get; }
     public int EligibleCount => cards.Count;
     public int RecordedEligibleCount => recordedEligibleCount;
     public int SynergyEligibleCount => synergyByName.Values.Count(x => x.Matches);
@@ -153,8 +156,21 @@ public sealed class EdhLabDraftCatalog
         }
         var synergy = EdhLabSynergyAdvisor.FromCommander(
             commanderType, commanderOracle);
+        bool hasManaCosts = false;
+        using (var schema = db.CreateCommand())
+        {
+            schema.CommandText = "PRAGMA table_info(cards)";
+            using var columns = schema.ExecuteReader();
+            while (columns.Read())
+                if (columns.GetString(1).Equals("mana_cost",
+                    StringComparison.OrdinalIgnoreCase))
+                    hasManaCosts = true;
+        }
         using var cmd = db.CreateCommand();
-        cmd.CommandText = "SELECT name,type,oracle,colors,legalities,arena FROM cards ORDER BY name COLLATE NOCASE";
+        cmd.CommandText =
+            "SELECT name,type,oracle,colors,legalities,arena," +
+            (hasManaCosts ? "mana_cost" : "'' AS mana_cost") +
+            " FROM cards ORDER BY name COLLATE NOCASE";
         var results = new List<Card>();
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
@@ -179,9 +195,10 @@ public sealed class EdhLabDraftCatalog
                 type.Contains("Land", StringComparison.OrdinalIgnoreCase);
             results.Add(new Card(name, type, oracle, colors,
                 string.Join(" · ", Roles(type, oracle)),
-                counts.GetValueOrDefault(name), basic, CopyLimit(type, oracle)));
+                counts.GetValueOrDefault(name), basic, CopyLimit(type, oracle),
+                reader.IsDBNull(6) ? "" : reader.GetString(6)));
         }
-        return new EdhLabDraftCatalog(results, synergy);
+        return new EdhLabDraftCatalog(results, synergy, hasManaCosts);
     }
 
     public IReadOnlyList<Card> Search(string? text, bool recordedOnly,
