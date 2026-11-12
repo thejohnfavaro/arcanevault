@@ -33,7 +33,8 @@ public static class EdhLabManaPlanner
         IReadOnlyDictionary<string, double> ApproximateColoredSources,
         IReadOnlyDictionary<string, double> ColoredPipDemand,
         int ParsedManaCostCopies, int MissingManaCostCopies,
-        bool UsingSpellPips, bool ManaCostsAvailable, bool WantsSpellPips)
+        bool UsingSpellPips, bool ManaCostsAvailable, bool WantsSpellPips,
+        IReadOnlyDictionary<string, double> CurrentColoredSources)
     {
         public bool CanApply => UnverifiedCards.Count == 0 && CopiesAfter <= 99;
 
@@ -137,6 +138,7 @@ public static class EdhLabManaPlanner
         int fixedLands = 0, currentLands = 0, fixedCopies = 0;
         int flexible = 0, unclassified = 0;
         double[] coverage = new double[5];
+        double[] currentBasics = new double[5];
         double[] pipDemand = new double[5];
         int parsedCostCopies = 0, missingCostCopies = 0;
         var unverified = new List<string>();
@@ -148,6 +150,10 @@ public static class EdhLabManaPlanner
             if (ManagedBasic(entry.Name, allowed) is not null)
             {
                 currentLands = checked(currentLands + entry.Quantity);
+                for (int i = 0; i < Basics.Length; i++)
+                    if ((allowed & (1 << i)) != 0 &&
+                        entry.Name.Equals(Basics[i], StringComparison.OrdinalIgnoreCase))
+                        currentBasics[i] += entry.Quantity;
                 continue;
             }
             fixedCopies = checked(fixedCopies + entry.Quantity);
@@ -234,6 +240,10 @@ public static class EdhLabManaPlanner
                     sources[ColorOrder[i].ToString()] =
                         coverage[i] + basicCounts[i];
 
+        var currentSources = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < 5; i++)
+            if ((allowed & (1 << i)) != 0)
+                currentSources[ColorOrder[i].ToString()] = coverage[i] + currentBasics[i];
         var demand = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < 5; i++)
             if ((allowed & (1 << i)) != 0)
@@ -242,7 +252,7 @@ public static class EdhLabManaPlanner
             unclassified, slots, fixedLands + slots, fixedCopies + slots,
             basics, unverified, sources, demand, parsedCostCopies,
             missingCostCopies, usingPips, catalog.HasManaCostMetadata,
-            weightSpellPips);
+            weightSpellPips, currentSources);
     }
 
     /// <summary>
