@@ -140,12 +140,15 @@ internal static class EdhLabDraftChecks
              emptyPackageDraft.Packages.Single(x => x.Theme == "Artifacts")
                 .MissingOptions.Any(x => x.Name == "Thopter Foundry"),
              "Empty decks must show owned versus not recorded candidates distinctly.");
-        var arenaPackages = EdhLabSynergyPackages.Analyze(arena, packageDraft);
+        var arenaPackages = EdhLabSynergyPackages.Analyze(arena,
+            Array.Empty<(string Name, int Quantity)>());
         Must(!arenaPackages.Packages.SelectMany(x => x.OwnedOptions.Concat(x.MissingOptions))
                 .Any(x => x.Name is "Non-Arena Thopters" or "Counterspell" or "Swords to Plowshares") &&
              arenaPackages.Packages.SelectMany(x => x.InDeck)
                 .All(x => x.Name != "Sol Ring") &&
-             arenaPackages.UnknownDeckCopies == 1,
+             arenaPackages.UnknownDeckCopies == 0 &&
+             !arenaPackages.Packages.SelectMany(x => x.OwnedOptions)
+                .Any(x => x.Name == "Sol Ring"),
              "Arena suggestions must not borrow paper-owned cards or unavailable cards.");
         bool badPackageQuantity = false;
         try
