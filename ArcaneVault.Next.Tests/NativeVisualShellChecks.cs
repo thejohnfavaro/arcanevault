@@ -170,6 +170,24 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("Click=\"OnEdhBrowseImprovementsClicked\"",
                  StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhSwapProposalsList\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("SelectionChanged=\"OnEdhSwapSelectionChanged\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhApplySwapButton\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("Click=\"OnEdhApplySwapClicked\"",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhLabSwapAdvisor.Analyze(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhLabSwapAdvisor.IsCurrent(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("MessageBoxButton.YesNo, MessageBoxImage.Question",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("NativeDeckOwnedPicker.RemoveOne(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("NativeDeckOwnedPicker.AddOne(",
+                 StringComparison.Ordinal) &&
              draftEditorCode.Contains("EdhLabDeckOptimizer.Analyze(",
                  StringComparison.Ordinal) &&
              draftEditorCode.Contains("browsingOptimizationCandidates",

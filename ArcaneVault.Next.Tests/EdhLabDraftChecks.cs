@@ -75,6 +75,11 @@ internal static class EdhLabDraftChecks
             Card("Paper Banned Thopter", "U", "Create a Thopter artifact creature token.",
                 type: "Artifact", commanderLegal: "banned");
             Card("Board Clear", "W", "Destroy all creatures.", type: "Sorcery");
+            Card("Heavy Insight", "U", "Draw two cards.", type: "Sorcery");
+            Card("Tiny Insight", "U", "Draw a card.", type: "Instant");
+            Card("Heavy Generic", "W", "Vanilla finisher.", type: "Creature — Giant");
+            Card("Artifact Engine", "U", "Create a 1/1 Thopter artifact creature token.",
+                type: "Artifact");
             Card("Mystic Tutor", "U", "Search your library for a card.");
             Card("Lightning Bolt", "R", "Deal 3 damage.");
             Card("Three Color", "WUB", "Draw a card.");
@@ -94,6 +99,7 @@ internal static class EdhLabDraftChecks
                 new NativePhysicalRow("Sol Ring", 1, "", "", "", ""),
                 new NativePhysicalRow("Swords to Plowshares", 2, "", "", "", ""),
                 new NativePhysicalRow("Counterspell", 1, "", "", "", ""),
+                new NativePhysicalRow("Tiny Insight", 1, "", "", "", ""),
                 new NativePhysicalRow("Lightning Bolt", 20, "", "", "", ""),
                 new NativePhysicalRow("Island", 0, "", "", "", "")
             },
@@ -123,7 +129,7 @@ internal static class EdhLabDraftChecks
         var paperOwned = paper.Search("", recordedOnly: true);
         var arenaOwned = arena.Search("", recordedOnly: true);
         Must(paperOwned.Select(x => x.Name).OrderBy(x => x)
-                .SequenceEqual(new[] { "Counterspell", "Sol Ring", "Swords to Plowshares" }) &&
+                .SequenceEqual(new[] { "Counterspell", "Sol Ring", "Swords to Plowshares", "Tiny Insight" }) &&
              arenaOwned.Select(x => x.Name).OrderBy(x => x)
                 .SequenceEqual(new[] { "Brainstorm", "Island" }),
              "Physical and Arena inventory names may not be combined.");
@@ -321,12 +327,20 @@ internal static class EdhLabDraftChecks
                     WHEN 'Arcane Signet' THEN 2
                     WHEN 'Thopter Foundry' THEN 2
                     WHEN 'Board Clear' THEN 7
+                    WHEN 'Heavy Insight' THEN 7
+                    WHEN 'Tiny Insight' THEN 2
+                    WHEN 'Heavy Generic' THEN 7
+                    WHEN 'Artifact Engine' THEN 7
                     ELSE 0 END;
                 UPDATE cards SET mana_cost = CASE name
                     WHEN 'Brainstorm' THEN '{U}'
                     WHEN 'Swords to Plowshares' THEN '{W}'
                     WHEN 'Counterspell' THEN '{U}{U}'
                     WHEN 'Thopter Foundry' THEN '{1}{U}'
+                    WHEN 'Heavy Insight' THEN '{5}{U}{U}'
+                    WHEN 'Tiny Insight' THEN '{1}{U}'
+                    WHEN 'Heavy Generic' THEN '{6}{W}'
+                    WHEN 'Artifact Engine' THEN '{5}{U}{U}'
                     ELSE '' END;
                 """;
             change.ExecuteNonQuery();
@@ -525,6 +539,57 @@ internal static class EdhLabDraftChecks
              fullOptimization.Display.Contains("Mainboard is full") &&
              fullOptimization.CanBrowse,
              "A full mainboard can suggest review-only swaps but must never add cards automatically.");
+
+        // v0.9.40: propose only explainable, one-for-one, format-legal
+        // owned replacements from a sufficiently developed nonland list.
+        // High duplicate quantities are synthetic shape fixtures only;
+        // native singleton deck legality still belongs to save preflight.
+        const string swapDraft = "1 Heavy Insight\n1 Board Clear\n" +
+            "1 Artifact Engine\n24 Heavy Generic";
+        var swaps = EdhLabSwapAdvisor.Analyze(pipPaper, ManaRows(swapDraft));
+        Must(swaps.CanSwap && swaps.KnownNonlandCopies == 27 &&
+             swaps.Proposals.Count > 0 &&
+             swaps.Proposals.Any(x => x.OutName == "Heavy Insight" &&
+                 x.InName == "Tiny Insight" &&
+                 x.OutManaValue == 7 && x.InManaValue == 2 &&
+                 x.RetainedRoles.Contains("Card Draw")) &&
+             !swaps.Proposals.Any(x => x.OutName == "Board Clear") &&
+             !swaps.Proposals.Any(x => x.OutName == "Artifact Engine") &&
+             swaps.Proposals.All(x => x.AvailableRecordedCopies > 0 &&
+                 x.InManaValue <= 3 && x.OutManaValue - x.InManaValue >= 2),
+             "Swap Lab should retain scarce draw and wipe roles, protect commander artifact synergy and recommend unused owned low-cost cards.");
+        var selectedSwap = swaps.Proposals.Single(x => x.OutName == "Heavy Insight");
+        Must(EdhLabSwapAdvisor.IsCurrent(swaps, selectedSwap) &&
+             !EdhLabSwapAdvisor.IsCurrent(
+                 EdhLabSwapAdvisor.Analyze(pipPaper,
+                     ManaRows(swapDraft + "\n1 Tiny Insight")), selectedSwap),
+             "A proposed swap must become stale when its final singleton inventory copy is already used.");
+        string swappedDraft = NativeDeckOwnedPicker.AddOne(
+            NativeDeckOwnedPicker.RemoveOne(swapDraft, selectedSwap.OutName),
+            selectedSwap.InName);
+        Must(NativeDeckEditing.ParseMainboard(swappedDraft)
+                 .Sum(x => x.Quantity) ==
+                 NativeDeckEditing.ParseMainboard(swapDraft).Sum(x => x.Quantity) &&
+             swappedDraft.Contains("1 Tiny Insight") &&
+             !swappedDraft.Contains("Heavy Insight") &&
+             swapDraft.Contains("1 Heavy Insight"),
+             "One-for-one apply must preserve the draft copy count and leave the source draft intact.");
+        var arenaSwap = EdhLabSwapAdvisor.Analyze(pipArena, ManaRows(
+            "1 Heavy Insight\n25 Heavy Generic"));
+        Must(arenaSwap.Proposals.Any(x => x.OutName == "Heavy Insight" &&
+                x.InName == "Brainstorm") &&
+             arenaSwap.Proposals.All(x => x.InName != "Tiny Insight" &&
+                 x.InName != "Swords to Plowshares" && x.InName != "Sol Ring"),
+             "Arena Brawl swaps may use only Arena recorded and legal alternatives, never paper-only holdings.");
+        var tooSparse = EdhLabSwapAdvisor.Analyze(pipPaper,
+            ManaRows("1 Heavy Insight\n1 Heavy Generic"));
+        Must(!tooSparse.CanSwap && tooSparse.Display.Contains("incomplete draft") &&
+             !EdhLabSwapAdvisor.Analyze(paper, ManaRows(swapDraft)).CanSwap &&
+             !EdhLabSwapAdvisor.Analyze(pipPaper,
+                 ManaRows(swapDraft + "\n1 Unknown Card")).CanSwap &&
+             !EdhLabSwapAdvisor.Analyze(pipPaper,
+                 ManaRows(swapDraft + "\n100 Plains")).CanSwap,
+             "Underdeveloped, old-schema, unknown and oversized decks should not receive unverified cut proposals.");
 
         Must(originalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))),
              "Deck drafting candidate search must never write or alter the Scryfall catalog.");
