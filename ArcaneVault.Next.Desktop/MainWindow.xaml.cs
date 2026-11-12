@@ -1651,6 +1651,10 @@ public partial class MainWindow : Window
                     if (closing || !File.Exists(NativeWorkspace.DefaultPath))
                         throw new InvalidOperationException(
                             "Create or import a native collection before saving an EDH Lab draft.");
+                    if (currentVersion != modeVersion ||
+                        !ReferenceEquals(active, catalogSnapshot))
+                        throw new InvalidOperationException(
+                            "The catalog changed since this commander list opened. Reopen EDH Lab to build from the current catalog.");
                     // Open a FRESH verified workspace at the moment the user
                     // chooses Build, not the possibly stale browse-time view.
                     var workspace = await Task.Run(() =>
@@ -1658,7 +1662,7 @@ public partial class MainWindow : Window
                     if (closing) return;
                     var editor = new NativeDeckEditorWindow(
                         NativeWorkspace.DefaultPath, workspace.BackupSha256,
-                        workspace.Collection, NativeWorkspace.CatalogPath,
+                        workspace.Collection, active.ReadOnlySnapshotPath,
                         draftCommander: commander.Name,
                         draftFormat: format, draftColors: commander.ColorIdentity)
                     { Owner = this };
