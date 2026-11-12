@@ -12,7 +12,8 @@ namespace ArcaneVault.Next.EDHLab;
 public sealed class EdhLabDraftCatalog
 {
     public sealed record Card(string Name, string Type, string Oracle,
-        string Colors, string RoleHints, long RecordedCopies, bool IsBasicLand)
+        string Colors, string RoleHints, long RecordedCopies, bool IsBasicLand,
+        int SuggestedCopyLimit)
     {
         public string Display => Name + "  ·  " +
             (RecordedCopies > 0 ? RecordedCopies + " recorded" : "Missing") +
@@ -20,15 +21,14 @@ public sealed class EdhLabDraftCatalog
     }
 
     private readonly IReadOnlyList<Card> cards;
-    private readonly HashSet<string> eligibleNames;
+    private readonly IReadOnlyDictionary<string, Card> eligibleByName;
     private readonly int recordedEligibleCount;
 
     private EdhLabDraftCatalog(IReadOnlyList<Card> candidates)
     {
         cards = candidates.OrderByDescending(x => x.RecordedCopies > 0)
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-        eligibleNames = new HashSet<string>(cards.Select(x => x.Name),
-            StringComparer.OrdinalIgnoreCase);
+        eligibleByName = cards.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
         recordedEligibleCount = cards.Count(x => x.RecordedCopies > 0);
     }
 
@@ -56,6 +56,28 @@ public sealed class EdhLabDraftCatalog
             hints.Add("Protection");
         if (Has("create") && Has("token")) hints.Add("Token Maker");
         return hints;
+    }
+
+    private static int CopyLimit(string type, string oracle)
+    {
+        if ((type.Contains("Basic", StringComparison.OrdinalIgnoreCase) &&
+             type.Contains("Land", StringComparison.OrdinalIgnoreCase)) ||
+            oracle.Contains("A deck can have any number of cards named",
+                StringComparison.OrdinalIgnoreCase))
+            return int.MaxValue;
+        var special = System.Text.RegularExpressions.Regex.Match(oracle,
+            @"A deck can have up to (\w+) cards named",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase |
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(50));
+        if (special.Success)
+        {
+            string value = special.Groups[1].Value.ToLowerInvariant();
+            if (int.TryParse(value, out var count) && count > 0) return count;
+            if (value == "seven") return 7;
+            if (value == "nine") return 9;
+        }
+        return 1;
     }
 
     private static string? Legality(string json, EdhLabFormat format)
@@ -130,7 +152,8 @@ public sealed class EdhLabDraftCatalog
             bool basic = type.Contains("Basic", StringComparison.OrdinalIgnoreCase) &&
                 type.Contains("Land", StringComparison.OrdinalIgnoreCase);
             results.Add(new Card(name, type, oracle, colors,
-                string.Join(" · ", Roles(type, oracle)), counts.GetValueOrDefault(name), basic));
+                string.Join(" · ", Roles(type, oracle)),
+                counts.GetValueOrDefault(name), basic, CopyLimit(type, oracle)));
         }
         return new EdhLabDraftCatalog(results);
     }
@@ -150,5 +173,8 @@ public sealed class EdhLabDraftCatalog
             .Take(limit).ToArray();
     }
 
-    public bool Contains(string name) => eligibleNames.Contains(name);
+    public bool Contains(string name) => eligibleByName.ContainsKey(name);
+
+    public Card? Find(string name) =>
+        eligibleByName.TryGetValue(name, out var card) ? card : null;
 }
