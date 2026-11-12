@@ -1618,11 +1618,34 @@ public partial class MainWindow : Window
         FilterStatus.Text = "Opening native EDH Lab from isolated catalog…";
         try
         {
-            var index = await Task.Run(() =>
-                CommanderCatalog.OpenReadOnly(active.ReadOnlySnapshotPath));
+            var loaded = await Task.Run(() =>
+            {
+                var index = CommanderCatalog.OpenReadOnly(active.ReadOnlySnapshotPath);
+                // The authoritative native workspace is optional: EDH Lab
+                // remains useful as a read-only commander browser without it.
+                // Never mutate catalog or user collection during discovery.
+                if (!File.Exists(NativeWorkspace.DefaultPath))
+                    return (Index: index, Inventory: CommanderInventory.Empty,
+                            HasCollection: false);
+                try
+                {
+                    var workspace = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
+                    return (Index: index,
+                        Inventory: new CommanderInventory(workspace.Collection),
+                        HasCollection: true);
+                }
+                catch (Exception ex) when (ex is IOException or
+                    Microsoft.Data.Sqlite.SqliteException or InvalidDataException or
+                    UnauthorizedAccessException)
+                {
+                    return (Index: index, Inventory: CommanderInventory.Empty,
+                            HasCollection: false);
+                }
+            });
             if (closing || currentVersion != modeVersion ||
                 !ReferenceEquals(active, catalogSnapshot)) return;
-            var window = new CommanderBrowserWindow(index) { Owner = this };
+            var window = new CommanderBrowserWindow(loaded.Index,
+                loaded.Inventory, loaded.HasCollection) { Owner = this };
             edhLabWindow = window;
             window.Closed += (_, _) =>
             {
@@ -1630,7 +1653,9 @@ public partial class MainWindow : Window
                 if (!closing && catalogSnapshot is not null) EdhLabButton.IsEnabled = true;
             };
             window.Show();
-            FilterStatus.Text = $"{index.LoadedCardIdentities:N0} read-only commander candidates loaded";
+            FilterStatus.Text = $"{loaded.Index.LoadedCardIdentities:N0} read-only commander candidates loaded" +
+                (loaded.HasCollection ? " · inventory name counts available" :
+                    " · no native inventory loaded");
         }
         catch (Exception)
         {
