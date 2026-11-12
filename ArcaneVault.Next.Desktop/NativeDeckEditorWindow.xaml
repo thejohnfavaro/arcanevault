@@ -257,6 +257,36 @@
                                            Text="Waiting for local card metadata…"/>
                             </StackPanel>
                         </Expander>
+                        <TextBlock x:Name="EdhOptimizationHeadline"
+                                   Margin="0,10,0,3" TextWrapping="Wrap"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource VaultAccent}"
+                                   Text="Optimization: evaluating owned early spells…"/>
+                        <Expander Header="Collection-aware deck optimization" IsExpanded="False"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock TextWrapping="Wrap" FontSize="11"
+                                           Margin="0,0,0,7"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Advisory curve thresholds, never automatic cuts. Suggestions come only from locally eligible, unused recorded cards for this deck's format and color identity."/>
+                                <TextBlock x:Name="EdhOptimizationDetails"
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Loading recorded improvement candidates…"/>
+                                <Button x:Name="EdhBrowseImprovementsButton"
+                                        Content="Browse owned early-play candidates"
+                                        Click="OnEdhBrowseImprovementsClicked"
+                                        IsEnabled="False" Margin="0,8,0,0"
+                                        HorizontalAlignment="Left"
+                                        Padding="9,5"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Filter the existing EDH Lab card browser to owned, format-eligible early-play options; does not swap, remove, add, craft or save anything"/>
+                            </StackPanel>
+                        </Expander>
                     </StackPanel>
                 </StackPanel>
                 <ComboBox Grid.Row="1" x:Name="OwnedPoolBox"
