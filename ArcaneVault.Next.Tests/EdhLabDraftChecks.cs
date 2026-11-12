@@ -136,7 +136,7 @@ internal static class EdhLabDraftChecks
         {
             ("Sol Ring", 1), ("Brainstorm", 1)
         };
-        var paperPackages = EdhLabSynergyPackages.Analyze(paper, packageDraft);
+        var paperPackages = EdhLabSynergyPackages.Analyze(paper, packageDraft, optionsPerGroup: 20);
         var artifactPackage = paperPackages.Packages.Single(x => x.Theme == "Artifacts");
         var tokenPackage = paperPackages.Packages.Single(x => x.Theme == "Tokens");
         Must(paperPackages.HasRecognizedThemes && paperPackages.Packages.Count >= 2 &&
@@ -162,7 +162,7 @@ internal static class EdhLabDraftChecks
                  .Any(x => x.Name is "Lightning Bolt" or "Paper Banned Thopter" or "Selected Leader"),
              "Package lists must preserve identity, bans and commander exclusion.");
         var emptyPackageDraft = EdhLabSynergyPackages.Analyze(paper,
-            Array.Empty<(string Name, int Quantity)>());
+            Array.Empty<(string Name, int Quantity)>(), optionsPerGroup: 20);
         Must(emptyPackageDraft.Packages.Single(x => x.Theme == "Artifacts")
                 .OwnedOptions.Any(x => x.Name == "Sol Ring") &&
              emptyPackageDraft.Packages.Single(x => x.Theme == "Artifacts")
