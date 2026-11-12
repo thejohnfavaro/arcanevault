@@ -1,10 +1,24 @@
 <Window x:Class="ArcaneVault.Next.Desktop.NativeDeckEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Arcane Vault Next — Saved deck editor" Width="1100" Height="850"
-        MinWidth="850" MinHeight="630" WindowStartupLocation="CenterOwner"
+        Title="Arcane Vault Next — Saved deck editor" Width="1280" Height="850"
+        MinWidth="1030" MinHeight="650" WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False" Background="#0D1017" Foreground="#F0F1F6">
     <Window.Resources>
+        <Style x:Key="VaultDeckTabStyle" TargetType="{x:Type TabItem}">
+            <Setter Property="Background" Value="#202737"/>
+            <Setter Property="Foreground" Value="#DCE5F0"/>
+            <Setter Property="BorderBrush" Value="#514276"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#514276"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <DataTemplate x:Key="DeckChartBarTemplate">
             <Grid Margin="0,2,0,2">
                 <Grid.ColumnDefinitions>
@@ -27,7 +41,7 @@
             </Grid>
         </DataTemplate>
     </Window.Resources>
-    <Grid Margin="22">
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -39,9 +53,9 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBlock x:Name="HeaderText" Grid.Row="0" Text="Create saved deck"
-                   FontWeight="SemiBold" FontSize="24" Margin="0,0,0,12"/>
+                   FontWeight="SemiBold" FontSize="21" Margin="0,0,0,7"/>
         <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="#B5B7CB"
-                   Margin="0,0,0,16" Text="Save a local deck independently from ownership. Import Arena-style text or a decklist .txt, organize by folder and favorite, then review the usual deck-size, color-identity, copy-count, cached legality and owned-card warnings before saving. Sideboards and multiple commanders are not silently discarded."/>
+                   Margin="0,0,0,8" Text="Edit a local deck with card browsing, mana and strategy tools. Review color identity, format legality and owned-card warnings before saving."/>
         <Grid Grid.Row="2" Margin="0,0,0,14">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
@@ -87,11 +101,11 @@
         </StackPanel>
         <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*"/>
-                <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="2*"/>
-                <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="1.5*"/>
+                <ColumnDefinition Width="2.6*" MinWidth="275"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="2.9*" MinWidth="340"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="1.8*" MinWidth="220"/>
             </Grid.ColumnDefinitions>
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
@@ -117,7 +131,14 @@
                          Padding="12" Background="#171C28"
                          Foreground="#F2F5FA" BorderBrush="#514276"/>
             </Grid>
-            <Grid Grid.Column="2">
+            <GridSplitter Grid.Column="1" Width="8" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          Background="#343A4D"/>
+            <TabControl x:Name="EdhWorkspaceTabs" Grid.Column="2" TabStripPlacement="Top"
+                        Background="#171C28" Foreground="#F2F5FA"
+                        BorderBrush="{DynamicResource VaultLine}" Padding="3">
+                <TabItem x:Name="EdhCardsTab" Header="Cards" Style="{StaticResource VaultDeckTabStyle}">
+                    <Grid Margin="6,6,6,4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -131,6 +152,10 @@
                     <TextBlock x:Name="OwnedCardsHeading" Text="Add from owned cards"
                                Foreground="{DynamicResource VaultAccent}"/>
                     <StackPanel x:Name="EdhSuggestionTools" Visibility="Collapsed"
+                        <Expander x:Name="EdhCardsFilters" Header="Filters &amp; commander matches"
+                                  IsExpanded="False" Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
                                 Margin="0,8,0,0">
                         <CheckBox x:Name="EdhRecordedOnly" Content="Recorded in my inventory only"
                                   Margin="0,0,0,7" IsChecked="True"
@@ -171,6 +196,60 @@
                         <TextBlock x:Name="EdhSuggestionsStatus" TextWrapping="Wrap"
                                    FontSize="11" Foreground="{DynamicResource VaultMuted}"
                                    Text="Local color-identity and legality suggestions loading…"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </StackPanel>
+                <ComboBox Grid.Row="1" x:Name="OwnedPoolBox"
+                          SelectionChanged="OnOwnedPoolChanged"
+                          Background="#D7E4EB" Foreground="#0D1017"
+                          Margin="0,0,0,8">
+                    <ComboBoxItem Content="Physical collection"/>
+                    <ComboBoxItem Content="Arena collection"/>
+                </ComboBox>
+                <TextBox Grid.Row="2" x:Name="OwnedSearchBox"
+                         TextChanged="OnOwnedSearchChanged"
+                         Padding="9,7" Margin="0,0,0,8"
+                         ToolTip="Filter owned card names; shows up to 200 matches"
+                         Background="#202737" Foreground="White"
+                         BorderBrush="#514276"/>
+                <ListBox Grid.Row="3" x:Name="OwnedCardsList"
+                         DisplayMemberPath="Display"
+                         SelectionChanged="OnOwnedCardSelectionChanged"
+                         MouseDoubleClick="OnOwnedCardDoubleClicked"
+                         Background="#171C28" Foreground="#F2F5FA"
+                         BorderBrush="#514276"/>
+                <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Add (+1)" Click="OnAddOwnedClicked"
+                            Padding="10,7" Margin="0,0,7,0"
+                            Background="#202737" Foreground="White" BorderBrush="#514276"/>
+                    <Button Content="Remove (−1)" Click="OnRemoveOwnedClicked"
+                            Padding="10,7"
+                            Background="#202737" Foreground="White" BorderBrush="#514276"
+                            ToolTip="Decrease the selected card's count in the unsaved deck; does not change ownership"/>
+                </StackPanel>
+                <TextBlock Grid.Row="5" x:Name="DeckSummaryText" Margin="0,12,0,5"
+                           TextWrapping="Wrap" Foreground="#E5BF79"
+                           Text="Deck totals will appear here."/>
+                <StackPanel Grid.Row="6">
+                    <TextBlock x:Name="DeckShortageText"
+                               TextWrapping="Wrap" Foreground="#C9A9A9"
+                               MaxHeight="100"
+                               ToolTip="Only the selected ownership pool is counted; missing copies are not auto-added."/>
+                    <TextBlock x:Name="EdhLegalityText"
+                               TextWrapping="Wrap" FontSize="11" Margin="0,7,0,0"
+                               Foreground="{DynamicResource VaultWarning}"/>
+                </StackPanel>
+                    </Grid>
+                </TabItem>
+                <TabItem x:Name="EdhManaTab" Header="Mana &amp; Roles" Visibility="Collapsed"
+                         Style="{StaticResource VaultDeckTabStyle}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="10,8,10,12">
+                            <TextBlock Text="Mana base &amp; deck roles" FontSize="15"
+                                       FontWeight="SemiBold" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource VaultAccent}"/>
                         <Border Margin="0,8,0,0" Padding="9" CornerRadius="7"
                                 Background="{DynamicResource VaultPanelRaised}"
                                 BorderBrush="{DynamicResource VaultLine}" BorderThickness="1">
@@ -194,7 +273,7 @@
                                    TextWrapping="Wrap" FontSize="11"
                                    Foreground="{DynamicResource VaultAccent}"
                                    Text="Mana base: evaluating local deck…"/>
-                        <Expander Header="Arena-style land balancing" IsExpanded="False"
+                        <Expander Header="Arena-style land balancing" IsExpanded="True"
                                   Background="{DynamicResource VaultPanelRaised}"
                                   BorderBrush="{DynamicResource VaultLine}"
                                   BorderThickness="1" Padding="7">
@@ -241,7 +320,7 @@
                                    TextWrapping="Wrap" FontSize="11"
                                    Foreground="{DynamicResource VaultAccent}"
                                    Text="Curve and casting consistency: evaluating draft…"/>
-                        <Expander Header="Mana curve &amp; casting consistency" IsExpanded="False"
+                        <Expander Header="Mana curve &amp; casting consistency" IsExpanded="True"
                                   Background="{DynamicResource VaultPanelRaised}"
                                   BorderBrush="{DynamicResource VaultLine}"
                                   BorderThickness="1" Padding="7">
@@ -257,12 +336,23 @@
                                            Text="Waiting for local card metadata…"/>
                             </StackPanel>
                         </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem x:Name="EdhImproveTab" Header="Improve" Visibility="Collapsed"
+                         Style="{StaticResource VaultDeckTabStyle}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="10,8,10,12">
+                            <TextBlock Text="Collection-aware improvements" FontSize="15"
+                                       FontWeight="SemiBold" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource VaultAccent}"/>
                         <TextBlock x:Name="EdhOptimizationHeadline"
                                    Margin="0,10,0,3" TextWrapping="Wrap"
                                    FontSize="11"
                                    Foreground="{DynamicResource VaultAccent}"
                                    Text="Optimization: evaluating owned early spells…"/>
-                        <Expander Header="Collection-aware deck optimization" IsExpanded="False"
+                        <Expander Header="Collection-aware deck optimization" IsExpanded="True"
                                   Background="{DynamicResource VaultPanelRaised}"
                                   BorderBrush="{DynamicResource VaultLine}"
                                   BorderThickness="1" Padding="7">
@@ -292,7 +382,7 @@
                                    Foreground="{DynamicResource VaultAccent}"
                                    Text="Swap Lab: checking role-aware cuts…"/>
                         <Expander Header="Swap Lab — review one-for-one edits"
-                                  IsExpanded="False"
+                                  IsExpanded="True"
                                   Background="{DynamicResource VaultPanelRaised}"
                                   BorderBrush="{DynamicResource VaultLine}"
                                   BorderThickness="1" Padding="7">
@@ -328,49 +418,13 @@
                                         ToolTip="Requires explicit confirmation; protected native Review and Save is still separate"/>
                             </StackPanel>
                         </Expander>
-                    </StackPanel>
-                </StackPanel>
-                <ComboBox Grid.Row="1" x:Name="OwnedPoolBox"
-                          SelectionChanged="OnOwnedPoolChanged"
-                          Background="#D7E4EB" Foreground="#0D1017"
-                          Margin="0,0,0,8">
-                    <ComboBoxItem Content="Physical collection"/>
-                    <ComboBoxItem Content="Arena collection"/>
-                </ComboBox>
-                <TextBox Grid.Row="2" x:Name="OwnedSearchBox"
-                         TextChanged="OnOwnedSearchChanged"
-                         Padding="9,7" Margin="0,0,0,8"
-                         ToolTip="Filter owned card names; shows up to 200 matches"
-                         Background="#202737" Foreground="White"
-                         BorderBrush="#514276"/>
-                <ListBox Grid.Row="3" x:Name="OwnedCardsList"
-                         DisplayMemberPath="Display"
-                         SelectionChanged="OnOwnedCardSelectionChanged"
-                         MouseDoubleClick="OnOwnedCardDoubleClicked"
-                         Background="#171C28" Foreground="#F2F5FA"
-                         BorderBrush="#514276"/>
-                <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
-                    <Button Content="Add (+1)" Click="OnAddOwnedClicked"
-                            Padding="10,7" Margin="0,0,7,0"
-                            Background="#202737" Foreground="White" BorderBrush="#514276"/>
-                    <Button Content="Remove (−1)" Click="OnRemoveOwnedClicked"
-                            Padding="10,7"
-                            Background="#202737" Foreground="White" BorderBrush="#514276"
-                            ToolTip="Decrease the selected card's count in the unsaved deck; does not change ownership"/>
-                </StackPanel>
-                <TextBlock Grid.Row="5" x:Name="DeckSummaryText" Margin="0,12,0,5"
-                           TextWrapping="Wrap" Foreground="#E5BF79"
-                           Text="Deck totals will appear here."/>
-                <StackPanel Grid.Row="6">
-                    <TextBlock x:Name="DeckShortageText"
-                               TextWrapping="Wrap" Foreground="#C9A9A9"
-                               MaxHeight="100"
-                               ToolTip="Only the selected ownership pool is counted; missing copies are not auto-added."/>
-                    <TextBlock x:Name="EdhLegalityText"
-                               TextWrapping="Wrap" FontSize="11" Margin="0,7,0,0"
-                               Foreground="{DynamicResource VaultWarning}"/>
-                </StackPanel>
-            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+            <GridSplitter Grid.Column="3" Width="8" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          Background="#343A4D"/>
             <Border Grid.Column="4" CornerRadius="9" Padding="12"
                     Background="#171C28" BorderBrush="#514276" BorderThickness="1">
                 <Grid>
