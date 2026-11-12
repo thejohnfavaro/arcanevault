@@ -147,6 +147,28 @@ internal static class NativeVisualShellChecks
              "EDH Lab needs catalog-filtered suggestions, missing/legality warnings and protected deck saves.");
 
 
+        var deckLibraryXaml = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
+        var deckLibraryCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
+        Must(deckLibraryXaml.Contains("x:Name=\"EditDeckInEdhLabButton\"",
+                 StringComparison.Ordinal) &&
+             deckLibraryXaml.Contains("Click=\"OnEditDeckInEdhLabClicked\"",
+                 StringComparison.Ordinal) &&
+             deckLibraryCode.Contains("CommanderCatalog.OpenReadOnly(catalogPath!)",
+                 StringComparison.Ordinal) &&
+             deckLibraryCode.Contains("EdhLabSavedDeckAccess.FindEligibleCommander(",
+                 StringComparison.Ordinal) &&
+             deckLibraryCode.Contains("savedLabFormat: format",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("savedLabFormat is not null ? selected.Commander",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("HeaderText.Text = selected is null",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("NativeWorkspaceSafety.SaveDeck(",
+                 StringComparison.Ordinal),
+             "Saved Commander/Brawl decks must opt into verified EDH Lab without replacing native save or metadata.");
+
         var commanderCode = File.ReadAllText(
             Path.Combine(dir, "CommanderBrowserWindow.xaml.cs"));
         Must(commanderXaml.Contains("x:Name=\"RecordedOnly\"", StringComparison.Ordinal) &&
