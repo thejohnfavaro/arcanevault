@@ -56,7 +56,7 @@ internal static class NativeVisualShellChecks
         {
             string xaml = File.ReadAllText(filename);
             foreach (Match match in Regex.Matches(xaml,
-                @"\\{StaticResource (Vault(?:Background|Sidebar|Panel(?:Raised)?|Line|Text|Muted|Accent(?:Muted|Surface|Border)?|Teal|Good|Warning|Danger))\\}"))
+                @"\{StaticResource (Vault(?:Background|Sidebar|Panel(?:Raised)?|Line|Text|Muted|Accent(?:Muted|Surface|Border)?|Teal|Good|Warning|Danger))\}"))
                 Must(false, "Palette resource must be dynamic to support replacement: " +
                     Path.GetFileName(filename) + " / " + match.Groups[1].Value);
         }
