@@ -275,14 +275,49 @@ public partial class MainWindow : Window
                 "Native update staged", MessageBoxButton.YesNo,
                 MessageBoxImage.Information) == MessageBoxResult.Yes)
             {
-                Process.Start(new ProcessStartInfo
+                string token = NativeUpgradeHandoff.NewId();
+                try
                 {
-                    FileName = installed.ExecutablePath,
-                    Arguments = "--upgrade-from-pid=" + Environment.ProcessId,
-                    UseShellExecute = true,
-                    WorkingDirectory = installed.Directory
-                });
-                Application.Current.Shutdown();
+                    var start = new ProcessStartInfo
+                    {
+                        FileName = installed.ExecutablePath,
+                        UseShellExecute = true,
+                        WorkingDirectory = installed.Directory
+                    };
+                    start.ArgumentList.Add("--upgrade-from-pid=" + Environment.ProcessId);
+                    start.ArgumentList.Add(NativeUpgradeHandoff.ArgumentPrefix + token);
+                    using var child = Process.Start(start) ??
+                        throw new InvalidOperationException("Windows did not start the new executable.");
+                    // Starting a process does not mean it entered WPF startup.
+                    // Keep the working version open if the child crashes or
+                    // fails to acknowledge startup within the safety window.
+                    bool ready = await NativeUpgradeHandoff.WaitForReadyAsync(
+                        token, () => !child.HasExited, TimeSpan.FromSeconds(20));
+                    if (closing) return;
+                    if (!ready)
+                    {
+                        string reason = child.HasExited
+                            ? "The new process exited before confirming startup."
+                            : "The new process did not confirm startup in 20 seconds.";
+                        FilterStatus.Text = "New version installed but automatic relaunch failed.";
+                        MessageBox.Show(this,
+                            reason + Environment.NewLine + Environment.NewLine +
+                            "The current app remains open. Your collection and both " +
+                            "version folders are unchanged." +
+                            Environment.NewLine + Environment.NewLine +
+                            "Check " + Path.Combine(
+                                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                "ArcaneVault", "Diagnostics", "native-crash.log"),
+                            "Native update launch failed",
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    // Child has reached application startup. It now waits
+                    // for THIS parent process to exit before opening the
+                    // shared native workspace.
+                    Application.Current.Shutdown();
+                }
+                finally { NativeUpgradeHandoff.Cleanup(token); }
             }
         }
         catch (Exception ex)

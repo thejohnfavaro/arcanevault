@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Arcane Vault — Read-only Backup Preview"
         Width="1320" Height="860" MinWidth="930" MinHeight="625"
-        Background="{StaticResource VaultBackground}"
-        Foreground="{StaticResource VaultText}">
+        Background="{DynamicResource VaultBackground}"
+        Foreground="{DynamicResource VaultText}">
     <!-- Explicit exported-backup preview remains a separate Window, but it
          uses the same UserControl as the main native collection workspace. -->
     <ContentControl x:Name="PreviewHost"/>

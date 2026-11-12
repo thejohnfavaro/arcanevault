@@ -203,6 +203,29 @@ internal static class NativeUpdateChecks
              !Directory.Exists(Path.Combine(root, "v0.9.4")),
             "ZIP path traversal must not create files outside staging.");
 
+        // Relaunch signal is always outside installed app/version/data roots.
+        // A failed child must leave the old process in control.
+        string handshake = NativeUpgradeHandoff.NewId();
+        string readyFile = NativeUpgradeHandoff.ReadyPath(handshake);
+        Must(!readyFile.StartsWith(NativeWorkspace.RootDirectory,
+                 StringComparison.OrdinalIgnoreCase) &&
+             !readyFile.StartsWith(NativeUpdateService.DefaultVersionsRoot,
+                 StringComparison.OrdinalIgnoreCase),
+             "Relaunch signal may not touch native collection or installed binaries.");
+        try
+        {
+            Must(!NativeUpgradeHandoff.WaitForReadyAsync(handshake,
+                    () => false, TimeSpan.FromSeconds(1)).GetAwaiter().GetResult(),
+                 "Exited child must not allow old app to close.");
+            NativeUpgradeHandoff.Signal(handshake);
+            Must(NativeUpgradeHandoff.WaitForReadyAsync(handshake,
+                    () => true, TimeSpan.FromSeconds(1)).GetAwaiter().GetResult(),
+                 "A running child with explicit readiness must allow handoff.");
+        }
+        finally { NativeUpgradeHandoff.Cleanup(handshake); }
+        Must(!File.Exists(readyFile),
+             "Native handoff must not leave temporary signal files.");
+
         Must(before.SequenceEqual(new[] { nativeWorkspace, catalog, recovery }.Select(Sha)) &&
              Sha(installed.ExecutablePath) == oldExeHash,
             "All failure paths must preserve old executable and user data.");
