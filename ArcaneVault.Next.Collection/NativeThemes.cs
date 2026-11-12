@@ -56,7 +56,7 @@ public static class NativeThemes
             "emerald" => "Deep forest-green panels with mint accents",
             "ember" => "Warm charcoal, copper and orange accents",
             "ocean" => "Midnight-blue panels with cyan accents",
-            "mtg-B" => "Obsidian and charcoal with ash-silver accents — not purple",
+            "mtg-B" => "Black mana-color: obsidian and charcoal with ash-silver accents — not purple",
             _ => Id.StartsWith("mtg-", StringComparison.Ordinal)
                 ? "Dark foundation with " +
                   (PreviewColors.Count > 1 ? "separate" : "one") +
