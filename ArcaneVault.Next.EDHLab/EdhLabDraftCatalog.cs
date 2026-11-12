@@ -51,6 +51,11 @@ public sealed class EdhLabDraftCatalog
     public IEnumerable<Card> RecordedNonlandCards =>
         cards.Where(x => x.RecordedCopies > 0 &&
             !x.Type.Contains("Land", StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Complete, immutable, format-filtered snapshot for bounded offline analysis.
+    /// Unlike Search, this is not truncated at the first 200 UI results.
+    /// </summary>
+    public IReadOnlyList<Card> AllEligibleCards => cards;
     public int EligibleCount => cards.Count;
     public int RecordedEligibleCount => recordedEligibleCount;
     public int SynergyEligibleCount => synergyByName.Values.Count(x => x.Matches);
