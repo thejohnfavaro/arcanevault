@@ -41,3 +41,7 @@ Builds on the user-accepted v0.9.45 commander synergy packages by making their n
 7. Check Physical vs Arena Brawl pools for correct legalities and owned counts, then verify existing saved deck data is intact.
 
 Release requires passing Windows and native .NET 10 regressions, checksummed portable packaging and local acceptance. This is a preview, not 1.0.
+
+## Publication retry
+
+The first main-branch Windows build and native regression suite completed, but GitHub returned an HTTP 500 while creating the v0.9.46 release. This documentation-only commit requests a fresh main-branch checksummed package and release attempt; application code and native version remain unchanged.
