@@ -105,7 +105,7 @@
                BasedOn="{StaticResource VaultNavButton}">
             <Setter Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource VaultAccentBorder}"/>
-            <Setter Property="Foreground" Value="#E4D9FF"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
         <Style x:Key="VaultDangerButton" TargetType="{x:Type Button}"
