@@ -78,6 +78,23 @@ internal static class NativeVisualShellChecks
         Must(!mainXaml.Contains("Color=\"#302748\"", StringComparison.Ordinal),
              "Hard-coded purple catalog banner must not override non-purple themes.");
 
+        var commanderXaml = File.ReadAllText(
+            Path.Combine(dir, "CommanderBrowserWindow.xaml"));
+        var commanderCode = File.ReadAllText(
+            Path.Combine(dir, "CommanderBrowserWindow.xaml.cs"));
+        Must(commanderXaml.Contains("x:Name=\"RecordedOnly\"", StringComparison.Ordinal) &&
+             commanderXaml.Contains("Text=\"{Binding InventoryText}\"",
+                 StringComparison.Ordinal) &&
+             commanderXaml.Contains("Background=\"{DynamicResource VaultBackground}\"",
+                 StringComparison.Ordinal) &&
+             commanderXaml.Contains("x:Name=\"PreviousButton\"", StringComparison.Ordinal) &&
+             commanderXaml.Contains("x:Name=\"NextButton\"", StringComparison.Ordinal),
+             "EDH Lab needs a theme-aware, bounded, inventory-aware commander browser.");
+        Must(commanderCode.Contains("inventory.Filter(", StringComparison.Ordinal) &&
+             commanderCode.Contains("RecordedOnly.IsEnabled = hasCollection",
+                 StringComparison.Ordinal),
+             "EDH Lab ownership filtering must be disabled when no verified collection exists.");
+
         var keys = app.Descendants()
             .Select(e => e.Attribute(XName.Get("Key", XamlNs))?.Value)
             .Where(s => !string.IsNullOrWhiteSpace(s))
