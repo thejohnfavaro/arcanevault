@@ -61,7 +61,7 @@ public partial class NativeDeckEditorWindow : Window
         }
 
         PreviewCardName.Text = card.Name;
-        PreviewOwnership.Text = $"{card.Owned:N0} copies owned in the selected inventory";
+        RefreshPreviewOwnership();
         if (string.IsNullOrWhiteSpace(catalogPath))
         {
             PreviewMetadata.Text = "No offline Scryfall catalog available.";
@@ -160,6 +160,25 @@ public partial class NativeDeckEditorWindow : Window
         }
     }
 
+    private void RefreshPreviewOwnership()
+    {
+        if (PreviewOwnership is null || MainboardBox is null ||
+            OwnedCardsList?.SelectedItem is not OwnedDisplay card)
+            return;
+        try
+        {
+            var inDeck = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
+                .FirstOrDefault(x => x.Name.Equals(card.Name,
+                    StringComparison.OrdinalIgnoreCase))?.Quantity ?? 0;
+            PreviewOwnership.Text = $"{card.Owned:N0} owned · {inDeck:N0} in mainboard";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException)
+        {
+            PreviewOwnership.Text = $"{card.Owned:N0} owned · draft needs review";
+        }
+    }
+
     private void InvalidateAnalytics()
     {
         draftVersion++;
@@ -173,6 +192,7 @@ public partial class NativeDeckEditorWindow : Window
     {
         InvalidateAnalytics();
         RefreshDraftSummary();
+        RefreshPreviewOwnership();
     }
 
     private void OnFormatChanged(object sender,
