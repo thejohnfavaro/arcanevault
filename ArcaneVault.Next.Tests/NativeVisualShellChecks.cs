@@ -86,6 +86,29 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "NativeDeckEditorWindow.xaml.cs"));
         var mainShellCode = File.ReadAllText(
             Path.Combine(dir, "MainWindow.xaml.cs"));
+        // Regression: v0.9.32 shipped the EDH Lab builder but hid its only
+        // launcher with Visibility=Collapsed, making it inaccessible.
+        var edhLauncher = XDocument.Parse(mainXaml).Descendants()
+            .SingleOrDefault(x => x.Attribute(XName.Get("Name", XamlNs))?.Value ==
+                "EdhLabButton");
+        Must(edhLauncher is not null &&
+             edhLauncher.Name.LocalName == "Button" &&
+             edhLauncher.Attribute("Visibility")?.Value is not "Collapsed" and not "Hidden" &&
+             edhLauncher.Attribute("Click")?.Value == "OnEdhLabClicked" &&
+             mainXaml.IndexOf("x:Name=\"DeckLibraryNavigationButton\"",
+                 StringComparison.Ordinal) <
+             mainXaml.IndexOf("x:Name=\"EdhLabButton\"",
+                 StringComparison.Ordinal) &&
+             mainXaml.IndexOf("x:Name=\"EdhLabButton\"",
+                 StringComparison.Ordinal) <
+             mainXaml.IndexOf("x:Name=\"SetProgressNavigationButton\"",
+                 StringComparison.Ordinal),
+             "EDH Lab must remain a visible, accessible sidebar workspace.");
+        Must(mainShellCode.Contains("catalogSnapshot = persisted;\n", StringComparison.Ordinal) &&
+             mainShellCode.Contains("EdhLabButton.IsEnabled = true;", StringComparison.Ordinal) &&
+             !mainShellCode.Contains("EdhLabButton.IsEnabled = false; // EDH Lab remains backlog",
+                 StringComparison.Ordinal),
+             "EDH Lab launch must be enabled after loading or syncing a real Scryfall catalog.");
         Must(commanderXaml.Contains("x:Name=\"BuildDeckButton\"",
                  StringComparison.Ordinal) &&
              commanderXaml.Contains("Click=\"OnBuildDeckClicked\"",
