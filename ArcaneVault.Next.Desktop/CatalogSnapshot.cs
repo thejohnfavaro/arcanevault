@@ -15,6 +15,12 @@ public sealed class CatalogSnapshot : IDisposable
         int PhysicalOwned = 0, int ArenaOwned = 0, int UnresolvedName = 0,
         string ImageUrl = "", string RolesLabel = "", bool ArenaPresentation = false)
     {
+        // Name-level bookmark only, never a printing or ownership claim.
+        public bool IsShortlisted { get; init; }
+        public string ShortlistStar => IsShortlisted ? "★" : "☆";
+        public string ShortlistTooltip => IsShortlisted
+            ? "Already in My Shortlist — manage bookmarks in My Shortlist"
+            : "Save card name to My Shortlist (does not add ownership)";
         // Presentation only: preserve the original set code for identity and filters.
         public string DisplaySetCode => ArenaPresentation ? "ARENA CARD" : SetCode.ToUpperInvariant();
         public string DisplayCollectorNumber => ArenaPresentation ? "" : CollectorNumber;
