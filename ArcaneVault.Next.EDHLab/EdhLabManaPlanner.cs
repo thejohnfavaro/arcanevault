@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using ArcaneVault.Next.Collection;
 using ArcaneVault.Next.Domain;
 
 namespace ArcaneVault.Next.EDHLab;
@@ -110,7 +109,7 @@ public static class EdhLabManaPlanner
     }
 
     public static Plan Analyze(EdhLabDraftCatalog catalog,
-        IReadOnlyList<NativeDeckEditing.Entry> entries, string commanderColors,
+        IEnumerable<(string Name, int Quantity)> entries, string commanderColors,
         int targetLands = 36)
     {
         ArgumentNullException.ThrowIfNull(catalog);
