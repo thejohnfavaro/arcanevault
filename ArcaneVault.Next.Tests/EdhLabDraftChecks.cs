@@ -403,11 +403,17 @@ internal static class EdhLabDraftChecks
              curve.Display.Contains("not simulated", StringComparison.OrdinalIgnoreCase),
              "Projected curve should use cached mana values, live draft counts and explicit odds assumptions.");
 
-        // Two U pips on turn two are stricter than one U; pressure estimates
-        // are marginal color-source draws, not probability of casting.
-        Must(curve.ColorWarnings.Any(x => x.Name == "Counterspell" &&
+        // Two U pips on turn two in a white-heavy deck create a measurable
+        // blue-source bottleneck. Marginal odds are NOT cast probabilities.
+        var pressureRows = ManaRows("1 Counterspell\n10 Swords to Plowshares");
+        var pressurePlan = EdhLabManaPlanner.Analyze(pipPaper,
+            pressureRows, "WU", 36, weightSpellPips: true);
+        var pressure = EdhLabCurveAnalysis.Analyze(
+            pipPaper, pressureRows, pressurePlan);
+        Must(pressure.ColorWarnings.Any(x => x.Name == "Counterspell" &&
                 x.Color == "U" && x.RequiredSources == 2 &&
-                x.ByTurn == 2 && x.MarginalChance < .60),
+                x.ByTurn == 2 && x.MarginalChance < .60) &&
+             pressure.Display.Contains("NOT cast odds"),
              "Strict double-colored spells should show marginal source pressure, not invented cast odds.");
 
         var completeEntries = ManaRows(
