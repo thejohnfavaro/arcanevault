@@ -39,8 +39,12 @@ public sealed class EdhLabDraftCatalog
     {
         var hints = new List<string>();
         bool Has(string phrase) => oracle.Contains(phrase, StringComparison.OrdinalIgnoreCase);
-        if (type.Contains("Land", StringComparison.OrdinalIgnoreCase)) hints.Add("Land");
-        if (Has("add {") || Has("add one mana") || Has("search your library for a basic land") ||
+        bool isLand = type.Contains("Land", StringComparison.OrdinalIgnoreCase);
+        if (isLand) hints.Add("Land");
+        // Ordinary mana-producing lands fill land slots, not ramp slots.
+        // Search-for-land and Treasure effects may still generate extra mana.
+        if ((!isLand && (Has("add {") || Has("add one mana"))) ||
+            Has("search your library for a basic land") ||
             Has("search your library for a land") || Has("Treasure token"))
             hints.Add("Ramp");
         if (Has("draw a card") || Has("draw two cards") || Has("draw three cards") ||
