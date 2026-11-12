@@ -130,6 +130,19 @@ internal static class EdhLabDraftChecks
              artifactPackage.MissingOptions.Any(x => x.Name == "Thopter Foundry") &&
              tokenPackage.MissingOptions.Any(x => x.Name == "Thopter Foundry"),
              "Packages must separate existing, exhausted, and missing synergy cards by recognized mechanic.");
+        Must(artifactPackage.Coverage.Contains("0 potential enablers") &&
+             artifactPackage.Coverage.Contains("1 supporting matches") &&
+             artifactPackage.NextStep.Contains("No complete enabler/payoff") &&
+             tokenPackage.Coverage.Contains("0 potential enablers"),
+             "Mechanic coverage must describe actual full draft signals, not missing suggestions.");
+        var seededPackages = EdhLabSynergyPackages.Analyze(paper,
+            new[] { (Name: "Thopter Foundry", Quantity: 1),
+                    (Name: "Artifact Engine", Quantity: 1) });
+        Must(seededPackages.Packages.Single(x => x.Theme == "Tokens")
+                .Coverage.Contains("2 potential enablers") &&
+             seededPackages.Packages.Single(x => x.Theme == "Tokens")
+                .NextStep.Contains("No complete enabler/payoff"),
+             "Multiple token makers alone must not be reported as a verified combo.");
         Must(!paperPackages.Packages.SelectMany(x => x.OwnedOptions.Concat(x.MissingOptions))
                  .Any(x => x.Name is "Lightning Bolt" or "Paper Banned Thopter" or "Selected Leader"),
              "Package lists must preserve identity, bans and commander exclusion.");
