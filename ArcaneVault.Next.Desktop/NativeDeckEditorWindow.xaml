@@ -90,14 +90,25 @@
                 <ColumnDefinition Width="3*"/>
                 <ColumnDefinition Width="12"/>
                 <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="1.5*"/>
             </Grid.ColumnDefinitions>
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="Mainboard — e.g. 1 Sol Ring or 12 Island"
-                           Margin="0,0,0,8" Foreground="#E5BF79"/>
+                <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
+                    <Button DockPanel.Dock="Right" Content="Sort A–Z"
+                            Click="OnSortMainboardClicked"
+                            Padding="9,3" Margin="8,0,0,0"
+                            Background="#202737" Foreground="White"
+                            BorderBrush="#514276"
+                            ToolTip="Sort the unsaved mainboard; rejects invalid lines rather than dropping them"/>
+                    <TextBlock Text="Mainboard — e.g. 1 Sol Ring or 12 Island"
+                               VerticalAlignment="Center" Foreground="#E5BF79"
+                               TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
                 <TextBox Grid.Row="1" x:Name="MainboardBox" TextChanged="OnDraftChanged"
                          AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
                          VerticalScrollBarVisibility="Auto"
@@ -133,16 +144,18 @@
                          BorderBrush="#514276"/>
                 <ListBox Grid.Row="3" x:Name="OwnedCardsList"
                          DisplayMemberPath="Display"
+                         SelectionChanged="OnOwnedCardSelectionChanged"
                          MouseDoubleClick="OnOwnedCardDoubleClicked"
                          Background="#171C28" Foreground="#F2F5FA"
                          BorderBrush="#514276"/>
                 <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
-                    <Button Content="Add card (+1)" Click="OnAddOwnedClicked"
-                            Padding="9,7" Margin="0,0,7,0"
+                    <Button Content="Add (+1)" Click="OnAddOwnedClicked"
+                            Padding="10,7" Margin="0,0,7,0"
                             Background="#202737" Foreground="White" BorderBrush="#514276"/>
-                    <Button x:Name="AnalyzeDeckButton" Content="Analyze deck"
-                            Click="OnAnalyzeDeckClicked" Padding="9,7"
-                            Background="#473A70" Foreground="White" BorderBrush="#7663B3"/>
+                    <Button Content="Remove (−1)" Click="OnRemoveOwnedClicked"
+                            Padding="10,7"
+                            Background="#202737" Foreground="White" BorderBrush="#514276"
+                            ToolTip="Decrease the selected card's count in the unsaved deck; does not change ownership"/>
                 </StackPanel>
                 <TextBlock Grid.Row="5" x:Name="DeckSummaryText" Margin="0,12,0,5"
                            TextWrapping="Wrap" Foreground="#E5BF79"
@@ -152,6 +165,56 @@
                            MaxHeight="118"
                            ToolTip="Only the selected ownership pool is counted; missing copies are not auto-added."/>
             </Grid>
+            <Border Grid.Column="4" CornerRadius="9" Padding="12"
+                    Background="#171C28" BorderBrush="#514276" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="CARD PREVIEW" FontSize="11"
+                               Foreground="#E5BF79" FontWeight="SemiBold"
+                               Margin="0,0,0,6"/>
+                    <TextBlock x:Name="PreviewCardName" Grid.Row="1"
+                               FontSize="15" FontWeight="SemiBold" Foreground="#F0F1F6"
+                               TextWrapping="Wrap" Text="Select an owned card"
+                               Margin="0,0,0,5"/>
+                    <TextBlock x:Name="PreviewOwnership" Grid.Row="2"
+                               FontSize="11" Foreground="#70B992"
+                               TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Border CornerRadius="7" Background="#242A3C"
+                                    BorderBrush="#514276" BorderThickness="1"
+                                    Padding="6" HorizontalAlignment="Center">
+                                <Grid Width="152" Height="210">
+                                    <TextBlock x:Name="PreviewArtFallback"
+                                               Text="ARCANE VAULT&#10;Card artwork"
+                                               TextAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="#9DA9BD" FontSize="12"/>
+                                    <Image x:Name="PreviewArtwork" Visibility="Collapsed"
+                                           Stretch="Uniform" SnapsToDevicePixels="True"/>
+                                </Grid>
+                            </Border>
+                            <TextBlock x:Name="PreviewMetadata" Margin="0,9,0,4"
+                                       TextWrapping="Wrap" FontSize="11"
+                                       Foreground="#D8DEEB"
+                                       Text="Select a card to see local catalog information."/>
+                            <TextBlock x:Name="PreviewOracleText" Margin="0,3,0,0"
+                                       TextWrapping="Wrap" FontSize="11"
+                                       Foreground="#B5C1D3"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock x:Name="PreviewStatus" Grid.Row="4"
+                               Margin="0,8,0,0" FontSize="10"
+                               Foreground="#9DA9BD" TextWrapping="Wrap"
+                               Text="Preview is read-only. Artwork is illustrative, not proof of an owned printing."/>
+                </Grid>
+            </Border>
         </Grid>
 
         <WrapPanel Grid.Row="5" Margin="0,10,0,0">
@@ -167,6 +230,9 @@
             <Button Content="Export .txt" Click="OnExportTextClicked"
                     Padding="11,8" Margin="0,0,8,4"
                     Background="#202737" Foreground="White" BorderBrush="#514276"/>
+            <Button x:Name="AnalyzeDeckButton" Content="Analyze deck"
+                    Click="OnAnalyzeDeckClicked" Padding="11,8" Margin="0,0,8,4"
+                    Background="#473A70" Foreground="White" BorderBrush="#7663B3"/>
         </WrapPanel>
         <Grid Grid.Row="6" Margin="0,10,0,10">
             <Grid.RowDefinitions>
