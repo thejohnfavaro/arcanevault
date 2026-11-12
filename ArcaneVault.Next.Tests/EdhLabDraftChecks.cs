@@ -129,8 +129,10 @@ internal static class EdhLabDraftChecks
              "Physical and Arena inventory names may not be combined.");
         Must(paper.Search("LIGHTNING", false).Count == 0 &&
              paper.Search("sol ring", false).Single().RecordedCopies == 1 &&
-             paper.Search("island", false).Single().RecordedCopies == 0 &&
-             arena.Search("island", false).Single().RecordedCopies == 4,
+             paper.Search("island", false)
+                 .Single(x => x.Name == "Island").RecordedCopies == 0 &&
+             arena.Search("island", false)
+                 .Single(x => x.Name == "Island").RecordedCopies == 4,
              "Unowned cards must appear as missing; ownership is name-only and format-separated.");
         Must(paper.Search("", false, "Ramp").Any(x => x.Name == "Sol Ring") &&
              !paper.Search("", false, "Ramp").Any(x => x.Name == "Island") &&
