@@ -80,6 +80,21 @@ internal static class EdhLabDraftChecks
             Card("Heavy Generic", "W", "Vanilla finisher.", type: "Creature — Giant");
             Card("Artifact Engine", "U", "Create a 1/1 Thopter artifact creature token.",
                 type: "Artifact");
+            Card("Clockwork Maker", "U",
+                "Create a 1/1 colorless Thopter artifact creature token.",
+                type: "Artifact Creature — Artificer");
+            Card("Artifact Arrival", "U",
+                "Whenever an artifact enters the battlefield under your control, draw a card.",
+                type: "Creature — Artificer");
+            Card("Token Arrival", "W",
+                "Whenever a creature enters the battlefield under your control, gain 1 life.",
+                type: "Creature — Cleric");
+            Card("Off Color Arrival", "R",
+                "Whenever an artifact enters the battlefield under your control, draw a card.",
+                type: "Creature — Human");
+            Card("Banned Arrival", "U",
+                "Whenever an artifact enters the battlefield under your control, draw a card.",
+                commanderLegal: "banned", brawlLegal: "banned");
             Card("Mystic Tutor", "U", "Search your library for a card.");
             Card("Lightning Bolt", "R", "Deal 3 damage.");
             Card("Three Color", "WUB", "Draw a card.");
@@ -97,6 +112,7 @@ internal static class EdhLabDraftChecks
             new[]
             {
                 new NativePhysicalRow("Sol Ring", 1, "", "", "", ""),
+                new NativePhysicalRow("Artifact Arrival", 1, "", "", "", ""),
                 new NativePhysicalRow("Swords to Plowshares", 2, "", "", "", ""),
                 new NativePhysicalRow("Counterspell", 1, "", "", "", ""),
                 new NativePhysicalRow("Tiny Insight", 1, "", "", "", ""),
@@ -163,6 +179,59 @@ internal static class EdhLabDraftChecks
              !arenaPackages.Packages.SelectMany(x => x.OwnedOptions)
                 .Any(x => x.Name == "Sol Ring"),
              "Arena suggestions must not borrow paper-owned cards or unavailable cards.");
+        var ownedLink = EdhLabSynergyChains.Analyze(paper,
+            new[] { (Name: "Clockwork Maker", Quantity: 1) });
+        Must(ownedLink.Chains.Any(x =>
+                x.Enabler == "Clockwork Maker" &&
+                x.Payoff == "Artifact Arrival" &&
+                x.Status == "Owned missing link" &&
+                x.SuggestedCard == "Artifact Arrival" &&
+                x.SuggestedRecordedCopies == 1),
+             "Deck enabler must find recorded owned payoff as an unsaved suggestion.");
+        Must(ownedLink.Chains.All(x =>
+                x.Enabler != x.Payoff &&
+                x.Payoff != "Off Color Arrival" &&
+                x.Payoff != "Banned Arrival"),
+             "Chains must exclude self-links, off-identity and banned cards.");
+        var completeLink = EdhLabSynergyChains.Analyze(paper,
+            new[] { (Name: "Clockwork Maker", Quantity: 1),
+                    (Name: "Artifact Arrival", Quantity: 1) });
+        Must(completeLink.Chains.Any(x =>
+                x.Enabler == "Clockwork Maker" &&
+                x.Payoff == "Artifact Arrival" &&
+                x.Status == "Both in deck"),
+             "Already-drafted interaction pair must take priority over missing links.");
+        var missingLink = EdhLabSynergyChains.Analyze(paper,
+            new[] { (Name: "Artifact Arrival", Quantity: 1) });
+        Must(missingLink.Chains.Any(x =>
+                x.Enabler == "Clockwork Maker" &&
+                x.Payoff == "Artifact Arrival" &&
+                x.Status == "Not recorded" &&
+                x.SuggestedRecordedCopies == 0),
+             "Missing physically unrecorded enabler must never be described as owned.");
+        var arenaLink = EdhLabSynergyChains.Analyze(arena,
+            new[] { (Name: "Clockwork Maker", Quantity: 1) });
+        Must(arenaLink.Chains.All(x =>
+                x.Status != "Owned missing link" &&
+                x.Payoff != "Banned Arrival" &&
+                x.Payoff != "Off Color Arrival"),
+             "Arena chain hints cannot borrow paper-owned inventory or invalid cards.");
+        var none = EdhLabSynergyChains.Analyze(paper,
+            Array.Empty<(string Name, int Quantity)>());
+        Must(none.Chains.Count == 0 &&
+             EdhLabSynergyChains.Analyze(paper,
+                new[] { (Name: "Missing Metadata Card", Quantity: 1) })
+                .UnknownCopies == 1,
+             "No chain without a card in the current deck; unknown draft cards are not analyzed.");
+        bool invalidChainQuantity = false;
+        try
+        {
+            EdhLabSynergyChains.Analyze(paper,
+                new[] { (Name: "Clockwork Maker", Quantity: 0) });
+        }
+        catch (ArgumentOutOfRangeException) { invalidChainQuantity = true; }
+        Must(invalidChainQuantity,
+            "Invalid quantities must be refused by the synergy chain analyzer.");
         bool badPackageQuantity = false;
         try
         {
