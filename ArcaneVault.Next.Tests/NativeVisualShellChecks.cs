@@ -161,7 +161,7 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckLibraryCode.Contains("savedLabFormat: format",
                  StringComparison.Ordinal) &&
-             draftEditorCode.Contains("selected is null ? draftCommander",
+             draftEditorCode.Contains("savedLabFormat is not null ? selected.Commander",
                  StringComparison.Ordinal) &&
              draftEditorCode.Contains("HeaderText.Text = selected is null",
                  StringComparison.Ordinal) &&
