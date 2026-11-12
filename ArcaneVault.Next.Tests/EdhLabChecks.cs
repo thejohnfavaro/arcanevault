@@ -84,6 +84,34 @@ internal static class EdhLabChecks
         var before = SHA256.HashData(File.ReadAllBytes(catalog));
         var mtime = File.GetLastWriteTimeUtc(catalog);
         var index = CommanderCatalog.OpenReadOnly(catalog);
+        Check(EdhLabSavedDeckAccess.FormatFor(" Commander ") ==
+                  EdhLabFormat.PaperCommander &&
+              EdhLabSavedDeckAccess.FormatFor("arena brawl") ==
+                  EdhLabFormat.ArenaBrawl &&
+              EdhLabSavedDeckAccess.FormatFor("60-card") is null &&
+              EdhLabSavedDeckAccess.FormatFor("Other") is null &&
+              EdhLabSavedDeckAccess.FormatFor(null) is null,
+              "Only explicit saved Commander/Brawl formats should opt into EDH Lab.");
+        Check(EdhLabSavedDeckAccess.FindEligibleCommander(index,
+                  " TEST LEADER 000 ", EdhLabFormat.PaperCommander)?.Name ==
+                  "Test Leader 000" &&
+              EdhLabSavedDeckAccess.FindEligibleCommander(index,
+                  "PW No Exception", EdhLabFormat.ArenaBrawl)?.Name ==
+                  "PW No Exception",
+              "Saved EDH Lab reopen must resolve the exact locally legal leader.");
+        Check(EdhLabSavedDeckAccess.FindEligibleCommander(index,
+                  "Commander Banned", EdhLabFormat.PaperCommander) is null &&
+              EdhLabSavedDeckAccess.FindEligibleCommander(index,
+                  "Brawl Banned", EdhLabFormat.ArenaBrawl) is null &&
+              EdhLabSavedDeckAccess.FindEligibleCommander(index,
+                  "Only Paper", EdhLabFormat.ArenaBrawl) is null &&
+              EdhLabSavedDeckAccess.FindEligibleCommander(index,
+                  "PW No Exception", EdhLabFormat.PaperCommander) is null &&
+              EdhLabSavedDeckAccess.FindEligibleCommander(index,
+                  "Test Leader 000 but not quite", EdhLabFormat.PaperCommander) is null &&
+              EdhLabSavedDeckAccess.FindEligibleCommander(index,
+                  "", EdhLabFormat.PaperCommander) is null,
+              "Saved EDH Lab reopen must reject banned, absent, wrong-format or partial commanders.");
         var paper = new EdhLabQuery(EdhLabFormat.PaperCommander, PageSize: 50);
         var arena = paper with { Format = EdhLabFormat.ArenaBrawl };
         var paperPage = index.Browse(paper);
