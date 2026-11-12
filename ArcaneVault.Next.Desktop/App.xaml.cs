@@ -102,55 +102,57 @@ public partial class App : Application
             // The default XAML brushes remain available.
         }
 
+        // Instantiate the entire MainWindow/XAML tree before acknowledging
+        // handoff. A constructor or resource failure must NOT terminate the
+        // last working native instance. MainWindow.Loaded (catalog/workspace
+        // reads) runs only after the old process exits and Show() is called.
+        base.OnStartup(e);
+        MainWindow window;
+        try
+        {
+            window = new MainWindow();
+            MainWindow = window;
+        }
+        catch (Exception ex)
+        {
+            RecordFailure("Native MainWindow startup preflight", ex);
+            try
+            {
+                MessageBox.Show(
+                    "Arcane Vault could not initialize its main window. " +
+                    "The previous app has not been closed by this instance." +
+                    Environment.NewLine + Environment.NewLine + ex.Message,
+                    "Native startup failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch { }
+            Shutdown(1);
+            return;
+        }
+
         if (previousPid is not null)
         {
-            if (readyId is not null)
+            try
             {
-                try
-                {
+                if (readyId is not null)
                     NativeUpgradeHandoff.Signal(readyId);
-                    // The parent waits for this signal BEFORE closing. Now
-                    // the new process waits for its exit, preventing two
-                    // native windows from opening the same SQLite workspace.
-                    try
-                    {
-                        using var previous = Process.GetProcessById(previousPid.Value);
-                        if (!previous.WaitForExit(30_000))
-                        {
-                            RecordFailure("Native relaunch parent wait",
-                                new TimeoutException("Parent app remained open after readiness."));
-                            Shutdown(1);
-                            return;
-                        }
-                    }
-                    catch (ArgumentException) { /* Previous instance already exited. */ }
-                }
-                catch (Exception ex)
-                {
-                    RecordFailure("Native relaunch handshake", ex);
-                    Shutdown(1);
-                    return;
-                }
-            }
-            else
-            {
-                // Compatible with previous updater installations that only
-                // supply the parent PID. Never open a live workspace twice.
+                // The parent only shuts down after the MainWindow constructor
+                // succeeded. Wait BEFORE opening any private SQLite workspace.
                 try
                 {
                     using var previous = Process.GetProcessById(previousPid.Value);
                     if (!previous.WaitForExit(30_000))
-                    {
-                        RecordFailure("Legacy native relaunch",
-                            new TimeoutException("Previous app did not exit."));
-                        Shutdown(1);
-                        return;
-                    }
+                        throw new TimeoutException("Previous native instance did not exit.");
                 }
-                catch (ArgumentException) { }
+                catch (ArgumentException) { /* Parent already exited. */ }
+            }
+            catch (Exception ex)
+            {
+                RecordFailure("Native relaunch handshake", ex);
+                Shutdown(1);
+                return;
             }
         }
-        base.OnStartup(e);
+        window.Show();
     }
 
 }
