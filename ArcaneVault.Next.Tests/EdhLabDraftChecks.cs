@@ -148,7 +148,7 @@ internal static class EdhLabDraftChecks
              "Packages must separate existing, exhausted, and missing synergy cards by recognized mechanic.");
         Must(artifactPackage.Coverage.Contains("0 potential enablers") &&
              artifactPackage.Coverage.Contains("1 supporting matches") &&
-             artifactPackage.NextStep.Contains("No complete enabler/payoff") &&
+             artifactPackage.NextStep.Contains("Review an owned potential payoff") &&
              tokenPackage.Coverage.Contains("0 potential enablers"),
              "Mechanic coverage must describe actual full draft signals, not missing suggestions.");
         var seededPackages = EdhLabSynergyPackages.Analyze(paper,
