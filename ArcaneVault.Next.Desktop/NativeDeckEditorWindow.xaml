@@ -119,11 +119,15 @@
                             Background="#202737" Foreground="White"
                             BorderBrush="#514276"
                             ToolTip="Sort the unsaved mainboard; rejects invalid lines rather than dropping them"/>
-                    <TextBlock Text="Mainboard — e.g. 1 Sol Ring or 12 Island"
+                    <TextBlock Text="Mainboard — click a card line to preview"
                                VerticalAlignment="Center" Foreground="#E5BF79"
-                               TextTrimming="CharacterEllipsis"/>
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip="Click a card line, or use Up/Down to move the caret, to view its official catalog card image and text in CARD PREVIEW. No deck or ownership changes."/>
                 </DockPanel>
                 <TextBox Grid.Row="1" x:Name="MainboardBox" TextChanged="OnDraftChanged"
+                         SelectionChanged="OnMainboardSelectionChanged"
+                         GotKeyboardFocus="OnMainboardGotKeyboardFocus"
+                         PreviewMouseLeftButtonUp="OnMainboardMouseReleased"
                          AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
                          VerticalScrollBarVisibility="Auto"
                          HorizontalScrollBarVisibility="Auto"
