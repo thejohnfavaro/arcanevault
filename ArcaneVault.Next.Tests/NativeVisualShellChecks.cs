@@ -144,6 +144,15 @@ internal static class NativeVisualShellChecks
              NearestTab(NamedEditor("EdhCurveDetails")) == "EdhManaTab" &&
              NearestTab(NamedEditor("EdhSwapProposalsList")) == "EdhImproveTab" &&
              NearestTab(NamedEditor("EdhOptimizationDetails")) == "EdhImproveTab" &&
+             NearestTab(NamedEditor("EdhManaScroll")) == "EdhManaTab" &&
+             NearestTab(NamedEditor("EdhImproveScroll")) == "EdhImproveTab" &&
+             NamedEditor("EdhManaScroll").Attribute("VerticalScrollBarVisibility")?.Value == "Visible" &&
+             NamedEditor("EdhImproveScroll").Attribute("VerticalScrollBarVisibility")?.Value == "Visible" &&
+             tabs.Attribute("SizeChanged")?.Value == "OnEdhWorkspaceSizeChanged" &&
+             tabs.Attribute("Loaded")?.Value == "OnEdhWorkspaceLoaded" &&
+             draftEditorCode.Contains("ConstrainEdhWorkspaceScrollers()", StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhManaScroll.MaxHeight = viewport;", StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhImproveScroll.MaxHeight = viewport;", StringComparison.Ordinal) &&
              NamedEditor("EdhManaTab").Ancestors().Any(x =>
                  x.Name.LocalName == "TabControl") &&
              deckEditorXaml.Contains("x:Name=\"EdhCardsFilters\"") &&
