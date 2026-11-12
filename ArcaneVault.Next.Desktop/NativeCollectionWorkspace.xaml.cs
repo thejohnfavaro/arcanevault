@@ -2,6 +2,7 @@ using ArcaneVault.Next.Collection;
 using Microsoft.Win32;
 using System.IO;
 using ArcaneVault.Next.Domain;
+using ArcaneVault.Next.EDHLab;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -602,6 +603,12 @@ public partial class NativeCollectionWorkspace : UserControl
             row.Editable && !deckBusy &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
         EditDeckButton.IsEnabled = editable;
+        EditDeckInEdhLabButton.IsEnabled = editable &&
+            !string.IsNullOrWhiteSpace(catalogPath) &&
+            File.Exists(catalogPath) &&
+            row is not null &&
+            !string.IsNullOrWhiteSpace(row.Commander) &&
+            EdhLabSavedDeckAccess.FormatFor(row.Format) is not null;
         DeleteDeckButton.IsEnabled = !deckBusy &&
             DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
@@ -631,7 +638,7 @@ public partial class NativeCollectionWorkspace : UserControl
 
     private async void OnEditDeckClicked(object sender, RoutedEventArgs e)
     {
-        if (closing || string.IsNullOrWhiteSpace(nativePath) ||
+        if (deckBusy || closing || string.IsNullOrWhiteSpace(nativePath) ||
             string.IsNullOrWhiteSpace(expectedBackupSha) ||
             DeckLibraryList.SelectedItem is not NativeDeckEditing.DeckRow selected)
         {
@@ -649,6 +656,80 @@ public partial class NativeCollectionWorkspace : UserControl
         if (dialog.ShowDialog() != true) return;
         Close();
         if (reopenNative is not null) await reopenNative();
+    }
+
+    private async void OnEditDeckInEdhLabClicked(object sender, RoutedEventArgs e)
+    {
+        if (deckBusy || closing || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha) ||
+            string.IsNullOrWhiteSpace(catalogPath) || !File.Exists(catalogPath) ||
+            DeckLibraryList.SelectedItem is not NativeDeckEditing.DeckRow selected ||
+            !selected.Editable ||
+            EdhLabSavedDeckAccess.FormatFor(selected.Format) is not EdhLabFormat format ||
+            string.IsNullOrWhiteSpace(selected.Commander))
+        {
+            DeckLibraryStatus.Text =
+                "Select an editable Commander or Arena Brawl deck with a commander " +
+                "and a synced local Scryfall catalog.";
+            return;
+        }
+
+        deckBusy = true;
+        EditDeckButton.IsEnabled = false;
+        EditDeckInEdhLabButton.IsEnabled = false;
+        AddDeckButton.IsEnabled = false;
+        DeleteDeckButton.IsEnabled = false;
+        DuplicateDeckButton.IsEnabled = false;
+        DeckLibraryStatus.Text = "Verifying saved commander against local format rules…";
+        try
+        {
+            // The saved format and commander name are untrusted user data.
+            // Revalidate the EXACT name, commander eligibility and format
+            // from the current read-only catalog before offering role guidance.
+            var commander = await Task.Run(() =>
+            {
+                var index = CommanderCatalog.OpenReadOnly(catalogPath!);
+                return EdhLabSavedDeckAccess.FindEligibleCommander(
+                    index, selected.Commander, format);
+            });
+            if (closing) return;
+            if (commander is null)
+            {
+                DeckLibraryStatus.Text =
+                    "This saved commander is not verified as eligible in the current " +
+                    "local catalog for this format. Refresh Scryfall metadata, or " +
+                    "use Edit selected deck to make manual changes. No data changed.";
+                return;
+            }
+
+            var dialog = new NativeDeckEditorWindow(
+                nativePath, expectedBackupSha, backup, catalogPath, selected,
+                savedLabFormat: format, savedLabColors: commander.ColorIdentity)
+            { Owner = Window.GetWindow(this) };
+            if (dialog.ShowDialog() != true) return;
+            Close();
+            if (reopenNative is not null) await reopenNative();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or
+            UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or
+            ArgumentException)
+        {
+            if (!closing)
+                DeckLibraryStatus.Text = "EDH Lab could not verify this saved deck: " +
+                    ex.Message + ". Nothing was changed.";
+        }
+        finally
+        {
+            deckBusy = false;
+            if (!closing)
+            {
+                AddDeckButton.IsEnabled = !string.IsNullOrWhiteSpace(expectedBackupSha);
+                OnDeckSelected(DeckLibraryList,
+                    new SelectionChangedEventArgs(
+                        System.Windows.Controls.Primitives.Selector.SelectionChangedEvent,
+                        Array.Empty<object>(), Array.Empty<object>()));
+            }
+        }
     }
 
     private async void OnDuplicateDeckClicked(object sender, RoutedEventArgs e)
