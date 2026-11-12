@@ -196,6 +196,12 @@
                                 Style="{StaticResource VaultNavButton}"
                                 ToolTip="Browse and edit saved decks in the main workspace"
                                 Margin="0,0,0,5"/>
+                        <Button x:Name="EdhLabButton"
+                                Content="♜   EDH Lab"
+                                Click="OnEdhLabClicked" IsEnabled="False"
+                                Style="{StaticResource VaultNavButton}"
+                                ToolTip="Browse Commanders or Arena Brawl leaders and build with your collection. Requires a synced Scryfall catalog."
+                                Margin="0,0,0,5"/>
                         <Button x:Name="SetProgressNavigationButton"
                                 Content="▦   Set Progress"
                                 Click="OnOpenSetProgressClicked" IsEnabled="False"
@@ -312,10 +318,6 @@
                                     Margin="0,0,0,5"/>
                             </StackPanel>
                         </Expander>
-                        <Button x:Name="EdhLabButton"
-                                Content="EDH Lab — Commanders" Visibility="Collapsed"
-                                Click="OnEdhLabClicked" IsEnabled="False"
-                                Style="{StaticResource VaultNavButton}"/>
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>
