@@ -41,6 +41,34 @@ public static class NativeDeckOwnedPicker
             .ToArray();
     }
 
+    /// <summary>
+    /// Exact owned-by-name count for previewing a line in a mainboard.
+    /// Unlike bounded picker Search, this also finds unowned/off-screen
+    /// names and never conflates Arena with physical inventory.
+    /// </summary>
+    public static long CountOwned(NativeBackupView ownership, Pool pool,
+        string cardName)
+    {
+        ArgumentNullException.ThrowIfNull(ownership);
+        if (string.IsNullOrWhiteSpace(cardName)) return 0;
+        long copies = 0;
+        if (pool == Pool.Physical)
+        {
+            foreach (var row in ownership.PhysicalCards)
+                if (row.Quantity > 0 &&
+                    row.Name.Equals(cardName, StringComparison.OrdinalIgnoreCase))
+                    copies = checked(copies + row.Quantity);
+        }
+        else
+        {
+            foreach (var row in ownership.ArenaCards)
+                if (row.Quantity > 0 &&
+                    row.Name.Equals(cardName, StringComparison.OrdinalIgnoreCase))
+                    copies = checked(copies + row.Quantity);
+        }
+        return copies;
+    }
+
     public sealed record Shortage(string Name, int Required, long Owned)
     {
         public long Missing => Math.Max(0, Required - Owned);
