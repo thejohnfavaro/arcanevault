@@ -31,7 +31,7 @@ internal static class NativeThemeChecks
         // alone makes Boros/Orzhov/Esper/Grixis nearly indistinguishable.
         var mana = new Dictionary<char, string>
         {
-            ['W'] = "#EDCD82", ['U'] = "#4B9DEC", ['B'] = "#A66FD4",
+            ['W'] = "#EDCD82", ['U'] = "#4B9DEC", ['B'] = "#79838C",
             ['R'] = "#F76A65", ['G'] = "#63CB90"
         };
         foreach (var theme in all.Where(x => x.Id.StartsWith("mtg-", StringComparison.Ordinal)))
@@ -45,6 +45,32 @@ internal static class NativeThemeChecks
             Must(theme.Description.Contains("mana-color", StringComparison.Ordinal),
                  "Mana identity theme needs an accurate UI explanation: " + theme.Id);
         }
+        var blackTheme = NativeThemes.Find("mtg-B")!;
+        Must(blackTheme.Accent == "#CDD4D8" &&
+             blackTheme.Background == "#0C0E11" &&
+             blackTheme.Description.Contains("not purple", StringComparison.Ordinal) &&
+             blackTheme.PreviewColors.Single() == "#79838C",
+             "Black mana must be visibly neutral charcoal and ash, not a violet accent.");
+        string[] blackIdentities = all.Where(x => x.Id.StartsWith("mtg-", StringComparison.Ordinal) &&
+                x.Id["mtg-".Length..].Contains('B'))
+            .Select(x => x.Id).ToArray();
+        Must(blackIdentities.Length == 16,
+             "Exactly sixteen mono/multicolor mana identities include black.");
+        foreach (string identity in blackIdentities)
+        {
+            var theme = NativeThemes.Find(identity)!;
+            Must(theme.PreviewColors.Contains("#79838C") &&
+                 !theme.PreviewColors.Contains("#A66FD4") &&
+                 theme.Brushes.Values.All(x => !x.Equals("#A66FD4",
+                     StringComparison.OrdinalIgnoreCase)),
+                 "Black mana identities must not carry the old purple color: " + identity);
+        }
+        Must(NativeThemes.Find("mtg-UB")!.Accent == "#79AFDD" &&
+             NativeThemes.Find("mtg-BR")!.Accent == "#EA8072" &&
+             NativeThemes.Find("mtg-BG")!.Accent == "#85C493" &&
+             NativeThemes.Find("mtg-WB")!.Accent == "#DFD0B7",
+             "Black dual-color themes must retain recognizable blue/red/green/ivory accents.");
+
         foreach (string classic in new[] { "noir", "light", "emerald", "ember", "ocean" })
         {
             var theme = NativeThemes.Find(classic)!;
