@@ -301,9 +301,13 @@ public partial class MainWindow : Window
                             : "The new process did not confirm startup in 20 seconds.";
                         FilterStatus.Text = "New version installed but automatic relaunch failed.";
                         MessageBox.Show(this,
-                            reason + "\\n\\nThe current app remains open. " +
-                            "Your collection and both version folders are unchanged.\\n\\n" +
-                            "Check %LOCALAPPDATA%\\ArcaneVault\\Diagnostics\\native-crash.log",
+                            reason + Environment.NewLine + Environment.NewLine +
+                            "The current app remains open. Your collection and both " +
+                            "version folders are unchanged." +
+                            Environment.NewLine + Environment.NewLine +
+                            "Check " + Path.Combine(
+                                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                "ArcaneVault", "Diagnostics", "native-crash.log"),
                             "Native update launch failed",
                             MessageBoxButton.OK, MessageBoxImage.Warning);
                         return;
