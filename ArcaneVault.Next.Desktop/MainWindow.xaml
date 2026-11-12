@@ -359,8 +359,8 @@
 
             <Border Grid.Row="1" CornerRadius="15" Padding="24,20"
                     BorderBrush="{DynamicResource VaultAccentBorder}"
-                    BorderThickness="1" Margin="0,0,0,20">
-                Background="{DynamicResource VaultPanel}"
+                    BorderThickness="1" Margin="0,0,0,20"
+                    Background="{DynamicResource VaultPanel}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
