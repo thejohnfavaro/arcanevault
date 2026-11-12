@@ -48,6 +48,25 @@ internal static class NativeDeckOwnedPickerChecks
         try { NativeDeckOwnedPicker.AddOne("bad line", "Sol Ring"); }
         catch (InvalidDataException) { invalid = true; }
         Must(invalid, "Malformed draft must be rejected instead of rewritten.");
+        Must(NativeDeckOwnedPicker.RemoveOne("2 Sol Ring\n1 Island", "sol ring") ==
+            "1 Sol Ring\n1 Island", "Removing one copy should decrement only that name.");
+        Must(NativeDeckOwnedPicker.RemoveOne("1 Fire // Ice\n2 Island", "fire // ice") ==
+            "2 Island", "Removing final split-card copy should delete only its line.");
+        Must(NativeDeckOwnedPicker.SortAlphabetically("2 Swamp\n1 Fire // Ice\n3 Island") ==
+            "1 Fire // Ice\n3 Island\n2 Swamp", "Sorting must preserve exact quantities and split names.");
+        Must(NativeDeckOwnedPicker.SortAlphabetically("") == "",
+            "Sorting an empty draft should remain empty.");
+        bool absent = false;
+        try { NativeDeckOwnedPicker.RemoveOne("1 Sol Ring", "Mountain"); }
+        catch (InvalidDataException) { absent = true; }
+        Must(absent, "Removing an absent card must reject instead of changing another card.");
+        bool invalidRemoval = false, invalidSort = false;
+        try { NativeDeckOwnedPicker.RemoveOne("bad line", "Sol Ring"); }
+        catch (InvalidDataException) { invalidRemoval = true; }
+        try { NativeDeckOwnedPicker.SortAlphabetically("bad line"); }
+        catch (InvalidDataException) { invalidSort = true; }
+        Must(invalidRemoval && invalidSort,
+            "Malformed draft edits must reject without silently rewriting text.");
         Must(NativeDeckOwnedPicker.Search(owned, NativeDeckOwnedPicker.Pool.Physical, "")
             .Count == 2, "Ownership search mutated or introduced inventory lines.");
         var physicalDraft = NativeDeckOwnedPicker.Review(owned,
