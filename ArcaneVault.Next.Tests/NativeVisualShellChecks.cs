@@ -162,6 +162,20 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("Mana curve &amp; casting consistency",
                  StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhOptimizationHeadline\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhOptimizationDetails\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhBrowseImprovementsButton\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("Click=\"OnEdhBrowseImprovementsClicked\"",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhLabDeckOptimizer.Analyze(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("browsingOptimizationCandidates",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("ResetOptimizationBrowsing()",
+                 StringComparison.Ordinal) &&
              draftEditorCode.Contains("EdhLabCurveAnalysis.Analyze(",
                  StringComparison.Ordinal) &&
              draftEditorCode.Contains("RefreshCurveAdvice(entries, plan);",
