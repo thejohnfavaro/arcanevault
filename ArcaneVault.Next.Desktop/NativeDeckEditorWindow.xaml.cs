@@ -345,6 +345,8 @@ public partial class NativeDeckEditorWindow : Window
         {
             EdhManaHeadline.Text = "Mana base: waiting for local catalog…";
             EdhManaDetails.Text = "Complete local Scryfall sync to calculate land sources.";
+            EdhCurveHeadline.Text = "Curve: waiting for local catalog";
+            EdhCurveDetails.Text = "Open an EDH Lab draft with synced Scryfall metadata.";
             EdhBalanceNowButton.IsEnabled = false;
             return;
         }
@@ -352,6 +354,8 @@ public partial class NativeDeckEditorWindow : Window
         {
             EdhManaHeadline.Text = "Mana base: invalid target";
             EdhManaDetails.Text = "Choose 20–60 lands (36 is the initial recommendation).";
+            EdhCurveHeadline.Text = "Curve: land target needs correction";
+            EdhCurveDetails.Text = "Choose a valid land target to compute the 99-card projection.";
             EdhBalanceNowButton.IsEnabled = false;
             return;
         }
@@ -364,6 +368,18 @@ public partial class NativeDeckEditorWindow : Window
             $"{plan.TotalAfter}/{target} planned · {mode}";
         EdhManaDetails.Text = plan.Summary;
         EdhBalanceNowButton.IsEnabled = !busy && plan.CanApply;
+        RefreshCurveAdvice(entries, plan);
+    }
+
+    private void RefreshCurveAdvice(
+        IReadOnlyList<NativeDeckEditing.Entry> entries, EdhLabManaPlanner.Plan plan)
+    {
+        if (edhCatalog is null || EdhCurveHeadline is null || EdhCurveDetails is null)
+            return;
+        var report = EdhLabCurveAnalysis.Analyze(
+            edhCatalog, entries.Select(x => (x.Name, x.Quantity)), plan);
+        EdhCurveHeadline.Text = report.Headline;
+        EdhCurveDetails.Text = report.Display;
     }
 
     private void RefreshDraftSummary()
@@ -419,6 +435,8 @@ public partial class NativeDeckEditorWindow : Window
                 EdhFindGapButton.Content = "Find next role";
                 EdhManaHeadline.Text = "Mana base: correct the decklist to continue";
                 EdhManaDetails.Text = ex.Message;
+                EdhCurveHeadline.Text = "Curve: correct the decklist to continue";
+                EdhCurveDetails.Text = "No draw estimates are available for invalid draft text.";
                 EdhBalanceNowButton.IsEnabled = false;
             }
         }
@@ -524,6 +542,8 @@ public partial class NativeDeckEditorWindow : Window
             EdhFindGapButton.IsEnabled = false;
             EdhManaHeadline.Text = "Mana base: catalog unavailable";
             EdhManaDetails.Text = "No automatic land changes were made.";
+            EdhCurveHeadline.Text = "Curve: catalog unavailable";
+            EdhCurveDetails.Text = "Refresh Scryfall metadata to evaluate your draft.";
             EdhBalanceNowButton.IsEnabled = false;
         }
     }
