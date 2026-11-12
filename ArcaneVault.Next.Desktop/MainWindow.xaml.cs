@@ -170,6 +170,7 @@ public partial class MainWindow : Window
                 catalogSnapshot = persisted;
                 modeVersion++;
                 previous?.Dispose();
+                EdhLabButton.IsEnabled = true;
                 ModeStatus.Text =
                     $"{persisted.TotalPrintings:N0} printings loaded from private native catalog · No live data edits";
                 _ = FilterAsync();
@@ -407,7 +408,7 @@ public partial class MainWindow : Window
             syntheticMode = false;
             modeVersion++;
             previous?.Dispose();
-            EdhLabButton.IsEnabled = false; // EDH Lab remains backlog
+            EdhLabButton.IsEnabled = true; // Valid, refreshed native catalog is now available
             SearchBox.Text = "";
             SaveNativeCatalogButton.IsEnabled = false;
             ModeStatus.Text =
@@ -503,6 +504,7 @@ public partial class MainWindow : Window
             catalogSnapshot = saved;
             modeVersion++;
             previous?.Dispose();
+            EdhLabButton.IsEnabled = true;
             ModeStatus.Text =
                 $"{saved.TotalPrintings:N0} printings now loaded directly from the native catalog";
             FilterStatus.Text = "Native catalog saved. It will reopen automatically next launch.";
