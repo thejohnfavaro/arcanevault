@@ -127,8 +127,37 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <TextBlock Text="Add from owned cards" Foreground="#E5BF79"
-                           Margin="0,0,0,8"/>
+                <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                    <TextBlock x:Name="OwnedCardsHeading" Text="Add from owned cards"
+                               Foreground="{DynamicResource VaultAccent}"/>
+                    <StackPanel x:Name="EdhSuggestionTools" Visibility="Collapsed"
+                                Margin="0,8,0,0">
+                        <CheckBox x:Name="EdhRecordedOnly" Content="Recorded in my inventory only"
+                                  Margin="0,0,0,7" IsChecked="True"
+                                  Checked="OnEdhSuggestionsChanged"
+                                  Unchecked="OnEdhSuggestionsChanged"/>
+                        <DockPanel LastChildFill="True" Margin="0,0,0,7">
+                            <TextBlock Text="Role hints" VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
+                            <ComboBox x:Name="EdhRoleBox" SelectedIndex="0"
+                                      SelectionChanged="OnEdhSuggestionsChanged"
+                                      Background="#D7E4EB" Foreground="#0D1017">
+                                <ComboBoxItem Content="All roles" Tag=""/>
+                                <ComboBoxItem Content="Lands" Tag="Land"/>
+                                <ComboBoxItem Content="Ramp" Tag="Ramp"/>
+                                <ComboBoxItem Content="Card Draw" Tag="Card Draw"/>
+                                <ComboBoxItem Content="Removal" Tag="Removal"/>
+                                <ComboBoxItem Content="Board Wipe" Tag="Board Wipe"/>
+                                <ComboBoxItem Content="Tutor" Tag="Tutor"/>
+                                <ComboBoxItem Content="Protection" Tag="Protection"/>
+                                <ComboBoxItem Content="Token Maker" Tag="Token Maker"/>
+                            </ComboBox>
+                        </DockPanel>
+                        <TextBlock x:Name="EdhSuggestionsStatus" TextWrapping="Wrap"
+                                   FontSize="11" Foreground="{DynamicResource VaultMuted}"
+                                   Text="Local color-identity and legality suggestions loading…"/>
+                    </StackPanel>
+                </StackPanel>
                 <ComboBox Grid.Row="1" x:Name="OwnedPoolBox"
                           SelectionChanged="OnOwnedPoolChanged"
                           Background="#D7E4EB" Foreground="#0D1017"
@@ -160,10 +189,15 @@
                 <TextBlock Grid.Row="5" x:Name="DeckSummaryText" Margin="0,12,0,5"
                            TextWrapping="Wrap" Foreground="#E5BF79"
                            Text="Deck totals will appear here."/>
-                <TextBlock Grid.Row="6" x:Name="DeckShortageText"
-                           TextWrapping="Wrap" Foreground="#C9A9A9"
-                           MaxHeight="118"
-                           ToolTip="Only the selected ownership pool is counted; missing copies are not auto-added."/>
+                <StackPanel Grid.Row="6">
+                    <TextBlock x:Name="DeckShortageText"
+                               TextWrapping="Wrap" Foreground="#C9A9A9"
+                               MaxHeight="100"
+                               ToolTip="Only the selected ownership pool is counted; missing copies are not auto-added."/>
+                    <TextBlock x:Name="EdhLegalityText"
+                               TextWrapping="Wrap" FontSize="11" Margin="0,7,0,0"
+                               Foreground="{DynamicResource VaultWarning}"/>
+                </StackPanel>
             </Grid>
             <Border Grid.Column="4" CornerRadius="9" Padding="12"
                     Background="#171C28" BorderBrush="#514276" BorderThickness="1">

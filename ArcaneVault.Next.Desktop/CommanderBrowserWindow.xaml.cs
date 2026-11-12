@@ -20,23 +20,62 @@ public partial class CommanderBrowserWindow : Window
     private readonly EdhLabCommanderIndex index;
     private readonly CommanderInventory inventory;
     private readonly bool hasCollection;
+    private readonly Func<EdhLabCommanderCard, EdhLabFormat, Task>? startDraft;
+    private bool drafting;
     private readonly EdhLabRandomPicker picker = new();
     private int page;
     private bool initialized;
     private bool updatingColors;
 
     public CommanderBrowserWindow(EdhLabCommanderIndex index,
-        CommanderInventory? inventory = null, bool hasCollection = false)
+        CommanderInventory? inventory = null, bool hasCollection = false,
+        Func<EdhLabCommanderCard, EdhLabFormat, Task>? startDraft = null)
     {
         this.index = index;
         this.inventory = inventory ?? CommanderInventory.Empty;
         this.hasCollection = hasCollection;
+        this.startDraft = startDraft;
         InitializeComponent();
         initialized = true;
         RecordedOnly.IsEnabled = hasCollection;
         if (!hasCollection)
             RecordedOnly.ToolTip = "Open or import a native collection to filter by recorded inventory.";
         RenderPage();
+        UpdateDraftButton();
+    }
+
+    private void UpdateDraftButton()
+    {
+        if (BuildDeckButton is null) return;
+        BuildDeckButton.IsEnabled = !drafting && hasCollection &&
+            startDraft is not null && CommanderList.SelectedItem is CommanderRow;
+    }
+
+    private void OnCommanderSelected(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e) => UpdateDraftButton();
+
+    private async void OnBuildDeckClicked(object sender, RoutedEventArgs e)
+    {
+        if (drafting || !hasCollection || startDraft is null ||
+            CommanderList.SelectedItem is not CommanderRow selected) return;
+        drafting = true;
+        UpdateDraftButton();
+        try
+        {
+            await startDraft(selected.Card,
+                FormatChoice.SelectedIndex == 1
+                    ? EdhLabFormat.ArenaBrawl : EdhLabFormat.PaperCommander);
+        }
+        catch (Exception ex)
+        {
+            ResultStatus.Text = "Could not open deck draft: " + ex.Message +
+                ". No deck or inventory was changed.";
+        }
+        finally
+        {
+            drafting = false;
+            UpdateDraftButton();
+        }
     }
 
     private IEnumerable<CheckBox> ManaBoxes()
@@ -84,6 +123,7 @@ public partial class CommanderBrowserWindow : Window
             (roll is null ? "" : $" · Random: {roll}");
         PreviousButton.IsEnabled = page > 0;
         NextButton.IsEnabled = page < pages - 1;
+        UpdateDraftButton();
     }
 
     private void OnRecordedOnlyChanged(object sender, RoutedEventArgs e)

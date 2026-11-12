@@ -57,6 +57,14 @@
             <Button Content="Clear colors" Padding="10,5" Click="OnClearColors"/>
         </StackPanel>
         <DockPanel Grid.Row="3" Margin="0,0,0,12">
+            <Button x:Name="BuildDeckButton" DockPanel.Dock="Right"
+                    Content="Build with selected commander"
+                    Click="OnBuildDeckClicked" IsEnabled="False"
+                    ToolTip="Create an unsaved EDH Lab draft in native Deck Studio using your recorded collection"
+                    Padding="14,9" Margin="10,0,0,0"
+                    Foreground="{DynamicResource VaultText}"
+                    Background="{DynamicResource VaultAccentMuted}"
+                    BorderBrush="{DynamicResource VaultAccentBorder}"/>
             <Button Content="Surprise Me!" DockPanel.Dock="Right" Click="OnRandomClicked"
                     Padding="18,9" Background="{DynamicResource VaultAccentMuted}" Foreground="White" BorderBrush="{DynamicResource VaultAccentBorder}"
                     Margin="12,0,0,0"/>
@@ -66,6 +74,7 @@
                      Background="{DynamicResource VaultPanelRaised}" Foreground="White" BorderBrush="{DynamicResource VaultLine}"/>
         </DockPanel>
         <ListView Grid.Row="4" x:Name="CommanderList"
+                  SelectionChanged="OnCommanderSelected"
                   Background="{DynamicResource VaultPanel}" Foreground="{DynamicResource VaultText}"
                   BorderBrush="{DynamicResource VaultLine}"
                   ScrollViewer.CanContentScroll="True"

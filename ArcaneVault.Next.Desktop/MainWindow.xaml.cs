@@ -1645,7 +1645,34 @@ public partial class MainWindow : Window
             if (closing || currentVersion != modeVersion ||
                 !ReferenceEquals(active, catalogSnapshot)) return;
             var window = new CommanderBrowserWindow(loaded.Index,
-                loaded.Inventory, loaded.HasCollection) { Owner = this };
+                loaded.Inventory, loaded.HasCollection,
+                async (commander, format) =>
+                {
+                    if (closing || !File.Exists(NativeWorkspace.DefaultPath))
+                        throw new InvalidOperationException(
+                            "Create or import a native collection before saving an EDH Lab draft.");
+                    if (currentVersion != modeVersion ||
+                        !ReferenceEquals(active, catalogSnapshot))
+                        throw new InvalidOperationException(
+                            "The catalog changed since this commander list opened. Reopen EDH Lab to build from the current catalog.");
+                    // Open a FRESH verified workspace at the moment the user
+                    // chooses Build, not the possibly stale browse-time view.
+                    var workspace = await Task.Run(() =>
+                        NativeWorkspace.Open(NativeWorkspace.DefaultPath));
+                    if (closing) return;
+                    var editor = new NativeDeckEditorWindow(
+                        NativeWorkspace.DefaultPath, workspace.BackupSha256,
+                        workspace.Collection, active.ReadOnlySnapshotPath,
+                        draftCommander: commander.Name,
+                        draftFormat: format, draftColors: commander.ColorIdentity)
+                    { Owner = this };
+                    if (editor.ShowDialog() == true && !closing)
+                    {
+                        nativeWorkspaceSelectedTab = 2; // Deck Library
+                        nativeWorkspaceRequested = true;
+                        await RefreshNativeWorkspaceAsync();
+                    }
+                }) { Owner = this };
             edhLabWindow = window;
             window.Closed += (_, _) =>
             {

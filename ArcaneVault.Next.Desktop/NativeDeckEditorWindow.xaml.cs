@@ -1,5 +1,6 @@
 using ArcaneVault.Next.Collection;
 using ArcaneVault.Next.Domain;
+using ArcaneVault.Next.EDHLab;
 using Microsoft.Win32;
 using System.IO;
 using System.Text;
@@ -15,18 +16,37 @@ public partial class NativeDeckEditorWindow : Window
     private readonly NativeBackupView ownership;
     private readonly string? catalogPath;
     private bool busy;
+    private readonly string? edhDraftCommander;
+    private readonly EdhLabFormat? edhDraftFormat;
+    private readonly string? edhDraftColors;
+    private EdhLabDraftCatalog? edhCatalog;
     private int draftVersion;
     private int previewVersion;
     private CancellationTokenSource? previewRequest;
-    private sealed record OwnedDisplay(string Name, long Owned)
+    private sealed record OwnedDisplay(string Name, long Owned, string RoleHints = "",
+        bool LabSuggestion = false)
     {
-        public string Display => $"{Name}  ·  {Owned:N0} owned";
+        public string Display => LabSuggestion
+            ? Name + (Owned > 0 ? $"  ·  {Owned:N0} recorded" : "  ·  missing") +
+              (RoleHints.Length > 0 ? "  ·  " + RoleHints : "")
+            : $"{Name}  ·  {Owned:N0} owned";
     }
 
     private void RefreshOwnedCards()
     {
         if (OwnedCardsList is null || OwnedPoolBox is null || OwnedSearchBox is null)
             return;
+        if (edhDraftCommander is not null)
+        {
+            OwnedCardsList.ItemsSource = edhCatalog?.Search(
+                OwnedSearchBox.Text, EdhRecordedOnly.IsChecked == true,
+                EdhRoleBox.SelectedItem is System.Windows.Controls.ComboBoxItem role
+                    ? role.Tag?.ToString() : "", limit: 200)
+                .Select(x => new OwnedDisplay(x.Name, x.RecordedCopies,
+                    x.RoleHints, LabSuggestion: true)).ToArray() ??
+                Array.Empty<OwnedDisplay>();
+            return;
+        }
         var pool = OwnedPoolBox.SelectedIndex == 1
             ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
         OwnedCardsList.ItemsSource = NativeDeckOwnedPicker.Search(
@@ -226,12 +246,56 @@ public partial class NativeDeckEditorWindow : Window
                   (summary.Shortages.Count > 6
                       ? $"\n… plus {summary.Shortages.Count - 6} more card names."
                       : "");
+            if (edhCatalog is not null)
+            {
+                var ineligible = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
+                    .Where(x => !edhCatalog.Contains(x.Name))
+                    .Select(x => x.Name).Take(5).ToArray();
+                EdhLegalityText.Text = ineligible.Length == 0
+                    ? "All drafted names are locally eligible by format and commander identity. Save runs deeper checks."
+                    : "Review ineligible / missing catalog metadata: " +
+                      string.Join(", ", ineligible) +
+                      ". Save will show warnings; no card is removed automatically.";
+            }
         }
         catch (Exception ex) when (ex is InvalidDataException or
             ArgumentException or OverflowException)
         {
             DeckSummaryText.Text = "Deck draft needs review";
             DeckShortageText.Text = ex.Message;
+        }
+    }
+
+    private void OnEdhSuggestionsChanged(object sender, RoutedEventArgs e)
+    {
+        if (edhDraftCommander is not null)
+            RefreshOwnedCards();
+    }
+
+    private async Task LoadEdhSuggestionsAsync()
+    {
+        if (edhDraftCommander is null || edhDraftFormat is null ||
+            string.IsNullOrWhiteSpace(catalogPath)) return;
+        EdhSuggestionsStatus.Text = "Checking local format legality and color identity…";
+        try
+        {
+            var suggestions = await Task.Run(() => EdhLabDraftCatalog.OpenReadOnly(
+                catalogPath!, ownership, edhDraftCommander,
+                edhDraftColors ?? "", edhDraftFormat.Value));
+            if (!IsLoaded) return;
+            edhCatalog = suggestions;
+            EdhSuggestionsStatus.Text =
+                $"{suggestions.RecordedEligibleCount:N0} eligible recorded names · " +
+                $"{suggestions.EligibleCount:N0} locally legal card names. " +
+                "Only card-name holdings are counted, not verified printings.";
+            RefreshOwnedCards();
+            RefreshDraftSummary();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or
+            Microsoft.Data.Sqlite.SqliteException or ArgumentException)
+        {
+            EdhSuggestionsStatus.Text = "Suggestions unavailable: " + ex.Message +
+                ". You can still edit a deck manually; saving runs preflight.";
         }
     }
 
@@ -360,6 +424,19 @@ public partial class NativeDeckEditorWindow : Window
         if (busy || OwnedCardsList.SelectedItem is not OwnedDisplay card) return;
         try
         {
+            if (edhCatalog is not null)
+            {
+                var suggested = edhCatalog.Find(card.Name);
+                if (suggested is null)
+                    throw new InvalidDataException("This card is not eligible for the selected EDH Lab draft.");
+                int inDraft = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
+                    .FirstOrDefault(x => x.Name.Equals(card.Name,
+                        StringComparison.OrdinalIgnoreCase))?.Quantity ?? 0;
+                if (inDraft >= suggested.SuggestedCopyLimit)
+                    throw new InvalidDataException(
+                        $"{card.Name} has reached the locally supported " +
+                        $"copy limit ({suggested.SuggestedCopyLimit}).");
+            }
             MainboardBox.Text = NativeDeckOwnedPicker.AddOne(MainboardBox.Text, card.Name);
             StatusText.Text = $"Added 1 {card.Name} to the unsaved draft. " +
                 "Collection quantities are unchanged; save still requires preflight review.";
@@ -372,19 +449,28 @@ public partial class NativeDeckEditorWindow : Window
 
     public NativeDeckEditorWindow(string nativePath, string expectedSha,
         NativeBackupView ownership, string? catalogPath,
-        NativeDeckEditing.DeckRow? selected = null)
+        NativeDeckEditing.DeckRow? selected = null,
+        string? draftCommander = null,
+        EdhLabFormat? draftFormat = null,
+        string? draftColors = null)
     {
         this.nativePath = nativePath;
         this.expectedSha = expectedSha;
         this.ownership = ownership ?? throw new ArgumentNullException(nameof(ownership));
         this.catalogPath = catalogPath;
         original = selected;
+        edhDraftCommander = selected is null ? draftCommander : null;
+        edhDraftFormat = edhDraftCommander is null ? null : draftFormat;
+        edhDraftColors = draftColors;
         InitializeComponent();
         Closed += (_, _) => { previewVersion++; previewRequest?.Cancel(); };
-        OwnedPoolBox.SelectedIndex = selected?.Format.Equals("Arena Brawl",
-            StringComparison.OrdinalIgnoreCase) == true ? 1 : 0;
+        OwnedPoolBox.SelectedIndex = edhDraftFormat == EdhLabFormat.ArenaBrawl ||
+            selected?.Format.Equals("Arena Brawl",
+                StringComparison.OrdinalIgnoreCase) == true ? 1 : 0;
         RefreshOwnedCards();
-        FormatBox.Text = selected?.Format ?? "60-card";
+        FormatBox.Text = selected?.Format ?? (edhDraftFormat is null
+            ? "60-card" : edhDraftFormat == EdhLabFormat.ArenaBrawl
+                ? "Arena Brawl" : "Commander");
         FolderBox.Text = selected?.Folder ?? "Unfiled";
         FavoriteDeckBox.IsChecked = selected?.Favorite ?? false;
         if (selected is not null)
@@ -396,6 +482,24 @@ public partial class NativeDeckEditorWindow : Window
             StatusText.Text = $"Editing saved deck: {selected.EntryCount:N0} entries, " +
                 $"{selected.TotalCopies:N0} mainboard copies and {selected.Revisions:N0} revisions. " +
                 "The prior deck is appended to its revision history before changes are committed.";
+        }
+        if (edhDraftCommander is not null)
+        {
+            HeaderText.Text = "EDH Lab — Construct a deck";
+            OwnedCardsHeading.Text = "Eligible cards (catalog verified)";
+            Title = "EDH Lab — " + edhDraftCommander;
+            DeckNameBox.Text = edhDraftCommander + " · New Deck";
+            CommanderBox.Text = edhDraftCommander;
+            FolderBox.Text = "EDH Lab";
+            FormatBox.IsEnabled = false;
+            CommanderBox.IsReadOnly = true;
+            OwnedPoolBox.IsEnabled = false;
+            EdhSuggestionTools.Visibility = Visibility.Visible;
+            EdhRecordedOnly.IsChecked = true;
+            EdhRoleBox.SelectedIndex = 0;
+            StatusText.Text = "Draft is unsaved. Eligible suggestions use the synced local catalog; " +
+                "all saved cards still receive native preflight review.";
+            Loaded += async (_, _) => await LoadEdhSuggestionsAsync();
         }
         RefreshDraftSummary();
     }

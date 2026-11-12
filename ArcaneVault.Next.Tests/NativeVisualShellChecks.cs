@@ -80,6 +80,42 @@ internal static class NativeVisualShellChecks
 
         var commanderXaml = File.ReadAllText(
             Path.Combine(dir, "CommanderBrowserWindow.xaml"));
+        var deckEditorXaml = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
+        var draftEditorCode = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.xaml.cs"));
+        var mainShellCode = File.ReadAllText(
+            Path.Combine(dir, "MainWindow.xaml.cs"));
+        Must(commanderXaml.Contains("x:Name=\"BuildDeckButton\"",
+                 StringComparison.Ordinal) &&
+             commanderXaml.Contains("Click=\"OnBuildDeckClicked\"",
+                 StringComparison.Ordinal) &&
+             commanderXaml.Contains("SelectionChanged=\"OnCommanderSelected\"",
+                 StringComparison.Ordinal) &&
+             mainShellCode.Contains("draftCommander: commander.Name",
+                 StringComparison.Ordinal) &&
+             mainShellCode.Contains("workspace.Collection, active.ReadOnlySnapshotPath",
+                 StringComparison.Ordinal) &&
+             mainShellCode.Contains("currentVersion != modeVersion",
+                 StringComparison.Ordinal) &&
+             mainShellCode.Contains("await RefreshNativeWorkspaceAsync();",
+                 StringComparison.Ordinal),
+             "EDH Lab Build must launch shared Deck Studio and refresh verified library on save.");
+        Must(deckEditorXaml.Contains("x:Name=\"EdhRecordedOnly\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhRoleBox\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhLegalityText\"",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhLabDraftCatalog.OpenReadOnly(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("NativeDeckPreflight.Check(",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("NativeWorkspaceSafety.SaveDeck(",
+                 StringComparison.Ordinal),
+             "EDH Lab needs catalog-filtered suggestions, missing/legality warnings and protected deck saves.");
+
+
         var commanderCode = File.ReadAllText(
             Path.Combine(dir, "CommanderBrowserWindow.xaml.cs"));
         Must(commanderXaml.Contains("x:Name=\"RecordedOnly\"", StringComparison.Ordinal) &&
