@@ -112,7 +112,6 @@ internal static class EdhLabDraftChecks
             new[]
             {
                 new NativePhysicalRow("Sol Ring", 1, "", "", "", ""),
-                new NativePhysicalRow("Artifact Arrival", 1, "", "", "", ""),
                 new NativePhysicalRow("Swords to Plowshares", 2, "", "", "", ""),
                 new NativePhysicalRow("Counterspell", 1, "", "", "", ""),
                 new NativePhysicalRow("Tiny Insight", 1, "", "", "", ""),
@@ -148,7 +147,7 @@ internal static class EdhLabDraftChecks
              "Packages must separate existing, exhausted, and missing synergy cards by recognized mechanic.");
         Must(artifactPackage.Coverage.Contains("0 potential enablers") &&
              artifactPackage.Coverage.Contains("1 supporting matches") &&
-             artifactPackage.NextStep.Contains("Review an owned potential payoff") &&
+             artifactPackage.NextStep.Contains("No complete enabler/payoff") &&
              tokenPackage.Coverage.Contains("0 potential enablers"),
              "Mechanic coverage must describe actual full draft signals, not missing suggestions.");
         var seededPackages = EdhLabSynergyPackages.Analyze(paper,
@@ -179,7 +178,14 @@ internal static class EdhLabDraftChecks
              !arenaPackages.Packages.SelectMany(x => x.OwnedOptions)
                 .Any(x => x.Name == "Sol Ring"),
              "Arena suggestions must not borrow paper-owned cards or unavailable cards.");
-        var ownedLink = EdhLabSynergyChains.Analyze(paper,
+        // Keep the existing shared paper/Arena regression inventory stable:
+        // the owned-payoff fixture must not change earlier Swap Lab rankings.
+        var payoffInventory = new NativeBackupView(
+            new[] { new NativePhysicalRow("Artifact Arrival", 1, "", "", "", "") },
+            Array.Empty<NativeArenaRow>(), 0, 0, 0, 1, 0, 0, 1);
+        var payoffPaper = EdhLabDraftCatalog.OpenReadOnly(catalog,
+            payoffInventory, "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        var ownedLink = EdhLabSynergyChains.Analyze(payoffPaper,
             new[] { (Name: "Clockwork Maker", Quantity: 1) });
         Must(ownedLink.Chains.Any(x =>
                 x.Enabler == "Clockwork Maker" &&
@@ -258,7 +264,7 @@ internal static class EdhLabDraftChecks
         var paperOwned = paper.Search("", recordedOnly: true);
         var arenaOwned = arena.Search("", recordedOnly: true);
         Must(paperOwned.Select(x => x.Name).OrderBy(x => x)
-                .SequenceEqual(new[] { "Artifact Arrival", "Counterspell", "Sol Ring", "Swords to Plowshares", "Tiny Insight" }) &&
+                .SequenceEqual(new[] { "Counterspell", "Sol Ring", "Swords to Plowshares", "Tiny Insight" }) &&
              arenaOwned.Select(x => x.Name).OrderBy(x => x)
                 .SequenceEqual(new[] { "Brainstorm", "Island" }),
              "Physical and Arena inventory names may not be combined.");
@@ -298,7 +304,7 @@ internal static class EdhLabDraftChecks
         Must(paper.Search("Thopter Foundry", false, synergyOnly: true).Count == 1 &&
              paper.Search("Artifact Hater", false, synergyOnly: true).Count == 0 &&
              paper.Search("", false, synergyOnly: true, prioritizeSynergy: true)
-                 .First().Name == "Artifact Arrival" &&
+                 .First().Name == "Sol Ring" &&
              paper.Search("", true, synergyOnly: true, prioritizeSynergy: true)
                  .All(x => x.RecordedCopies > 0),
              "Synergy-only search must remain recorded-first and cannot disguise missing cards as owned.");
