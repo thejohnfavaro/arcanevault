@@ -155,6 +155,41 @@ internal static class EdhLabChecks
             File.GetLastWriteTimeUtc(catalog) == mtime,
             "EDH Lab must not modify catalog source data.");
 
+        var source = new NativeBackupView(
+            new[]
+            {
+                new NativePhysicalRow("Test Leader 000", 2, "", "", "", ""),
+                new NativePhysicalRow("test leader 000", 1, "", "", "", ""),
+                new NativePhysicalRow("Test Leader 001", 0, "", "", "", ""),
+                new NativePhysicalRow("Only Paper", 1, "", "", "", "")
+            },
+            new[]
+            {
+                new NativeArenaRow("Test Leader 002", 2),
+                new NativeArenaRow("TEST LEADER 002", 1),
+                new NativeArenaRow("Test Leader 000", 0)
+            }, 0, 0, 0, 3, 3, 0, 3);
+        var inventory = new CommanderInventory(source);
+        Check(inventory.Count("test leader 000", EdhLabFormat.PaperCommander) == 3 &&
+              inventory.Count("test leader 000", EdhLabFormat.ArenaBrawl) == 0 &&
+              inventory.Count("Test Leader 002", EdhLabFormat.ArenaBrawl) == 3 &&
+              inventory.Count("Test Leader 002", EdhLabFormat.PaperCommander) == 0,
+            "Format pools must stay separate, positive only and case insensitive.");
+        Check(inventory.Filter(index.Filter(paper), paper.Format, true)
+                .Select(x => x.Name).OrderBy(x => x).SequenceEqual(
+                    new[] { "Only Paper", "Test Leader 000" }),
+            "Physical commander shortlist should only include recorded physical names.");
+        Check(inventory.Filter(index.Filter(arena), arena.Format, true)
+                .Select(x => x.Name).SequenceEqual(new[] { "Test Leader 002" }),
+            "Arena Brawl inventory filter must not borrow paper-only holdings.");
+        Check(CommanderInventory.Empty.Filter(index.Filter(paper), paper.Format, true).Count == 0 &&
+              CommanderInventory.Empty.Filter(index.Filter(paper), paper.Format, false).Count ==
+                index.Filter(paper).Count,
+            "No workspace should disable inventory restriction without hiding discovery.");
+        Check(before.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog))) &&
+              File.GetLastWriteTimeUtc(catalog) == mtime,
+            "Inventory-only discovery must leave Scryfall catalog bytes and timestamp unchanged.");
+
         Console.WriteLine("PASS: EDH Lab 265 paper + 135 Arena Brawl synthetic commanders, paging >200, color identity, legality, random/no-repeat, DB unchanged");
     }
 }
