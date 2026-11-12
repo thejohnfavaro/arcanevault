@@ -767,8 +767,11 @@ public partial class NativeDeckEditorWindow : Window
         EdhChainEnablerButton.IsEnabled = true;
         EdhChainPayoffButton.IsEnabled = true;
         EdhChainJumpButton.IsEnabled = chain.Status == "Owned missing link";
+        // Start the scoped art request immediately. A delayed shared card
+        // preview must not let an older selection cancel a newer art request.
+        var artwork = LoadChainArtworkAsync(chain);
         await PreviewChainCardAsync(chain.SuggestedCard, chain.Explanation);
-        await LoadChainArtworkAsync(chain);
+        await artwork;
     }
 
     private Task PreviewChainCardAsync(string name, string why)
