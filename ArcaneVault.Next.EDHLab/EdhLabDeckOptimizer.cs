@@ -16,6 +16,7 @@ public static class EdhLabDeckOptimizer
     public sealed record Report(int MainboardCopies, int KnownNonlandCopies,
         int EarlySpellCopies, int ExpensiveSpellCopies, int UnknownCopies,
         bool HasManaValues, bool IsMatureEnoughToJudge,
+        EdhLabStrategyFocus Focus,
         IReadOnlyList<Opportunity> Opportunities,
         IReadOnlyList<string> ExpensiveCards,
         IReadOnlyList<Candidate> OwnedCandidates)
@@ -48,6 +49,8 @@ public static class EdhLabDeckOptimizer
 
                 var lines = new List<string>
                 {
+                    $"Strategy priority: {EdhLabStrategyGoals.Label(Focus)} — " +
+                        EdhLabStrategyGoals.Description(Focus),
                     $"Current nonland profile: {EarlySpellCopies}/{KnownNonlandCopies} " +
                         "at MV 0–2 · " +
                         $"{ExpensiveSpellCopies}/{KnownNonlandCopies} at MV 6+.",
@@ -87,7 +90,8 @@ public static class EdhLabDeckOptimizer
     }
 
     public static Report Analyze(EdhLabDraftCatalog catalog,
-        IEnumerable<(string Name, int Quantity)> mainboard, int maxCandidates = 5)
+        IEnumerable<(string Name, int Quantity)> mainboard, int maxCandidates = 5,
+        EdhLabStrategyFocus focus = EdhLabStrategyFocus.Balanced)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(mainboard);
@@ -168,6 +172,9 @@ public static class EdhLabDeckOptimizer
                         StringSplitOptions.RemoveEmptyEntries);
                     bool earlyUtility = roles.Any(r => r is
                         "Ramp" or "Card Draw" or "Removal" or "Protection");
+                    var roleSet = roles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    int focusBonus = EdhLabStrategyGoals.Bias(
+                        focus, roleSet, fit?.Score ?? 0, card.ManaValue);
                     string why = (roles.Length > 0
                         ? "Role hint: " + string.Join(", ", roles.Take(2))
                         : "Low-mana eligible spell") +
@@ -179,11 +186,14 @@ public static class EdhLabDeckOptimizer
                         Card = card,
                         Utility = earlyUtility,
                         Score = fit?.Score ?? 0,
-                        Why = why,
+                        FocusBonus = focusBonus,
+                        Why = why + (focus == EdhLabStrategyFocus.Balanced
+                            ? "" : $" Priority: {EdhLabStrategyGoals.Label(focus)}."),
                         Available = card.RecordedCopies - draft.GetValueOrDefault(card.Name)
                     };
                 })
-                .OrderByDescending(x => x.Utility)
+                .OrderByDescending(x => x.FocusBonus)
+                .ThenByDescending(x => x.Utility)
                 .ThenByDescending(x => x.Score)
                 .ThenBy(x => x.Card.ManaValue)
                 .ThenBy(x => x.Card.Name, StringComparer.OrdinalIgnoreCase)
@@ -195,7 +205,7 @@ public static class EdhLabDeckOptimizer
         }
 
         return new Report(copies, nonland, cheap, costly, unknown,
-            catalog.HasManaValueMetadata, mature, issues,
+            catalog.HasManaValueMetadata, mature, focus, issues,
             expensiveCards.OrderByDescending(x => x.ManaValue)
                 .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase)

@@ -248,6 +248,22 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("Mana curve &amp; casting consistency",
                  StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhStrategyFocusBox\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("SelectionChanged=\"OnEdhStrategyFocusChanged\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhStrategyExplanation\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("Tag=\"FastStart\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("Tag=\"CommanderSynergy\"",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("focus: SelectedStrategyFocus",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhStrategyFocusBox.SelectedIndex = 0;",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhLabStrategyGoals.Description(",
+                 StringComparison.Ordinal) &&
              deckEditorXaml.Contains("x:Name=\"EdhOptimizationHeadline\"",
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("x:Name=\"EdhOptimizationDetails\"",

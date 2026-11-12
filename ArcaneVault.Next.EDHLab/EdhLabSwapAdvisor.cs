@@ -14,7 +14,8 @@ public static class EdhLabSwapAdvisor
     public sealed record Proposal(string OutName, string InName,
         double OutManaValue, double InManaValue,
         string Explanation, string RetainedRoles, string ImprovedRoles,
-        long AvailableRecordedCopies, int Score)
+        long AvailableRecordedCopies, int Score,
+        EdhLabStrategyFocus Focus)
     {
         public string Display => $"{OutName} (MV {OutManaValue:0.#})  →  " +
             $"{InName} (MV {InManaValue:0.#})";
@@ -22,16 +23,18 @@ public static class EdhLabSwapAdvisor
 
     public sealed record Report(int MainboardCopies, int UnknownCopies,
         int KnownNonlandCopies, IReadOnlyList<Proposal> Proposals,
-        string Reason)
+        string Reason, EdhLabStrategyFocus Focus)
     {
         public bool CanSwap => Proposals.Count > 0;
 
         public string Headline => CanSwap
-            ? $"Swap Lab: {Proposals.Count} reviewed, role-aware options"
+            ? $"Swap Lab: {Proposals.Count} {EdhLabStrategyGoals.Label(Focus)} proposals"
             : "Swap Lab: " + Reason;
 
         public string Display => CanSwap
-            ? $"Potential one-for-one edits in this UNSAVED draft. " +
+            ? $"Priority: {EdhLabStrategyGoals.Label(Focus)} — " +
+              EdhLabStrategyGoals.Description(Focus) + "\n" +
+              $"Potential one-for-one edits in this UNSAVED draft. " +
               $"Each proposal preserves protected role targets and does not " +
               $"lose identified commander-mechanic matches.\n" +
               $"{string.Join("\n", Proposals.Take(4).Select(x =>
@@ -48,7 +51,8 @@ public static class EdhLabSwapAdvisor
 
     public static Report Analyze(EdhLabDraftCatalog catalog,
         IEnumerable<(string Name, int Quantity)> mainboard, int landTarget = 36,
-        int maxProposals = 8)
+        int maxProposals = 8,
+        EdhLabStrategyFocus focus = EdhLabStrategyFocus.Balanced)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(mainboard);
@@ -94,7 +98,7 @@ public static class EdhLabSwapAdvisor
                 ? "Add more spells before proposing cuts in this incomplete draft (25 known nonland copies minimum)."
                 : null;
         if (blocked is not null)
-            return new Report(copies, unknown, nonland, [], blocked);
+            return new Report(copies, unknown, nonland, [], blocked, focus);
 
         var blueprint = EdhLabDeckBlueprint.Analyze(catalog, entries, landTarget);
         var coverage = blueprint.Roles.ToDictionary(x => x.Role, x => x,
@@ -155,10 +159,12 @@ public static class EdhLabSwapAdvisor
                     StringComparer.OrdinalIgnoreCase)
                     .Where(role => coverage.TryGetValue(role, out var p) &&
                         p.Shortfall > 0).ToArray();
+                int goalBias = EdhLabStrategyGoals.Bias(
+                    focus, option.Roles, option.Synergy, low.ManaValue);
                 int score = (int)Math.Min(30, Math.Floor(curveDelta) * 2) +
                     newlyCovered.Length * 15 +
                     retained.Length * 4 +
-                    (option.Synergy - oldSynergy) * 4;
+                    (option.Synergy - oldSynergy) * 4 + goalBias;
                 string keep = retained.Length == 0 ? "none identified"
                     : string.Join(", ", retained);
                 string improve = newlyCovered.Length == 0 ? "none identified"
@@ -170,11 +176,14 @@ public static class EdhLabSwapAdvisor
                     $"Preserved role hints: {keep}. " +
                     $"Potential gap coverage: {improve}. " +
                     $"Commander-text synergy score {oldSynergy} → {option.Synergy}. " +
+                    $"Selected priority: {EdhLabStrategyGoals.Label(focus)} " +
+                    $"({EdhLabStrategyGoals.Description(focus)}). " +
                     $"{option.Unused} additional recorded copy/copies. " +
                     "Check strategic interactions and card text before applying; " +
                     "this does NOT establish a stronger deck.";
                 var proposal = new Proposal(high.Name, low.Name, high.ManaValue,
-                    low.ManaValue, description, keep, improve, option.Unused, score);
+                    low.ManaValue, description, keep, improve, option.Unused, score,
+                    focus);
                 if (best is null || proposal.Score > best.Score ||
                     (proposal.Score == best.Score &&
                      string.Compare(proposal.InName, best.InName,
@@ -193,7 +202,7 @@ public static class EdhLabSwapAdvisor
         return new Report(copies, unknown, nonland, ranked,
             ranked.Length > 0 ? "" : "No safe one-for-one cuts found that preserve " +
                 "identified strategy and critical role coverage, or no unused " +
-                "low-cost eligible cards are recorded in this format.");
+                "low-cost eligible cards are recorded in this format.", focus);
     }
 
     /// <summary>
@@ -201,7 +210,8 @@ public static class EdhLabSwapAdvisor
     /// before the caller applies it to unsaved editor text. Does not mutate.
     /// </summary>
     public static bool IsCurrent(Report current, Proposal proposal) =>
-        current.Proposals.Any(x =>
+        proposal.Focus == current.Focus && current.Proposals.Any(x =>
+            x.Focus == current.Focus &&
             x.OutName.Equals(proposal.OutName, StringComparison.OrdinalIgnoreCase) &&
             x.InName.Equals(proposal.InName, StringComparison.OrdinalIgnoreCase));
 }
