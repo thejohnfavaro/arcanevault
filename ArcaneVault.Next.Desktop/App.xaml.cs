@@ -94,6 +94,16 @@ public partial class App : Application
             }
             break;
         }
+        // Restore appearance before the main window is constructed. Theme
+        // preferences are separate from the collection; a corrupt preference
+        // must never stop startup or modify the private workspace.
+        try { VaultThemeManager.LoadSaved(); }
+        catch (Exception ex) when (ex is InvalidDataException or
+            InvalidOperationException or FormatException)
+        {
+            RecordFailure("Theme preference fallback", ex);
+            VaultThemeManager.Apply(ArcaneVault.Next.Collection.NativeThemes.Default.Id);
+        }
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {

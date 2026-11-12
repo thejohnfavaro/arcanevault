@@ -280,6 +280,12 @@
                                   Background="Transparent" Margin="0,0,0,10"
                                   ToolTip="Collection reset and local application settings">
                             <StackPanel Margin="11,9,0,4">
+                                <Button x:Name="OpenAppearanceButton"
+                                        Content="◈   Appearance &amp; Themes"
+                                        Click="OnOpenAppearanceClicked"
+                                        Style="{StaticResource VaultNavPrimary}"
+                                        ToolTip="Choose a classic or Magic color-identity application palette"
+                                        Margin="0,0,0,7"/>
                                 <Button x:Name="StartFreshButton"
                                     Content="＋   Start Fresh Collection"
                                     Click="OnStartFreshClicked"

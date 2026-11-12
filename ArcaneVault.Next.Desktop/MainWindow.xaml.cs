@@ -1077,6 +1077,12 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnOpenAppearanceClicked(object sender, RoutedEventArgs e)
+    {
+        var dialog = new NativeOptionsWindow { Owner = this };
+        dialog.ShowDialog();
+    }
+
     private void UpdateWorkspaceNavigation()
     {
         CatalogWorkspace.Visibility = nativeWorkspaceRequested

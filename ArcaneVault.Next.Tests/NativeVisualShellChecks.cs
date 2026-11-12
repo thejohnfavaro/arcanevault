@@ -80,6 +80,22 @@ internal static class NativeVisualShellChecks
         }
 
         string main = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
+        string optionsXml = File.ReadAllText(Path.Combine(dir, "NativeOptionsWindow.xaml"));
+        var optionsDoc = XDocument.Parse(optionsXml);
+        foreach (var id in new[] { "ThemeChoice", "ThemeStatus" })
+            Must(optionsDoc.Descendants().Any(x =>
+                x.Attribute(XName.Get("Name", XamlNs))?.Value == id),
+                "Appearance screen missing live theme control " + id);
+        string optionsCode = File.ReadAllText(
+            Path.Combine(dir, "NativeOptionsWindow.xaml.cs"));
+        Must(optionsCode.Contains("NativeThemeSettings.Save(", StringComparison.Ordinal) &&
+             optionsCode.Contains("VaultThemeManager.Apply(", StringComparison.Ordinal) &&
+             optionsCode.Contains("OnCancelClicked(", StringComparison.Ordinal),
+             "Native appearance screen must save, preview and revert settings.");
+        Must(main.Contains("Click=\"OnOpenAppearanceClicked\"", StringComparison.Ordinal),
+             "Options sidebar must expose the theme screen.");
+
+
 
         // Administrative functions remain reachable but do not occupy the
         // main workspace navigation. Keep handlers and IDs in their groups.

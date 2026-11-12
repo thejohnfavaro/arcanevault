@@ -150,6 +150,7 @@ try
     NativeDeckOwnedPickerChecks.Run();
     NativeDeckLibraryCacheChecks.Run(work);
     NativeDeckCoverCacheChecks.Run(work);
+    NativeThemeChecks.Run(work);
     NativeDeckAnalyticsChecks.Run(work);
     NativeDeckPreflightChecks.Run(work);
     NativeDeckInterchangeChecks.Run(work);
