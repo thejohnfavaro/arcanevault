@@ -78,9 +78,11 @@ internal static class NativeVisualShellChecks
         Must(!mainXaml.Contains("Color=\"#302748\"", StringComparison.Ordinal),
              "Hard-coded purple catalog banner must not override non-purple themes.");
 
+        var commanderXaml = File.ReadAllText(
+            Path.Combine(dir, "CommanderBrowserWindow.xaml"));
         var deckEditorXaml = File.ReadAllText(
             Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
-        var deckEditorCode = File.ReadAllText(
+        var draftEditorCode = File.ReadAllText(
             Path.Combine(dir, "NativeDeckEditorWindow.xaml.cs"));
         var mainShellCode = File.ReadAllText(
             Path.Combine(dir, "MainWindow.xaml.cs"));
@@ -101,16 +103,15 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("x:Name=\"EdhLegalityText\"",
                  StringComparison.Ordinal) &&
-             deckEditorCode.Contains("EdhLabDraftCatalog.OpenReadOnly(",
+             draftEditorCode.Contains("EdhLabDraftCatalog.OpenReadOnly(",
                  StringComparison.Ordinal) &&
-             deckEditorCode.Contains("NativeDeckPreflight.Check(",
+             draftEditorCode.Contains("NativeDeckPreflight.Check(",
                  StringComparison.Ordinal) &&
-             deckEditorCode.Contains("NativeWorkspaceSafety.SaveDeck(",
+             draftEditorCode.Contains("NativeWorkspaceSafety.SaveDeck(",
                  StringComparison.Ordinal),
              "EDH Lab needs catalog-filtered suggestions, missing/legality warnings and protected deck saves.");
 
-        var commanderXaml = File.ReadAllText(
-            Path.Combine(dir, "CommanderBrowserWindow.xaml"));
+
         var commanderCode = File.ReadAllText(
             Path.Combine(dir, "CommanderBrowserWindow.xaml.cs"));
         Must(commanderXaml.Contains("x:Name=\"RecordedOnly\"", StringComparison.Ordinal) &&
