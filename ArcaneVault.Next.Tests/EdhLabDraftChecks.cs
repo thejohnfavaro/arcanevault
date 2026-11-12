@@ -298,7 +298,7 @@ internal static class EdhLabDraftChecks
         Must(paper.Search("Thopter Foundry", false, synergyOnly: true).Count == 1 &&
              paper.Search("Artifact Hater", false, synergyOnly: true).Count == 0 &&
              paper.Search("", false, synergyOnly: true, prioritizeSynergy: true)
-                 .First().Name == "Sol Ring" &&
+                 .First().Name == "Artifact Arrival" &&
              paper.Search("", true, synergyOnly: true, prioritizeSynergy: true)
                  .All(x => x.RecordedCopies > 0),
              "Synergy-only search must remain recorded-first and cannot disguise missing cards as owned.");
