@@ -78,6 +78,37 @@ internal static class NativeVisualShellChecks
         Must(!mainXaml.Contains("Color=\"#302748\"", StringComparison.Ordinal),
              "Hard-coded purple catalog banner must not override non-purple themes.");
 
+        var deckEditorXaml = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
+        var deckEditorCode = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.xaml.cs"));
+        var mainShellCode = File.ReadAllText(
+            Path.Combine(dir, "MainWindow.xaml.cs"));
+        Must(commanderXaml.Contains("x:Name=\"BuildDeckButton\"",
+                 StringComparison.Ordinal) &&
+             commanderXaml.Contains("Click=\"OnBuildDeckClicked\"",
+                 StringComparison.Ordinal) &&
+             commanderXaml.Contains("SelectionChanged=\"OnCommanderSelected\"",
+                 StringComparison.Ordinal) &&
+             mainShellCode.Contains("draftCommander: commander.Name",
+                 StringComparison.Ordinal) &&
+             mainShellCode.Contains("await RefreshNativeWorkspaceAsync();",
+                 StringComparison.Ordinal),
+             "EDH Lab Build must launch shared Deck Studio and refresh verified library on save.");
+        Must(deckEditorXaml.Contains("x:Name=\"EdhRecordedOnly\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhRoleBox\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhLegalityText\"",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("EdhLabDraftCatalog.OpenReadOnly(",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("NativeDeckPreflight.Check(",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("NativeWorkspaceSafety.SaveDeck(",
+                 StringComparison.Ordinal),
+             "EDH Lab needs catalog-filtered suggestions, missing/legality warnings and protected deck saves.");
+
         var commanderXaml = File.ReadAllText(
             Path.Combine(dir, "CommanderBrowserWindow.xaml"));
         var commanderCode = File.ReadAllText(
