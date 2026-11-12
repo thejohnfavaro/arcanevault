@@ -29,6 +29,38 @@ internal static class NativeVisualShellChecks
     {
         string dir = FindDesktop();
         var app = XDocument.Load(Path.Combine(dir, "App.xaml"));
+        // v0.9.26 startup crash: WPF can freeze application resource
+        // SolidColorBrush instances. Theme updates must REPLACE resources,
+        // never assign Color on an instance or reject IsFrozen.
+        var appXaml = File.ReadAllText(Path.Combine(dir, "App.xaml"));
+        var themeManagerCode = File.ReadAllText(
+            Path.Combine(dir, "VaultThemeManager.cs"));
+        var appStartupCode = File.ReadAllText(
+            Path.Combine(dir, "App.xaml.cs"));
+        Must(!appXaml.Contains("StartupUri=", StringComparison.Ordinal) &&
+             appXaml.Contains("ShutdownMode=\"OnMainWindowClose\"",
+                 StringComparison.Ordinal) &&
+             appStartupCode.Contains("window = new MainWindow();",
+                 StringComparison.Ordinal) &&
+             appStartupCode.IndexOf("window = new MainWindow();",
+                 StringComparison.Ordinal) <
+             appStartupCode.IndexOf("NativeUpgradeHandoff.Signal(",
+                 StringComparison.Ordinal),
+             "Updater must initialize new WPF MainWindow before acknowledging the old app.");
+        Must(!themeManagerCode.Contains("brush.IsFrozen", StringComparison.Ordinal) &&
+             !themeManagerCode.Contains("change.Brush.Color =", StringComparison.Ordinal) &&
+             themeManagerCode.Contains("resources[replacement.Key] = replacement.Brush;",
+                 StringComparison.Ordinal),
+             "Frozen WPF theme brushes must be replaced rather than mutated.");
+        foreach (string filename in Directory.GetFiles(dir, "*.xaml"))
+        {
+            string xaml = File.ReadAllText(filename);
+            foreach (Match match in Regex.Matches(xaml,
+                @"\\{StaticResource (Vault(?:Background|Sidebar|Panel(?:Raised)?|Line|Text|Muted|Accent(?:Muted|Surface|Border)?|Teal|Good|Warning|Danger))\\}"))
+                Must(false, "Palette resource must be dynamic to support replacement: " +
+                    Path.GetFileName(filename) + " / " + match.Groups[1].Value);
+        }
+
         var keys = app.Descendants()
             .Select(e => e.Attribute(XName.Get("Key", XamlNs))?.Value)
             .Where(s => !string.IsNullOrWhiteSpace(s))
