@@ -107,6 +107,12 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckEditorXaml.Contains("x:Name=\"EdhLegalityText\"",
                  StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("x:Name=\"EdhBlueprintText\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXaml.Contains("Click=\"OnEdhFindGapClicked\"",
+                 StringComparison.Ordinal) &&
+             draftEditorCode.Contains("EdhLabDeckBlueprint.Analyze(",
+                 StringComparison.Ordinal) &&
              draftEditorCode.Contains("EdhLabDraftCatalog.OpenReadOnly(",
                  StringComparison.Ordinal) &&
              draftEditorCode.Contains("NativeDeckPreflight.Check(",
