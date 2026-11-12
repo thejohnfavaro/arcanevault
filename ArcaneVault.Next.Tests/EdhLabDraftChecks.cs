@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Domain;
+using ArcaneVault.Next.Collection;
 using ArcaneVault.Next.EDHLab;
 using Microsoft.Data.Sqlite;
 using System.Security.Cryptography;
