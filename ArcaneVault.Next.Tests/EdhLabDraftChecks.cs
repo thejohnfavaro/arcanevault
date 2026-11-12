@@ -472,7 +472,9 @@ internal static class EdhLabDraftChecks
              exhausted.OwnedCandidates.Any(x => x.Name == "Counterspell"),
              "A recorded copy already in the draft must not appear as an unused singleton upgrade.");
 
-        var arenaPicks = EdhLabDeckOptimizer.Analyze(arena,
+        var pipArena = EdhLabDraftCatalog.OpenReadOnly(costCatalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
+        var arenaPicks = EdhLabDeckOptimizer.Analyze(pipArena,
             ManaRows("1 Island"));
         Must(arenaPicks.OwnedCandidates.Any(x => x.Name == "Brainstorm") &&
              !arenaPicks.OwnedCandidates.Any(x =>
