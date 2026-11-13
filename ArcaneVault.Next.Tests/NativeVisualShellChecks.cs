@@ -1000,13 +1000,13 @@ internal static class NativeVisualShellChecks
         var officialCode = File.ReadAllText(Path.Combine(dir, "NativeOfficialCardSymbols.cs"));
         var detailsProject = File.ReadAllText(Path.Combine(
             dir, "ArcaneVault.Next.Desktop.csproj"));
-        Must(detailsXaml.Contains("WindowStartupLocation=\\"CenterOwner\\"") &&
-             detailsXaml.Contains("x:Name=\\"CardContentGrid\\"") &&
-             detailsXaml.Contains("x:Name=\\"CardArtFrame\\"") &&
-             detailsXaml.Contains("x:Name=\\"CardMetadataPanel\\"") &&
-             detailsXaml.Contains("RichTextBox Grid.Row=\\"1\\" x:Name=\\"OracleText\\"") &&
-             detailsXaml.Contains("Click=\\"OnCopyOracleClicked\\"") &&
-             detailsXaml.Contains("Grid.Row=\\"2\\"") &&
+        Must(detailsXaml.Contains("WindowStartupLocation=\"CenterOwner\"") &&
+             detailsXaml.Contains("x:Name=\"CardContentGrid\"") &&
+             detailsXaml.Contains("x:Name=\"CardArtFrame\"") &&
+             detailsXaml.Contains("x:Name=\"CardMetadataPanel\"") &&
+             detailsXaml.Contains("RichTextBox Grid.Row=\"1\" x:Name=\"OracleText\"") &&
+             detailsXaml.Contains("Click=\"OnCopyOracleClicked\"") &&
+             detailsXaml.Contains("Grid.Row=\"2\"") &&
              detailsCode.Contains("SourceInitialized += (_, _) => FitInitialWindow()") &&
              detailsCode.Contains("SizeChanged += (_, _) => AdaptContentHeight()") &&
              detailsCode.Contains("CardContentGrid.ActualHeight") &&
@@ -1050,9 +1050,9 @@ internal static class NativeVisualShellChecks
              "Oracle symbol parser must preserve text, line breaks, hybrid, Phyrexian, tap and unknown tokens exactly.");
 
         var sourceMap = NativeScryfallSymbology.ReadUris(
-            "{\\"data\\":[{\\"symbol\\":\\"{W}\\",\\"svg_uri\\":\\"https://svgs.scryfall.io/card-symbols/W.svg\\"}," +
-            "{\\"symbol\\":\\"{W/U}\\",\\"svg_uri\\":\\"https://svgs.scryfall.io/card-symbols/WU.svg\\"}," +
-            "{\\"symbol\\":\\"{T}\\",\\"svg_uri\\":\\"https://evil.example/T.svg\\"}]}");
+            "{\"data\":[{\"symbol\":\"{W}\",\"svg_uri\":\"https://svgs.scryfall.io/card-symbols/W.svg\"}," +
+            "{\"symbol\":\"{W/U}\",\"svg_uri\":\"https://svgs.scryfall.io/card-symbols/WU.svg\"}," +
+            "{\"symbol\":\"{T}\",\"svg_uri\":\"https://evil.example/T.svg\"}]}");
         Must(sourceMap.Count == 2 &&
              sourceMap.ContainsKey("{W}") && sourceMap.ContainsKey("{W/U}") &&
              !sourceMap.ContainsKey("{T}") &&
