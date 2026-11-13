@@ -50,6 +50,7 @@ public partial class NativeDeckEditorWindow
                 "This is a name-level comparison, not printing or deck legality.";
             EdhApplyMissingSwapButton.IsEnabled = false;
             EdhMissingComparisonPanel.Visibility = Visibility.Collapsed;
+            EdhMissingImpactPanel.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -63,6 +64,7 @@ public partial class NativeDeckEditorWindow
         EdhMissingAlternativeDetails.Text = "No cards were added, removed or saved.";
         EdhApplyMissingSwapButton.IsEnabled = false;
         EdhMissingComparisonPanel.Visibility = Visibility.Collapsed;
+        EdhMissingImpactPanel.Visibility = Visibility.Collapsed;
     }
 
     private void OnEdhMissingShortageSelected(object sender, SelectionChangedEventArgs e)
@@ -72,6 +74,7 @@ public partial class NativeDeckEditorWindow
         EdhMissingAlternativesList.ItemsSource = null;
         EdhApplyMissingSwapButton.IsEnabled = false;
         EdhMissingComparisonPanel.Visibility = Visibility.Collapsed;
+        EdhMissingImpactPanel.Visibility = Visibility.Collapsed;
         EdhMissingAlternativeDetails.Text =
             "Select an alternative to read why it was listed. No automatic substitutions.";
         if (EdhMissingShortagesList.SelectedItem is not MissingDeckRow shortage)
@@ -98,7 +101,8 @@ public partial class NativeDeckEditorWindow
             var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
             var proposals = EdhLabMissingCardAdvisor.Analyze(
                 edhCatalog, entries.Select(x => (x.Name, x.Quantity)), shortage.Name,
-                focus: SelectedStrategyFocus);
+                focus: SelectedStrategyFocus,
+                landTarget: TryLandTarget(out int targetLands) ? targetLands : 36);
             EdhMissingAlternativesList.ItemsSource = proposals;
             EdhMissingAlternativesStatus.Text = proposals.Count == 0
                 ? "No conservative, recorded role-match found. The missing card may " +
@@ -155,6 +159,55 @@ public partial class NativeDeckEditorWindow
         EdhMissingComparisonPanel.Visibility = Visibility.Visible;
     }
 
+    // Project a 1-for-1 change into a temporary text buffer. Never assign
+    // MainboardBox.Text, write SQLite, or infer ownership between pools here.
+    private void ShowProjectedMissingSwapImpact(
+        EdhLabMissingCardAdvisor.Alternative? alternative)
+    {
+        if (EdhMissingImpactPanel is null) return;
+        EdhMissingImpactPanel.Visibility = Visibility.Collapsed;
+        if (alternative is null || edhCatalog is null ||
+            EdhMissingShortagesList.SelectedItem is not MissingDeckRow
+                { IsMainboard: true } missing) return;
+        try
+        {
+            var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
+            int targetLands = TryLandTarget(out int desired) ? desired : 36;
+            var impact = EdhLabSwapImpact.Analyze(edhCatalog,
+                entries.Select(x => (x.Name, x.Quantity)),
+                missing.Name, alternative.Name, targetLands);
+
+            string projected = NativeDeckOwnedPicker.AddOne(
+                NativeDeckOwnedPicker.RemoveOne(MainboardBox.Text, missing.Name),
+                alternative.Name);
+            var pool = edhLabFormat == EdhLabFormat.ArenaBrawl
+                ? NativeDeckOwnedPicker.Pool.Arena
+                : NativeDeckOwnedPicker.Pool.Physical;
+            var before = NativeDeckOwnedPicker.Review(ownership, pool,
+                MainboardBox.Text, CommanderBox.Text, FormatBox.Text);
+            var after = NativeDeckOwnedPicker.Review(ownership, pool,
+                projected, CommanderBox.Text, FormatBox.Text);
+            string scope = pool == NativeDeckOwnedPicker.Pool.Arena
+                ? "Arena" : "Physical";
+            EdhMissingImpactSummary.Text = impact.Summary;
+            EdhMissingImpactAvailability.Text =
+                $"{scope} name-level coverage if applied: " +
+                $"{before.CoveredCopies:N0}/{before.TotalWithCommander:N0} → " +
+                $"{after.CoveredCopies:N0}/{after.TotalWithCommander:N0} covered. " +
+                $"Missing: {before.MissingCopies:N0} → {after.MissingCopies:N0}. " +
+                "Copies are not reserved for other decks.";
+            EdhMissingImpactPanel.Visibility = Visibility.Visible;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or
+            OverflowException)
+        {
+            EdhMissingImpactSummary.Text = "Projection unavailable: " + ex.Message;
+            EdhMissingImpactAvailability.Text =
+                "No draft or collection data was changed.";
+            EdhMissingImpactPanel.Visibility = Visibility.Visible;
+        }
+    }
+
     private void OnEdhMissingAlternativeSelected(object sender, SelectionChangedEventArgs e)
     {
         var selected = EdhMissingAlternativesList?.SelectedItem as
@@ -162,6 +215,7 @@ public partial class NativeDeckEditorWindow
         EdhMissingAlternativeDetails.Text = selected?.Explanation ??
             "Choose a recorded alternative to review its shared role hints.";
         ShowMissingCardComparison(selected);
+        ShowProjectedMissingSwapImpact(selected);
         EdhApplyMissingSwapButton.IsEnabled = !busy &&
             selected is not null &&
             EdhMissingShortagesList?.SelectedItem is MissingDeckRow { IsMainboard: true };
@@ -186,7 +240,8 @@ public partial class NativeDeckEditorWindow
                     x.Name.Equals(shortage.Name, StringComparison.OrdinalIgnoreCase));
             var freshAlternatives = EdhLabMissingCardAdvisor.Analyze(edhCatalog,
                 entries.Select(x => (x.Name, x.Quantity)), shortage.Name,
-                focus: SelectedStrategyFocus);
+                focus: SelectedStrategyFocus,
+                landTarget: TryLandTarget(out int targetLands) ? targetLands : 36);
             if (freshShortage is null || freshShortage.Missing < 1 ||
                 !freshAlternatives.Any(x =>
                     x.Name.Equals(alternative.Name, StringComparison.OrdinalIgnoreCase) &&
@@ -198,9 +253,17 @@ public partial class NativeDeckEditorWindow
                     "Review the refreshed list before choosing a swap.";
                 return;
             }
+            // Recompute the whole-draft impact at confirmation time; stale
+            // cached role/curve summaries never authorize a substitution.
+            var freshImpact = EdhLabSwapImpact.Analyze(edhCatalog,
+                entries.Select(x => (x.Name, x.Quantity)),
+                shortage.Name, alternative.Name,
+                TryLandTarget(out int previewLands) ? previewLands : 36);
             if (NativeInAppDialog.Show(this,
                 $"Replace ONE unsaved mainboard copy of {shortage.Name} with " +
                 $"{alternative.Name}?\n\n{alternative.Explanation}\n\n" +
+                "Projected whole-deck impact:\n" +
+                freshImpact.Summary + "\n\n" +
                 "This edits only the current draft. It does not purchase cards, " +
                 "change the collection, verify printings or save the deck. " +
                 "Review and save remains a separate action.",
