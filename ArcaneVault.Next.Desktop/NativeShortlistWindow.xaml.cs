@@ -164,7 +164,7 @@ public partial class NativeShortlistWindow : Window
         if (busy || expectedSha is null ||
             ShortlistList.SelectedItem is not NativeShortlist.Entry entry)
             return;
-        if (MessageBox.Show(this,
+        if (NativeInAppDialog.Show(this,
             $"Remove \"{entry.Name}\" from My Shortlist?\n\n" +
             "This removes the bookmark only. Owned cards, saved decks and " +
             "artwork preferences are unchanged, and a full recovery file is kept.",
@@ -185,7 +185,7 @@ public partial class NativeShortlistWindow : Window
         catch (Exception ex)
         {
             if (!closing)
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Bookmark was not changed:\n" + ex.Message +
                     "\n\nRefresh to load the newest native collection before editing.",
                     "Shortlist not changed", MessageBoxButton.OK, MessageBoxImage.Warning);

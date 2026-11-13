@@ -227,7 +227,7 @@ public partial class NativePrintingGalleryWindow : Window
         if (arenaOnly || busy || expectedSha is null || nativePath is null ||
             PrintingsList.SelectedItem is not Choice selected) return;
         if (selected.PhysicalOwned == 0 &&
-            MessageBox.Show(this,
+            NativeInAppDialog.Show(this,
                 "This edition is not verified in your physical collection. " +
                 "Do you still want to use its art for this card name?\n\n" +
                 "This changes artwork only, never ownership, printing selection, or Set Progress.",
@@ -250,7 +250,7 @@ public partial class NativePrintingGalleryWindow : Window
         catch (Exception ex)
         {
             if (!closing)
-                MessageBox.Show(this, "Artwork preference was not saved:\n" + ex.Message +
+                NativeInAppDialog.Show(this, "Artwork preference was not saved:\n" + ex.Message +
                     "\n\nIf your collection changed in another window, close and reopen Card Details.",
                     "Artwork not changed", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
@@ -264,7 +264,7 @@ public partial class NativePrintingGalleryWindow : Window
     private async void OnResetClicked(object sender, RoutedEventArgs e)
     {
         if (arenaOnly || busy || expectedSha is null || nativePath is null || preferred is null) return;
-        if (MessageBox.Show(this,
+        if (NativeInAppDialog.Show(this,
                 "Reset this card to its default Scryfall artwork?\n\n" +
                 "This removes only the saved display preference and preserves all ownership.",
                 "Reset artwork preference", MessageBoxButton.YesNo,
@@ -286,7 +286,7 @@ public partial class NativePrintingGalleryWindow : Window
         catch (Exception ex)
         {
             if (!closing)
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Saved preference could not be reset:\n" + ex.Message,
                     "Artwork not changed", MessageBoxButton.OK, MessageBoxImage.Warning);
         }

@@ -61,7 +61,7 @@ public partial class NativeArenaEditorWindow : Window
         string intent = !editing ? $"Add {count:N0} copies of {name}"
             : count == 0 ? $"REMOVE this selected Arena row: {selectedRow!.Name}"
             : $"Change the selected Arena row to {name}, {count:N0} total copies";
-        if (MessageBox.Show(this, intent + "?\n\n" +
+        if (NativeInAppDialog.Show(this, intent + "?\n\n" +
             "Only native Arena ownership changes. Each successful save keeps the " +
             "entire previous native collection as a recovery point. " +
             "Your old Windows app is not updated.",
@@ -80,7 +80,7 @@ public partial class NativeArenaEditorWindow : Window
                 ? NativeWorkspaceSafety.EditArenaRow(nativePath,
                     selectedOrdinal.Value, selectedRow!, name, count, expectedSha)
                 : NativeWorkspaceSafety.AddArenaCopies(nativePath, name, count, expectedSha));
-            MessageBox.Show(this,
+            NativeInAppDialog.Show(this,
                 $"Saved native Arena inventory: {result.Current.Collection.ArenaCopies:N0} owned copies.\n\n" +
                 "The complete previous collection was preserved at:\n" +
                 result.RecoveryPath +
@@ -92,7 +92,7 @@ public partial class NativeArenaEditorWindow : Window
         {
             StatusText.Text = "Arena edit not confirmed. Inspect the current native collection " +
                 "and recovery files before retrying. " + ex.Message;
-            MessageBox.Show(this, StatusText.Text, "Native edit stopped",
+            NativeInAppDialog.Show(this, StatusText.Text, "Native edit stopped",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
