@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace ArcaneVault.Next.EDHLab;
 
 /// <summary>
@@ -73,6 +75,35 @@ public static class EdhLabThreeCardEngines
                 "whenever one or more +1/+1 counters"))
     ];
 
+    // Rule predicate matching (including regex token parsing) depends only
+    // on the immutable catalog snapshot, not the current draft. Cache it once
+    // per snapshot and let the GC reclaim it when a new commander/format
+    // replaces the catalog. No stale inventory or cross-format cache entries.
+    private sealed record IndexedPathway(Pathway Rule,
+        EdhLabDraftCatalog.Card[] Producers,
+        EdhLabDraftCatalog.Card[] Bridges,
+        EdhLabDraftCatalog.Card[] Rewards);
+
+    private sealed class Index
+    {
+        public required IReadOnlyList<IndexedPathway> Pathways { get; init; }
+    }
+
+    private static readonly ConditionalWeakTable<EdhLabDraftCatalog, Index>
+        CandidateIndexes = new();
+
+    private static Index BuildIndex(EdhLabDraftCatalog catalog)
+    {
+        var eligible = catalog.AllEligibleCards;
+        return new Index
+        {
+            Pathways = Pathways.Select(rule => new IndexedPathway(rule,
+                eligible.Where(rule.Producer).ToArray(),
+                eligible.Where(rule.Bridge).ToArray(),
+                eligible.Where(rule.Reward).ToArray())).ToArray()
+        };
+    }
+
     public sealed record Engine(string Theme, string Producer,
         string Bridge, string Payoff, string Status, string Explanation,
         string MissingName, long UnusedRecordedCopies, string MissingRoles)
@@ -117,23 +148,22 @@ public static class EdhLabThreeCardEngines
         if (themes.Count == 0 || deck.Count < 2)
             return new Report(Array.Empty<Engine>(), unknown);
 
-        var eligible = catalog.AllEligibleCards;
+        var index = CandidateIndexes.GetValue(catalog, BuildIndex);
         var found = new List<Engine>();
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var path in Pathways.Where(p => themes.Contains(p.Theme)))
+        foreach (var indexed in index.Pathways.Where(p => themes.Contains(p.Rule.Theme)))
         {
-            // Bound search cost for larger collections. All drafted candidates
-            // come first so catalog order does not hide an existing engine.
-            EdhLabDraftCatalog.Card[] Choose(
-                Func<EdhLabDraftCatalog.Card, bool> predicate) =>
-                eligible.Where(predicate)
-                    .OrderByDescending(c => deck.ContainsKey(c.Name))
+            var path = indexed.Rule;
+            // Only the rank changes when the user edits the deck; the
+            // expensive predicate scans have already been compiled.
+            EdhLabDraftCatalog.Card[] Choose(EdhLabDraftCatalog.Card[] candidates) =>
+                candidates.OrderByDescending(c => deck.ContainsKey(c.Name))
                     .ThenByDescending(c => c.RecordedCopies > 0)
                     .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
                     .Take(28).ToArray();
-            var first = Choose(path.Producer);
-            var middle = Choose(path.Bridge);
-            var last = Choose(path.Reward);
+            var first = Choose(indexed.Producers);
+            var middle = Choose(indexed.Bridges);
+            var last = Choose(indexed.Rewards);
             foreach (var a in first)
             foreach (var b in middle)
             foreach (var c in last)

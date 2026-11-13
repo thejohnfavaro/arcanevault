@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 namespace ArcaneVault.Next.EDHLab;
 
@@ -71,6 +72,29 @@ public static class EdhLabSynergyChains
                 "whenever one or more creatures die"))
     ];
 
+    // Predicate matching is immutable for a loaded legal catalog snapshot.
+    // CWT prevents retaining previous commander/format collections, while
+    // rank and owned/unused copy checks are computed from every fresh draft.
+    private sealed record IndexedRule(LinkRule Rule,
+        EdhLabDraftCatalog.Card[] Enablers,
+        EdhLabDraftCatalog.Card[] Payoffs);
+
+    private sealed class Index
+    {
+        public required IReadOnlyList<IndexedRule> Rules { get; init; }
+    }
+
+    private static readonly ConditionalWeakTable<EdhLabDraftCatalog, Index>
+        CandidateIndexes = new();
+
+    private static Index BuildIndex(EdhLabDraftCatalog catalog) =>
+        new()
+        {
+            Rules = Rules.Select(rule => new IndexedRule(rule,
+                catalog.AllEligibleCards.Where(rule.Enabler).ToArray(),
+                catalog.AllEligibleCards.Where(rule.Payoff).ToArray())).ToArray()
+        };
+
     public sealed record Chain(string Theme, string Enabler, string Payoff,
         string Status, string Explanation, string SuggestedCard,
         long SuggestedRecordedCopies, string SuggestedRoles,
@@ -120,22 +144,21 @@ public static class EdhLabSynergyChains
         // AllEligibleCards has already passed commander identity, format bans
         // and Arena printing availability. Only a link touching a deck card
         // can be suggested; no global catalog-to-catalog pairings.
-        var all = catalog.AllEligibleCards;
-        var inDeck = all.Where(c => deck.GetValueOrDefault(c.Name) > 0).ToArray();
+        var index = CandidateIndexes.GetValue(catalog, BuildIndex);
         var output = new List<Chain>();
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var rule in Rules.Where(r => activeThemes.Contains(r.Theme)))
+        foreach (var indexed in index.Rules.Where(r => activeThemes.Contains(r.Rule.Theme)))
         {
-            var deckEnablers = inDeck.Where(rule.Enabler).ToArray();
-            var deckPayoffs = inDeck.Where(rule.Payoff).ToArray();
-            if (deckEnablers.Length == 0 && deckPayoffs.Length == 0) continue;
+            var rule = indexed.Rule;
+            if (!indexed.Enablers.Any(c => deck.ContainsKey(c.Name)) &&
+                !indexed.Payoffs.Any(c => deck.ContainsKey(c.Name))) continue;
 
-            var enablers = all.Where(rule.Enabler)
+            var enablers = indexed.Enablers
                 .OrderByDescending(c => deck.ContainsKey(c.Name))
                 .ThenByDescending(c => c.RecordedCopies > 0)
                 .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-            var payoffs = all.Where(rule.Payoff)
+            var payoffs = indexed.Payoffs
                 .OrderByDescending(c => deck.ContainsKey(c.Name))
                 .ThenByDescending(c => c.RecordedCopies > 0)
                 .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToArray();
