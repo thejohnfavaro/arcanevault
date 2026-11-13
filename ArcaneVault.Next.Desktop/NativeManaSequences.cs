@@ -7,7 +7,7 @@ namespace ArcaneVault.Next.Desktop;
 /// </summary>
 public static class NativeManaSequences
 {
-    public enum Mode { Identity, Cost }
+    public enum Mode { Identity, Cost, Production }
     public sealed record Piece(string Text, bool IsSymbol);
 
     public static IReadOnlyList<Piece> Pieces(string? value, Mode mode)
@@ -18,6 +18,18 @@ public static class NativeManaSequences
             if (colors.Count == 0)
                 return new[] { new Piece("Unknown identity", false) };
             return colors.Select(x => new Piece(x.Symbol, true)).ToArray();
+        }
+        if (mode == Mode.Production)
+        {
+            // Production may contain {C} alongside colored symbols; unlike
+            // color identity, an empty string means unclassified, NOT C.
+            string raw = (value ?? "").Trim().ToUpperInvariant();
+            if (raw.Length == 0) return Array.Empty<Piece>();
+            const string sources = "WUBRGC";
+            if (!raw.All(sources.Contains))
+                return new[] { new Piece("Mana access unverified", false) };
+            return sources.Where(raw.Contains)
+                .Select(ch => new Piece(ch.ToString(), true)).ToArray();
         }
         if (mode != Mode.Cost)
             throw new ArgumentOutOfRangeException(nameof(mode));
