@@ -171,6 +171,98 @@ internal static class NativeFreshStartChecks
              NativeWorkspace.Open(recovered.RecoveryPath).Collection.PhysicalCopies == 0,
              "Restoring prior data deleted the blank version or its original recovery.");
 
-        Console.WriteLine("PASS: create empty native collection without export, preserve catalog, typed reset backend clears all data, idempotent no-op, stale guard, verified rollback, full restore");
+        // v0.9.55: selected collection clearing is NOT full Start Fresh.
+        // Keep all decks/revisions, the other inventory, artwork, favorites,
+        // wildcards, and unknown original fields, including in a real rollback.
+        string selectivePath = Path.Combine(work, "selective-inventory-reset.sqlite");
+        var selectiveOriginal = NativeWorkspace.ImportNewBytes(
+            PopulatedSource(), "selective-source", selectivePath);
+        var physicalOnly = NativeWorkspaceSafety.ClearInventory(selectivePath,
+            NativeWorkspaceSafety.InventoryScope.Physical,
+            selectiveOriginal.BackupSha256);
+        Must(physicalOnly.RecoveryPath is not null &&
+             File.Exists(physicalOnly.RecoveryPath) &&
+             !physicalOnly.AlreadyEmpty &&
+             physicalOnly.Current.Collection.PhysicalCopies == 0 &&
+             physicalOnly.Current.Collection.ArenaCopies == 4 &&
+             physicalOnly.Current.Collection.Decks == 1 &&
+             physicalOnly.Current.Collection.DeckRevisions == 2 &&
+             physicalOnly.Current.Collection.PreferredArtworks == 1 &&
+             NativeWorkspace.Open(physicalOnly.RecoveryPath).BackupSha256 ==
+                selectiveOriginal.BackupSha256,
+             "Physical-only reset must retain Arena, decks/art and complete source recovery.");
+        using (var sqlite = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = selectivePath, Mode = SqliteOpenMode.ReadOnly,
+                 Pooling = false }.ToString()))
+        {
+            sqlite.Open();
+            using var cmd = sqlite.CreateCommand();
+            cmd.CommandText = "SELECT backup FROM manifest WHERE id=1";
+            using var doc = JsonDocument.Parse((byte[])cmd.ExecuteScalar()!);
+            var root = doc.RootElement;
+            Must(root.GetProperty("physicalCards").GetArrayLength() == 0 &&
+                 root.GetProperty("cards").GetArrayLength() == 1 &&
+                 root.GetProperty("deckLibrary")[0].GetProperty("revisions").GetArrayLength() == 2 &&
+                 root.GetProperty("favorites").GetArrayLength() == 1 &&
+                 root.GetProperty("wildcards").GetProperty("rare").GetInt32() == 2 &&
+                 root.GetProperty("legacyStorage").GetProperty("futureKey")
+                    .GetString() == "preserve-in-rollback",
+                 "Selective reset must preserve unknown schema fields and deck/shortlist preferences.");
+        }
+
+        var postPhysical = NativeWorkspace.Open(selectivePath);
+        var afterPhysicalHash = SHA256.HashData(File.ReadAllBytes(selectivePath));
+        var afterPhysicalTime = File.GetLastWriteTimeUtc(selectivePath);
+        var noOpPhysical = NativeWorkspaceSafety.ClearInventory(selectivePath,
+            NativeWorkspaceSafety.InventoryScope.Physical, postPhysical.BackupSha256);
+        Must(noOpPhysical.AlreadyEmpty && noOpPhysical.RecoveryPath is null &&
+             afterPhysicalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(selectivePath))) &&
+             afterPhysicalTime == File.GetLastWriteTimeUtc(selectivePath) &&
+             NativeWorkspaceSafety.RecoveryPaths(selectivePath).Count == 1,
+             "Clearing an empty physical scope must not write or make a duplicate rollback.");
+
+        Reject(() => NativeWorkspaceSafety.ClearInventory(selectivePath,
+            NativeWorkspaceSafety.InventoryScope.Arena,
+            selectiveOriginal.BackupSha256));
+        Must(afterPhysicalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(selectivePath))),
+             "Stale scope reset must leave current collection unchanged.");
+
+        var arenaOnly = NativeWorkspaceSafety.ClearInventory(selectivePath,
+            NativeWorkspaceSafety.InventoryScope.Arena, postPhysical.BackupSha256);
+        Must(arenaOnly.Current.Collection.ArenaCopies == 0 &&
+             arenaOnly.Current.Collection.PhysicalCopies == 0 &&
+             arenaOnly.Current.Collection.Decks == 1 &&
+             arenaOnly.Current.Collection.DeckRevisions == 2 &&
+             arenaOnly.Current.Collection.PreferredArtworks == 1 &&
+             arenaOnly.RecoveryPath is not null &&
+             NativeWorkspace.Open(arenaOnly.RecoveryPath).Collection.ArenaCopies == 4,
+             "Arena-only reset must retain decks/art and a separate complete recovery.");
+
+        string bothPath = Path.Combine(work, "both-scopes-to-reset.sqlite");
+        var bothOriginal = NativeWorkspace.ImportNewBytes(
+            PopulatedSource(), "both-scopes-source", bothPath);
+        var clearedBoth = NativeWorkspaceSafety.ClearInventory(bothPath,
+            NativeWorkspaceSafety.InventoryScope.Both,
+            bothOriginal.BackupSha256);
+        Must(clearedBoth.Current.Collection.PhysicalCards.Count == 0 &&
+             clearedBoth.Current.Collection.ArenaCards.Count == 0 &&
+             clearedBoth.Current.Collection.PhysicalCopies == 0 &&
+             clearedBoth.Current.Collection.ArenaCopies == 0 &&
+             clearedBoth.Current.Collection.Decks == 1 &&
+             clearedBoth.Current.Collection.DeckRevisions == 2 &&
+             clearedBoth.Current.Collection.PreferredArtworks == 1 &&
+             clearedBoth.RecoveryPath is not null &&
+             NativeWorkspace.Open(clearedBoth.RecoveryPath).BackupSha256 ==
+                 bothOriginal.BackupSha256,
+             "Clear both inventories must preserve deck library and full recoverability.");
+        var restoredBoth = NativeWorkspaceSafety.Restore(bothPath,
+            clearedBoth.RecoveryPath, clearedBoth.Current.BackupSha256);
+        Must(restoredBoth.Current.Collection.PhysicalCopies == 5 &&
+             restoredBoth.Current.Collection.ArenaCopies == 4 &&
+             restoredBoth.Current.Collection.Decks == 1,
+             "Full recovery after selective reset must restore both old ownership scopes.");
+        Must(catalogSha.SequenceEqual(SHA256.HashData(File.ReadAllBytes(sentinelCatalog))),
+             "Selective inventory clear changed the Scryfall catalog.");
+        Console.WriteLine("PASS: create empty native collection without export, preserve catalog, typed reset backend clears all data, idempotent no-op, stale guard, verified rollback, full restore, selective scope resets with preserved decks/preferences");
     }
 }

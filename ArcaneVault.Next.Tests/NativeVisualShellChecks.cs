@@ -633,6 +633,26 @@ internal static class NativeVisualShellChecks
              main.Contains("OnShowCatalogClicked", StringComparison.Ordinal) &&
              mainCode.Contains("nativeWorkspaceView.NavigateTo(section)", StringComparison.Ordinal),
             "Card Catalog and Deck Library sidebar navigation must preserve in-shell routing.");
+        // v0.9.55: selective inventory clearing is an explicit action
+        // inside the live native workspace, never a preview/destructive
+        // one-click reset. Require both typed phrase and acknowledgement.
+        var clearUi = XDocument.Load(
+            Path.Combine(dir, "NativeCollectionClearWindow.xaml"));
+        var clearCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionClearWindow.xaml.cs"));
+        Must(collection.Contains("x:Name=\"ClearInventoryButton\"") &&
+             collection.Contains("Click=\"OnClearInventoryClicked\"") &&
+             clearUi.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "ConfirmationText") &&
+             clearUi.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "Acknowledged") &&
+             clearCode.Contains("\"CLEAR PHYSICAL\"") &&
+             clearCode.Contains("\"CLEAR ARENA\"") &&
+             clearCode.Contains("\"CLEAR BOTH\"") &&
+             clearCode.Contains("Acknowledged.IsChecked == true") &&
+             clearCode.Contains("ConfirmButton.IsEnabled") &&
+             !clearCode.Contains("StartFresh("),
+             "Inventory clear must require an explicit scope, phrase and acknowledgement.");
         string collectionCode = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
         // v0.9.54: the ownership summary belongs under the artwork/
@@ -668,6 +688,11 @@ internal static class NativeVisualShellChecks
                 x.Attribute("Grid.Row")?.Value == "1" &&
                 x.Attribute("MinHeight")?.Value == "190"),
              "Ownership must sit below artwork; Oracle text must retain a minimum height independently of long legalities.");
+        Must(collectionCode.Contains("NativeWorkspaceSafety.ClearInventory(") &&
+             collectionCode.Contains("expectedBackupSha") &&
+             collectionCode.Contains("outcome.RecoveryPath") &&
+             collectionCode.Contains("if (prompt.ShowDialog() != true) return"),
+             "Inventory clearing must use SHA-guarded selective recovery, never clear the entire workspace.");
         string detailsCode = File.ReadAllText(
             Path.Combine(dir, "NativeCardDetailsWindow.xaml.cs"));
         string galleryCode = File.ReadAllText(

@@ -86,6 +86,9 @@ public partial class NativeCollectionWorkspace : UserControl
             !string.IsNullOrWhiteSpace(expectedBackupSha);
         EditArenaButton.IsEnabled = AddArenaButton.IsEnabled;
         ImportArenaButton.IsEnabled = AddArenaButton.IsEnabled;
+        ClearInventoryButton.IsEnabled = nativeWorkspace &&
+            !string.IsNullOrWhiteSpace(nativePath) &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha);
         if (nativeWorkspace)
         {
             DataSourceLabel.Text =
@@ -253,6 +256,57 @@ public partial class NativeCollectionWorkspace : UserControl
         }
         else PhysicalList.View = physicalDetailedView;
         PhysicalList.SelectedItem = selected;
+    }
+
+    private async void OnClearInventoryClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || excelBusy || arenaImportBusy || deckBusy ||
+            !ClearInventoryButton.IsEnabled ||
+            string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha)) return;
+        var prompt = new NativeCollectionClearWindow(backup)
+        { Owner = Window.GetWindow(this) };
+        if (prompt.ShowDialog() != true) return;
+        var scope = prompt.SelectedScope;
+        ClearInventoryButton.IsEnabled = false;
+        StatusText.Text = $"Verifying and clearing {scope} inventory with a full native recovery…";
+        try
+        {
+            var outcome = await Task.Run(() => NativeWorkspaceSafety.ClearInventory(
+                nativePath, scope, expectedBackupSha));
+            if (closing) return;
+            if (outcome.AlreadyEmpty)
+            {
+                StatusText.Text = $"Selected {scope} inventory is already empty. Nothing was changed.";
+                return;
+            }
+            MessageBox.Show(Window.GetWindow(this),
+                $"Cleared {scope} inventory. No saved decks, shortlist, preferences " +
+                "or other collection scope were removed.\n\n" +
+                "The complete previous native database was preserved at:\n" +
+                outcome.RecoveryPath + "\n\n" +
+                "You can now reimport your selected collection as a new baseline.",
+                "Inventory cleared with recovery", MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            Close();
+            if (reopenNative is not null) await reopenNative();
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+            {
+                StatusText.Text = $"Selective {scope} clear failed. Verify the active collection and recovery files.";
+                MessageBox.Show(Window.GetWindow(this),
+                    "The inventory reset could not be completed safely. " +
+                    "Do not delete any native recovery files.\n\n" + ex.Message,
+                    "Inventory clear not completed", MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            if (!closing) ClearInventoryButton.IsEnabled = true;
+        }
     }
 
     private async void OnImportExcelClicked(object sender, RoutedEventArgs e)
