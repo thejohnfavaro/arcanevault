@@ -630,7 +630,17 @@
                                                    Margin="0,9,0,0"/>
                                     </StackPanel>
                                 </ScrollViewer>
-                                <Button Grid.Row="2" Content="Full card details &amp; printings"
+                                <StackPanel Grid.Row="2" Margin="0,8,0,0">
+                                    <Button x:Name="ReviewDeckShortagesButton"
+                                            Content="Review shortages in EDH Lab"
+                                            Click="OnReviewDeckShortagesClicked"
+                                            IsEnabled="False" Padding="10,8"
+                                            Margin="0,0,0,7"
+                                            Background="{DynamicResource VaultAccentMuted}"
+                                            Foreground="{DynamicResource VaultText}"
+                                            BorderBrush="{DynamicResource VaultAccentBorder}"
+                                            ToolTip="Open eligible Commander or Arena Brawl saved deck in the Improve tab, focused on recorded-copy shortages. Does not change collection or deck until Review and save."/>
+                                <Button Content="Full card details &amp; printings"
                                         x:Name="DeckInspectorFullDetailsButton"
                                         Click="OnDeckInspectorFullDetailsClicked"
                                         IsEnabled="False" Padding="10,8"
@@ -639,6 +649,7 @@
                                         Foreground="{DynamicResource VaultText}"
                                         BorderBrush="{DynamicResource VaultAccentBorder}"
                                         ToolTip="Open full read-only details for the selected mainboard card"/>
+                                </StackPanel>
                             </Grid>
                         </Border>
                     </Grid>
