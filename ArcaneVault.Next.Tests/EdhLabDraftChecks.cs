@@ -140,7 +140,9 @@ internal static class EdhLabDraftChecks
         // preserves every original name/count, and never hides unknown cards.
         var managedEntries = NativeDeckEditing.ParseMainboard(
             "4 Island\n1 Sol Ring\n1 Tiny Insight\n1 Lightning Bolt\n1 Thopter Foundry");
-        var managedGroups = EdhLabMainboardView.Build(paper, managedEntries);
+        var managedTuples = managedEntries
+            .Select(x => (x.Name, x.Quantity)).ToArray();
+        var managedGroups = EdhLabMainboardView.Build(paper, managedTuples);
         Must(managedGroups.Count(x => x.IsHeader) >= 3 &&
              managedGroups.Count(x => !x.IsHeader) == 5 &&
              managedGroups.First().IsHeader &&
@@ -154,31 +156,31 @@ internal static class EdhLabDraftChecks
              managedGroups.Any(x => !x.IsHeader && x.Name == "Lightning Bolt" &&
                  x.Category == "Unverified" && !x.IsVerified),
              "Manager grouping must report real quantities, type and locally unverified draft names.");
-        var onlySpells = EdhLabMainboardView.Build(paper, managedEntries,
+        var onlySpells = EdhLabMainboardView.Build(paper, managedTuples,
             EdhLabMainboardView.Section.Spells);
         Must(onlySpells.Where(x => !x.IsHeader).Select(x => x.Name)
                 .SequenceEqual(new[] { "Tiny Insight" }),
              "Spell filter must exclude artifacts, lands and unverified entries.");
-        var managerByQuantity = EdhLabMainboardView.Build(paper, managedEntries,
+        var managerByQuantity = EdhLabMainboardView.Build(paper, managedTuples,
             order: EdhLabMainboardView.Order.Quantity);
         Must(managerByQuantity.Count == 5 && managerByQuantity.All(x => !x.IsHeader) &&
              managerByQuantity[0].Name == "Island" &&
              managerByQuantity[0].Quantity == 4,
              "Quantity sorting must not rewrite the underlying plain-text mainboard.");
-        var managerByName = EdhLabMainboardView.Build(paper, managedEntries,
+        var managerByName = EdhLabMainboardView.Build(paper, managedTuples,
             order: EdhLabMainboardView.Order.Name);
         Must(managerByName.Select(x => x.Name)
                 .SequenceEqual(managedEntries.Select(x => x.Name)
                     .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)),
              "Alphabetical manager sort must be a presentation-only view.");
-        Must(EdhLabMainboardView.Build(paper, managedEntries,
+        Must(EdhLabMainboardView.Build(paper, managedTuples,
                 EdhLabMainboardView.Section.Other)
                 .Any(x => !x.IsHeader && x.Name == "Lightning Bolt") &&
-             EdhLabMainboardView.Build(paper, managedEntries,
+             EdhLabMainboardView.Build(paper, managedTuples,
                 EdhLabMainboardView.Section.Lands)
                 .Where(x => !x.IsHeader).Single().Quantity == 4,
              "Unverified cards and basic-land counts must remain accessible for removal.");
-        var managerUnknownCatalog = EdhLabMainboardView.Build(null, managedEntries);
+        var managerUnknownCatalog = EdhLabMainboardView.Build(null, managedTuples);
         Must(managerUnknownCatalog.Where(x => !x.IsHeader)
                 .All(x => !x.IsVerified && x.Category == "Unverified"),
              "Unavailable catalog metadata must never forge manager legality.");
