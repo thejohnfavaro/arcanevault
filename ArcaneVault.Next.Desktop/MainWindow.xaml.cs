@@ -1381,7 +1381,8 @@ public partial class MainWindow : Window
                 nativePath: bundle.workspace.DatabasePath,
                 expectedBackupSha: bundle.workspace.BackupSha256,
                 reopenNative: RefreshNativeWorkspaceAsync,
-                nativeDecks: bundle.decks);
+                nativeDecks: bundle.decks,
+                editInEmbeddedEdhLab: OpenSavedDeckInEmbeddedEdhLabAsync);
             view.NavigateTo(nativeWorkspaceSelectedTab);
             nativeWorkspaceView = view;
             view.SectionChanged += section =>
