@@ -148,9 +148,15 @@
         <Style x:Key="VaultNavPrimary" TargetType="{x:Type Button}"
                BasedOn="{StaticResource VaultNavButton}">
             <Setter Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource VaultAccentBorder}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
             <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource VaultNavHoverWash}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="VaultDangerButton" TargetType="{x:Type Button}"
                BasedOn="{StaticResource {x:Type Button}}">
@@ -342,7 +348,7 @@
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
-                    <Setter Property="Foreground" Value="#E5DBFF"/>
+                    <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -398,7 +404,7 @@
                                         Value="{DynamicResource VaultAccentSurface}"/>
                                 <Setter TargetName="TabSurface" Property="BorderBrush"
                                         Value="{DynamicResource VaultAccentBorder}"/>
-                                <Setter Property="Foreground" Value="#E5D9FF"/>
+                                <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="TabSurface" Property="BorderBrush"
