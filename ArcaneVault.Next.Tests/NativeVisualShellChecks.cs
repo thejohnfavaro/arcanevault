@@ -127,6 +127,23 @@ internal static class NativeVisualShellChecks
              !missingSwapUi.Contains("NativeDeckEditing.Save("),
              "Saved deck shortage handoff must be read-only until an explicit, revalidated unsaved swap.");
 
+        // v0.9.68: role-aware rankings and local before/after Oracle
+        // comparison must stay read-only with official mana SVG rendering.
+        var comparisonCode = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.MissingSwap.cs"));
+        Must(v65StudioUi.Contains("x:Name=\"EdhMissingComparisonPanel\"") &&
+             v65StudioUi.Contains("x:Name=\"EdhCompareSourceOracle\"") &&
+             v65StudioUi.Contains("x:Name=\"EdhCompareCandidateOracle\"") &&
+             v65StudioUi.Contains("x:Name=\"EdhCompareSourceMana\"") &&
+             v65StudioUi.Contains("x:Name=\"EdhCompareCandidateMana\"") &&
+             v65StudioUi.Contains("x:Name=\"EdhMissingRankingRationale\"") &&
+             comparisonCode.Contains("ShowMissingCardComparison(selected)") &&
+             comparisonCode.Contains("NativeOracleReading.Build(") &&
+             comparisonCode.Contains("focus: SelectedStrategyFocus") &&
+             comparisonCode.Contains("x.Score == alternative.Score") &&
+             !comparisonCode.Contains("NativeDeckEditing.Save("),
+             "Missing-card side-by-side comparison must render official symbols and revalidate before unsaved swap.");
+
         var app = XDocument.Load(Path.Combine(dir, "App.xaml"));
         // v0.9.26 startup crash: WPF can freeze application resource
         // SolidColorBrush instances. Theme updates must REPLACE resources,
