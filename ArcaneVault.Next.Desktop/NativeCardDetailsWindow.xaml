@@ -31,9 +31,13 @@
             <!-- The original WebView viewer gave artwork strong presence.
                  Artwork is loaded on demand ONLY inside this details dialog;
                  no catalog list triggers per-row network image requests. -->
-            <Border Grid.Column="0" Style="{StaticResource VaultPanelCard}"
-                    Padding="14" VerticalAlignment="Top">
+            <ScrollViewer Grid.Column="0"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
+                    <Border Style="{StaticResource VaultPanelCard}"
+                            Padding="14">
+                        <StackPanel>
                     <Border Height="384" CornerRadius="12"
                             BorderBrush="{DynamicResource VaultAccentBorder}"
                             BorderThickness="1" ClipToBounds="True">
@@ -84,28 +88,34 @@
                                Foreground="{DynamicResource VaultMuted}"
                                TextWrapping="Wrap" FontSize="11"
                                Margin="4,5,4,0"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- Keep ownership beside artwork and printings rather
+                         than using the Oracle text column's vertical space. -->
+                    <Border Style="{StaticResource VaultPanelCard}"
+                            Padding="11,9" Margin="0,10,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource VaultEyebrow}"
+                                       Text="YOUR OWNERSHIP" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="Ownership" FontSize="12"
+                                       Foreground="{DynamicResource VaultGood}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-            </Border>
+            </ScrollViewer>
 
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <Border Grid.Row="0" Style="{StaticResource VaultPanelCard}"
-                        Margin="0,0,0,13" Padding="17">
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource VaultEyebrow}"
-                                   Text="YOUR OWNERSHIP" Margin="0,0,0,8"/>
-                        <TextBlock x:Name="Ownership"
-                                   FontSize="13" Foreground="{DynamicResource VaultGood}"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
-                </Border>
-                <Border Grid.Row="1" Style="{StaticResource VaultPanelCard}"
-                        Margin="0,0,0,13" Padding="17">
-                    <StackPanel>
+                        Margin="0,0,0,10" Padding="12"
+                        MaxHeight="230">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
                         <TextBlock Style="{StaticResource VaultEyebrow}"
                                    Text="CARD METADATA" Margin="0,0,0,8"/>
                         <TextBlock x:Name="CardMetadata"
@@ -186,10 +196,11 @@
                                 </ScrollViewer>
                             </StackPanel>
                         </Expander>
-                    </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Border>
-                <Border Grid.Row="2" Style="{StaticResource VaultPanelCard}"
-                        Padding="17" MinHeight="140">
+                <Border Grid.Row="1" Style="{StaticResource VaultPanelCard}"
+                        Padding="14" MinHeight="190">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
