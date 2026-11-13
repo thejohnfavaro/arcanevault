@@ -119,12 +119,12 @@ public partial class MainWindow
         var document = new FlowDocument
         {
             PagePadding = new Thickness(0),
-            FontSize = 12,
-            LineHeight = 18
+            FontSize = 13.5,
+            LineHeight = 21
         };
         foreach (string line in (raw ?? "").Replace("\r\n", "\n").Split('\n'))
         {
-            var paragraph = new Paragraph { Margin = new Thickness(0, 0, 0, 3) };
+            var paragraph = new Paragraph { Margin = new Thickness(0, 0, 0, 6) };
             foreach (var part in NativeOracleSymbolTokenizer.Split(line))
             {
                 if (part.IsSymbol && part.Text.Length >= 3)
