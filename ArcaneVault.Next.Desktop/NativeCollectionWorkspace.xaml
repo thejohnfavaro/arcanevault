@@ -366,7 +366,14 @@
                                   Unchecked="OnDeckFilterChanged"
                                   Margin="0,0,10,0"/>
                     </WrapPanel>
-                    <ListView Grid.Row="1" x:Name="DeckLibraryList"
+                    <!-- Saved-deck cards appear in a persistent inspector,
+                         without opening Deck Studio or changing the mainboard. -->
+                    <Grid Grid.Row="1" MinHeight="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="260"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                    <ListView Grid.Column="0" x:Name="DeckLibraryList"
                               SelectionChanged="OnDeckSelected"
                               Background="{DynamicResource VaultPanel}"
                               Foreground="{DynamicResource VaultText}"
@@ -475,6 +482,72 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
+                    <Border x:Name="DeckPreviewPanel" Grid.Column="1"
+                            Visibility="Collapsed" Width="330"
+                            Margin="12,0,0,0"
+                            Background="{DynamicResource VaultPanelRaised}"
+                            BorderBrush="{DynamicResource VaultEdgeLift}"
+                            BorderThickness="1" CornerRadius="12" Padding="7">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" Margin="5,2,5,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="DECK CONTENTS" Style="{StaticResource VaultEyebrow}"/>
+                                    <TextBlock x:Name="DeckPreviewTitle"
+                                               Foreground="{DynamicResource VaultText}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               MaxHeight="40" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                    <TextBlock x:Name="DeckPreviewNotice"
+                                               Foreground="{DynamicResource VaultMuted}"
+                                               FontSize="10.5" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="×" FontSize="17"
+                                        Padding="0" Width="28" Height="28"
+                                        VerticalAlignment="Top"
+                                        Click="OnCloseDeckPreviewClicked"
+                                        Background="{DynamicResource VaultPanel}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        ToolTip="Hide preview and reclaim deck-list width"/>
+                            </Grid>
+                            <ListBox Grid.Row="1" x:Name="DeckContentsList"
+                                     Height="148" Margin="0,0,0,8"
+                                     SelectionChanged="OnDeckContentsSelectionChanged"
+                                     Background="{DynamicResource VaultPanel}"
+                                     BorderBrush="{DynamicResource VaultLine}"
+                                     Foreground="{DynamicResource VaultText}"
+                                     ScrollViewer.CanContentScroll="True"
+                                     VirtualizingStackPanel.IsVirtualizing="True"
+                                     VirtualizingStackPanel.VirtualizationMode="Recycling">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="65"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding QuantityLabel}"
+                                                       FontSize="10.5" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource VaultAccent}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                       FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Name}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <local:NativeCardPeekPane x:Name="DeckCardInspector"
+                                                      Grid.Row="2" MinHeight="0"/>
+                        </Grid>
+                    </Border>
+                    </Grid>
                     <TextBlock Grid.Row="2" x:Name="DeckLibraryStatus"
                                Foreground="{DynamicResource VaultMuted}" TextWrapping="Wrap"
                                Margin="0,11,0,0"
