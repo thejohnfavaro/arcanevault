@@ -346,6 +346,26 @@
                                Foreground="{DynamicResource VaultAccent}"/>
                     <StackPanel x:Name="EdhSuggestionTools"
                                 Visibility="Collapsed" Margin="0,8,0,0">
+                        <StackPanel Margin="0,0,0,8">
+                            <CheckBox x:Name="EdhShowLandRecommendations"
+                                      Content="Recommend lands for this commander"
+                                      IsChecked="False" FontWeight="SemiBold"
+                                      Checked="OnEdhSuggestionsChanged"
+                                      Unchecked="OnEdhSuggestionsChanged"
+                                      ToolTip="Read-only, locally legal land matches. Owned and Proxy inventories stay separate."/>
+                            <DockPanel Margin="0,5,0,0" LastChildFill="True">
+                                <TextBlock Text="Land availability" Margin="0,0,8,0"
+                                           VerticalAlignment="Center"/>
+                                <ComboBox x:Name="EdhLandAvailabilityBox" SelectedIndex="0"
+                                          SelectionChanged="OnEdhLandAvailabilityChanged"
+                                          Background="#D7E4EB" Foreground="#0D1017">
+                                    <ComboBoxItem Content="All eligible"/>
+                                    <ComboBoxItem Content="Owned only"/>
+                                    <ComboBoxItem Content="Proxy only (paper)"/>
+                                    <ComboBoxItem Content="Unowned only"/>
+                                </ComboBox>
+                            </DockPanel>
+                        </StackPanel>
                         <Expander x:Name="EdhCardsFilters" Header="Filters &amp; commander matches"
                                   IsExpanded="False" Background="{DynamicResource VaultPanelRaised}"
                                   BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" Padding="7">
