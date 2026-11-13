@@ -1686,7 +1686,7 @@ internal static class NativeVisualShellChecks
              mainHost.Descendants().Any(x =>
                  x.Attribute(XName.Get("Name", XamlNs))?.Value == "EdhLabHost") &&
              File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs"))
-                 .Contains("EdhLabHost.Content = view;", StringComparison.Ordinal) &&
+                 .Contains("EdhLabSurface.Content = view;", StringComparison.Ordinal) &&
              File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs"))
                  .Contains("new CommanderBrowserView(", StringComparison.Ordinal) &&
              File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs"))
