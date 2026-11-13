@@ -526,6 +526,37 @@ internal static class NativeVisualShellChecks
              !visualMainboardCode.Contains("NativeWorkspaceSafety.SaveDeck("),
              "EDH manager must share exact mainboard text, validate count increases and use card preview without saving.");
 
+        // v0.9.74: card illustrations belong to REALIZED, virtualized
+        // manager rows only, with official CDN/cache and offscreen cancellation.
+        string mainboardArtworkCode = File.ReadAllText(Path.Combine(
+            dir, "NativeDeckEditorWindow.MainboardArtwork.cs"));
+        var managerListElement = NamedEditor("MainboardManagerList");
+        Must(managerListElement.Attribute(
+                XName.Get("IsVirtualizing", "http://schemas.microsoft.com/winfx/2006/xaml/presentation"))?.Value == "True" ||
+             deckEditorXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
+                 StringComparison.Ordinal),
+             "EDH Manager must virtualize rows instead of loading artwork for the whole draft.");
+        Must(deckEditorXaml.Contains("Loaded=\"OnMainboardThumbnailLoaded\"") &&
+             deckEditorXaml.Contains("Unloaded=\"OnMainboardThumbnailUnloaded\"") &&
+             deckEditorXaml.Contains("DataContextChanged=\"OnMainboardThumbnailContextChanged\"") &&
+             deckEditorXaml.Contains("VirtualizingStackPanel.VirtualizationMode=\"Recycling\"") &&
+             deckEditorXaml.Contains("DecodePixelWidth", StringComparison.Ordinal) == false &&
+             deckEditorXaml.Contains("ToolTip=\"Illustrative official card artwork; not proof of an owned printing\"") &&
+             mainboardArtworkCode.Contains("new SemaphoreSlim(3, 3)") &&
+             mainboardArtworkCode.Contains("MainboardArtMemoryLimit = 128") &&
+             mainboardArtworkCode.Contains("MainboardThumbDecodeWidth = 64") &&
+             mainboardArtworkCode.Contains("NativeCardArtwork.LoadAsync(") &&
+             mainboardArtworkCode.Contains("NativeCardArtwork.IsTrustedArtworkUrl(") &&
+             mainboardArtworkCode.Contains("NativePrintingArtwork.Read(") &&
+             mainboardArtworkCode.Contains("arenaOnly: true") &&
+             mainboardArtworkCode.Contains("CancelMainboardThumbnail(image);") &&
+             mainboardArtworkCode.Contains("image.Source = null;") &&
+             mainboardArtworkCode.Contains("current.Name.Equals(name, StringComparison.OrdinalIgnoreCase)") &&
+             mainboardArtworkCode.Contains("thumbnail.Freeze();") &&
+             draftEditorCode.Contains("mainboardArtLifetime.Cancel();") &&
+             !mainboardArtworkCode.Contains("NativeWorkspaceSafety.SaveDeck("),
+             "EDH thumbnails must use bounded, cancellable official artwork and not create new deck writes.");
+
         var reconciliationXaml = File.ReadAllText(
             Path.Combine(dir, "NativeImportDiffWindow.xaml"));
         var reconciliationCode = File.ReadAllText(
@@ -750,6 +781,8 @@ internal static class NativeVisualShellChecks
                     Path.Combine(dir, "NativeDeckEditorWindow.MissingSwap.cs"));
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeDeckEditorWindow.MainboardManager.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeDeckEditorWindow.MainboardArtwork.cs"));
             }
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
