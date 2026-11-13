@@ -1782,6 +1782,13 @@ public partial class MainWindow : Window
 
     private async void OnEdhLabClicked(object sender, RoutedEventArgs e)
     {
+        // The sidebar should return directly to an unfinished draft before
+        // opening commander discovery, including drafts started in Deck Library.
+        if (embeddedEdhDraft is not null)
+        {
+            ShowEmbeddedEdhDraft();
+            return;
+        }
         var active = catalogSnapshot;
         if (active is null) return;
         if (edhLabWindow is not null)
