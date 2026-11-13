@@ -1139,7 +1139,7 @@ public partial class NativeDeckEditorWindow : Window
                 "If Auto-balance basics is enabled, its suggested basics " +
                 "may also update. No collection or saved deck is modified. " +
                 "Review and save deck remains a separate action.";
-            if (MessageBox.Show(this, message, "Review proposed EDH Lab swap",
+            if (NativeInAppDialog.Show(this, message, "Review proposed EDH Lab swap",
                     MessageBoxButton.YesNo, MessageBoxImage.Question,
                     MessageBoxResult.No) != MessageBoxResult.Yes)
                 return;
@@ -1690,7 +1690,7 @@ public partial class NativeDeckEditorWindow : Window
                 "This replaces the TEXT currently visible in the deck editor; " +
                 "it does not save or modify your collection until you press Review and save deck.\n\n" +
                 "Continue?";
-            if (MessageBox.Show(this, prompt, "Review imported decklist",
+            if (NativeInAppDialog.Show(this, prompt, "Review imported decklist",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
                 return;
             MainboardBox.Text = imported.MainboardText;
@@ -1703,7 +1703,7 @@ public partial class NativeDeckEditorWindow : Window
         catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
         {
             StatusText.Text = "Deck import rejected: " + ex.Message;
-            MessageBox.Show(this, ex.Message,
+            NativeInAppDialog.Show(this, ex.Message,
                 "Decklist needs review", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
@@ -1857,7 +1857,7 @@ public partial class NativeDeckEditorWindow : Window
                 "The complete previous native database will be retained for recovery.";
 
             // Explicit consent is required even when warnings are present.
-            if (MessageBox.Show(this, prompt, "Review native deck and save",
+            if (NativeInAppDialog.Show(this, prompt, "Review native deck and save",
                 MessageBoxButton.YesNo,
                 report.Warnings > 0 ? MessageBoxImage.Warning :
                 MessageBoxImage.Question) != MessageBoxResult.Yes)
@@ -1872,7 +1872,7 @@ public partial class NativeDeckEditorWindow : Window
                 NativeWorkspaceSafety.SaveDeck(nativePath, name, commander,
                     mainboard, original, expectedSha, format: format,
                     folder: folder, favorite: favorite));
-            MessageBox.Show(this,
+            NativeInAppDialog.Show(this,
                 $"Deck saved. Library now contains {saved.Current.Collection.Decks:N0} decks " +
                 $"and {saved.Current.Collection.DeckRevisions:N0} revisions.\n\n" +
                 "The complete prior native collection is preserved at:\n" +
@@ -1884,7 +1884,7 @@ public partial class NativeDeckEditorWindow : Window
         {
             StatusText.Text = "Review or save did not finish. No automatic reset was performed. " +
                 ex.Message;
-            MessageBox.Show(this, StatusText.Text,
+            NativeInAppDialog.Show(this, StatusText.Text,
                 "Deck action stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
