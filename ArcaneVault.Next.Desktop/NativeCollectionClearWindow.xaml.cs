@@ -28,13 +28,19 @@ public partial class NativeCollectionClearWindow : Window
             ConfirmButton is null || ConfirmationPrompt is null ||
             Acknowledged is null) return;
         int selected = ScopeBox.SelectedIndex;
-        ConfirmationPrompt.Text = selected >= 0 && selected < Phrases.Length
-            ? $"To continue, type exactly: {Phrases[selected]}"
-            : "Select a scope to see its confirmation phrase.";
-        ConfirmButton.IsEnabled = selected >= 0 && selected < Phrases.Length &&
+        bool validScope = selected >= 0 && selected < Phrases.Length;
+        bool phraseMatches = validScope &&
             ConfirmationText.Text.Trim().Equals(Phrases[selected],
-                StringComparison.Ordinal) &&
-            Acknowledged.IsChecked == true;
+                StringComparison.OrdinalIgnoreCase);
+        bool hasAcknowledgedBackup = Acknowledged.IsChecked == true;
+        ConfirmationPrompt.Text = !validScope
+            ? "Select a scope to see its confirmation phrase."
+            : !phraseMatches
+                ? $"Type {Phrases[selected]} (capitalization does not matter)."
+                : !hasAcknowledgedBackup
+                    ? "Phrase accepted. Check the full-backup acknowledgement to enable clearing."
+                    : "Ready to clear the selected inventory. Your previous native workspace will be recoverable.";
+        ConfirmButton.IsEnabled = phraseMatches && hasAcknowledgedBackup;
     }
 
     private void OnConfirmClicked(object sender, RoutedEventArgs e)
