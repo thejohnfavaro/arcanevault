@@ -67,6 +67,13 @@ internal static class NativeCatalogFilterChecks
             "Set code search should be case-insensitive.");
         Must(catalog.SearchFiltered("", new(Rarity: "rare")).Rows.Count == 3,
             "Rarity must come from each printing rather than card-name metadata.");
+        Must(catalog.HasPrintingRarity &&
+             catalog.SearchPrefix("Sol").Rows.Select(x => x.RarityLabel)
+                 .OrderBy(x => x, StringComparer.Ordinal)
+                 .SequenceEqual(new[] { "RARE", "UNCOMMON" }) &&
+             catalog.SearchFiltered("", new(Rarity: "mythic")).Rows.Single().RarityLabel ==
+                 "MYTHIC",
+             "Both prefix and filtered catalog queries must bind exact printing rarity to the art overlay.");
         Must(catalog.SearchFiltered("", new(TypeContains: "Creature")).Rows.Count == 3,
             "Type filter must join authoritative card metadata.");
         Must(catalog.SearchFiltered("", new(TypeContains: "Wizard")).Rows.Count == 1,
