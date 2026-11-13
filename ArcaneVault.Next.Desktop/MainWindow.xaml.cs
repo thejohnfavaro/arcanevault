@@ -26,7 +26,9 @@ public partial class MainWindow : Window
     private readonly IReadOnlyList<SampleCard> sampleCards;
     private CatalogSnapshot? catalogSnapshot;
     private NativeCatalogOwnership? catalogOwnership;
-    private CommanderBrowserWindow? edhLabWindow;
+    private CommanderBrowserView? edhLabWindow;
+    private NativeDeckEditorView? embeddedEdhDraft;
+    private bool edhLabRequested;
     private NativeCollectionWindow? collectionWindow; // explicit read-only backup preview only
     private NativeCollectionWorkspace? nativeWorkspaceView;
     private bool nativeWorkspaceRequested;
@@ -184,7 +186,7 @@ public partial class MainWindow : Window
             inspectorRequestVersion++;
             DisconnectInAppNotices();
             catalogSyncCancellation?.Cancel();
-            edhLabWindow?.Close();
+            ClearEmbeddedEdhLab();
             collectionWindow?.Close();
             InvalidateNativeWorkspace();
             shortlistWindow?.Close();
@@ -452,7 +454,7 @@ public partial class MainWindow : Window
             if (closing) { fresh.Dispose(); return; }
 
             CancelPendingSearch();
-            edhLabWindow?.Close();
+            ClearEmbeddedEdhLab();
             collectionWindow?.Close();
             collectionWindow = null;
             InvalidateNativeWorkspace();
@@ -1240,14 +1242,18 @@ public partial class MainWindow : Window
 
     private void UpdateWorkspaceNavigation()
     {
-        CatalogWorkspace.Visibility = nativeWorkspaceRequested
+        CatalogWorkspace.Visibility = nativeWorkspaceRequested || edhLabRequested
             ? Visibility.Collapsed : Visibility.Visible;
-        NativeWorkspaceHost.Visibility = nativeWorkspaceRequested
+        NativeWorkspaceHost.Visibility = nativeWorkspaceRequested && !edhLabRequested
+            ? Visibility.Visible : Visibility.Collapsed;
+        EdhLabHost.Visibility = edhLabRequested
             ? Visibility.Visible : Visibility.Collapsed;
 
         var active = (Style)FindResource("VaultNavPrimary");
         var inactive = (Style)FindResource("VaultNavButtonDepth");
-        CatalogNavigationButton.Style = nativeWorkspaceRequested ? inactive : active;
+        CatalogNavigationButton.Style = nativeWorkspaceRequested || edhLabRequested
+            ? inactive : active;
+        EdhLabButton.Style = edhLabRequested ? active : inactive;
         OpenNativeButton.Style = nativeWorkspaceRequested &&
             nativeWorkspaceSelectedTab is not (2 or 3) ? active : inactive;
         DeckLibraryNavigationButton.Style = nativeWorkspaceRequested &&
@@ -1259,6 +1265,7 @@ public partial class MainWindow : Window
     private void OnShowCatalogClicked(object sender, RoutedEventArgs e)
     {
         nativeWorkspaceRequested = false;
+        edhLabRequested = false;
         UpdateWorkspaceNavigation();
     }
 
@@ -1302,6 +1309,8 @@ public partial class MainWindow : Window
 
     private async Task NavigateToNativeWorkspaceAsync(int section)
     {
+        edhLabRequested = false;
+        UpdateWorkspaceNavigation();
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
         {
             FilterStatus.Text = "Create or import a native collection before opening this section.";
@@ -1375,7 +1384,8 @@ public partial class MainWindow : Window
                 nativePath: bundle.workspace.DatabasePath,
                 expectedBackupSha: bundle.workspace.BackupSha256,
                 reopenNative: RefreshNativeWorkspaceAsync,
-                nativeDecks: bundle.decks);
+                nativeDecks: bundle.decks,
+                editInEmbeddedEdhLab: OpenSavedDeckInEmbeddedEdhLabAsync);
             view.NavigateTo(nativeWorkspaceSelectedTab);
             nativeWorkspaceView = view;
             view.SectionChanged += section =>
@@ -1561,7 +1571,7 @@ public partial class MainWindow : Window
             var loaded = await Task.Run(() => CatalogSnapshot.Open(picker.FileName));
             if (closing) { loaded.Dispose(); return; }
             CancelPendingSearch();
-            edhLabWindow?.Close();
+            ClearEmbeddedEdhLab();
             collectionWindow?.Close();
             collectionWindow = null;
             InvalidateNativeWorkspace();
@@ -1666,13 +1676,122 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ShowEmbeddedEdhDraft()
+    {
+        if (embeddedEdhDraft is null) return;
+        EdhLabSurface.Content = embeddedEdhDraft;
+        EdhReturnToDraftButton.IsEnabled = true;
+        nativeWorkspaceRequested = false;
+        edhLabRequested = true;
+        UpdateWorkspaceNavigation();
+    }
+
+    private void OpenEmbeddedEdhDraft(NativeDeckEditorView editor)
+    {
+        if (embeddedEdhDraft is not null)
+            throw new InvalidOperationException("A draft is already open.");
+        embeddedEdhDraft = editor;
+        editor.Saved += OnEmbeddedEdhDraftSaved;
+        ShowEmbeddedEdhDraft();
+    }
+
+    private async void OnEmbeddedEdhDraftSaved(object? sender,
+        NativeWorkspaceSafety.Replacement saved)
+    {
+        if (sender is not NativeDeckEditorView editor ||
+            !ReferenceEquals(embeddedEdhDraft, editor)) return;
+        DiscardEmbeddedEdhDraft();
+        nativeWorkspaceSelectedTab = 2;
+        nativeWorkspaceRequested = true;
+        edhLabRequested = false;
+        UpdateWorkspaceNavigation();
+        await RefreshNativeWorkspaceAsync();
+    }
+
+    private void DiscardEmbeddedEdhDraft()
+    {
+        if (embeddedEdhDraft is null) return;
+        var old = embeddedEdhDraft;
+        if (ReferenceEquals(EdhLabSurface.Content, old))
+            EdhLabSurface.Content = null;
+        old.Saved -= OnEmbeddedEdhDraftSaved;
+        old.DisposeEditor();
+        embeddedEdhDraft = null;
+        EdhReturnToDraftButton.IsEnabled = false;
+    }
+
+    private void OnEdhReturnToDraftClicked(object sender, RoutedEventArgs e) =>
+        ShowEmbeddedEdhDraft();
+
+    private void OnEdhShowCommandersClicked(object sender, RoutedEventArgs e)
+    {
+        if (edhLabWindow is null) return;
+        EdhLabSurface.Content = edhLabWindow;
+        nativeWorkspaceRequested = false;
+        edhLabRequested = true;
+        UpdateWorkspaceNavigation();
+    }
+
+    private async Task OpenSavedDeckInEmbeddedEdhLabAsync(
+        NativeDeckEditing.DeckRow selected, EdhLabFormat format,
+        string colors, bool focusShortages, string? preferredShortageName)
+    {
+        var active = catalogSnapshot ??
+            throw new InvalidOperationException("Sync the Scryfall catalog before editing.");
+        if (embeddedEdhDraft is not null)
+        {
+            if (NativeInAppDialog.Show(this,
+                    "A draft is already open. Discard its unsaved changes and edit the selected deck?",
+                    "Switch EDH Lab deck", MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning, MessageBoxResult.No)
+                != MessageBoxResult.Yes)
+            {
+                ShowEmbeddedEdhDraft();
+                return;
+            }
+            DiscardEmbeddedEdhDraft();
+        }
+        // Always verify the CURRENT SHA and catalog at the moment of editing.
+        var workspace = await Task.Run(() =>
+            NativeWorkspace.Open(NativeWorkspace.DefaultPath));
+        if (closing || !ReferenceEquals(active, catalogSnapshot)) return;
+        var match = NativeWorkspaceSafety.ListDecks(NativeWorkspace.DefaultPath)
+            .FirstOrDefault(x => x.Id == selected.Id);
+        if (match is null || match.SourceSha256 != selected.SourceSha256)
+            throw new InvalidDataException(
+                "The saved deck changed. Refresh the Deck Library before editing.");
+        var editor = new NativeDeckEditorView(
+            NativeWorkspace.DefaultPath, workspace.BackupSha256,
+            workspace.Collection, active.ReadOnlySnapshotPath, match,
+            savedLabFormat: format, savedLabColors: colors,
+            focusShortageReview: focusShortages,
+            preferredShortageName: preferredShortageName);
+        OpenEmbeddedEdhDraft(editor);
+    }
+
+    private void ClearEmbeddedEdhLab()
+    {
+        DiscardEmbeddedEdhDraft();
+        edhLabRequested = false;
+        edhLabWindow = null;
+        if (EdhLabSurface is not null)
+            EdhLabSurface.Content = null;
+        if (EdhLabHost is not null && CatalogWorkspace is not null)
+            UpdateWorkspaceNavigation();
+    }
+
     private async void OnEdhLabClicked(object sender, RoutedEventArgs e)
     {
         var active = catalogSnapshot;
         if (active is null) return;
         if (edhLabWindow is not null)
         {
-            edhLabWindow.Activate();
+            nativeWorkspaceRequested = false;
+            edhLabRequested = true;
+            if (embeddedEdhDraft is not null)
+                EdhLabSurface.Content = embeddedEdhDraft;
+            else EdhLabSurface.Content = edhLabWindow;
+            UpdateWorkspaceNavigation();
             return;
         }
 
@@ -1707,7 +1826,7 @@ public partial class MainWindow : Window
             });
             if (closing || currentVersion != modeVersion ||
                 !ReferenceEquals(active, catalogSnapshot)) return;
-            var window = new CommanderBrowserWindow(loaded.Index,
+            var view = new CommanderBrowserView(loaded.Index,
                 loaded.Inventory, loaded.HasCollection,
                 async (commander, format) =>
                 {
@@ -1723,26 +1842,32 @@ public partial class MainWindow : Window
                     var workspace = await Task.Run(() =>
                         NativeWorkspace.Open(NativeWorkspace.DefaultPath));
                     if (closing) return;
-                    var editor = new NativeDeckEditorWindow(
+                    if (embeddedEdhDraft is not null)
+                    {
+                        if (NativeInAppDialog.Show(this,
+                                "A draft is already open. Discard that unsaved draft and start a new one?",
+                                "Change EDH Lab draft", MessageBoxButton.YesNo,
+                                MessageBoxImage.Warning, MessageBoxResult.No)
+                            != MessageBoxResult.Yes)
+                        {
+                            ShowEmbeddedEdhDraft();
+                            return;
+                        }
+                        DiscardEmbeddedEdhDraft();
+                    }
+                    var editor = new NativeDeckEditorView(
                         NativeWorkspace.DefaultPath, workspace.BackupSha256,
                         workspace.Collection, active.ReadOnlySnapshotPath,
                         draftCommander: commander.Name,
-                        draftFormat: format, draftColors: commander.ColorIdentity)
-                    { Owner = this };
-                    if (editor.ShowDialog() == true && !closing)
-                    {
-                        nativeWorkspaceSelectedTab = 2; // Deck Library
-                        nativeWorkspaceRequested = true;
-                        await RefreshNativeWorkspaceAsync();
-                    }
-                }, catalogPath: active.ReadOnlySnapshotPath) { Owner = this };
-            edhLabWindow = window;
-            window.Closed += (_, _) =>
-            {
-                if (ReferenceEquals(edhLabWindow, window)) edhLabWindow = null;
-                if (!closing && catalogSnapshot is not null) EdhLabButton.IsEnabled = true;
-            };
-            window.Show();
+                        draftFormat: format, draftColors: commander.ColorIdentity);
+                    OpenEmbeddedEdhDraft(editor);
+                }, catalogPath: active.ReadOnlySnapshotPath);
+            edhLabWindow = view;
+            EdhLabSurface.Content = view;
+            nativeWorkspaceRequested = false;
+            edhLabRequested = true;
+            UpdateWorkspaceNavigation();
+            EdhLabButton.IsEnabled = true;
             FilterStatus.Text = $"{loaded.Index.LoadedCardIdentities:N0} read-only commander candidates loaded" +
                 (loaded.HasCollection ? " · inventory name counts available" :
                     " · no native inventory loaded");
@@ -1754,7 +1879,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            if (!closing && edhLabWindow is null)
+            if (!closing)
                 EdhLabButton.IsEnabled = catalogSnapshot is not null;
         }
     }
@@ -1762,7 +1887,7 @@ public partial class MainWindow : Window
     private void OnSyntheticClicked(object sender, RoutedEventArgs e)
     {
         CancelPendingSearch();
-        edhLabWindow?.Close();
+        ClearEmbeddedEdhLab();
         collectionWindow?.Close();
         collectionWindow = null;
             InvalidateNativeWorkspace();
