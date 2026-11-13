@@ -166,6 +166,76 @@ internal static class EdhLabDraftChecks
                  Array.Empty<(string Name, int Quantity)>(),
                  "Heavy Insight").Count == 0,
              "Arena-only review must never borrow Physical inventory or propose commander-only cuts.");
+        // v0.9.68: An alternative carries a read-only snapshot for both cards
+        // with evidence behind the rank; unsynced mana data stays unknown.
+        Must(paperMissingDraw.Count > 0 &&
+             paperMissingDraw[0].Rank == 1 &&
+             paperMissingDraw[0].MissingCard?.Name == "Heavy Insight" &&
+             paperMissingDraw[0].ReplacementCard?.Name == "Tiny Insight" &&
+             paperMissingDraw[0].ReplacementCard?.Oracle.Contains(
+                "Draw a card", StringComparison.OrdinalIgnoreCase) == true &&
+             paperMissingDraw[0].MissingCard?.ManaValue is null &&
+             paperMissingDraw[0].RankingReasons.Contains("Mana-value comparison unavailable") &&
+             paperMissingDraw[0].RankingReasons.Contains("Balanced") &&
+             paperMissingDraw[0].MissingCard?.DraftCopies == 1 &&
+             paperMissingDraw[0].ReplacementCard?.DraftCopies == 0,
+             "Missing-card comparison must expose source/target text, recorded use and honest mana-metadata gaps.");
+        var focusedAlternatives = EdhLabMissingCardAdvisor.Analyze(paper,
+            new[] { (Name: "Heavy Insight", Quantity: 1) }, "Heavy Insight",
+            focus: EdhLabStrategyFocus.CardAdvantage);
+        Must(focusedAlternatives.Count > 0 &&
+             focusedAlternatives[0].RankingReasons.Contains("Card advantage") &&
+             focusedAlternatives[0].Score > paperMissingDraw[0].Score &&
+             focusedAlternatives[0].Rank == 1,
+             "Selected user strategy must feed the ranking, not merely relabel the list.");
+
+        // A separate local catalog with mana metadata exercises actual
+        // score/curve comparisons without changing existing test fixtures.
+        string rankingCatalogPath = Path.Combine(work, "edh-shortage-ranking.sqlite");
+        File.Copy(catalog, rankingCatalogPath, overwrite: true);
+        using (var rankingDb = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = rankingCatalogPath,
+            Mode = SqliteOpenMode.ReadWrite, Pooling = false
+        }.ToString()))
+        {
+            rankingDb.Open();
+            using var cmd = rankingDb.CreateCommand();
+            cmd.CommandText = """
+                ALTER TABLE cards ADD COLUMN mana_cost TEXT NOT NULL DEFAULT '';
+                ALTER TABLE cards ADD COLUMN mv REAL NOT NULL DEFAULT 0;
+                UPDATE cards SET mana_cost = '{3}{U}', mv = 4
+                    WHERE name = 'Heavy Insight';
+                UPDATE cards SET mana_cost = '{U}', mv = 1
+                    WHERE name = 'Tiny Insight';
+                UPDATE cards SET mana_cost = '{6}{U}', mv = 7
+                    WHERE name = 'Brainstorm';
+                """;
+            cmd.ExecuteNonQuery();
+        }
+        var rankingOwnership = new NativeBackupView(
+            new[] {
+                new NativePhysicalRow("Tiny Insight", 1, "", "", "", ""),
+                new NativePhysicalRow("Brainstorm", 1, "", "", "", "")
+            },
+            Array.Empty<NativeArenaRow>(), 0, 0, 0, 2, 0, 0, 2);
+        var rankingPaper = EdhLabDraftCatalog.OpenReadOnly(
+            rankingCatalogPath, rankingOwnership, "Selected Leader",
+            "WU", EdhLabFormat.PaperCommander);
+        var rankedWithMana = EdhLabMissingCardAdvisor.Analyze(rankingPaper,
+            new[] { (Name: "Heavy Insight", Quantity: 1) }, "Heavy Insight");
+        Must(rankedWithMana.Count >= 2 &&
+             rankedWithMana[0].Name == "Tiny Insight" &&
+             rankedWithMana[0].Rank == 1 &&
+             rankedWithMana[1].Name == "Brainstorm" &&
+             rankedWithMana[1].Rank == 2 &&
+             rankedWithMana[0].Score > rankedWithMana[1].Score &&
+             rankedWithMana[0].MissingCard?.ManaCost == "{3}{U}" &&
+             rankedWithMana[0].ReplacementCard?.ManaCost == "{U}" &&
+             rankedWithMana[0].RankingReasons.Contains("3 lower mana value") &&
+             rankedWithMana[1].RankingReasons.Contains("3 higher mana value"),
+             "Rankings must account for synced mana values, retain exact mana symbols and enumerate deterministic ranks.");
+
         // Package views share the existing offline commander rules and legal
         // snapshot. They must not mistake exhausted cards for available copies.
         var packageDraft = new (string Name, int Quantity)[]
