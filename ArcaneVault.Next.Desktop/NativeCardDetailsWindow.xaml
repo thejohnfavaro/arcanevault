@@ -124,6 +124,11 @@
                         <TextBlock x:Name="CardMetadata"
                                    Foreground="{DynamicResource VaultText}"
                                    TextWrapping="Wrap" FontSize="12.5"/>
+                        <TextBlock Text="MANA COST (EXACT)" Style="{StaticResource VaultEyebrow}"
+                                   Margin="0,10,0,5"/>
+                        <local:NativeManaStrip x:Name="CardManaCost"
+                                               Kind="Cost" SymbolSize="23"
+                                               AutomationProperties.Name="Exact official card casting mana cost"/>
                         <!-- This is Scryfall COLOR IDENTITY, not casting mana cost.
                              Each glyph has a text name and an automation label. -->
                         <TextBlock Text="COLOR IDENTITY" Style="{StaticResource VaultEyebrow}"

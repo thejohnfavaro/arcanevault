@@ -164,7 +164,8 @@ public static class CollectionCatalogReview
         string ColorIdentity,
         string Legalities,
         string SetCode,
-        string ArtworkUrl = "");
+        string ArtworkUrl = "",
+        string ManaCost = "");
 
     /// <summary>Offline card identity details; not a claim about the owned printing.</summary>
     public static CardDetails? ReadDetails(string catalogPath, string name)
@@ -198,6 +199,19 @@ public static class CollectionCatalogReview
             details = details with { ArtworkUrl = art.ExecuteScalar()?.ToString() ?? "" };
         }
         catch (SqliteException) { /* Old catalog schema has no image URL. */ }
+
+        // Preserve the exact official token sequence, e.g. {2}{U},
+        // {W/U}, {2/R}, {U/P}; it is not a color-identity string.
+        // Older catalogs without mana_cost remain readable.
+        try
+        {
+            using var mana = db.CreateCommand();
+            mana.CommandText =
+                "SELECT mana_cost FROM cards WHERE name=$name COLLATE NOCASE LIMIT 1";
+            mana.Parameters.AddWithValue("$name", name);
+            details = details with { ManaCost = mana.ExecuteScalar()?.ToString() ?? "" };
+        }
+        catch (SqliteException) { /* Older catalogs lack mana_cost. */ }
         return details;
     }
 }

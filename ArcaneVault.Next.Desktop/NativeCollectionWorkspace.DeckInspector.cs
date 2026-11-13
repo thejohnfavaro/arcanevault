@@ -200,6 +200,7 @@ public partial class NativeCollectionWorkspace
         var deck = inspectedSavedDeck;
         DeckInspectorFullDetailsButton.IsEnabled = selected is not null;
         DeckInspectorArt.ArtUrl = "";
+        DeckInspectorManaCost.Value = "";
         DeckInspectorColorIdentity.ItemsSource = null;
         DeckInspectorCardType.Text = "";
         DeckInspectorOracle.Document = NativeOracleReading.Build("");
@@ -236,6 +237,7 @@ public partial class NativeCollectionWorkspace
         DeckInspectorArt.ArtUrl = NativeCardArtwork.IsTrustedArtworkUrl(details.ArtworkUrl)
             ? details.ArtworkUrl : "";
         DeckInspectorCardType.Text = details.TypeLine;
+        DeckInspectorManaCost.Value = details.ManaCost;
         DeckInspectorColorIdentity.ItemsSource =
             NativeManaIdentity.ParseColorIdentity(details.ColorIdentity);
         DeckInspectorOracle.Document =

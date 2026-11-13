@@ -169,6 +169,7 @@ public partial class NativeCardDetailsWindow : Window
         CardRarityBadge.Text = "RARITY UNKNOWN";
         CardRarityBadge.Tag = "";
         ColorIdentitySymbols.ItemsSource = Array.Empty<NativeManaIdentity.Color>();
+        CardManaCost.Value = "";
         ColorIdentityLabel.Text = "Identity metadata unavailable";
         if (info is null)
         {
@@ -183,6 +184,7 @@ public partial class NativeCardDetailsWindow : Window
                 ? "Unknown rarity"
                 : System.Globalization.CultureInfo.InvariantCulture.TextInfo
                     .ToTitleCase(info.Rarity.Replace('_', ' '));
+            CardManaCost.Value = info.ManaCost;
             CardRarityBadge.Text = rarity.ToUpperInvariant();
             CardRarityBadge.Tag = (info.Rarity ?? "").Trim().ToLowerInvariant();
             CardMetadata.Text =

@@ -1,6 +1,7 @@
 <Window x:Class="ArcaneVault.Next.Desktop.NativeDeckEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
         Title="Arcane Vault Next — Saved deck editor" Width="1280" Height="850"
         MinWidth="1030" MinHeight="650" WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
@@ -1107,6 +1108,16 @@
                                        TextWrapping="Wrap" FontSize="11"
                                        Foreground="#D8DEEB"
                                        Text="Select a card to see local catalog information."/>
+                            <TextBlock Text="MANA COST" Style="{StaticResource VaultEyebrow}"
+                                       Margin="0,8,0,5"/>
+                            <local:NativeManaStrip x:Name="PreviewManaCost"
+                                                   Kind="Cost" SymbolSize="21"
+                                                   AutomationProperties.Name="Exact casting mana cost for previewed card"/>
+                            <TextBlock Text="COLOR IDENTITY" Style="{StaticResource VaultEyebrow}"
+                                       Margin="0,8,0,5"/>
+                            <local:NativeManaStrip x:Name="PreviewColorIdentity"
+                                                   Kind="Identity" SymbolSize="20"
+                                                   AutomationProperties.Name="Official color identity of previewed card"/>
                             <TextBlock Text="ORACLE TEXT" Margin="0,10,0,6"
                                        Style="{StaticResource VaultEyebrow}"/>
                             <FlowDocumentScrollViewer x:Name="PreviewOracleText"

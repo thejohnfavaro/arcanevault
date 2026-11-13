@@ -309,6 +309,9 @@ public partial class NativeDeckEditorWindow : Window
         PreviewArtFallback.Visibility = Visibility.Visible;
         PreviewOracleText.Document = NativeOracleReading.Build("");
         PreviewMetadata.Text = "";
+        PreviewManaCost.Value = "";
+        PreviewColorIdentity.Value = "";
+        PreviewColorIdentity.Visibility = Visibility.Collapsed;
         PreviewSynergyText.Text = "";
         PreviewCardName.Text = card.Name;
         PreviewSynergyText.Text = card.LabSuggestion
@@ -365,9 +368,10 @@ public partial class NativeDeckEditorWindow : Window
             }
 
             PreviewMetadata.Text = preview.Info.TypeLine +
-                $"  ·  Mana value {preview.Info.ManaValue:G}" +
-                (string.IsNullOrWhiteSpace(preview.Info.ColorIdentity)
-                    ? "  ·  Colorless" : "  ·  Identity: " + preview.Info.ColorIdentity);
+                $"  ·  Mana value {preview.Info.ManaValue:G}";
+            PreviewManaCost.Value = preview.Info.ManaCost;
+            PreviewColorIdentity.Value = preview.Info.ColorIdentity;
+            PreviewColorIdentity.Visibility = Visibility.Visible;
             PreviewOracleText.Document = NativeOracleReading.Build(preview.Info.OracleText);
             if (!NativeCardArtwork.IsTrustedArtworkUrl(preview.ImageUrl))
             {

@@ -1,6 +1,7 @@
 using ArcaneVault.Next.Collection;
 using ArcaneVault.Next.Domain;
 using ArcaneVault.Next.EDHLab;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -12,8 +13,6 @@ public partial class CommanderBrowserWindow : Window
     {
         public string Name => Card.Name;
         public string TypeLine => Card.TypeLine;
-        public string ColorText => string.IsNullOrEmpty(Card.ColorIdentity)
-            ? "Colorless" : EdhLabCommanderRules.CanonicalColors(Card.ColorIdentity);
         public string InventoryText { get; init; } = "";
 
     }
@@ -28,6 +27,7 @@ public partial class CommanderBrowserWindow : Window
     private int page;
     private bool initialized;
     private bool updatingColors;
+    private int commanderCostVersion;
 
     public CommanderBrowserWindow(EdhLabCommanderIndex index,
         CommanderInventory? inventory = null, bool hasCollection = false,
@@ -60,6 +60,8 @@ public partial class CommanderBrowserWindow : Window
     {
         UpdateDraftButton();
         if (CommanderInspectorPanel is null) return;
+        ++commanderCostVersion;
+        CommanderInspectorManaCost.Value = "";
         if (CommanderList.SelectedItem is not CommanderRow selected)
         {
             CommanderInspectorPanel.Visibility = Visibility.Collapsed;
@@ -78,12 +80,39 @@ public partial class CommanderBrowserWindow : Window
             NativeManaIdentity.ParseColorIdentity(card.ColorIdentity);
         CommanderInspectorOracle.Document =
             NativeOracleReading.Build(card.OracleText);
+        _ = LoadCommanderCostAsync(card.Name, commanderCostVersion);
         CommanderInspectorStatus.Text =
             "Format eligibility uses cached legalities, not live bans. Selecting a commander does not modify your deck.";
     }
 
+    private async Task LoadCommanderCostAsync(string name, int version)
+    {
+        if (string.IsNullOrWhiteSpace(catalogPath)) return;
+        try
+        {
+            // Selection changes are cheap; avoid querying SQLite for
+            // intermediate rows during rapid keyboard browsing.
+            await Task.Delay(150);
+            if (version != commanderCostVersion) return;
+            string cost = await Task.Run(() =>
+                CollectionCatalogReview.ReadDetails(catalogPath, name)?.ManaCost ?? "");
+            if (version == commanderCostVersion &&
+                CommanderList.SelectedItem is CommanderRow current &&
+                current.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                CommanderInspectorManaCost.Value = cost;
+        }
+        catch (Exception ex) when (ex is IOException or
+            Microsoft.Data.Sqlite.SqliteException or InvalidDataException or
+            ArgumentException)
+        {
+            // Optional missing mana_cost metadata never blocks inspecting.
+        }
+    }
+
     private void OnCloseCommanderInspectorClicked(object sender, RoutedEventArgs e)
     {
+        ++commanderCostVersion;
+        CommanderInspectorManaCost.Value = "";
         CommanderInspectorPanel.Visibility = Visibility.Collapsed;
         CommanderInspectorArt.ArtUrl = "";
     }
