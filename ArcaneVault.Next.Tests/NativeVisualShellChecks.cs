@@ -63,6 +63,22 @@ internal static class NativeVisualShellChecks
 
         string mainXaml = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
         string optionsXaml = File.ReadAllText(Path.Combine(dir, "NativeOptionsWindow.xaml"));
+        var readinessOptionsCode = File.ReadAllText(
+            Path.Combine(dir, "NativeOptionsWindow.xaml.cs"));
+        var readinessXaml = File.ReadAllText(
+            Path.Combine(dir, "NativeReadinessWindow.xaml"));
+        var readinessCode = File.ReadAllText(
+            Path.Combine(dir, "NativeReadinessWindow.xaml.cs"));
+        Must(optionsXaml.Contains("Click=\"OnBackupReadinessClicked\"") &&
+             readinessOptionsCode.Contains("new NativeReadinessWindow { Owner = this }") &&
+             readinessXaml.Contains("Click=\"OnChooseBackupClicked\"") &&
+             readinessXaml.Contains("Click=\"OnCopyReportClicked\"") &&
+             readinessCode.Contains("NativeReleaseReadiness.Inspect(") &&
+             readinessCode.Contains("Task.Run(") &&
+             !readinessCode.Contains("NativeWorkspace.Import") &&
+             !readinessCode.Contains("NativeWorkspaceSafety.Save") &&
+             !readinessCode.Contains("File.WriteAll"),
+             "Backup readiness must be accessible, local and read-only.");
         Must(appXaml.Contains("x:Key=\"VaultThemeBanner\"", StringComparison.Ordinal) &&
              themeManagerCode.Contains("resources[\"VaultThemeBanner\"] = gradient;",
                  StringComparison.Ordinal) &&

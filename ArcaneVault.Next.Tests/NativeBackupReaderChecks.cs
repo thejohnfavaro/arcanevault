@@ -71,6 +71,23 @@ internal static class NativeBackupReaderChecks
         Check(hash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(backup))) &&
               beforeModified == File.GetLastWriteTimeUtc(backup),
             "Read-only native viewer modified its export.");
+        var readiness = NativeReleaseReadiness.Inspect(backup);
+        Check(readiness.Sha256 == Convert.ToHexString(hash) &&
+              readiness.FileBytes == new FileInfo(backup).Length &&
+              readiness.PhysicalRows == 3 &&
+              readiness.PhysicalCopies == 6 &&
+              readiness.ArenaCopies == 3 &&
+              readiness.Decks == 1 &&
+              readiness.DeckRevisions == 1 &&
+              readiness.PreferredArtworks == 1 &&
+              readiness.MissingOrInvalidPrintingIdCopies == 4 &&
+              readiness.HasPrintingIdGaps &&
+              readiness.Display.Contains("not verified against Scryfall") == false &&
+              readiness.Display.Contains("not catalog verified") == false &&
+              readiness.Display.Contains("does NOT confirm") &&
+              hash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(backup))) &&
+              beforeModified == File.GetLastWriteTimeUtc(backup),
+            "Release readiness must report exact backup metadata without changing the exported file.");
 
         string bad = Path.Combine(directory, "invalid-native-collection.json");
         File.WriteAllText(bad, "{\"schema\":2,\"cards\":[],\"physicalCards\":[{\"name\":\"Card\",\"qty\":-1}],\"deckLibrary\":[],\"preferredArtwork\":{}}");
@@ -85,6 +102,10 @@ internal static class NativeBackupReaderChecks
         MustReject(() => NativeBackupReader.Read(bad));
         File.WriteAllText(bad, "{\"schema\":99,\"cards\":[],\"physicalCards\":[],\"deckLibrary\":[],\"preferredArtwork\":{}}");
         MustReject(() => NativeBackupReader.Read(bad));
+        MustReject(() => NativeReleaseReadiness.Inspect(bad));
+        Check(hash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(backup))) &&
+              beforeModified == File.GetLastWriteTimeUtc(backup),
+            "Backup readiness checks must remain read only even after invalid input.");
         Check(hash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(backup))),
             "Rejected backups changed original data.");
         Console.WriteLine("PASS: Windows-first native collection viewer preserves full backup physical/Arena copies, print distinctions, deck/art totals; rejects incomplete snapshots");

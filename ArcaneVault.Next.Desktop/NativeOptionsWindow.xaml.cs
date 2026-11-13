@@ -44,6 +44,12 @@ public partial class NativeOptionsWindow : Window
         }
     }
 
+    private void OnBackupReadinessClicked(object sender, RoutedEventArgs e)
+    {
+        var window = new NativeReadinessWindow { Owner = this };
+        window.ShowDialog();
+    }
+
     private void OnResetClicked(object sender, RoutedEventArgs e) =>
         ThemeChoice.SelectedValue = NativeThemes.Default.Id;
 
