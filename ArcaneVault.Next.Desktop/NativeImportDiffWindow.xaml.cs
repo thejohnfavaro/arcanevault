@@ -98,7 +98,7 @@ public partial class NativeImportDiffWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, "Could not export the audit. No collection data was changed.\n\n" +
+            NativeInAppDialog.Show(this, "Could not export the audit. No collection data was changed.\n\n" +
                 ex.Message, "Audit export failed",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
