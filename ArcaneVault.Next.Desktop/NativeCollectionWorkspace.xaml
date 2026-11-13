@@ -873,6 +873,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" TextWrapping="Wrap"
@@ -906,11 +907,37 @@
                                 Padding="12,8" Margin="0,16,0,0"
                                 Style="{StaticResource VaultDangerButton}"/>
                     </WrapPanel>
-                    <TextBlock Grid.Row="2" x:Name="ProxyStatusText"
+                    <Border Grid.Row="2" Margin="0,0,0,10" Padding="10"
+                            Background="{DynamicResource VaultPanelRaised}"
+                            BorderBrush="{DynamicResource VaultEdgeLift}"
+                            BorderThickness="1" CornerRadius="6">
+                        <StackPanel>
+                            <TextBlock Text="BATCH ADD PROXIES" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,5"/>
+                            <TextBlock Text="Paste one card per line: 2 Sol Ring, 3x Counterspell, or Card Name (adds one). Existing proxy quantities increase; this does not replace or remove them. The full batch is validated before a single save and collection refresh."
+                                       TextWrapping="Wrap" FontSize="11"
+                                       Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,8"/>
+                            <TextBox x:Name="ProxyBatchBox" Height="88"
+                                     AcceptsReturn="True" TextWrapping="NoWrap"
+                                     VerticalScrollBarVisibility="Auto"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     MaxLength="600000" Padding="8,6"
+                                     Background="{DynamicResource VaultPanel}"
+                                     Foreground="{DynamicResource VaultText}"
+                                     BorderBrush="{DynamicResource VaultEdgeLift}"/>
+                            <Button x:Name="ProxyBatchAddButton"
+                                    Content="Add all proxies (one save)"
+                                    Click="OnProxyBatchAddClicked" IsEnabled="False"
+                                    HorizontalAlignment="Left" Margin="0,8,0,0"
+                                    Padding="12,8"
+                                    Style="{StaticResource VaultPrimaryButton}"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Grid.Row="3" x:Name="ProxyStatusText"
                                Text="Proxy inventory is loading…" FontSize="12"
                                Foreground="{DynamicResource VaultAccent}"
                                TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <ListView Grid.Row="3" x:Name="ProxyList"
+                    <ListView Grid.Row="4" x:Name="ProxyList"
                               SelectionChanged="OnProxySelected"
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
