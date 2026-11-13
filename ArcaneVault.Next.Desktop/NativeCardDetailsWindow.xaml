@@ -244,14 +244,16 @@
                             <TextBlock Text="ORACLE TEXT" VerticalAlignment="Center"
                                        Style="{StaticResource VaultEyebrow}"/>
                         </DockPanel>
-                        <RichTextBox Grid.Row="1" x:Name="OracleText"
-                                     Background="{DynamicResource VaultPanelRaised}"
+                        <!-- Reading surface rather than nested input control.
+                             The original exact wording remains available
+                             through the Copy exact text action above. -->
+                        <FlowDocumentScrollViewer Grid.Row="1" x:Name="OracleText"
+                                     Background="Transparent" BorderThickness="0"
                                      Foreground="{DynamicResource VaultText}"
-                                     BorderBrush="{DynamicResource VaultLine}"
-                                     IsReadOnly="True" IsDocumentEnabled="True"
+                                     IsToolBarVisible="False" IsSelectionEnabled="True"
                                      VerticalScrollBarVisibility="Auto"
                                      HorizontalScrollBarVisibility="Disabled"
-                                     Padding="12,9" FontSize="13.5"
+                                     Padding="0" FontSize="13.5"
                                      AutomationProperties.Name="Oracle text with official Magic symbol artwork"/>
                     </Grid>
                 </Border>
