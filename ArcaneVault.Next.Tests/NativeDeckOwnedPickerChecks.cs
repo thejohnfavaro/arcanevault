@@ -105,9 +105,10 @@ internal static class NativeDeckOwnedPickerChecks
         catch (ArgumentOutOfRangeException) { refusedInvalidCount = true; }
         try { NativeDeckOwnedPicker.SetQuantity("not a deck", "Island", 1); }
         catch (InvalidDataException) { refusedMalformedManager = true; }
-        try { NativeDeckOwnedPicker.SetQuantity("250 Island\n250 Plains\n250 Swamp\n250 Mountain",
-            "Island", 251); }
-        catch (ArgumentOutOfRangeException) { refusedOverTotal = true; }
+        try { NativeDeckOwnedPicker.SetQuantity(
+            "1 Island\n250 Plains\n250 Swamp\n250 Mountain\n249 Forest",
+            "Island", 2); }
+        catch (InvalidDataException) { refusedOverTotal = true; }
         Must(refusedAbsent && refusedInvalidCount && refusedMalformedManager && refusedOverTotal,
              "Manager must refuse stale or invalid edits rather than silently rewriting the draft.");
 
