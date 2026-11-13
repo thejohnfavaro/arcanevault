@@ -22,6 +22,7 @@ public partial class NativeCollectionWorkspace
         bool editable = !string.IsNullOrWhiteSpace(nativePath) &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
         ProxySaveButton.IsEnabled = editable;
+        ProxyBatchAddButton.IsEnabled = editable && !proxyBusy;
         if (!editable)
         {
             ProxyStatusText.Text = "Open a verified native workspace to manage " +
@@ -85,6 +86,75 @@ public partial class NativeCollectionWorkspace
         await SetProxyCountAsync(ProxyNameBox.Text, quantity);
     }
 
+    private async void OnProxyBatchAddClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || proxyBusy || string.IsNullOrWhiteSpace(nativePath) ||
+            string.IsNullOrWhiteSpace(expectedBackupSha)) return;
+
+        string pasted = ProxyBatchBox.Text;
+        IReadOnlyDictionary<string, int> additions;
+        try
+        {
+            // Reject malformed and overflowing batches BEFORE starting the
+            // verified workspace transaction; no partial add is ever applied.
+            additions = NativeProxyEditing.ParseAdditions(pasted);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or
+            OverflowException)
+        {
+            ProxyStatusText.Text = "Batch not applied: " + ex.Message;
+            return;
+        }
+
+        proxyBusy = true;
+        ProxySaveButton.IsEnabled = false;
+        ProxyRemoveButton.IsEnabled = false;
+        ProxyBatchAddButton.IsEnabled = false;
+        ProxyStatusText.Text = $"Verifying and adding {additions.Count:N0} proxy names " +
+            "in one atomic save. Owned printings and valuation remain unchanged.";
+        try
+        {
+            string path = nativePath, sha = expectedBackupSha;
+            var replacement = await Task.Run(() =>
+                NativeWorkspaceSafety.AddProxyBatch(path, pasted, sha));
+            if (closing) return;
+            expectedBackupSha = replacement.Current.BackupSha256;
+            // Clear input only after the verified save succeeded.
+            ProxyBatchBox.Clear();
+            long copies = additions.Sum(x => (long)x.Value);
+            ProxyStatusText.Text = $"Added {copies:N0} Proxy copies across " +
+                $"{additions.Count:N0} names in one transaction. " +
+                "Refreshing the verified collection once…";
+            // Refresh the application exactly once for the complete batch.
+            if (reopenNative is not null)
+                await reopenNative();
+            else
+                await LoadProxyRowsAsync();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            SqliteException or IOException or UnauthorizedAccessException or
+            ArgumentException or OverflowException)
+        {
+            if (!closing)
+                ProxyStatusText.Text =
+                    "Proxy batch not applied: " + ex.Message +
+                    ". The original collection and saved decks were preserved.";
+        }
+        finally
+        {
+            proxyBusy = false;
+            if (!closing)
+            {
+                bool editable = !string.IsNullOrWhiteSpace(nativePath) &&
+                    !string.IsNullOrWhiteSpace(expectedBackupSha);
+                ProxySaveButton.IsEnabled = editable;
+                ProxyBatchAddButton.IsEnabled = editable;
+                ProxyRemoveButton.IsEnabled = editable &&
+                    ProxyList?.SelectedItem is NativeProxyEditing.ProxyRow;
+            }
+        }
+    }
+
     private async void OnProxyRemoveClicked(object sender, RoutedEventArgs e)
     {
         if (ProxyList?.SelectedItem is not NativeProxyEditing.ProxyRow selected)
@@ -99,6 +169,7 @@ public partial class NativeCollectionWorkspace
         proxyBusy = true;
         ProxySaveButton.IsEnabled = false;
         ProxyRemoveButton.IsEnabled = false;
+        ProxyBatchAddButton.IsEnabled = false;
         ProxyStatusText.Text = "Verifying complete backup and updating proxy ledger. " +
             "No real printing or collection price is being changed.";
         try
@@ -134,6 +205,8 @@ public partial class NativeCollectionWorkspace
             if (!closing)
             {
                 ProxySaveButton.IsEnabled = !string.IsNullOrWhiteSpace(nativePath) &&
+                    !string.IsNullOrWhiteSpace(expectedBackupSha);
+                ProxyBatchAddButton.IsEnabled = !string.IsNullOrWhiteSpace(nativePath) &&
                     !string.IsNullOrWhiteSpace(expectedBackupSha);
                 ProxyRemoveButton.IsEnabled =
                     ProxyList?.SelectedItem is NativeProxyEditing.ProxyRow;
