@@ -1,3 +1,4 @@
+using ArcaneVault.Next.Domain;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.CompilerServices;
