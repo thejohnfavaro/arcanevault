@@ -777,8 +777,12 @@ internal static class NativeVisualShellChecks
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "MainWindow.InspectorAndNotices.cs"));
             if (name == "NativeCollectionWorkspace")
+            {
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeCollectionWorkspace.DeckInspector.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeCollectionWorkspace.Proxies.cs"));
+            }
             if (name == "NativeDeckEditorWindow")
             {
                 code += "\n" + File.ReadAllText(
@@ -787,6 +791,8 @@ internal static class NativeVisualShellChecks
                     Path.Combine(dir, "NativeDeckEditorWindow.MainboardManager.cs"));
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeDeckEditorWindow.MainboardArtwork.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeDeckEditorWindow.ProxyCoverage.cs"));
             }
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
