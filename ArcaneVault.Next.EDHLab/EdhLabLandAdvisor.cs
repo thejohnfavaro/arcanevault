@@ -22,7 +22,8 @@ public static class EdhLabLandAdvisor
 
     private sealed record BaseLand(EdhLabDraftCatalog.Card Card,
         string ProductionSymbols, string AccessNote, bool FetchesLand,
-        bool AnyColor, bool Conditional, int CoveredCommanderColors);
+        bool AnyColor, bool Conditional, int CoveredCommanderColors,
+        string Tempo, bool Restricted);
     private sealed class CachedLandSet
     {
         public ConcurrentDictionary<int, IReadOnlyList<BaseLand>> ByColors { get; } = new();
@@ -38,14 +39,17 @@ public static class EdhLabLandAdvisor
         long RealOwned, long ProxyCopies, int InDeckCopies,
         string ProductionSymbols, string AccessNote,
         bool FetchesLand, bool AnyColor, bool Conditional,
-        int CoveredCommanderColors, bool IsBasic, int CopyLimit)
+        int CoveredCommanderColors, bool IsBasic, int CopyLimit,
+        string Tempo = "Unknown entry", bool Restricted = false,
+        int GapPriority = 0)
     {
         public bool CanQuickAdd => InDeckCopies == 0 && CopyLimit > 0;
         public string AvailabilityLabel =>
             $"{RealOwned:N0} real owned" +
             (ProxyCopies > 0 ? $" · {ProxyCopies:N0} Proxy" : "") +
             (InDeckCopies > 0 ? $" · In deck ×{InDeckCopies}" : " · Not in deck");
-        public string Explanation => AccessNote +
+        public string Explanation => AccessNote + " · " + Tempo +
+            (Restricted ? " · Restricted mana spending." : "") +
             (Conditional ? " · Read printed conditions before adding." : "") +
             (FetchesLand ? " · Color production depends on fetched targets." : "") +
             " · Land legality/printing is a separate check.";
@@ -78,8 +82,12 @@ public static class EdhLabLandAdvisor
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         TimeSpan.FromMilliseconds(50));
 
+    // Conservative hints, not a substitute for full Oracle legality or
+    // activated-ability resolution. In particular, an arbitrary mana symbol
+    // in a cost or reminder text is never counted as production.
     private static (string Symbols, string Note, bool Fetch, bool Any, bool Conditional,
-        int Colors) Production(EdhLabDraftCatalog.Card card, int allowed)
+        int Colors, string Tempo, bool Restricted) Production(
+        EdhLabDraftCatalog.Card card, int allowed)
     {
         int mask = 0;
         bool colorless = false;
@@ -98,15 +106,25 @@ public static class EdhLabLandAdvisor
 
         bool any = false;
         bool conditional = false;
+        bool restricted = false;
         foreach (Match m in Regex.Matches(oracle,
                      @"\bAdd\b(?<clause>[^.\r\n]{0,220})",
                      RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
                      TimeSpan.FromMilliseconds(50)))
         {
+            // An opponent's instruction such as "Whenever a player adds
+            // {U}, ..." is not this land producing mana. Require an actual
+            // 'Add' instruction, followed by a mana token or a mana phrase.
             string clause = m.Groups["clause"].Value;
-            if (Regex.IsMatch(clause, @"\bany (?:one )?color\b",
-                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-                    TimeSpan.FromMilliseconds(50)))
+            bool anyPhrase = Regex.IsMatch(clause,
+                @"\b(?:one|two|three|X|a) mana\b[^.\r\n]{0,100}\b(?:any color|any type)\b|\bany (?:one )?color\b",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                TimeSpan.FromMilliseconds(50));
+            bool symbols = Regex.IsMatch(clause, @"\{[WUBRGC]\}",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                TimeSpan.FromMilliseconds(50));
+            if (!anyPhrase && !symbols) continue;
+            if (anyPhrase)
             {
                 mask |= allowed;
                 any = true;
@@ -116,30 +134,43 @@ public static class EdhLabLandAdvisor
             if (clause.Contains("only", StringComparison.OrdinalIgnoreCase) ||
                 clause.Contains("chosen", StringComparison.OrdinalIgnoreCase) ||
                 clause.Contains("among", StringComparison.OrdinalIgnoreCase) ||
-                clause.Contains("could produce", StringComparison.OrdinalIgnoreCase))
+                clause.Contains("could produce", StringComparison.OrdinalIgnoreCase) ||
+                clause.Contains("for each", StringComparison.OrdinalIgnoreCase))
                 conditional = true;
         }
 
-        // "Pay ... search your library for a Plains or Island card" means
-        // mana depends on the targets and their availability, NOT this card.
         bool fetch = Regex.IsMatch(oracle,
             @"search your library for[^.\r\n]{0,180}\b(?:land|plains|island|swamp|mountain|forest)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
             TimeSpan.FromMilliseconds(50));
-        conditional |= fetch ||
-            oracle.Contains("Spend this mana only", StringComparison.OrdinalIgnoreCase) ||
-            oracle.Contains("Activate only", StringComparison.OrdinalIgnoreCase) ||
+        bool tapped = Regex.IsMatch(oracle,
+            @"\b(?:enters (?:the battlefield )?tapped|enters tapped)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(50));
+        bool exceptUntapped = tapped && Regex.IsMatch(oracle,
+            @"\bunless\b|\bif\b[^.\r\n]{0,100}\buntapped\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(50));
+        restricted = oracle.Contains("Spend this mana only", StringComparison.OrdinalIgnoreCase) ||
+            oracle.Contains("Spend this mana to", StringComparison.OrdinalIgnoreCase) ||
             oracle.Contains("only to cast", StringComparison.OrdinalIgnoreCase) ||
+            oracle.Contains("Activate only", StringComparison.OrdinalIgnoreCase);
+        conditional |= fetch || restricted || exceptUntapped ||
             oracle.Contains("if you control", StringComparison.OrdinalIgnoreCase) ||
             oracle.Contains("as long as", StringComparison.OrdinalIgnoreCase) ||
             oracle.Contains("any type that", StringComparison.OrdinalIgnoreCase) ||
-            oracle.Contains("chosen color", StringComparison.OrdinalIgnoreCase);
-
+            oracle.Contains("chosen color", StringComparison.OrdinalIgnoreCase) ||
+            oracle.Contains("could produce", StringComparison.OrdinalIgnoreCase) ||
+            oracle.Contains("only if", StringComparison.OrdinalIgnoreCase);
+        string tempo = tapped ? (exceptUntapped ? "May enter tapped" : "Enters tapped") :
+            oracle.Contains("enters the battlefield", StringComparison.OrdinalIgnoreCase) &&
+                oracle.Contains("if", StringComparison.OrdinalIgnoreCase)
+                ? "Check entry conditions" : "No tapped-entry clause found";
         mask &= allowed;
-        string symbols = string.Concat(Enumerable.Range(0, ColorOrder.Length)
+        string symbolsOut = string.Concat(Enumerable.Range(0, ColorOrder.Length)
             .Where(i => (mask & (1 << i)) != 0)
             .Select(i => ColorOrder[i]));
-        if (colorless) symbols += "C";
+        if (colorless) symbolsOut += "C";
         int colors = BitOperations.PopCount((uint)mask);
 
         string note = any
@@ -154,7 +185,7 @@ public static class EdhLabLandAdvisor
                         : oracle.Contains("could produce", StringComparison.OrdinalIgnoreCase)
                             ? "Conditional: depends on other lands"
                             : "Utility/conditional mana; no guaranteed color inferred";
-        return (symbols, note, fetch, any, conditional, colors);
+        return (symbolsOut, note, fetch, any, conditional, colors, tempo, restricted);
     }
 
     /// <summary>
@@ -186,7 +217,7 @@ public static class EdhLabLandAdvisor
                     var access = Production(card, identity);
                     return new BaseLand(card, access.Symbols, access.Note,
                         access.Fetch, access.Any, access.Conditional,
-                        access.Colors);
+                        access.Colors, access.Tempo, access.Restricted);
                 }).ToArray());
         var lands = landBases.Select(item =>
         {
@@ -199,8 +230,46 @@ public static class EdhLabLandAdvisor
                 card.RecordedCopies, proxy, drafted,
                 item.ProductionSymbols, item.AccessNote, item.FetchesLand,
                 item.AnyColor, item.Conditional, item.CoveredCommanderColors,
-                card.IsBasicLand, card.SuggestedCopyLimit);
+                card.IsBasicLand, card.SuggestedCopyLimit,
+                item.Tempo, item.Restricted);
         }).ToArray();
+
+        // Evaluate which colors the current mainboard is actually short on.
+        // Only direct, non-restricted colored production contributes; fetch
+        // targets and conditional any-color cards are deliberately discounted.
+        int[] coverage = new int[ColorOrder.Length];
+        foreach (var item in lands)
+        {
+            if (item.InDeckCopies <= 0 || item.FetchesLand || item.Restricted)
+                continue;
+            int weight = Math.Min(item.InDeckCopies, 60);
+            if (item.Conditional || item.Tempo == "Enters tapped")
+                weight = Math.Max(1, weight / 2);
+            for (int i = 0; i < ColorOrder.Length; i++)
+                if (item.ProductionSymbols.Contains(ColorOrder[i]))
+                    coverage[i] = checked(coverage[i] + weight);
+        }
+        var usedColors = Enumerable.Range(0, ColorOrder.Length)
+            .Where(i => (allowed & (1 << i)) != 0).ToArray();
+        int minimum = usedColors.Length == 0 ? 0 :
+            usedColors.Min(i => coverage[i]);
+        int priority(Land item)
+        {
+            int gain = 0;
+            foreach (int i in usedColors)
+                if (item.ProductionSymbols.Contains(ColorOrder[i]))
+                    gain += 4 + Math.Min(12, Math.Max(0, 12 - coverage[i])) * 2 +
+                        (coverage[i] == minimum ? 8 : 0);
+            if (item.AnyColor) gain += 7;
+            if (item.FetchesLand && item.ProductionSymbols.Length == 0) gain += 2;
+            if (item.Tempo == "Enters tapped") gain -= 20;
+            else if (item.Tempo == "May enter tapped") gain -= 8;
+            if (item.Conditional) gain -= 8;
+            if (item.Restricted) gain -= 18;
+            if (item.InDeckCopies > 0) gain -= 30;
+            return gain;
+        }
+        lands = lands.Select(x => x with { GapPriority = priority(x) }).ToArray();
 
         bool MatchesFilter(Land x) => filter switch
         {
@@ -219,6 +288,7 @@ public static class EdhLabLandAdvisor
             .OrderBy(x => x.InDeckCopies > 0)
             .ThenByDescending(x => x.RealOwned > 0)
             .ThenByDescending(x => x.ProxyCopies > 0)
+            .ThenByDescending(x => x.GapPriority)
             .ThenByDescending(x => x.CoveredCommanderColors)
             .ThenByDescending(x => x.AnyColor)
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
