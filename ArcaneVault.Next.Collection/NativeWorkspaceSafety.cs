@@ -530,6 +530,30 @@ public static class NativeWorkspaceSafety
     }
 
     /// <summary>
+    /// List decks from an ALREADY fully verified replacement result. This
+    /// skips a second expensive SQLite integrity/row-projection traversal,
+    /// but still hashes the source backup bytes and fails closed if another
+    /// update happened between verification and deck-list extraction.
+    /// UI cache entries are presentation only, never write authorization.
+    /// </summary>
+    public static IReadOnlyList<NativeDeckEditing.DeckRow> ListDecksFromVerified(
+        NativeWorkspace.Workspace verified, CancellationToken cancellation = default)
+    {
+        ArgumentNullException.ThrowIfNull(verified);
+        cancellation.ThrowIfCancellationRequested();
+        return NativeDeckLibraryCache.List(verified.BackupSha256, () =>
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var bytes = ReadPreservedBackup(verified.DatabasePath);
+            if (!Digest(bytes).Equals(verified.BackupSha256,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(
+                    "Native deck list changed after the verified save. Reload the workspace.");
+            return bytes;
+        }, cancellation: cancellation);
+    }
+
+    /// <summary>
     /// Add or update the exact native deck with optimistic SHA + selected
     /// deck fingerprint validation and a complete automatic rollback copy.
     /// </summary>
