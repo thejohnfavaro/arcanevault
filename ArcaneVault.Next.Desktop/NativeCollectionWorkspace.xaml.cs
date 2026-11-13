@@ -280,7 +280,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 StatusText.Text = $"Selected {scope} inventory is already empty. Nothing was changed.";
                 return;
             }
-            MessageBox.Show(Window.GetWindow(this),
+            NativeInAppDialog.Show(this,
                 $"Cleared {scope} inventory. No saved decks, shortlist, preferences " +
                 "or other collection scope were removed.\n\n" +
                 "The complete previous native database was preserved at:\n" +
@@ -296,7 +296,7 @@ public partial class NativeCollectionWorkspace : UserControl
             if (!closing)
             {
                 StatusText.Text = $"Selective {scope} clear failed. Verify the active collection and recovery files.";
-                MessageBox.Show(Window.GetWindow(this),
+                NativeInAppDialog.Show(this,
                     "The inventory reset could not be completed safely. " +
                     "Do not delete any native recovery files.\n\n" + ex.Message,
                     "Inventory clear not completed", MessageBoxButton.OK,
@@ -376,7 +376,7 @@ public partial class NativeCollectionWorkspace : UserControl
                     diff.CandidateSha256);
             });
             if (closing) return;
-            MessageBox.Show(Window.GetWindow(this),
+            NativeInAppDialog.Show(this,
                 "Physical reconciliation completed.\n" + diff.Summary +
                 "\n\n" + diff.Audit.Display + "\n\n" +
                 "Complete prior collection recovery: " + outcome.RecoveryPath,
@@ -390,7 +390,7 @@ public partial class NativeCollectionWorkspace : UserControl
             if (!closing)
             {
                 StatusText.Text = "Collection import stopped: " + ex.Message;
-                MessageBox.Show(Window.GetWindow(this),
+                NativeInAppDialog.Show(this,
                     "Collection import could not be verified. The active collection " +
                     "was not intentionally changed.\n\n" + ex.Message,
                     "Collection import stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -807,7 +807,7 @@ public partial class NativeCollectionWorkspace : UserControl
             DeckLibraryStatus.Text = "Select the exact saved deck to duplicate.";
             return;
         }
-        if (MessageBox.Show(Window.GetWindow(this),
+        if (NativeInAppDialog.Show(this,
             $"Duplicate saved deck \"{selected.Name}\"?\n\n" +
             "The copy will have its own ID and keep the same card list and metadata, " +
             "but start without revision history or an Arena sync link. " +
@@ -829,7 +829,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 NativeWorkspaceSafety.DuplicateDeck(
                     nativePath, selected, expectedBackupSha));
             if (closing) return;
-            MessageBox.Show(Window.GetWindow(this),
+            NativeInAppDialog.Show(this,
                 "Saved deck copied to an independent new deck entry.\n\n" +
                 "The complete prior native collection was saved at:\n" +
                 created.RecoveryPath,
@@ -866,7 +866,7 @@ public partial class NativeCollectionWorkspace : UserControl
             DeckLibraryStatus.Text = "Select a saved native deck first.";
             return;
         }
-        if (MessageBox.Show(Window.GetWindow(this),
+        if (NativeInAppDialog.Show(this,
             $"Delete saved deck \"{selected.Name}\" and its {selected.Revisions:N0} " +
             "revision(s) from the ACTIVE native library?\n\n" +
             "This does not remove physical or Arena cards. The complete previous " +
@@ -887,7 +887,7 @@ public partial class NativeCollectionWorkspace : UserControl
             var updated = await Task.Run(() => NativeWorkspaceSafety.DeleteDeck(
                 nativePath, selected, expectedBackupSha));
             if (closing) return;
-            MessageBox.Show(Window.GetWindow(this), "Deck deleted from the active native library.\n\n" +
+            NativeInAppDialog.Show(this, "Deck deleted from the active native library.\n\n" +
                 "The complete prior collection was saved at:\n" + updated.RecoveryPath,
                 "Deck deletion verified", MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -966,7 +966,7 @@ public partial class NativeCollectionWorkspace : UserControl
                     nativePath, rows, expectedBackupSha, diff.CandidateSha256);
             });
             if (closing) return;
-            MessageBox.Show(Window.GetWindow(this),
+            NativeInAppDialog.Show(this,
                 "Arena reconciliation completed.\n" + diff.Summary +
                 "\n\n" + diff.Audit.Display +
                 "\n\nComplete prior collection recovery: " + outcome.RecoveryPath,
@@ -980,7 +980,7 @@ public partial class NativeCollectionWorkspace : UserControl
             if (!closing)
             {
                 StatusText.Text = "Arena import stopped: " + ex.Message;
-                MessageBox.Show(Window.GetWindow(this),
+                NativeInAppDialog.Show(this,
                     "Arena import could not be applied. The existing collection " +
                     "was not intentionally changed.\n\n" + ex.Message,
                     "Arena import stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
