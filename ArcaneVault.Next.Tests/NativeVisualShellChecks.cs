@@ -690,6 +690,28 @@ internal static class NativeVisualShellChecks
              "Clear inventory must always expose required acknowledgement and buttons, with only the upper form scrolling.");
         string collectionCode = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
+        // v0.9.57: source audit must be reviewable/exportable before
+        // committing, and unresolved physical printings require explicit
+        // acknowledgement rather than being silently treated as verified.
+        var importUi = XDocument.Load(
+            Path.Combine(dir, "NativeImportDiffWindow.xaml"));
+        string importCode = File.ReadAllText(
+            Path.Combine(dir, "NativeImportDiffWindow.xaml.cs"));
+        Must(importUi.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "AuditText") &&
+             importUi.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "UnresolvedAcknowledged") &&
+             importUi.Descendants().Any(x =>
+                 x.Attribute("Click")?.Value == "OnExportAuditClicked") &&
+             importCode.Contains("report.Audit.Display") &&
+             importCode.Contains("report.Audit.UnresolvedRows == 0") &&
+             importCode.Contains("UnresolvedAcknowledged.IsChecked == true") &&
+             importCode.Contains("Source SHA-256:") &&
+             importCode.Contains("Proposed candidate SHA-256:") &&
+             collectionCode.Contains("ImportFileSha256(picker.FileName)") &&
+             collectionCode.Contains("The source file changed since audit review") &&
+             collectionCode.Contains("diff.Audit.Display"),
+             "CSV/XLSX review must show source and identity audit, export it, require unresolved acknowledgement and reject modified source files.");
         // v0.9.54: the ownership summary belongs under the artwork/
         // printings pane. The card text keeps its own star-sized row, and
         // long metadata/legalities remain independently scrollable.
