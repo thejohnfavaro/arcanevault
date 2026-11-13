@@ -1365,12 +1365,20 @@ public partial class NativeDeckEditorWindow : Window
     {
         if (edhLabCommander is null || edhLabFormat is null ||
             string.IsNullOrWhiteSpace(catalogPath)) return;
-        EdhSuggestionsStatus.Text = "Checking local format legality and color identity…";
+        EdhSuggestionsStatus.Text = "Loading verified offline EDH cards (reused on later opens)…";
         try
         {
-            var suggestions = await Task.Run(() => EdhLabDraftCatalog.OpenReadOnly(
-                catalogPath!, ownership, edhLabCommander,
-                edhLabColors ?? "", edhLabFormat.Value));
+            // Warm commander/ownership/format snapshots are immediately
+            // available; a cold first read runs off the UI thread.
+            EdhLabDraftCatalog suggestions;
+            if (EdhLabReadOnlyCache.TryGetDraft(catalogPath!, ownership,
+                    edhLabCommander, edhLabColors ?? "", edhLabFormat.Value,
+                    out var cached) && cached is not null)
+                suggestions = cached;
+            else
+                suggestions = await Task.Run(() => EdhLabReadOnlyCache.GetDraft(
+                    catalogPath!, ownership, edhLabCommander,
+                    edhLabColors ?? "", edhLabFormat.Value));
             if (!IsLoaded) return;
             edhCatalog = suggestions;
             EdhSuggestionsStatus.Text =
