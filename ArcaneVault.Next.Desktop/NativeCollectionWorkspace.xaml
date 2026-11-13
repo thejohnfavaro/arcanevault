@@ -392,11 +392,9 @@
                                              Scryfall image cache; no prefetch for off-screen decks. -->
                                         <Border Grid.Column="0" Width="108" Height="145"
                                                 CornerRadius="9" ClipToBounds="True"
+                                                Background="{DynamicResource VaultHeroWash}"
                                                 BorderBrush="{DynamicResource VaultAccentBorder}"
                                                 BorderThickness="1">
-                                            <Border.Background>
-                                                <StaticResource ResourceKey="VaultHeroWash"/>
-                                            </Border.Background>
                                             <Grid ClipToBounds="True">
                                                 <Grid.Background>
                                                     <RadialGradientBrush Center="0.7,0.35" GradientOrigin="0.6,0.4" RadiusX="0.8" RadiusY="0.8">
