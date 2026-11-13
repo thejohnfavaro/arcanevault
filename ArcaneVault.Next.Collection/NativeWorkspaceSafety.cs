@@ -279,6 +279,90 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    /// <summary>
+    /// Clear one or both INVENTORY scopes without resetting saved decks,
+    /// revisions, shortlist, artwork choices, wildcards or opaque legacy data.
+    /// Every nonempty clear uses the same SHA-guarded stage/swap/recovery path
+    /// as all other verified native edits. Never touches the Scryfall catalog.
+    /// </summary>
+    public enum InventoryScope { Physical, Arena, Both }
+
+    public sealed record InventoryClearOutcome(
+        NativeWorkspace.Workspace Current, string? RecoveryPath,
+        bool AlreadyEmpty, InventoryScope Scope);
+
+    public static InventoryClearOutcome ClearInventory(
+        string nativePath, InventoryScope scope, string expectedCurrentBackupSha,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        if (!Enum.IsDefined(scope))
+            throw new ArgumentOutOfRangeException(nameof(scope));
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            var current = NativeWorkspace.Open(path, cancellation);
+            bool physical = scope is InventoryScope.Physical or InventoryScope.Both;
+            bool arena = scope is InventoryScope.Arena or InventoryScope.Both;
+            if ((!physical || current.Collection.PhysicalCards.Count == 0) &&
+                (!arena || current.Collection.ArenaCards.Count == 0))
+                return new InventoryClearOutcome(current, null, true, scope);
+
+            var source = ReadPreservedBackup(path);
+            using var doc = JsonDocument.Parse(source);
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(output))
+            {
+                writer.WriteStartObject();
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    if ((physical && prop.NameEquals("physicalCards")) ||
+                        (arena && prop.NameEquals("cards")))
+                    {
+                        writer.WriteStartArray(prop.Name);
+                        writer.WriteEndArray();
+                    }
+                    else prop.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+            }
+            byte[] newPayload = output.ToArray();
+            var candidate = NativeBackupReader.Read(newPayload);
+            if ((physical && candidate.PhysicalCopies != 0) ||
+                (arena && candidate.ArenaCopies != 0) ||
+                (!physical && !candidate.PhysicalCards.SequenceEqual(
+                    current.Collection.PhysicalCards)) ||
+                (!arena && !candidate.ArenaCards.SequenceEqual(
+                    current.Collection.ArenaCards)) ||
+                candidate.Decks != current.Collection.Decks ||
+                candidate.DeckRevisions != current.Collection.DeckRevisions ||
+                candidate.PreferredArtworks != current.Collection.PreferredArtworks)
+                throw new InvalidDataException(
+                    "Selective clear changed unexpected collection data; no reset was applied.");
+            cancellation.ThrowIfCancellationRequested();
+            var change = Refresh(path, newPayload,
+                "native-clear-" + scope.ToString().ToLowerInvariant(),
+                expectedCurrentBackupSha, cancellation);
+            var result = change.Current.Collection;
+            if ((physical && result.PhysicalCopies != 0) ||
+                (arena && result.ArenaCopies != 0) ||
+                (!physical && !result.PhysicalCards.SequenceEqual(
+                    current.Collection.PhysicalCards)) ||
+                (!arena && !result.ArenaCards.SequenceEqual(
+                    current.Collection.ArenaCards)) ||
+                result.Decks != current.Collection.Decks ||
+                result.DeckRevisions != current.Collection.DeckRevisions ||
+                result.PreferredArtworks != current.Collection.PreferredArtworks)
+                throw new InvalidDataException(
+                    "Selective clear verification failed; preserve all recovery files.");
+            return new InventoryClearOutcome(change.Current, change.RecoveryPath,
+                false, scope);
+        }
+    }
+
     // Compatibility for the first XLSX-only release and its regression tests.
     public static Replacement AddExcelPhysical(string nativePath, string? catalogPath,
         IReadOnlyList<NativeExcelCollectionImport.Row> workbookRows,
