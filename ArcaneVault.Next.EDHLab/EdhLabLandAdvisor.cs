@@ -56,15 +56,16 @@ public static class EdhLabLandAdvisor
     }
 
     public sealed record Result(IReadOnlyList<Land> Rows,
-        int Matching, int TotalEligibleLands, bool Truncated)
+        int Matching, int TotalEligibleLands, bool Truncated,
+        string CoverageNote = "")
     {
-        public string Summary => Rows.Count == 0
+        public string Summary => CoverageNote + " " + (Rows.Count == 0
             ? $"No matching lands from {TotalEligibleLands:N0} locally eligible names. " +
               "Try All eligible or Show basics; no deck or ownership changes."
             : $"{Rows.Count:N0} shown of {Matching:N0} matching lands " +
               $"({TotalEligibleLands:N0} eligible names)" +
               (Truncated ? " · first results only" : "") +
-              " · single-click to preview, double-click to add once.";
+              " · single-click to preview, double-click to add once.");
     }
 
     private static int BitsForText(string text)
@@ -117,7 +118,7 @@ public static class EdhLabLandAdvisor
             // 'Add' instruction, followed by a mana token or a mana phrase.
             string clause = m.Groups["clause"].Value;
             bool anyPhrase = Regex.IsMatch(clause,
-                @"\b(?:one|two|three|X|a) mana\b[^.\r\n]{0,100}\b(?:any color|any type)\b|\bany (?:one )?color\b",
+                @"\b(?:one|two|three|X|a) mana\b[^.\r\n]{0,100}\b(?:any color|any type|any combination of colors)\b|\bany (?:one )?color\b",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
                 TimeSpan.FromMilliseconds(50));
             bool symbols = Regex.IsMatch(clause, @"\{[WUBRGC]\}",
@@ -253,6 +254,15 @@ public static class EdhLabLandAdvisor
             .Where(i => (allowed & (1 << i)) != 0).ToArray();
         int minimum = usedColors.Length == 0 ? 0 :
             usedColors.Min(i => coverage[i]);
+        string coverageNote = usedColors.Length == 0
+            ? "Colorless identity · prioritize reliable colorless mana."
+            : "Draft mana access (before restrictions/fetch targets): " +
+              string.Join(" · ", usedColors.Select(i =>
+                  ColorOrder[i] + " " + coverage[i])) +
+              ". Lowest coverage: " +
+              string.Join("/", usedColors.Where(i => coverage[i] == minimum)
+                  .Select(i => ColorOrder[i].ToString())) +
+              ". These are source-count hints, not casting probabilities.";
         int priority(Land item)
         {
             int gain = 0;
@@ -294,6 +304,6 @@ public static class EdhLabLandAdvisor
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         return new Result(matches.Take(limit).ToArray(),
-            matches.Length, lands.Length, matches.Length > limit);
+            matches.Length, lands.Length, matches.Length > limit, coverageNote);
     }
 }
