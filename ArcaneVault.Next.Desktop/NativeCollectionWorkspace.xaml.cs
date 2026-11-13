@@ -661,6 +661,12 @@ public partial class NativeCollectionWorkspace : UserControl
         }
     }
 
+    private void OnShowDeckPreviewClicked(object sender, RoutedEventArgs e)
+    {
+        if (DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow deck)
+            RefreshDeckPreview(deck);
+    }
+
     private void OnCloseDeckPreviewClicked(object sender, RoutedEventArgs e)
     {
         DeckPreviewPanel.Visibility = Visibility.Collapsed;
@@ -735,6 +741,7 @@ public partial class NativeCollectionWorkspace : UserControl
         if (DeckLibraryList is null || EditDeckButton is null ||
             DeleteDeckButton is null || DuplicateDeckButton is null) return;
         var selectedDeck = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+        ShowDeckPreviewButton.IsEnabled = selectedDeck is not null;
         bool editable = selectedDeck?.Editable == true && !deckBusy &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
         EditDeckButton.IsEnabled = editable;
