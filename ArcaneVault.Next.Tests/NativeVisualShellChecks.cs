@@ -552,6 +552,9 @@ internal static class NativeVisualShellChecks
             string xml = File.ReadAllText(xamlPath);
             var doc = XDocument.Parse(xml);
             string code = File.ReadAllText(csPath);
+            if (name == "MainWindow")
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "MainWindow.InspectorAndNotices.cs"));
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
