@@ -45,6 +45,10 @@ public partial class NativeCardDetailsWindow : Window
             File.Exists(nativePath);
         CardName.Text = name;
         Ownership.Text = ownership;
+        CardRarityBadge.Text = "RARITY UNKNOWN";
+        CardRarityBadge.Tag = "";
+        ColorIdentitySymbols.ItemsSource = Array.Empty<NativeManaIdentity.Color>();
+        ColorIdentityLabel.Text = "Identity metadata unavailable";
         if (info is null)
         {
             CardMetadata.Text =
@@ -59,10 +63,16 @@ public partial class NativeCardDetailsWindow : Window
                 ? "Unknown rarity"
                 : System.Globalization.CultureInfo.InvariantCulture.TextInfo
                     .ToTitleCase(info.Rarity.Replace('_', ' '));
+            CardRarityBadge.Text = rarity.ToUpperInvariant();
+            CardRarityBadge.Tag = (info.Rarity ?? "").Trim().ToLowerInvariant();
             CardMetadata.Text =
                 $"{info.TypeLine}\n" +
-                $"{rarity}  ·  Mana value {info.ManaValue:G}\n" +
-                $"Color identity: {(string.IsNullOrWhiteSpace(info.ColorIdentity) ? "Colorless" : info.ColorIdentity)}";
+                $"Mana value {info.ManaValue:G}";
+            var colors = NativeManaIdentity.ParseColorIdentity(info.ColorIdentity);
+            ColorIdentitySymbols.ItemsSource = colors;
+            ColorIdentityLabel.Text = colors.Count == 0
+                ? "Unknown identity"
+                : string.Join(" · ", colors.Select(color => color.Name));
             OracleText.Text = info.OracleText;
         }
         // Convert cached Scryfall format status codes to readable rows without

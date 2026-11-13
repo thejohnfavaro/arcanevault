@@ -1,8 +1,9 @@
 <Window x:Class="ArcaneVault.Next.Desktop.NativeCardDetailsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
         Title="Arcane Vault — Card Details"
-        Width="960" Height="700" MinWidth="720" MinHeight="555"
+        Width="1060" Height="755" MinWidth="780" MinHeight="580"
         Background="{DynamicResource VaultBackground}"
         Foreground="{DynamicResource VaultText}">
     <Grid Margin="24">
@@ -12,18 +13,42 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,18">
+        <StackPanel Grid.Row="0" Margin="0,0,0,15">
             <TextBlock Text="CARD DETAILS" Style="{StaticResource VaultEyebrow}"
                        Margin="0,0,0,7"/>
             <TextBlock x:Name="CardName"
-                       FontSize="28" FontWeight="Bold"
+                       FontSize="30" FontWeight="Bold"
                        Foreground="{DynamicResource VaultText}"
                        TextWrapping="Wrap"/>
+            <Border HorizontalAlignment="Left" Margin="0,8,0,0"
+                    Padding="10,4" CornerRadius="10"
+                    Background="{DynamicResource VaultAccentSurface}"
+                    BorderBrush="{DynamicResource VaultEdgeLift}" BorderThickness="1">
+                <TextBlock x:Name="CardRarityBadge" Text="RARITY"
+                           FontSize="11" FontWeight="Bold">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource VaultMuted}"/>
+                            <Style.Triggers>
+                                <Trigger Property="Tag" Value="uncommon">
+                                    <Setter Property="Foreground" Value="#C9D1DD"/>
+                                </Trigger>
+                                <Trigger Property="Tag" Value="rare">
+                                    <Setter Property="Foreground" Value="#EDC875"/>
+                                </Trigger>
+                                <Trigger Property="Tag" Value="mythic">
+                                    <Setter Property="Foreground" Value="#FFAD79"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Border>
         </StackPanel>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="290"/>
+                <ColumnDefinition Width="350"/>
                 <ColumnDefinition Width="20"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
@@ -35,19 +60,13 @@
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
-                    <Border Style="{StaticResource VaultPanelCard}"
-                            Padding="14">
+                    <Border Style="{StaticResource VaultElevatedPanel}"
+                            Padding="8">
                         <StackPanel>
-                    <Border Height="330" CornerRadius="12"
-                            BorderBrush="{DynamicResource VaultAccentBorder}"
+                    <Border Height="445" CornerRadius="12"
+                            Background="{DynamicResource VaultHeroWash}"
+                            BorderBrush="{DynamicResource VaultEdgeLift}"
                             BorderThickness="1" ClipToBounds="True">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#342B51" Offset="0"/>
-                                <GradientStop Color="#1B2336" Offset="0.65"/>
-                                <GradientStop Color="#121722" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
                         <Grid>
                             <StackPanel x:Name="ArtworkFallback"
                                         VerticalAlignment="Center"
@@ -93,7 +112,7 @@
                     <!-- Keep ownership beside artwork and printings rather
                          than using the Oracle text column's vertical space. -->
                     <Border Style="{StaticResource VaultPanelCard}"
-                            Padding="11,9" Margin="0,10,0,0">
+                            Padding="11,9" Margin="0,9,0,0">
                         <StackPanel>
                             <TextBlock Style="{StaticResource VaultEyebrow}"
                                        Text="YOUR OWNERSHIP" Margin="0,0,0,4"/>
@@ -110,7 +129,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <Border Grid.Row="0" Style="{StaticResource VaultPanelCard}"
+                <Border Grid.Row="0" Style="{StaticResource VaultElevatedPanel}"
                         Margin="0,0,0,10" Padding="12"
                         MaxHeight="230">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -121,6 +140,31 @@
                         <TextBlock x:Name="CardMetadata"
                                    Foreground="{DynamicResource VaultText}"
                                    TextWrapping="Wrap" FontSize="12.5"/>
+                        <!-- This is Scryfall COLOR IDENTITY, not casting mana cost.
+                             Each glyph has a text name and an automation label. -->
+                        <TextBlock Text="COLOR IDENTITY" Style="{StaticResource VaultEyebrow}"
+                                   Margin="0,13,0,6"/>
+                        <ItemsControl x:Name="ColorIdentitySymbols"
+                                      AutomationProperties.Name="Card color identity mana symbols">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <local:NativeManaSymbol Symbol="{Binding Symbol}"
+                                                            Width="27" Height="27"
+                                                            Margin="0,0,6,0"
+                                                            ToolTip="{Binding Name}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock x:Name="ColorIdentityLabel"
+                                   Foreground="{DynamicResource VaultMuted}"
+                                   TextWrapping="Wrap" FontSize="11.5"
+                                   Margin="0,6,0,0"
+                                   Text="Unknown color identity"/>
                         <!-- The Scryfall database stores format legalities as JSON.
                              Never render its raw serialization to the user. -->
                         <Expander IsExpanded="True" Margin="0,13,0,0"
@@ -199,7 +243,7 @@
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
-                <Border Grid.Row="1" Style="{StaticResource VaultPanelCard}"
+                <Border Grid.Row="1" Style="{StaticResource VaultElevatedPanel}"
                         Padding="14" MinHeight="190">
                     <Grid>
                         <Grid.RowDefinitions>
