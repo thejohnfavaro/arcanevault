@@ -529,12 +529,12 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "NativeCardPeekPane.xaml"));
         var sharedPeekCode = File.ReadAllText(
             Path.Combine(dir, "NativeCardPeekPane.xaml.cs"));
-        Must(sharedPeekXaml.Contains("x:Name=\\"PeekArt\\"") &&
-             sharedPeekXaml.Contains("x:Name=\\"PeekIdentity\\"") &&
-             sharedPeekXaml.Contains("x:Name=\\"PeekOracle\\"") &&
+        Must(sharedPeekXaml.Contains("x:Name=\"PeekArt\"") &&
+             sharedPeekXaml.Contains("x:Name=\"PeekIdentity\"") &&
+             sharedPeekXaml.Contains("x:Name=\"PeekOracle\"") &&
              sharedPeekXaml.Contains("FlowDocumentScrollViewer") &&
              sharedPeekXaml.Contains("local:NativeManaSymbol") &&
-             sharedPeekXaml.Contains("Click=\\"OnFullDetailsClicked\\"") &&
+             sharedPeekXaml.Contains("Click=\"OnFullDetailsClicked\"") &&
              sharedPeekXaml.Contains("Virtual") == false &&
              sharedPeekCode.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
              sharedPeekCode.Contains("NativeOfficialCardSymbols") == false &&
@@ -544,24 +544,24 @@ internal static class NativeVisualShellChecks
              sharedPeekCode.Contains("catalogPath: selectedCatalogPath") &&
              sharedPeekCode.Contains("no owned printing inferred"),
              "Shared preview must display official cached identity and Oracle art, prevent stale selections and remain read-only.");
-        Must(commanderXaml.Contains("x:Name=\\"CommanderCardInspector\\"") &&
+        Must(commanderXaml.Contains("x:Name=\"CommanderCardInspector\"") &&
              commanderXaml.Contains("local:NativeCardPeekPane") &&
-             commanderXaml.Contains("SelectionChanged=\\"OnCommanderSelected\\"") &&
-             commanderXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\\"True\\"") &&
+             commanderXaml.Contains("SelectionChanged=\"OnCommanderSelected\"") &&
+             commanderXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"") &&
              commanderCode.Contains("CommanderCardInspector.InspectAsync(") &&
              commanderCode.Contains("selection.Card.OracleText") &&
              commanderCode.Contains("selection.Card.ImageUrl") &&
              commanderCode.Contains("CommanderCardInspector?.Clear(") &&
-             mainXaml.Contains("x:Name=\\"EdhLabButton\\"") &&
+             mainXaml.Contains("x:Name=\"EdhLabButton\"") &&
              mainCode.Contains("}, active.ReadOnlySnapshotPath)"),
              "EDH commander discovery must use inline inspection without changing its filters or virtualized list.");
-        Must(deckLibraryXaml.Contains("x:Name=\\"DeckPreviewPanel\\"") &&
-             deckLibraryXaml.Contains("x:Name=\\"DeckContentsList\\"") &&
-             deckLibraryXaml.Contains("x:Name=\\"DeckCardInspector\\"") &&
+        Must(deckLibraryXaml.Contains("x:Name=\"DeckPreviewPanel\"") &&
+             deckLibraryXaml.Contains("x:Name=\"DeckContentsList\"") &&
+             deckLibraryXaml.Contains("x:Name=\"DeckCardInspector\"") &&
              deckLibraryXaml.Contains("local:NativeCardPeekPane") &&
-             deckLibraryXaml.Contains("SelectionChanged=\\"OnDeckContentsSelectionChanged\\"") &&
-             deckLibraryXaml.Contains("Click=\\"OnCloseDeckPreviewClicked\\"") &&
-             deckLibraryXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\\"True\\"") &&
+             deckLibraryXaml.Contains("SelectionChanged=\"OnDeckContentsSelectionChanged\"") &&
+             deckLibraryXaml.Contains("Click=\"OnCloseDeckPreviewClicked\"") &&
+             deckLibraryXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"") &&
              deckLibraryCode.Contains("NativeDeckPreviewOutline.Build(selected)") &&
              deckLibraryCode.Contains("RefreshDeckPreview(selectedDeck)") &&
              deckLibraryCode.Contains("DeckCardInspector.InspectAsync(") &&
