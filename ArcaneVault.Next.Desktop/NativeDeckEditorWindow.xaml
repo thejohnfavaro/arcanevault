@@ -210,22 +210,57 @@
                                                 <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
                                             <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="48"/>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                            <!-- Virtualized row art: only a realized image may load.
+                                                 Fallback remains visible when art is missing/offline. -->
+                                            <Border Grid.RowSpan="2" Grid.Column="0"
+                                                    Width="40" Height="56" CornerRadius="3"
+                                                    Margin="0,0,8,0" ClipToBounds="True"
+                                                    BorderBrush="{DynamicResource VaultLine}"
+                                                    BorderThickness="1"
+                                                    Background="{DynamicResource VaultPanel}">
+                                                <Border.Style>
+                                                    <Style TargetType="{x:Type Border}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <TextBlock Text="✦" FontSize="18"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="{DynamicResource VaultMuted}"/>
+                                                    <Image Loaded="OnMainboardThumbnailLoaded"
+                                                           Unloaded="OnMainboardThumbnailUnloaded"
+                                                           DataContextChanged="OnMainboardThumbnailContextChanged"
+                                                           Stretch="UniformToFill"
+                                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                                           ToolTip="Illustrative official card artwork; not proof of an owned printing"/>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Grid.Row="0" Grid.Column="1"
                                                        Text="{Binding NameLabel}" FontSize="12"
                                                        FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Bottom"
                                                        Foreground="{DynamicResource VaultText}"/>
-                                            <TextBlock Grid.Row="0" Grid.Column="1"
+                                            <TextBlock Grid.Row="0" Grid.Column="2"
                                                        Text="{Binding QuantityLabel}"
                                                        Margin="8,0,0,0" FontWeight="Bold"
-                                                       Foreground="#E5BF79"/>
-                                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+                                                       Foreground="#E5BF79" VerticalAlignment="Bottom"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1"
+                                                       Grid.ColumnSpan="2"
                                                        Text="{Binding DetailsLabel}"
                                                        TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource VaultMuted}"
-                                                       FontSize="10" Margin="0,3,0,0"/>
+                                                       FontSize="10" Margin="0,3,0,0"
+                                                       VerticalAlignment="Top"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
