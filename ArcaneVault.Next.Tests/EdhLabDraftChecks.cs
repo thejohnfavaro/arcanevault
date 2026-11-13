@@ -189,6 +189,45 @@ internal static class EdhLabDraftChecks
             .SequenceEqual(managedEntries),
             "Manager grouping and sorting may not edit source mainboard text.");
 
+        // v0.9.75: Manager search is a pure, case-insensitive lens on
+        // unsaved mainboard names, catalog type and role hints.
+        var searchedIslands = EdhLabMainboardView.Build(paper, managedTuples,
+            search: "  IsLa  ");
+        Must(searchedIslands.Count(x => !x.IsHeader) == 1 &&
+             searchedIslands.Single(x => !x.IsHeader).Name == "Island" &&
+             searchedIslands.Single(x => !x.IsHeader).Quantity == 4 &&
+             searchedIslands[0].IsHeader,
+             "Name search must trim input, ignore case and preserve grouped copy counts.");
+        var searchedType = EdhLabMainboardView.Build(paper, managedTuples,
+            order: EdhLabMainboardView.Order.Name, search: "instant");
+        Must(searchedType.Count == 1 &&
+             searchedType[0].Name == "Tiny Insight" &&
+             !searchedType[0].IsHeader,
+             "Search should match locally verified type text without changing mainboard order.");
+        var searchedUnknown = EdhLabMainboardView.Build(paper, managedTuples,
+            EdhLabMainboardView.Section.Other, search: "not verified");
+        Must(searchedUnknown.Count(x => !x.IsHeader) == 1 &&
+             searchedUnknown.Single(x => !x.IsHeader).Name == "Lightning Bolt" &&
+             !searchedUnknown.Single(x => !x.IsHeader).IsVerified,
+             "Unverified entries must remain discoverable for removal.");
+        Must(EdhLabMainboardView.Build(paper, managedTuples,
+                search: "a name that is not here").Count == 0 &&
+             EdhLabMainboardView.Build(paper, managedTuples,
+                search: "   ").Count(x => !x.IsHeader) == managedTuples.Length,
+             "No matches should show an empty view; whitespace search should show everything.");
+        bool tooLongManagerQueryRejected = false;
+        try
+        {
+            EdhLabMainboardView.Build(paper, managedTuples,
+                search: new string('x', 256));
+        }
+        catch (ArgumentException) { tooLongManagerQueryRejected = true; }
+        Must(tooLongManagerQueryRejected &&
+             NativeDeckEditing.ParseMainboard(
+                 "4 Island\n1 Sol Ring\n1 Tiny Insight\n1 Lightning Bolt\n1 Thopter Foundry")
+                 .SequenceEqual(managedEntries),
+             "Search must not rewrite the authoritative unsaved mainboard or allow unbounded queries.");
+
         // v0.9.72: Card-browser status must be evaluated BEFORE its 200-row
         // UI cap, and reflect the current unsaved mainboard rather than an
         // ownership mutation. In-deck includes eligible unowned names.

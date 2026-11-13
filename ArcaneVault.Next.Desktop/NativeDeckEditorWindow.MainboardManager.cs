@@ -41,6 +41,14 @@ public partial class NativeDeckEditorWindow
         RefreshMainboardManager();
     }
 
+    private void OnMainboardManagerSearchChanged(object sender,
+        TextChangedEventArgs e)
+    {
+        if (edhLabCommander is null || MainboardManagerList is null) return;
+        // Read-only projection: typing never edits the current mainboard.
+        RefreshMainboardManager();
+    }
+
     private void RefreshMainboardManager()
     {
         if (edhLabCommander is null || MainboardManagerList is null ||
@@ -54,7 +62,8 @@ public partial class NativeDeckEditorWindow
             var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
             var rows = EdhLabMainboardView.Build(edhCatalog,
                 entries.Select(x => (x.Name, x.Quantity)).ToArray(),
-                MainboardManagerSection, MainboardManagerOrder);
+                MainboardManagerSection, MainboardManagerOrder,
+                MainboardManagerSearchBox?.Text);
             updatingMainboardManager = true;
             try
             {
@@ -70,6 +79,7 @@ public partial class NativeDeckEditorWindow
             int all = entries.Count;
             int unverified = entries.Count(x => edhCatalog?.Find(x.Name) is null);
             MainboardManagerStatus.Text =
+                (visible == 0 && all > 0 ? "No matching mainboard cards · " : "") +
                 $"{visible:N0} shown · {all:N0} names · " +
                 $"{entries.Sum(x => x.Quantity):N0} unsaved copies" +
                 (unverified > 0 && edhCatalog is not null

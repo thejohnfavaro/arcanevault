@@ -59,11 +59,15 @@ public static class EdhLabMainboardView
 
     public static IReadOnlyList<Row> Build(EdhLabDraftCatalog? catalog,
         IReadOnlyList<(string Name, int Quantity)> entries,
-        Section section = Section.All, Order order = Order.Type)
+        Section section = Section.All, Order order = Order.Type,
+        string? search = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
         if (!Enum.IsDefined(section)) throw new ArgumentOutOfRangeException(nameof(section));
         if (!Enum.IsDefined(order)) throw new ArgumentOutOfRangeException(nameof(order));
+        search = (search ?? "").Trim();
+        if (search.Length > 255)
+            throw new ArgumentException("Mainboard search must be 255 characters or fewer.", nameof(search));
 
         var cards = entries.Select(entry =>
         {
@@ -75,7 +79,11 @@ public static class EdhLabMainboardView
                     : " · " + found.RoleHints);
             return new Row(entry.Name, entry.Quantity, category,
                 detail, IsVerified: found is not null);
-        }).Where(x => InSection(x.Category, section)).ToArray();
+        }).Where(x => InSection(x.Category, section) &&
+            (search.Length == 0 ||
+             x.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+             x.Details.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
 
         if (order == Order.Name)
             return cards.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
