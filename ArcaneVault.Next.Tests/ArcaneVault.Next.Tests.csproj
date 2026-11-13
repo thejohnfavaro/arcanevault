@@ -10,6 +10,9 @@
     <Compile Include="..\ArcaneVault.Next.Desktop\CatalogSnapshot.cs" Link="CatalogSnapshot.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\CatalogTileLayout.cs" Link="CatalogTileLayout.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeManaIdentity.cs" Link="NativeManaIdentity.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\NativeCardDetailsLayout.cs" Link="NativeCardDetailsLayout.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\NativeOracleSymbolTokenizer.cs" Link="NativeOracleSymbolTokenizer.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\NativeScryfallSymbology.cs" Link="NativeScryfallSymbology.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCardRoles.cs" Link="NativeCardRoles.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCatalogOwnership.cs" Link="NativeCatalogOwnership.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCardArtwork.cs" Link="NativeCardArtwork.cs" />
