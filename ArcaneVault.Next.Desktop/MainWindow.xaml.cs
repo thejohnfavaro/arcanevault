@@ -285,7 +285,7 @@ public partial class MainWindow : Window
             if (release is null)
             {
                 FilterStatus.Text = "No newer versioned native preview release is available.";
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     $"Current native version: {current.ToString(3)}.\n\n" +
                     "No newer verified native preview release was found. " +
                     "The existing WebView app uses a separate updater.",
@@ -293,7 +293,7 @@ public partial class MainWindow : Window
                 return;
             }
             string version = release.Version.ToString(3);
-            if (MessageBox.Show(this,
+            if (NativeInAppDialog.Show(this,
                 $"Native preview v{version} is available.\n\n" +
                 "Download the official ZIP and SHA-256 checksum from the project’s " +
                 "GitHub release. The ZIP will be verified and unpacked into a NEW " +
@@ -316,7 +316,7 @@ public partial class MainWindow : Window
                 progress: progress);
             if (closing) return;
             FilterStatus.Text = $"Native v{version} installed separately; current collection unchanged.";
-            if (MessageBox.Show(this,
+            if (NativeInAppDialog.Show(this,
                 $"Native preview v{version} is installed at:\n" +
                 installed.Directory +
                 "\n\nThe previous executable remains available. " +
@@ -350,7 +350,7 @@ public partial class MainWindow : Window
                             ? "The new process exited before confirming startup."
                             : "The new process did not confirm startup in 20 seconds.";
                         FilterStatus.Text = "New version installed but automatic relaunch failed.";
-                        MessageBox.Show(this,
+                        NativeInAppDialog.Show(this,
                             reason + Environment.NewLine + Environment.NewLine +
                             "The current app remains open. Your collection and both " +
                             "version folders are unchanged." +
@@ -375,7 +375,7 @@ public partial class MainWindow : Window
             if (!closing)
             {
                 FilterStatus.Text = "Native update was not installed. Existing collection was not edited.";
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Native update failed verification or installation.\n\n" +
                     ex.Message +
                     "\n\nYour active executable and collection were not replaced.",
@@ -399,7 +399,7 @@ public partial class MainWindow : Window
     {
         if (closing || catalogSyncBusy) return;
 
-        if (MessageBox.Show(this,
+        if (NativeInAppDialog.Show(this,
             "Arcane Vault Next will download Scryfall's English-first DEFAULT CARDS " +
             "bulk dataset (all default printing IDs), which may require hundreds " +
             "of MB of disk space and a substantial download.\n\n" +
@@ -470,7 +470,7 @@ public partial class MainWindow : Window
             if (System.IO.File.Exists(NativeWorkspace.DefaultPath))
                 await OpenNativeCollectionAsync();
             if (!closing && result.RecoveryPath is not null)
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Catalog updated successfully. The previous complete native " +
                     "catalog was preserved here:\n" + result.RecoveryPath +
                     "\n\nPhysical and Arena inventory were not changed.",
@@ -487,7 +487,7 @@ public partial class MainWindow : Window
             if (!closing)
             {
                 FilterStatus.Text = "Scryfall catalog update was not confirmed; native ownership was not changed.";
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "The catalog update did not finish successfully. If a catalog already " +
                     "existed, keep its recovery files. No native ownership data was edited.\n\n" +
                     ex.Message,
@@ -587,7 +587,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (MessageBox.Show(this,
+        if (NativeInAppDialog.Show(this,
             "Close the old Arcane Vault Windows app before continuing.\n\n" +
             "This reads a temporary ISOLATED COPY of its local browser storage. " +
             "The original app and collection will not be modified, and the new native workspace is read-only. " +
@@ -633,13 +633,13 @@ public partial class MainWindow : Window
                     $"{comparison.CandidateUnresolvedCopies:N0} legacy copies.\n\n";
                 if (!comparison.HasChanges)
                 {
-                    MessageBox.Show(this, details + "No meaningful changes found. Nothing was modified.",
+                    NativeInAppDialog.Show(this, details + "No meaningful changes found. Nothing was modified.",
                         "Native collection is up to date", MessageBoxButton.OK, MessageBoxImage.Information);
                     FilterStatus.Text = "Native collection matches legacy source; no refresh necessary.";
                     return;
                 }
 
-                if (MessageBox.Show(this, details +
+                if (NativeInAppDialog.Show(this, details +
                     "Replace (not merge) the native workspace with these exact installed-app records? " +
                     "The previous native database will be retained as a separate recovery point. " +
                     "The original installed application is never modified.\n\n" +
@@ -662,7 +662,7 @@ public partial class MainWindow : Window
                 RestoreRecoveryButton.IsEnabled = true;
                 await OpenNativeCollectionAsync();
                 if (!closing)
-                    MessageBox.Show(this,
+                    NativeInAppDialog.Show(this,
                         "Native refresh completed. The previous collection was saved at:\n" +
                         refreshed.RecoveryPath +
                         "\n\nUse 'Restore native recovery' to reverse this refresh.",
@@ -670,7 +670,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            if (MessageBox.Show(this,
+            if (NativeInAppDialog.Show(this,
                 $"Legacy source recovered:\n" +
                 $"Physical: {view.PhysicalCards.Count:N0} inventory rows / {view.PhysicalCopies:N0} copies\n" +
                 $"Arena: {view.ArenaCards.Count:N0} entries / {view.ArenaCopies:N0} copies\n" +
@@ -743,7 +743,7 @@ public partial class MainWindow : Window
             if (!closing)
             {
                 FilterStatus.Text = "Direct migration did not complete. Existing data was not overwritten.";
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Migration was stopped without changing the installed app.\n\n" + ex.Message +
                     "\n\nIf the original app uses an unsupported browser profile, " +
                     "the previous manual full-backup import is still available.",
@@ -785,7 +785,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             if (!closing)
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "The existing native workspace could not be verified, so a fresh " +
                     "collection has NOT been started. Preserve the database and its " +
                     "recovery copies.\n\n" + ex.Message,
@@ -831,7 +831,7 @@ public partial class MainWindow : Window
             else
             {
                 FilterStatus.Text = "Started a fresh native collection. Previous collection preserved for restore.";
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Your native collection is now empty.\n\n" +
                     "The complete previous native collection (including decks, artwork and preferences) " +
                     "was preserved here:\n" + fresh.RecoveryPath +
@@ -847,7 +847,7 @@ public partial class MainWindow : Window
             {
                 FilterStatus.Text =
                     "Could not confirm a fresh native collection. Existing/recovery files were not deliberately deleted.";
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "The fresh-start operation was not confirmed. Preserve all native " +
                     "workspace and recovery files, and check the collection before proceeding.\n\n" +
                     ex.Message, "Fresh start stopped",
@@ -901,13 +901,13 @@ public partial class MainWindow : Window
 
         if (System.IO.File.Exists(picker.FileName))
         {
-            MessageBox.Show(this,
+            NativeInAppDialog.Show(this,
                 "This backup filename is already in use. Choose a new name. " +
                 "Arcane Vault Next will not overwrite an existing backup.",
                 "Keep existing backup", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        if (MessageBox.Show(this,
+        if (NativeInAppDialog.Show(this,
             "Save the complete CURRENT native collection as a portable full JSON " +
             "backup, including physical and Arena ownership, printings, decks, " +
             "revision history, artwork preferences and any retained legacy settings?\n\n" +
@@ -933,7 +933,7 @@ public partial class MainWindow : Window
             FilterStatus.Text =
                 $"Native full backup saved: {saved.PhysicalCopies:N0} physical, " +
                 $"{saved.ArenaCopies:N0} Arena copies, {saved.Decks:N0} decks.";
-            MessageBox.Show(this,
+            NativeInAppDialog.Show(this,
                 "A complete validated native collection backup was saved to:\n" +
                 saved.FilePath + "\n\n" +
                 $"Physical: {saved.PhysicalCopies:N0} copies\n" +
@@ -947,7 +947,7 @@ public partial class MainWindow : Window
             if (!closing)
             {
                 FilterStatus.Text = "Native full backup was not completed. Existing data is unchanged.";
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Could not verify or write the full backup. No native data " +
                     "was reset or overwritten.\n\n" + ex.Message,
                     "Backup export stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -994,7 +994,7 @@ public partial class MainWindow : Window
                 (current: NativeWorkspace.Open(NativeWorkspace.DefaultPath),
                  prior: NativeWorkspace.Open(chosen)));
             if (closing) return;
-            if (MessageBox.Show(this,
+            if (NativeInAppDialog.Show(this,
                 $"Current: {pair.current.Collection.PhysicalCopies:N0} physical, " +
                 $"{pair.current.Collection.ArenaCopies:N0} Arena copies, " +
                 $"{pair.current.Collection.Decks:N0} decks.\n" +
@@ -1019,7 +1019,7 @@ public partial class MainWindow : Window
             InvalidateNativeWorkspace();
             await OpenNativeCollectionAsync();
             if (!closing)
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Previous native collection restored. The replaced version is preserved at:\n" +
                     recovered.RecoveryPath,
                     "Recovery completed", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1027,7 +1027,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             if (!closing)
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Recovery was not confirmed. Keep all native database files and verify " +
                     "the current collection before another attempt.\n\n" + ex.Message,
                     "Native recovery stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -1061,7 +1061,7 @@ public partial class MainWindow : Window
         };
         if (picker.ShowDialog(this) != true) return;
 
-        if (MessageBox.Show(this,
+        if (NativeInAppDialog.Show(this,
             "This will make an independent, persistent, READ-ONLY native SQLite collection from your exported full backup. " +
             "It will not alter the installed Arcane Vault app, and it will NOT silently replace an existing native workspace. Continue?",
             "Import once into native Arcane Vault Next", MessageBoxButton.YesNo,
@@ -1213,7 +1213,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             if (!closing)
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Bookmark not saved: " + ex.Message +
                     "\n\nIf the collection changed in another window, reopen it before retrying.",
                     "My Shortlist", MessageBoxButton.OK, MessageBoxImage.Warning);
