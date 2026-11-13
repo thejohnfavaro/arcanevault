@@ -407,7 +407,7 @@
                             <DockPanel Margin="0,5,0,0" LastChildFill="True">
                                 <TextBlock Text="Land availability" Margin="0,0,8,0"
                                            VerticalAlignment="Center"/>
-                                <ComboBox x:Name="EdhLandAvailabilityBox" SelectedIndex="0"
+                                <ComboBox x:Name="EdhCardsLandAvailabilityBox" SelectedIndex="0"
                                           SelectionChanged="OnEdhLandAvailabilityChanged"
                                           Background="#D7E4EB" Foreground="#0D1017">
                                     <ComboBoxItem Content="All eligible"/>
