@@ -340,6 +340,23 @@ public partial class NativeDeckEditorWindow : Window
                 token.ThrowIfCancellationRequested();
                 var info = CollectionCatalogReview.ReadDetails(catalogPath!, card.Name);
                 string imageUrl = arena ? "" : info?.ArtworkUrl ?? "";
+                if (!arena && deckPrintingChoices.TryGetValue(card.Name, out var chosenId) &&
+                    Guid.TryParse(chosenId, out var exactPrintId))
+                {
+                    // Per-deck artwork is presentation only. Invalid or
+                    // unavailable printings fall back safely to catalog art.
+                    try
+                    {
+                        var choice = NativePrintingArtwork.Require(catalogPath!,
+                            card.Name, exactPrintId);
+                        imageUrl = choice.ImageUrl;
+                    }
+                    catch (Exception ex) when (ex is InvalidDataException or
+                        Microsoft.Data.Sqlite.SqliteException)
+                    {
+                        // The user's selection remains saved for later sync.
+                    }
+                }
                 if (arena && info is not null)
                 {
                     // Never use a potentially paper-only card image for Arena.
