@@ -395,23 +395,17 @@
                                                 Background="{DynamicResource VaultHeroWash}"
                                                 BorderBrush="{DynamicResource VaultAccentBorder}"
                                                 BorderThickness="1">
-                                            <Grid ClipToBounds="True">
-                                                <Grid.Background>
-                                                    <RadialGradientBrush Center="0.7,0.35" GradientOrigin="0.6,0.4" RadiusX="0.8" RadiusY="0.8">
-                                                        <GradientStop Color="#875B86" Offset="0"/>
-                                                        <GradientStop Color="#3D375D" Offset="0.52"/>
-                                                        <GradientStop Color="#101B2A" Offset="1"/>
-                                                    </RadialGradientBrush>
-                                                </Grid.Background>
+                                            <Grid ClipToBounds="True" Background="{DynamicResource VaultHeroWash}">
                                                 <Border Width="7" HorizontalAlignment="Left" Background="#A9E38B54"/>
                                                 <Ellipse Width="94" Height="94" Margin="20,-30,-28,0"
                                                          HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                         Fill="#245F9DCE" Stroke="#5499C1DA" StrokeThickness="2"/>
+                                                         Fill="{DynamicResource VaultAccentSurface}"
+                                                         Stroke="{DynamicResource VaultEdgeLift}" StrokeThickness="2"/>
                                                 <Ellipse Width="64" Height="64" Margin="0,0,0,10"
                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                         Stroke="#9ACDA0D8" StrokeThickness="2"/>
+                                                         Stroke="{DynamicResource VaultAccent}" StrokeThickness="2"/>
                                                 <TextBlock Text="✦" FontSize="35" FontWeight="Bold"
-                                                           Foreground="#F5E8F5" HorizontalAlignment="Center"
+                                                           Foreground="{DynamicResource VaultAccent}" HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"/>
                                                 <local:NativeCardArtImage
                                                     ArtUrl="{Binding CoverArtworkUrl}" DecodeWidth="260"
