@@ -41,6 +41,7 @@ public partial class NativeCollectionWorkspace
             DeckInspectorCoverageGaps is null ||
             DeckInspectorCardAvailability is null) return;
         var deck = inspectedSavedDeck;
+        ReviewDeckShortagesButton.IsEnabled = false;
         if (deck is null)
         {
             DeckInspectorCoverageSummary.Text = "";
@@ -65,6 +66,14 @@ public partial class NativeCollectionWorkspace
             DeckInspectorCoverageSummary.Text =
                 $"{scope}: {coverage.CoveredCopies:N0}/{coverage.TotalWithCommander:N0} " +
                 $"copies recorded · {coverage.MissingCopies:N0} missing";
+            ReviewDeckShortagesButton.IsEnabled = !deckBusy &&
+                deck.Editable && coverage.MissingCopies > 0 &&
+                !string.IsNullOrWhiteSpace(nativePath) &&
+                !string.IsNullOrWhiteSpace(expectedBackupSha) &&
+                !string.IsNullOrWhiteSpace(catalogPath) &&
+                File.Exists(catalogPath) &&
+                !string.IsNullOrWhiteSpace(deck.Commander) &&
+                EdhLabSavedDeckAccess.FormatFor(deck.Format) is not null;
             DeckInspectorCoverageGaps.Text = coverage.Shortages.Count == 0
                 ? "All required names covered by recorded copies. No copies are reserved; this is not a legality or printing check."
                 : "Shortages (by name): " +
