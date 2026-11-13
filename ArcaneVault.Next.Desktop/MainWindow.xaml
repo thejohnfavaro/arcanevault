@@ -7,7 +7,7 @@
         Background="{DynamicResource VaultBackground}"
         Foreground="{DynamicResource VaultText}">
     <Window.Resources>
-        <!-- All tile results are bounded to 200 offline catalog matches; never
+        <!-- Catalog pages render at most 200 local results at a time; never
              launch remote art requests during list scrolling. -->
         <DataTemplate x:Key="CatalogCompactTemplate">
             <Grid Margin="5,1">
@@ -555,6 +555,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid x:Name="CatalogColumnHeaders" Grid.Row="0" Background="{DynamicResource VaultPanelRaised}"
                           Height="45">
@@ -635,6 +636,35 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
+                    <Grid Grid.Row="2" Margin="12,8,12,9">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" x:Name="CatalogPageStatus"
+                                   Text="No catalog results" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource VaultMuted}"
+                                   FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                   Margin="0,0,12,0"/>
+                        <Button Grid.Column="1" x:Name="PreviousCatalogPageButton"
+                                Content="Previous" Click="OnPreviousCatalogPageClicked"
+                                IsEnabled="False" Padding="12,6" Margin="0,0,8,0"
+                                Background="{DynamicResource VaultPanelRaised}"
+                                Foreground="{DynamicResource VaultText}"
+                                ToolTip="Show the previous page of matching cards"/>
+                        <TextBlock Grid.Column="2" x:Name="CatalogPageLabel"
+                                   Text="Page 1" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource VaultText}"
+                                   FontSize="12" Margin="4,0,12,0"/>
+                        <Button Grid.Column="3" x:Name="NextCatalogPageButton"
+                                Content="Next" Click="OnNextCatalogPageClicked"
+                                IsEnabled="False" Padding="12,6"
+                                Background="{DynamicResource VaultPanelRaised}"
+                                Foreground="{DynamicResource VaultText}"
+                                ToolTip="Show the next page of matching cards"/>
+                    </Grid>
                 </Grid>
             </Border>
 

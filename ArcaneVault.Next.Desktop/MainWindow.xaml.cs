@@ -48,6 +48,52 @@ public partial class MainWindow : Window
     private readonly HashSet<string> bookmarkedCatalogNames = new(StringComparer.OrdinalIgnoreCase);
     private bool shortlistStarBusy;
     private int activeTileColumns;
+    private const int CatalogPageSize = 200;
+    private int catalogPageIndex;
+    private bool catalogPageMayHaveMore;
+    private bool catalogPageBusy;
+
+    private void SetCatalogPageState(int displayedRows, bool hasMore)
+    {
+        catalogPageMayHaveMore = hasMore;
+        catalogPageBusy = false;
+        if (CatalogPageStatus is null || CatalogPageLabel is null ||
+            PreviousCatalogPageButton is null || NextCatalogPageButton is null) return;
+        long first = displayedRows == 0 ? 0 : (long)catalogPageIndex * CatalogPageSize + 1;
+        long last = first == 0 ? 0 : first + displayedRows - 1;
+        CatalogPageLabel.Text = "Page " + (catalogPageIndex + 1).ToString("N0");
+        CatalogPageStatus.Text = displayedRows == 0
+            ? "No matching cards"
+            : $"Showing {first:N0}–{last:N0}" + (hasMore ? " · More matches available" : " · End of results");
+        PreviousCatalogPageButton.IsEnabled = catalogPageIndex > 0;
+        NextCatalogPageButton.IsEnabled = hasMore;
+    }
+
+    private void SetCatalogPageBusy()
+    {
+        catalogPageBusy = true;
+        if (PreviousCatalogPageButton is not null)
+            PreviousCatalogPageButton.IsEnabled = false;
+        if (NextCatalogPageButton is not null)
+            NextCatalogPageButton.IsEnabled = false;
+        if (CatalogPageStatus is not null)
+            CatalogPageStatus.Text = "Loading matching catalog page…";
+    }
+
+    private void OnPreviousCatalogPageClicked(object sender, RoutedEventArgs e)
+    {
+        if (catalogPageBusy || catalogPageIndex <= 0) return;
+        catalogPageIndex--;
+        _ = FilterAsync(debounce: false, resetPage: false);
+    }
+
+    private void OnNextCatalogPageClicked(object sender, RoutedEventArgs e)
+    {
+        if (catalogPageBusy || !catalogPageMayHaveMore ||
+            catalogPageIndex == int.MaxValue / CatalogPageSize) return;
+        catalogPageIndex++;
+        _ = FilterAsync(debounce: false, resetPage: false);
+    }
 
     private CatalogSnapshot.PrintingRow? SelectedCatalogPrinting()
         => CatalogViewMode.SelectedIndex == 2
@@ -1513,7 +1559,7 @@ public partial class MainWindow : Window
                 !System.IO.File.Exists(NativeWorkspace.CatalogPath);
             modeVersion++;
             previous?.Dispose();
-            ModeStatus.Text = $"{loaded.TotalPrintings:N0} catalog printings in isolated snapshot · Prefix search · First 200 rows only · No live edits";
+            ModeStatus.Text = $"{loaded.TotalPrintings:N0} catalog printings in isolated snapshot · Browse in pages of 200 · No live edits";
             SearchBox.Text = "";
             _ = FilterAsync();
             if (nativeWorkspaceRequested) _ = OpenNativeCollectionAsync();
@@ -1764,9 +1810,11 @@ public partial class MainWindow : Window
             (RoleFilterBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "");
     }
 
-    private async Task FilterAsync(bool debounce = true)
+    private async Task FilterAsync(bool debounce = true, bool resetPage = true)
     {
+        if (resetPage) catalogPageIndex = 0;
         CancelPendingSearch();
+        SetCatalogPageBusy();
         var cts = new CancellationTokenSource();
         searchCancellation = cts;
         var token = cts.Token;
@@ -1785,6 +1833,7 @@ public partial class MainWindow : Window
                     if (closing || version != modeVersion ||
                         !ReferenceEquals(searchCancellation, cts)) return;
                     SetCatalogResults(Array.Empty<object>());
+                    SetCatalogPageState(0, false);
                     FilterStatus.Text = "No Scryfall catalog loaded — native ownership is separate";
                     return;
                 }
@@ -1793,22 +1842,27 @@ public partial class MainWindow : Window
                     c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     c.SetCode.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     c.CollectorNumber.Contains(filter, StringComparison.OrdinalIgnoreCase))
-                    .ToArray(), token);
+                    .Skip(checked(catalogPageIndex * CatalogPageSize))
+                    .Take(CatalogPageSize + 1).ToArray(), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
-                SetCatalogResults(list.Cast<object>());
-                FilterStatus.Text = $"{list.Length:N0} synthetic rows · {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F1} ms";
+                bool more = list.Length > CatalogPageSize;
+                SetCatalogResults(list.Take(CatalogPageSize).Cast<object>());
+                SetCatalogPageState(Math.Min(list.Length, CatalogPageSize), more);
+                FilterStatus.Text = $"Synthetic catalog · Page {catalogPageIndex + 1:N0} · {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F1} ms";
             }
             else
             {
                 var results = await Task.Run(() =>
                     active.SearchFiltered(filter, filters, cancellationToken: token,
-                        ownership: ownership), token);
+                        ownership: ownership,
+                        offset: checked(catalogPageIndex * CatalogPageSize)), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
                 SetCatalogResults(results.Rows.Cast<object>());
-                FilterStatus.Text = $"{results.Rows.Count:N0} printings · SQL {results.SqlMilliseconds:F1} ms" +
-                    (results.MayHaveMore ? " · First 200 matching results" : "") +
+                SetCatalogPageState(results.Rows.Count, results.MayHaveMore);
+                FilterStatus.Text = $"{results.Rows.Count:N0} printings on page {catalogPageIndex + 1:N0} · SQL {results.SqlMilliseconds:F1} ms" +
+                    (results.MayHaveMore ? " · More catalog pages available" : " · Last page") +
                     (ownership is not null
                         ? " · Physical by verified printing ID; Arena by card name"
                         : " · No native ownership loaded");
@@ -1819,16 +1873,26 @@ public partial class MainWindow : Window
         catch (InvalidDataException ex)
         {
             if (!closing && version == modeVersion && ReferenceEquals(searchCancellation, cts))
+            {
+                SetCatalogPageState(0, false);
                 FilterStatus.Text = ex.Message;
+            }
         }
         catch (Exception)
         {
             if (!closing && version == modeVersion && ReferenceEquals(searchCancellation, cts))
+            {
+                SetCatalogPageState(0, false);
                 FilterStatus.Text = "Catalog query failed; existing snapshot was not modified";
+            }
         }
         finally
         {
-            if (ReferenceEquals(searchCancellation, cts)) searchCancellation = null;
+            if (ReferenceEquals(searchCancellation, cts))
+            {
+                searchCancellation = null;
+                if (catalogPageBusy) SetCatalogPageState(0, false);
+            }
             cts.Dispose();
         }
     }

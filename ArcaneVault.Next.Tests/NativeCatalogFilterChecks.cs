@@ -102,6 +102,100 @@ internal static class NativeCatalogFilterChecks
         Must(checksum == Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
             "Catalog metadata filters may never change original catalog bytes.");
 
+        // v0.9.58: more than 200 matches must be reachable without repeats,
+        // omissions or full in-memory catalog enumeration. Both raw printings
+        // and Arena's one-representative-per-name view must page correctly.
+        string paged = Path.Combine(work, "native-filter-paged.sqlite");
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = paged, Mode = SqliteOpenMode.ReadWriteCreate,
+                 Pooling = false }.ToString()))
+        {
+            db.Open();
+            using (var schema = db.CreateCommand())
+            {
+                schema.CommandText = """
+                    CREATE TABLE cards(
+                        name TEXT PRIMARY KEY COLLATE NOCASE,
+                        type TEXT NOT NULL,colors TEXT NOT NULL);
+                    CREATE TABLE variants(
+                        print_id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL COLLATE NOCASE,
+                        setcode TEXT NOT NULL,collector TEXT NOT NULL,
+                        rarity TEXT NOT NULL,arena INTEGER NOT NULL);
+                    """;
+                schema.ExecuteNonQuery();
+            }
+            using var tx = db.BeginTransaction();
+            using var card = db.CreateCommand();
+            card.Transaction = tx;
+            card.CommandText = "INSERT INTO cards(name,type,colors) VALUES ($name,'Creature','G')";
+            card.Parameters.AddWithValue("$name", "");
+            using var printing = db.CreateCommand();
+            printing.Transaction = tx;
+            printing.CommandText = """
+                INSERT INTO variants(print_id,name,setcode,collector,rarity,arena)
+                VALUES ($id,$name,$set,$collector,'rare',1)
+                """;
+            foreach (string parameter in new[] { "$id", "$name", "$set", "$collector" })
+                printing.Parameters.AddWithValue(parameter, "");
+            for (int i = 0; i < 240; i++)
+            {
+                string name = $"Catalog Card {i:D4}";
+                card.Parameters["$name"].Value = name;
+                card.ExecuteNonQuery();
+                for (int j = 0; j < 2; j++)
+                {
+                    printing.Parameters["$id"].Value = $"catalog-id-{i:D4}-{j}";
+                    printing.Parameters["$name"].Value = name;
+                    printing.Parameters["$set"].Value = j == 0 ? "tst" : "alt";
+                    printing.Parameters["$collector"].Value = i.ToString("D4");
+                    printing.ExecuteNonQuery();
+                }
+            }
+            tx.Commit();
+        }
+        string originalPageCatalogHash = Convert.ToHexString(
+            SHA256.HashData(File.ReadAllBytes(paged)));
+        using (var pages = CatalogSnapshot.Open(paged))
+        {
+            var p1 = pages.SearchPrefix("Catalog", limit: 200, offset: 0);
+            var p2 = pages.SearchPrefix("Catalog", limit: 200, offset: 200);
+            var p3 = pages.SearchPrefix("Catalog", limit: 200, offset: 400);
+            Must(p1.Rows.Count == 200 && p1.MayHaveMore &&
+                 p2.Rows.Count == 200 && p2.MayHaveMore &&
+                 p3.Rows.Count == 80 && !p3.MayHaveMore &&
+                 p1.Rows.Concat(p2.Rows).Concat(p3.Rows)
+                   .Select(x => x.Name + "|" + x.SetCode + "|" + x.CollectorNumber)
+                   .Distinct(StringComparer.OrdinalIgnoreCase).Count() == 480,
+                 "Indexed prefix pages must cover all 480 distinct printings without an artificial 200-row stop.");
+            var f1 = pages.SearchFiltered("", new(Rarity: "rare"),
+                limit: 200, offset: 0);
+            var f2 = pages.SearchFiltered("", new(Rarity: "rare"),
+                limit: 200, offset: 200);
+            var f3 = pages.SearchFiltered("", new(Rarity: "rare"),
+                limit: 200, offset: 400);
+            Must(f1.Rows.Count == 200 && f2.Rows.Count == 200 &&
+                 f3.Rows.Count == 80 && !f3.MayHaveMore &&
+                 f1.Rows.Concat(f2.Rows).Concat(f3.Rows)
+                   .Select(x => x.Name + "|" + x.SetCode)
+                   .Distinct(StringComparer.OrdinalIgnoreCase).Count() == 480,
+                 "SQL-filtered pages must exhaust all matches without duplicates.");
+            var a1 = pages.SearchFiltered("", new(ArenaOnly: true),
+                offset: 0);
+            var a2 = pages.SearchFiltered("", new(ArenaOnly: true),
+                offset: 200);
+            Must(a1.Rows.Count == 200 && a1.MayHaveMore &&
+                 a2.Rows.Count == 40 && !a2.MayHaveMore &&
+                 a1.Rows.Concat(a2.Rows).Select(x => x.Name)
+                   .Distinct(StringComparer.OrdinalIgnoreCase).Count() == 240,
+                 "Arena filtered paging must count eligible distinct card names, not printings.");
+            Reject(() => pages.SearchPrefix("", offset: -1));
+            Reject(() => pages.SearchFiltered("", new(Rarity: "rare"), offset: -1));
+        }
+        Must(originalPageCatalogHash == Convert.ToHexString(
+                 SHA256.HashData(File.ReadAllBytes(paged))),
+             "Paginated reads must leave the original catalog unchanged.");
+
         string legacy = Path.Combine(work, "native-filter-legacy.sqlite");
         using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
         { DataSource = legacy, Mode = SqliteOpenMode.ReadWriteCreate, Pooling = false }.ToString()))

@@ -274,10 +274,12 @@ public sealed class CatalogSnapshot : IDisposable
 
     public SearchResult SearchPrefix(string input, int limit = 200,
         CancellationToken cancellationToken = default,
-        NativeCatalogOwnership? ownership = null)
+        NativeCatalogOwnership? ownership = null, int offset = 0)
     {
         if (limit is < 1 or > 200)
             throw new ArgumentOutOfRangeException(nameof(limit), "Query limit must be 1–200.");
+        if (offset < 0)
+            throw new ArgumentOutOfRangeException(nameof(offset));
         input = (input ?? "").Trim();
         if (input.Length > 160)
             input = input[..160];
@@ -302,10 +304,11 @@ public sealed class CatalogSnapshot : IDisposable
                 paper + "," + art + "," + roles +
                 " FROM variants v" + join +
                 @" WHERE v.name LIKE $prefix ESCAPE '\' " +
-                " ORDER BY v.name COLLATE NOCASE,v.setcode,v.collector LIMIT $limit";
+                " ORDER BY v.name COLLATE NOCASE,v.setcode,v.collector,v.print_id LIMIT $limit OFFSET $offset";
             var escaped = input.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
             cmd.Parameters.AddWithValue("$prefix", escaped + "%");
             cmd.Parameters.AddWithValue("$limit", limit + 1);
+            cmd.Parameters.AddWithValue("$offset", offset);
             var rows = new List<PrintingRow>(limit);
             bool hasExtra = false;
             var started = Stopwatch.GetTimestamp();
@@ -330,11 +333,13 @@ public sealed class CatalogSnapshot : IDisposable
     /// </summary>
     public SearchResult SearchFiltered(string input, SearchOptions filters,
         int limit = 200, CancellationToken cancellationToken = default,
-        NativeCatalogOwnership? ownership = null)
+        NativeCatalogOwnership? ownership = null, int offset = 0)
     {
         ArgumentNullException.ThrowIfNull(filters);
         if (limit is < 1 or > 200)
             throw new ArgumentOutOfRangeException(nameof(limit));
+        if (offset < 0)
+            throw new ArgumentOutOfRangeException(nameof(offset));
         if (filters.Ownership != OwnershipMode.All && ownership is null)
             throw new InvalidDataException(
                 "Load or create a native collection to filter owned and unverified printings.");
@@ -349,7 +354,7 @@ public sealed class CatalogSnapshot : IDisposable
                 "This catalog lacks Scryfall Oracle text for utilization tags. " +
                 "Run Full Scryfall Sync to enable role filtering.");
         if (filters.IsDefault)
-            return SearchPrefix(input, limit, cancellationToken, ownership);
+            return SearchPrefix(input, limit, cancellationToken, ownership, offset);
         input = (input ?? "").Trim();
         if (input.Length > 160) input = input[..160];
 
@@ -450,18 +455,25 @@ public sealed class CatalogSnapshot : IDisposable
                 (arenaScope
                     ? "\nORDER BY v.name COLLATE NOCASE," +
                       (HasPaperPrintingMetadata ? "v.digital DESC," : "") +
-                      "v.setcode,v.collector"
-                    : "\nORDER BY v.name COLLATE NOCASE,v.setcode,v.collector");
+                      "v.setcode,v.collector,v.print_id"
+                    : "\nORDER BY v.name COLLATE NOCASE,v.setcode,v.collector,v.print_id");
             if (!arenaScope && filters.Ownership == OwnershipMode.All &&
                 filters.Role.Length == 0)
             {
-                cmd.CommandText += " LIMIT $limit";
+                cmd.CommandText += " LIMIT $limit OFFSET $offset";
                 cmd.Parameters.AddWithValue("$limit", limit + 1);
+                cmd.Parameters.AddWithValue("$offset", offset);
             }
             var encounteredArenaNames = arenaScope
                 ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
             var rows = new List<PrintingRow>(limit);
             bool hasExtra = false;
+            int eligibleBeforePage = 0;
+            // SQL OFFSET is fast for simple predicates. Role/ownership and Arena
+            // name deduplication occur after the database query, so those
+            // filters page only the eligible rows in deterministic order.
+            bool inMemoryPage = arenaScope ||
+                filters.Ownership != OwnershipMode.All || filters.Role.Length > 0;
             var started = Stopwatch.GetTimestamp();
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -487,6 +499,7 @@ public sealed class CatalogSnapshot : IDisposable
                 if (!matches) continue;
                 if (encounteredArenaNames is not null &&
                     !encounteredArenaNames.Add(row.Name)) continue;
+                if (inMemoryPage && eligibleBeforePage++ < offset) continue;
                 if (rows.Count >= limit) { hasExtra = true; break; }
                 rows.Add(row);
             }
