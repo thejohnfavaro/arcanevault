@@ -10,7 +10,8 @@ namespace ArcaneVault.Next.Desktop;
 public static class NativeInAppDialog
 {
     public static MessageBoxResult Show(DependencyObject context, string message,
-        string caption, MessageBoxButton buttons, MessageBoxImage icon)
+        string caption, MessageBoxButton buttons = MessageBoxButton.OK,
+        MessageBoxImage icon = MessageBoxImage.None)
     {
         if (buttons == MessageBoxButton.OK)
         {
