@@ -133,7 +133,7 @@ public partial class NativeCardDetailsWindow : Window
         try { Clipboard.SetText(oraclePlainText); }
         catch (Exception ex)
         {
-            MessageBox.Show(this, "Could not copy Oracle text: " + ex.Message,
+            NativeInAppDialog.Show(this, "Could not copy Oracle text: " + ex.Message,
                 "Clipboard unavailable", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
@@ -276,7 +276,7 @@ public partial class NativeCardDetailsWindow : Window
         catch (Exception ex)
         {
             if (!artworkCancellation.IsCancellationRequested)
-                MessageBox.Show(this,
+                NativeInAppDialog.Show(this,
                     "Could not change the bookmark:\n" + ex.Message +
                     "\n\nIf another window modified the native collection, reopen Card Details.",
                     "My Shortlist", MessageBoxButton.OK, MessageBoxImage.Warning);
