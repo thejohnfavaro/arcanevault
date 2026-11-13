@@ -1007,8 +1007,9 @@ internal static class NativeVisualShellChecks
         var inlineOracle = XDocument.Parse(main).Descendants()
             .FirstOrDefault(x => x.Attribute(XName.Get("Name", XamlNs))?.Value ==
                 "InspectorOracle");
-        var detailOracle = XDocument.Parse(File.ReadAllText(
-            Path.Combine(dir, "NativeCardDetailsWindow.xaml"))).Descendants()
+        string detailOracleXml = File.ReadAllText(
+            Path.Combine(dir, "NativeCardDetailsWindow.xaml"));
+        var detailOracle = XDocument.Parse(detailOracleXml).Descendants()
             .FirstOrDefault(x => x.Attribute(XName.Get("Name", XamlNs))?.Value ==
                 "OracleText");
         Must(inlineOracle?.Name.LocalName == "FlowDocumentScrollViewer" &&
@@ -1025,7 +1026,7 @@ internal static class NativeVisualShellChecks
              detailsCode.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
              detailsCode.Contains("Clipboard.SetText(oraclePlainText)") &&
              !main.Contains("<RichTextBox x:Name=\"InspectorOracle\"") &&
-             !detailsXaml.Contains("<RichTextBox Grid.Row=\"1\" x:Name=\"OracleText\""),
+             !detailOracleXml.Contains("<RichTextBox Grid.Row=\"1\" x:Name=\"OracleText\""),
              "Oracle text must read like a document rather than an input control, while keeping exact symbols, selection, scroll and copy.");
 
         Must(main.Contains("x:Name=\"ActivityHistoryButton\"") &&
