@@ -11,6 +11,14 @@
 - The explicit **Add (+1)** button remains the intentional method to increase basic lands or locally allowed multi-copy entries. No automatic deck modification occurs from a selection-change event.
 - Non-EDH editors retain their original raw Text mainboard and existing add/remove behavior; no change to mainboard provenance or the verified save flow.
 
+## Fixed
+- Candidate clicks previously relied on a bubbling double-click control event; the interaction is now explicitly gated on the second left-button click on an actual card row. A single selection only updates the card preview.
+- Long deck lists previously required scanning, sorting or text editing to find an entry in the visual manager. Mainboard name/type/role search now narrows the visible rows in place.
+
+## Removed
+- No collection cards, ownership records, printings, saved deck copies, metadata, previews, or artwork caches were removed. The authoritative mainboard remains the original unsaved Text list.
+- No automatic add-on-selection behavior or extra persistent deck representation was introduced.
+
 ## Safety and performance
 - No new file writes, collection changes, owned-printing mutations, or saved deck writes occur when previewing/searching.
 - Search is bounded to 255 characters and filters a local read-only projection of the already parsed draft; no SQLite rescan or HTTP request is needed to search.
