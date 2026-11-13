@@ -653,6 +653,41 @@ internal static class NativeVisualShellChecks
              clearCode.Contains("ConfirmButton.IsEnabled") &&
              !clearCode.Contains("StartFresh("),
              "Inventory clear must require an explicit scope, phrase and acknowledgement.");
+        // v0.9.56: regression for the invisible backup acknowledgement
+        // (the old star-sized row collapsed to zero below the typed phrase).
+        // Confirmation and action buttons must be pinned OUTSIDE the scroll area.
+        var clearLayout = clearUi.Root?.Elements()
+            .FirstOrDefault(x => x.Name.LocalName == "Grid");
+        var clearRows = clearLayout?.Elements()
+            .FirstOrDefault(x => x.Name.LocalName == "Grid.RowDefinitions")?
+            .Elements().ToArray();
+        var clearScroll = clearLayout?.Elements()
+            .FirstOrDefault(x => x.Name.LocalName == "ScrollViewer" &&
+                x.Attribute("Grid.Row")?.Value == "0");
+        var clearPinnedPanel = clearLayout?.Elements()
+            .FirstOrDefault(x => x.Name.LocalName == "Border" &&
+                x.Attribute("Grid.Row")?.Value == "1");
+        var clearPinnedAck = clearPinnedPanel?.Descendants()
+            .FirstOrDefault(x =>
+                x.Attribute(XName.Get("Name", XamlNs))?.Value == "Acknowledged");
+        var clearAckText = clearPinnedAck?.Descendants()
+            .FirstOrDefault(x => x.Name.LocalName == "TextBlock");
+        var clearActions = clearLayout?.Elements()
+            .FirstOrDefault(x => x.Name.LocalName == "StackPanel" &&
+                x.Attribute("Grid.Row")?.Value == "2");
+        Must(clearRows?.Length == 3 &&
+             clearRows[0].Attribute("Height")?.Value == "*" &&
+             clearRows[1].Attribute("Height")?.Value == "Auto" &&
+             clearRows[2].Attribute("Height")?.Value == "Auto" &&
+             clearScroll?.Attribute("VerticalScrollBarVisibility")?.Value == "Auto" &&
+             clearScroll.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "ConfirmationText") &&
+             clearPinnedAck is not null &&
+             clearAckText?.Attribute("TextWrapping")?.Value == "Wrap" &&
+             clearAckText.Attribute("Width") is null &&
+             clearActions?.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "ConfirmButton") == true,
+             "Clear inventory must always expose required acknowledgement and buttons, with only the upper form scrolling.");
         string collectionCode = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
         // v0.9.54: the ownership summary belongs under the artwork/
