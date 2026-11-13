@@ -1,6 +1,7 @@
 <Window x:Class="ArcaneVault.Next.Desktop.NativeDeckEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
         Title="Arcane Vault Next — Saved deck editor" Width="1280" Height="850"
         MinWidth="1030" MinHeight="650" WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
