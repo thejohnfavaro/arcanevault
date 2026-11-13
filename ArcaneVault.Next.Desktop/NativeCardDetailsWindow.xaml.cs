@@ -100,12 +100,12 @@ public partial class NativeCardDetailsWindow : Window
         var doc = new FlowDocument
         {
             PagePadding = new Thickness(0),
-            FontSize = 13.5,
-            LineHeight = 20
+            FontSize = 14.5,
+            LineHeight = 23
         };
         foreach (string line in oraclePlainText.Replace("\r\n", "\n").Split('\n'))
         {
-            var paragraph = new Paragraph { Margin = new Thickness(0, 0, 0, 3) };
+            var paragraph = new Paragraph { Margin = new Thickness(0, 0, 0, 6) };
             foreach (var segment in NativeOracleSymbolTokenizer.Split(line))
             {
                 if (segment.IsSymbol && segment.Text.Length >= 3)
