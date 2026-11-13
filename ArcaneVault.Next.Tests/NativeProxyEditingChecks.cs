@@ -105,10 +105,30 @@ internal static class NativeProxyEditingChecks
         Must(!File.Exists(Path.Combine(work, "bad-proxy-workspace.sqlite")),
             "Malformed proxy data must not produce an installed native workspace.");
 
+        // Importing an older full backup without a proxyCards section must
+        // not silently delete separately recorded third-party copies.
+        var legacyPayload = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schema = 2,
+            source = "older-client-snapshot",
+            exported = "2026-11-13T19:00:00Z",
+            cards = Array.Empty<object>(),
+            physicalCards = Array.Empty<object>(),
+            deckLibrary = Array.Empty<object>(),
+            preferredArtwork = new { },
+            harmlessUserNote = "A newer export with no proxy schema"
+        });
+        var legacyRefresh = NativeWorkspaceSafety.Refresh(path, legacyPayload,
+            "legacy-full-import", removed.Current.BackupSha256);
+        Must(NativeWorkspaceSafety.ListProxies(path).Count == 1 &&
+             NativeWorkspaceSafety.ListProxies(path)[0].Name == "Sol Ring" &&
+             legacyRefresh.Current.Collection.PhysicalCopies == 0,
+             "Legacy full import lacking proxyCards must retain current proxies.");
+
         // An explicit verified fresh start is the only intentional reset of
         // physical, Arena, deck and proxy data together.
         var cleared = NativeWorkspaceSafety.StartFresh(path,
-            removed.Current.BackupSha256);
+            legacyRefresh.Current.BackupSha256);
         Must(cleared.Current.Collection.PhysicalCopies == 0 &&
              NativeWorkspaceSafety.ListProxies(path).Count == 0 &&
              cleared.RecoveryPath is not null &&
