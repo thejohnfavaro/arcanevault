@@ -11,9 +11,6 @@ namespace ArcaneVault.Next.Desktop;
 /// </summary>
 public sealed class NativeManaSymbol : Image
 {
-    public sealed record ManaIdentity(string Symbol, string Name);
-    private static readonly string Order = "WUBRG";
-
     public static readonly DependencyProperty SymbolProperty =
         DependencyProperty.Register(nameof(Symbol), typeof(string),
             typeof(NativeManaSymbol), new PropertyMetadata("C",
@@ -32,41 +29,13 @@ public sealed class NativeManaSymbol : Image
         Refresh();
     }
 
-    public static IReadOnlyList<ManaIdentity> ParseColorIdentity(string? raw)
-    {
-        string value = (raw ?? "").Trim().ToUpperInvariant();
-        if (value is "" or "C" or "COLORLESS" or "[]")
-            return new[] { new ManaIdentity("C", "Colorless") };
-
-        // Scryfall may return WUBRG, W,U or a JSON-like list. Reject arbitrary
-        // prose instead of treating the letters in a word as a mana identity.
-        string compact = new(value.Where(ch => Order.Contains(ch)).ToArray());
-        if (!value.All(ch => Order.Contains(ch) ||
-                char.IsWhiteSpace(ch) || ch is ',' or '[' or ']' or '"' or '\'' or '/')
-            || compact.Length == 0)
-            return Array.Empty<ManaIdentity>();
-        return Order.Where(compact.Contains).Select(ch =>
-            new ManaIdentity(ch.ToString(), NameFor(ch.ToString()))).ToArray();
-    }
-
-    public static string NameFor(string symbol) => symbol switch
-    {
-        "W" => "White",
-        "U" => "Blue",
-        "B" => "Black",
-        "R" => "Red",
-        "G" => "Green",
-        "C" => "Colorless",
-        _ => "Unknown"
-    };
-
     private void Refresh()
     {
         string code = (Symbol ?? "").Trim().ToUpperInvariant();
         Source = CreateSymbol(code);
-        ToolTip = NameFor(code) + " mana color";
+        ToolTip = NativeManaIdentity.NameFor(code) + " mana color";
         System.Windows.Automation.AutomationProperties.SetName(this,
-            NameFor(code) + " color identity");
+            NativeManaIdentity.NameFor(code) + " color identity");
     }
 
     private static ImageSource CreateSymbol(string code)
