@@ -137,6 +137,31 @@ internal static class NativeVisualShellChecks
              draftEditorCode.Contains("ResetOptimizationBrowsing();") &&
              draftEditorCode.Contains("EdhWorkspaceTabs.SelectedItem = EdhCardsTab;"),
              "Deck health interactions must refresh and use the protected manual card browser.");
+        // v0.9.51: repeatedly typing into a live EDH draft should coalesce
+        // catalog analysis. Stale actions must be disabled before the next
+        // queued pass; closing the editor cancels both timers/artwork.
+        Must(draftEditorCode.Contains("EdhAnalysisQuietMilliseconds = 220") &&
+             draftEditorCode.Contains("private void ScheduleEdhAnalysis()") &&
+             draftEditorCode.Contains("edhAnalysisTimer.Stop();") &&
+             draftEditorCode.Contains("edhAnalysisTimer.Start();") &&
+             draftEditorCode.Contains("if (IsLoaded && !busy)") &&
+             draftEditorCode.Contains("EdhApplySwapButton.IsEnabled = false;") &&
+             draftEditorCode.Contains("EdhHealthBrowseButton.IsEnabled = false;") &&
+             draftEditorCode.Contains("EdhChainJumpButton.IsEnabled = false;") &&
+             draftEditorCode.Contains("EdhEngineFindMissingButton.IsEnabled = false;") &&
+             draftEditorCode.Contains("edhAnalysisTimer?.Stop();") &&
+             draftEditorCode.Contains("chainArtworkRequest?.Cancel();"),
+             "EDH typing must debounce read-only work, disarm stale actions and cancel on close.");
+        var draftEditStart = draftEditorCode.IndexOf("private void OnDraftChanged(",
+            StringComparison.Ordinal);
+        var draftEditEnd = draftEditorCode.IndexOf("private void OnFormatChanged(",
+            StringComparison.Ordinal);
+        Must(draftEditStart >= 0 && draftEditEnd > draftEditStart &&
+             draftEditorCode[draftEditStart..draftEditEnd]
+                .Contains("ScheduleEdhAnalysis();") &&
+             draftEditorCode[draftEditStart..draftEditEnd]
+                .Contains("RefreshPreviewOwnership();"),
+             "Deferred analysis must retain immediate mainboard and preview ownership updates.");
         // Regression: v0.9.32 shipped the EDH Lab builder but hid its only
         // launcher with Visibility=Collapsed, making it inaccessible.
         var edhLauncher = XDocument.Parse(mainXaml).Descendants()
