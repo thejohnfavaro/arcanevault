@@ -956,14 +956,14 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "MainWindow.InspectorAndNotices.cs"));
         var noticeAdapter = File.ReadAllText(
             Path.Combine(dir, "NativeInAppDialog.cs"));
-        Must(main.Contains("x:Name=\\"CardInspectorPanel\\"") &&
-             main.Contains("x:Name=\\"InspectorArt\\"") &&
-             main.Contains("x:Name=\\"InspectorOracle\\"") &&
-             main.Contains("x:Name=\\"InspectorIdentityIcons\\"") &&
-             main.Contains("SelectionChanged=\\"OnCatalogRowSelectionChanged\\"") &&
-             main.Contains("Click=\\"OnInspectorCloseClicked\\"") &&
-             main.Contains("Click=\\"OnInspectorFullDetailsClicked\\"") &&
-             main.Contains("Click=\\"OnInspectorExpandClicked\\"") &&
+        Must(main.Contains("x:Name=\"CardInspectorPanel\"") &&
+             main.Contains("x:Name=\"InspectorArt\"") &&
+             main.Contains("x:Name=\"InspectorOracle\"") &&
+             main.Contains("x:Name=\"InspectorIdentityIcons\"") &&
+             main.Contains("SelectionChanged=\"OnCatalogRowSelectionChanged\"") &&
+             main.Contains("Click=\"OnInspectorCloseClicked\"") &&
+             main.Contains("Click=\"OnInspectorFullDetailsClicked\"") &&
+             main.Contains("Click=\"OnInspectorExpandClicked\"") &&
              mainCode.Contains("_ = ShowCardInInspectorAsync(card);") &&
              mainCode.Contains("SetInspectorExpanded(true);") &&
              dockedCode.Contains("inspectorRequestVersion") &&
@@ -971,14 +971,14 @@ internal static class NativeVisualShellChecks
              dockedCode.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
              dockedCode.Contains("new NativeManaSymbol") &&
              dockedCode.Contains("CatalogSnapshot.PrintingRow") &&
-             main.Contains("VirtualizingStackPanel.IsVirtualizing=\\"True\\"") &&
+             main.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"") &&
              mainCode.Contains("CatalogTileLayout.BuildRows("),
              "Card details must update inside a persistent inspector without sacrificing virtualization.");
 
-        Must(main.Contains("x:Name=\\"ActivityHistoryButton\\"") &&
-             main.Contains("x:Name=\\"ActivityHistoryPanel\\"") &&
-             main.Contains("x:Name=\\"ActivityHistoryItems\\"") &&
-             main.Contains("x:Name=\\"ActiveNoticeItems\\"") &&
+        Must(main.Contains("x:Name=\"ActivityHistoryButton\"") &&
+             main.Contains("x:Name=\"ActivityHistoryPanel\"") &&
+             main.Contains("x:Name=\"ActivityHistoryItems\"") &&
+             main.Contains("x:Name=\"ActiveNoticeItems\"") &&
              main.Contains("OnDismissNoticeClicked") &&
              main.Contains("OnClearActivityClicked") &&
              dockedCode.Contains("NativeNoticeHub.Published += PostAppNotice") &&
