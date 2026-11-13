@@ -180,7 +180,7 @@ public partial class NativeDeckEditorWindow : Window
                 };
                 var lands = EdhLabLandRecommendations.Suggest(edhCatalog,
                     counts, OwnedPoolBox.SelectedIndex == 1 ? null : proxyCounts,
-                    filter, limit: 500);
+                    filter, limit: 500, nameQuery: OwnedSearchBox.Text);
                 string search = (OwnedSearchBox.Text ?? "").Trim();
                 results = lands
                     .Where(x => (search.Length == 0 ||
