@@ -52,9 +52,9 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        <!-- Tile art is displayed in rows of 1–4 cards. The outer ListView
-             virtualizes ROWS so off-screen card image controls never load.
-             Grouped rows reflow when the available width crosses a breakpoint. -->
+        <!-- Each card widget stays exactly 218 DIPs wide; only the number
+             of columns changes when the viewport grows or shrinks.
+             The outer ListView virtualizes rows, so off-screen artwork never loads. -->
         <!-- Card-first density: the artwork now occupies most of each cell.
              All images are still hosted inside virtualized catalog ROWS. -->
         <DataTemplate x:Key="CatalogTileRowTemplate">
@@ -67,6 +67,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border Margin="3,4" Padding="5"
+                                Width="218" HorizontalAlignment="Center"
                                 Height="366" Style="{StaticResource VaultCatalogTileStyle}"
                                 Tag="{Binding}"
                                 PreviewMouseLeftButtonDown="OnCatalogTileMouseDown"

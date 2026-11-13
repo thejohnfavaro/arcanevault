@@ -12,21 +12,32 @@ public sealed record CatalogTileRow(IReadOnlyList<object?> Cards);
 
 public static class CatalogTileLayout
 {
-    // Compact tile widths leave room for more cards at typical desktop sizes.
-    // Five tiles maximum still bounds per-row artwork controls, while the
-    // outer ListView virtualizes rows and image loading stays throttled.
+    // A card never grows with the window. The XAML tile is exactly 218 DIPs
+    // wide with 3 DIPs of margin on each side. Available width determines HOW
+    // MANY fixed-size tiles fit; the outer ListView still virtualizes rows.
+    // Reserve space for the vertical scroll bar and ListView chrome so the
+    // final card is never clipped when a scroll bar appears.
+    public const int TileWidth = 218;
+    public const int TileMarginEachSide = 3;
+    public const int SlotWidth = TileWidth + TileMarginEachSide * 2;
+    public const int ViewportReserve = 24;
+    // A 4K window can show more than five cards without stretching the row.
+    // Keep a bound on the number of art controls in a visible virtualized row.
+    public const int MaximumColumns = 16;
+
     public static int ColumnsForWidth(double availableWidth)
     {
         if (double.IsNaN(availableWidth) || double.IsInfinity(availableWidth) ||
             availableWidth <= 0) return 2;
-        return Math.Clamp((int)Math.Floor((availableWidth - 16) / 225), 1, 5);
+        return Math.Clamp((int)Math.Floor(
+            (availableWidth - ViewportReserve) / SlotWidth), 1, MaximumColumns);
     }
 
     public static IReadOnlyList<CatalogTileRow> BuildRows(
         IEnumerable<object> cards, int columnCount)
     {
         ArgumentNullException.ThrowIfNull(cards);
-        int columns = Math.Clamp(columnCount, 1, 5);
+        int columns = Math.Clamp(columnCount, 1, MaximumColumns);
         object[] all = cards.ToArray();
         var rows = new List<CatalogTileRow>((all.Length + columns - 1) / columns);
         for (int i = 0; i < all.Length; i += columns)
