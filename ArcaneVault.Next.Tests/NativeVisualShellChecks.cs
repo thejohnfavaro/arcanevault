@@ -519,7 +519,8 @@ internal static class NativeVisualShellChecks
              deckEditorXaml.Contains("SelectionChanged=\"OnMainboardManagerSelected\"") &&
              draftEditorCode.Contains("MainboardModes.SelectedItem = MainboardManageTab;") &&
              draftEditorCode.Contains("MainboardModes.SelectedItem = MainboardTextTab;") &&
-             draftEditorCode.Contains("if (edhLabCommander is not null) RefreshMainboardManager();") &&
+             draftEditorCode.Contains("RefreshMainboardManager();") &&
+             draftEditorCode.Contains("RefreshLandDiscovery();") &&
              visualMainboardCode.Contains("EdhLabMainboardView.Build(") &&
              visualMainboardCode.Contains("MainboardBox.Text = updated;") &&
              visualMainboardCode.Contains("NativeDeckOwnedPicker.SetQuantity(") &&
