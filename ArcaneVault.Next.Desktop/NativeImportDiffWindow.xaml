@@ -20,13 +20,27 @@
         <Border Grid.Row="2" Margin="0,0,0,12" CornerRadius="7"
                 Padding="12" Background="#171C28" BorderBrush="#514276"
                 BorderThickness="1">
-            <StackPanel>
-                <TextBlock x:Name="SummaryText" TextWrapping="Wrap"
-                           FontSize="13" Foreground="#F0F1F6"/>
-                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
-                           FontSize="12" Foreground="#E5BF79"
-                           Text="This import reconciles quantities to the file for listed identities. Unchanged quantities are untouched; local-only cards are preserved. Explicit zero removes a matching record. Physical rows are matched by Scryfall printing ID and finish when available; otherwise by full unresolved printing details."/>
-            </StackPanel>
+            <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock x:Name="AuditText" TextWrapping="Wrap"
+                               FontSize="12" FontWeight="SemiBold"
+                               Foreground="#D6C8FF" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="SummaryText" TextWrapping="Wrap"
+                               FontSize="12" Foreground="#F0F1F6"/>
+                    <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                               FontSize="12" Foreground="#E5BF79"
+                               Text="Imports only reconcile listed identities; local-only holdings remain owned. Explicit zero removes an exact match. Catalog-unverified printings are tracked as unresolved, not counted as verified set ownership."/>
+                    <CheckBox x:Name="UnresolvedAcknowledged" Visibility="Collapsed"
+                              Margin="0,11,0,0"
+                              Foreground="#E5BF79"
+                              Checked="OnAcknowledgementChanged"
+                              Unchecked="OnAcknowledgementChanged">
+                        <TextBlock TextWrapping="Wrap" MaxWidth="900"
+                                   Text="I understand that unresolved or ambiguous source printings will remain unverified and may require manual printing selection after import."/>
+                    </CheckBox>
+                </StackPanel>
+            </ScrollViewer>
         </Border>
         <DataGrid Grid.Row="3" x:Name="ChangesTable" AutoGenerateColumns="False"
                   CanUserAddRows="False" CanUserDeleteRows="False"
@@ -65,14 +79,19 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" x:Name="SafetyText" VerticalAlignment="Center"
                        TextWrapping="Wrap" Foreground="#B5C1D3" Margin="0,0,20,0"/>
-            <Button Grid.Column="1" Content="Cancel" IsCancel="True"
+            <Button Grid.Column="1" Content="Export audit…" Click="OnExportAuditClicked"
                     Padding="16,9" Margin="0,0,9,0"
                     Background="#202737" Foreground="White"
                     BorderBrush="#514276"/>
-            <Button Grid.Column="2" x:Name="ApplyButton"
+            <Button Grid.Column="2" Content="Cancel" IsCancel="True"
+                    Padding="16,9" Margin="0,0,9,0"
+                    Background="#202737" Foreground="White"
+                    BorderBrush="#514276"/>
+            <Button Grid.Column="3" x:Name="ApplyButton"
                     Content="Apply reviewed differences"
                     Click="OnApplyClicked" Padding="16,9"
                     Background="#7663B3" Foreground="White"
