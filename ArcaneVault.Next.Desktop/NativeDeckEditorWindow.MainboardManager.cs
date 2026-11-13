@@ -148,7 +148,8 @@ public partial class NativeDeckEditorWindow
             LabSuggestion: catalogCard is not null,
             SynergyExplanation: fit?.Why ?? "No verified commander mechanic match.",
             MechanicMatch: fit?.Matches == true,
-            InDraftCopies: selected.Quantity));
+            InDraftCopies: selected.Quantity,
+            Proxied: CountProxy(selected.Name)));
     }
 
     private void ChangeManagedMainboardQuantity(int change, bool removeAll = false)
