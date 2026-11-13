@@ -63,3 +63,34 @@ follow-up is proposed here**, pending CI and local acceptance testing.
 
 Next milestones: manual role target tuning; synergy/archetype tags; better mana-base
 advice; fully legal specialty commander partnerships; exact owned-printing support.
+
+
+## v0.9.79 — Collection-aware land discovery
+
+EDH Lab → Mana & Roles includes an expandable **Lands I own / Proxy**
+browser with actual color-identity-eligible candidates from the local read-only
+EDH catalog. This avoids memorizing every dual, rainbow, utility and fetchland
+name in the user's recorded collection.
+
+- Physical paper and Arena name-level inventory remain separate. Paper Proxy
+  quantities (native v0.9.77) are labeled independently of real owned cards and
+  never counted toward collection valuation or Arena availability.
+- A card's **color identity** constrains legality; its **mana production** comes
+  from recognized printed “Add …” text or basic-land subtypes. A fetchland's
+  colors are **not** assumed from the card's search targets. Conditional/rainbow
+  sources and Reflecting Pool are described conservatively. The production
+  icon strip uses official Scryfall symbols, including colorless {C}, distinct
+  from the exact mana-cost and identity strips introduced in v0.9.78.
+- Owned + Proxy, real-owned, proxy-only and all-eligible filters; optional basic
+  lands; live search. Results are capped at 120 only after filtering.
+- Single-click previews. A real-row double-click or Add selected land invokes
+  the existing one-copy catalog validation and unsaved mainboard edit. Selecting
+  or filtering never modifies any saved deck, inventory, proxy quantity, set
+  progress, price, or preferred printing.
+- Candidate Oracle/production classification is memoized on the already cached
+  commander-eligible catalog snapshot; typing does not rescan SQLite or make
+  Scryfall network calls.
+
+This is a **discovery aid**, not an automatic optimized mana base or a real-time
+tournament-legality guarantee. Additional per-deck printing choice is a separate
+follow-up: [issue #169](https://github.com/thejohnfavaro/arcanevault/issues/169).
