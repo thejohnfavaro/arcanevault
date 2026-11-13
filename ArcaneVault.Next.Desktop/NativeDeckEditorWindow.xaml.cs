@@ -1409,7 +1409,11 @@ public partial class NativeDeckEditorWindow : Window
             MainboardBox is null || CommanderBox is null || FormatBox is null ||
             OwnedPoolBox is null)
             return;
-        if (edhLabCommander is not null) RefreshMainboardManager();
+        if (edhLabCommander is not null)
+        {
+            RefreshMainboardManager();
+            RefreshLandDiscovery();
+        }
         var pool = OwnedPoolBox.SelectedIndex == 1
             ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
         try
