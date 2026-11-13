@@ -61,12 +61,16 @@ public partial class NativeCollectionWorkspace
         try
         {
             var coverage = NativeDeckOwnedPicker.Review(
-                backup, InspectorPool, deck.MainboardText, deck.Commander, deck.Format);
+                backup, InspectorPool, deck.MainboardText, deck.Commander, deck.Format,
+                proxyRows);
             string scope = InspectorPool == NativeDeckOwnedPicker.Pool.Arena
                 ? "Arena" : "Physical";
             DeckInspectorCoverageSummary.Text =
                 $"{scope}: {coverage.CoveredCopies:N0}/{coverage.TotalWithCommander:N0} " +
-                $"copies recorded · {coverage.MissingCopies:N0} missing";
+                $"copies covered · {coverage.MissingCopies:N0} missing" +
+                (coverage.ProxyCoveredCopies > 0
+                    ? $" · {coverage.ProxyCoveredCopies:N0} Proxy copies (not owned or valued)"
+                    : "");
             ReviewDeckShortagesButton.IsEnabled = !deckBusy &&
                 deck.Editable && coverage.MissingCopies > 0 &&
                 !string.IsNullOrWhiteSpace(nativePath) &&
@@ -108,11 +112,17 @@ public partial class NativeCollectionWorkspace
             string.Equals(deck.Commander?.Trim(), card.Name,
                 StringComparison.OrdinalIgnoreCase);
         int needed = checked(card.Quantity + (includesLeader ? 1 : 0));
-        long missing = Math.Max(0, needed - recorded);
+        long proxy = InspectorPool == NativeDeckOwnedPicker.Pool.Physical
+            ? proxyRows.FirstOrDefault(x =>
+                x.Name.Equals(card.Name, StringComparison.OrdinalIgnoreCase))?.Quantity ?? 0
+            : 0;
+        long missing = Math.Max(0, needed - recorded - proxy);
         string scope = InspectorPool == NativeDeckOwnedPicker.Pool.Arena
             ? "Arena" : "Physical";
         DeckInspectorCardAvailability.Text =
-            $"{scope}: {recorded:N0} recorded · {needed:N0} required" +
+            $"{scope}: {recorded:N0} real owned" +
+            (proxy > 0 ? $" · {proxy:N0} Proxy (not valued)" : "") +
+            $" · {needed:N0} required" +
             (includesLeader ? " (including commander)" : "") +
             (missing == 0 ? " · covered" : $" · {missing:N0} missing");
     }
