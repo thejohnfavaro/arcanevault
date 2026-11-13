@@ -439,6 +439,106 @@
                                            Foreground="{DynamicResource VaultMuted}"
                                            Margin="0,0,0,7"
                                            Text="Nothing will change until you explicitly confirm a swap."/>
+                                <!-- Wrap to one column on narrow Deck Studio panes; do not
+                                     stretch or clip the app's scrollable Improve tab. -->
+                                <StackPanel x:Name="EdhMissingComparisonPanel"
+                                            Visibility="Collapsed" Margin="0,4,0,10">
+                                    <TextBlock Text="CARD-BY-CARD COMPARISON"
+                                               Style="{StaticResource VaultEyebrow}"
+                                               Margin="0,0,0,6"/>
+                                    <WrapPanel Orientation="Horizontal">
+                                        <Border Width="224" CornerRadius="8" Padding="9"
+                                                Margin="0,0,8,8"
+                                                Background="{DynamicResource VaultPanel}"
+                                                BorderBrush="{DynamicResource VaultLine}"
+                                                BorderThickness="1">
+                                            <StackPanel>
+                                                <TextBlock Text="CURRENT · MISSING"
+                                                           Style="{StaticResource VaultEyebrow}"/>
+                                                <TextBlock x:Name="EdhCompareSourceName"
+                                                           TextWrapping="Wrap" FontWeight="SemiBold"
+                                                           FontSize="13" Margin="0,5,0,3"/>
+                                                <TextBlock x:Name="EdhCompareSourceType"
+                                                           TextWrapping="Wrap" FontSize="11"
+                                                           Foreground="{DynamicResource VaultMuted}"/>
+                                                <TextBlock x:Name="EdhCompareSourceManaValue"
+                                                           FontSize="11" Foreground="{DynamicResource VaultMuted}"/>
+                                                <FlowDocumentScrollViewer x:Name="EdhCompareSourceMana"
+                                                           Height="30" IsToolBarVisible="False"
+                                                           IsSelectionEnabled="True"
+                                                           Background="Transparent"
+                                                           BorderThickness="0"
+                                                           VerticalScrollBarVisibility="Hidden"
+                                                           HorizontalScrollBarVisibility="Disabled"/>
+                                                <TextBlock x:Name="EdhCompareSourceRoles"
+                                                           TextWrapping="Wrap" FontSize="11"
+                                                           Foreground="{DynamicResource VaultText}"
+                                                           Margin="0,4,0,0"/>
+                                                <TextBlock x:Name="EdhCompareSourceInventory"
+                                                           TextWrapping="Wrap" FontSize="10.5"
+                                                           Foreground="{DynamicResource VaultMuted}"
+                                                           Margin="0,4,0,6"/>
+                                                <FlowDocumentScrollViewer x:Name="EdhCompareSourceOracle"
+                                                           Height="135" IsToolBarVisible="False"
+                                                           IsSelectionEnabled="True"
+                                                           Background="Transparent"
+                                                           BorderThickness="0"
+                                                           VerticalScrollBarVisibility="Auto"
+                                                           HorizontalScrollBarVisibility="Disabled"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Width="224" CornerRadius="8" Padding="9"
+                                                Margin="0,0,0,8"
+                                                Background="{DynamicResource VaultPanel}"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                                BorderThickness="1">
+                                            <StackPanel>
+                                                <TextBlock Text="ALTERNATIVE · RECORDED"
+                                                           Style="{StaticResource VaultEyebrow}"/>
+                                                <TextBlock x:Name="EdhCompareCandidateName"
+                                                           TextWrapping="Wrap" FontWeight="SemiBold"
+                                                           FontSize="13" Margin="0,5,0,3"/>
+                                                <TextBlock x:Name="EdhCompareCandidateType"
+                                                           TextWrapping="Wrap" FontSize="11"
+                                                           Foreground="{DynamicResource VaultMuted}"/>
+                                                <TextBlock x:Name="EdhCompareCandidateManaValue"
+                                                           FontSize="11" Foreground="{DynamicResource VaultMuted}"/>
+                                                <FlowDocumentScrollViewer x:Name="EdhCompareCandidateMana"
+                                                           Height="30" IsToolBarVisible="False"
+                                                           IsSelectionEnabled="True"
+                                                           Background="Transparent"
+                                                           BorderThickness="0"
+                                                           VerticalScrollBarVisibility="Hidden"
+                                                           HorizontalScrollBarVisibility="Disabled"/>
+                                                <TextBlock x:Name="EdhCompareCandidateRoles"
+                                                           TextWrapping="Wrap" FontSize="11"
+                                                           Foreground="{DynamicResource VaultText}"
+                                                           Margin="0,4,0,0"/>
+                                                <TextBlock x:Name="EdhCompareCandidateInventory"
+                                                           TextWrapping="Wrap" FontSize="10.5"
+                                                           Foreground="{DynamicResource VaultMuted}"
+                                                           Margin="0,4,0,6"/>
+                                                <FlowDocumentScrollViewer x:Name="EdhCompareCandidateOracle"
+                                                           Height="135" IsToolBarVisible="False"
+                                                           IsSelectionEnabled="True"
+                                                           Background="Transparent"
+                                                           BorderThickness="0"
+                                                           VerticalScrollBarVisibility="Auto"
+                                                           HorizontalScrollBarVisibility="Disabled"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </WrapPanel>
+                                    <TextBlock Text="WHY THIS RANKED HERE"
+                                               Style="{StaticResource VaultEyebrow}"
+                                               Margin="0,2,0,5"/>
+                                    <TextBlock x:Name="EdhMissingRankingRationale"
+                                               TextWrapping="Wrap" FontSize="11"
+                                               Foreground="{DynamicResource VaultText}"/>
+                                    <TextBlock Text="Heuristic role matching is not a rules-equivalence, legality or deck-power guarantee."
+                                               TextWrapping="Wrap" FontSize="10"
+                                               Foreground="{DynamicResource VaultMuted}"
+                                               Margin="0,5,0,0"/>
+                                </StackPanel>
                                 <Button x:Name="EdhApplyMissingSwapButton"
                                         Content="Replace one copy in unsaved draft"
                                         Click="OnEdhApplyMissingSwapClicked"

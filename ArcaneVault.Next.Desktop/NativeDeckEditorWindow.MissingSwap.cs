@@ -49,6 +49,7 @@ public partial class NativeDeckEditorWindow
             EdhMissingAlternativeDetails.Text =
                 "This is a name-level comparison, not printing or deck legality.";
             EdhApplyMissingSwapButton.IsEnabled = false;
+            EdhMissingComparisonPanel.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -61,6 +62,7 @@ public partial class NativeDeckEditorWindow
         EdhMissingAlternativesStatus.Text = status;
         EdhMissingAlternativeDetails.Text = "No cards were added, removed or saved.";
         EdhApplyMissingSwapButton.IsEnabled = false;
+        EdhMissingComparisonPanel.Visibility = Visibility.Collapsed;
     }
 
     private void OnEdhMissingShortageSelected(object sender, SelectionChangedEventArgs e)
@@ -69,6 +71,7 @@ public partial class NativeDeckEditorWindow
             EdhMissingShortagesList is null) return;
         EdhMissingAlternativesList.ItemsSource = null;
         EdhApplyMissingSwapButton.IsEnabled = false;
+        EdhMissingComparisonPanel.Visibility = Visibility.Collapsed;
         EdhMissingAlternativeDetails.Text =
             "Select an alternative to read why it was listed. No automatic substitutions.";
         if (EdhMissingShortagesList.SelectedItem is not MissingDeckRow shortage)
@@ -94,15 +97,17 @@ public partial class NativeDeckEditorWindow
         {
             var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
             var proposals = EdhLabMissingCardAdvisor.Analyze(
-                edhCatalog, entries.Select(x => (x.Name, x.Quantity)), shortage.Name);
+                edhCatalog, entries.Select(x => (x.Name, x.Quantity)), shortage.Name,
+                focus: SelectedStrategyFocus);
             EdhMissingAlternativesList.ItemsSource = proposals;
             EdhMissingAlternativesStatus.Text = proposals.Count == 0
                 ? "No conservative, recorded role-match found. The missing card may " +
                   "lack recognized metadata or all matching eligible copies are " +
                   "already in the draft. Use Cards or Swap Lab for manual review."
-                : $"{proposals.Count:N0} locally eligible recorded role matches for " +
-                  $"{shortage.Name} (not verified equivalents). Review card text " +
-                  "and strategy before choosing any swap.";
+                : $"{proposals.Count:N0} ranked, locally eligible recorded role matches " +
+                  $"for {shortage.Name}. Priority: " +
+                  $"{EdhLabStrategyGoals.Label(SelectedStrategyFocus)}. " +
+                  "Select a candidate for a read-only, card-by-card explanation.";
         }
         catch (Exception ex) when (ex is InvalidDataException or
             ArgumentException or OverflowException)
@@ -112,12 +117,51 @@ public partial class NativeDeckEditorWindow
         }
     }
 
+    private void ShowMissingCardComparison(EdhLabMissingCardAdvisor.Alternative? alternative)
+    {
+        if (EdhMissingComparisonPanel is null) return;
+        if (alternative?.MissingCard is not { } source ||
+            alternative.ReplacementCard is not { } candidate)
+        {
+            EdhMissingComparisonPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+        // The comparison uses only the already-validated local catalog
+        // snapshot. No network request, new window or collection operation.
+        EdhCompareSourceName.Text = source.Name;
+        EdhCompareSourceType.Text = source.Type;
+        EdhCompareSourceManaValue.Text = source.ManaLabel;
+        EdhCompareSourceMana.Document = NativeOracleReading.Build(
+            string.IsNullOrWhiteSpace(source.ManaCost)
+                ? "Mana cost unavailable" : source.ManaCost, 12);
+        EdhCompareSourceRoles.Text = source.RoleLabel;
+        EdhCompareSourceInventory.Text = source.RecordedLabel;
+        EdhCompareSourceOracle.Document = NativeOracleReading.Build(
+            string.IsNullOrWhiteSpace(source.Oracle)
+                ? "No Oracle rules text recorded." : source.Oracle, 11);
+
+        EdhCompareCandidateName.Text = candidate.Name;
+        EdhCompareCandidateType.Text = candidate.Type;
+        EdhCompareCandidateManaValue.Text = candidate.ManaLabel;
+        EdhCompareCandidateMana.Document = NativeOracleReading.Build(
+            string.IsNullOrWhiteSpace(candidate.ManaCost)
+                ? "Mana cost unavailable" : candidate.ManaCost, 12);
+        EdhCompareCandidateRoles.Text = candidate.RoleLabel;
+        EdhCompareCandidateInventory.Text = candidate.RecordedLabel;
+        EdhCompareCandidateOracle.Document = NativeOracleReading.Build(
+            string.IsNullOrWhiteSpace(candidate.Oracle)
+                ? "No Oracle rules text recorded." : candidate.Oracle, 11);
+        EdhMissingRankingRationale.Text = alternative.RankingReasons;
+        EdhMissingComparisonPanel.Visibility = Visibility.Visible;
+    }
+
     private void OnEdhMissingAlternativeSelected(object sender, SelectionChangedEventArgs e)
     {
         var selected = EdhMissingAlternativesList?.SelectedItem as
             EdhLabMissingCardAdvisor.Alternative;
         EdhMissingAlternativeDetails.Text = selected?.Explanation ??
             "Choose a recorded alternative to review its shared role hints.";
+        ShowMissingCardComparison(selected);
         EdhApplyMissingSwapButton.IsEnabled = !busy &&
             selected is not null &&
             EdhMissingShortagesList?.SelectedItem is MissingDeckRow { IsMainboard: true };
@@ -141,10 +185,13 @@ public partial class NativeDeckEditorWindow
                 .Shortages.FirstOrDefault(x =>
                     x.Name.Equals(shortage.Name, StringComparison.OrdinalIgnoreCase));
             var freshAlternatives = EdhLabMissingCardAdvisor.Analyze(edhCatalog,
-                entries.Select(x => (x.Name, x.Quantity)), shortage.Name);
+                entries.Select(x => (x.Name, x.Quantity)), shortage.Name,
+                focus: SelectedStrategyFocus);
             if (freshShortage is null || freshShortage.Missing < 1 ||
                 !freshAlternatives.Any(x =>
-                    x.Name.Equals(alternative.Name, StringComparison.OrdinalIgnoreCase)))
+                    x.Name.Equals(alternative.Name, StringComparison.OrdinalIgnoreCase) &&
+                    x.Score == alternative.Score &&
+                    x.RankingReasons == alternative.RankingReasons))
             {
                 RefreshDraftSummary();
                 StatusText.Text = "Shortages or eligible alternatives changed. " +
