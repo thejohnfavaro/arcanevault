@@ -12,8 +12,6 @@ public partial class CommanderBrowserWindow : Window
     {
         public string Name => Card.Name;
         public string TypeLine => Card.TypeLine;
-        public string ColorText => string.IsNullOrEmpty(Card.ColorIdentity)
-            ? "Colorless" : EdhLabCommanderRules.CanonicalColors(Card.ColorIdentity);
         public string InventoryText { get; init; } = "";
 
     }
