@@ -100,7 +100,37 @@ internal static class CollectionCatalogReviewChecks
         Check(details is not null && details.TypeLine.Contains("Creature") &&
               details.OracleText.Contains("draw a card") &&
               details.ColorIdentity == "UB" && details.Rarity == "rare" &&
-              details.ManaValue == 3, "Offline card details metadata did not load.");
+              details.ManaValue == 3 && details.ManaCost == "",
+            "Older Scryfall catalogs without mana_cost must still load without inventing pips.");
+        // Newer catalog snapshots include exact official mana_cost tokens.
+        // The old schema above must remain readable without that column.
+        string manaCatalog = Path.Combine(work, "review-mana-cost-catalog.sqlite");
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = manaCatalog, Mode = SqliteOpenMode.ReadWriteCreate,
+            Pooling = false
+        }.ToString()))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = """
+                CREATE TABLE cards(name TEXT PRIMARY KEY, type TEXT NOT NULL,
+                    oracle TEXT NOT NULL, rarity TEXT NOT NULL, mv REAL NOT NULL,
+                    colors TEXT NOT NULL, legalities TEXT NOT NULL,
+                    setcode TEXT NOT NULL, mana_cost TEXT NOT NULL);
+                INSERT INTO cards VALUES('Precise Mana Test','Sorcery',
+                    'Pay {W/U} and {2/R}.','uncommon',3,'WU',
+                    '{"commander":"legal"}','TST','{2}{U}');
+                """;
+            cmd.ExecuteNonQuery();
+        }
+        var preciseCost = CollectionCatalogReview.ReadDetails(manaCatalog,
+            "Precise Mana Test");
+        Check(preciseCost is not null &&
+              preciseCost.ManaCost == "{2}{U}" &&
+              preciseCost.ColorIdentity == "WU",
+              "Card details must keep numeric generic mana cost separate from color identity.");
+
         Check(CollectionCatalogReview.ReadDetails(catalogPath, "' OR 1=1 --") is null,
             "Card metadata lookup must parameterize input.");
         Check(CollectionCatalogReview.ReadDetails(catalogPath, "Unidentified") is null,
