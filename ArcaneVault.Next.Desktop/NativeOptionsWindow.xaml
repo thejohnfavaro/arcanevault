@@ -20,9 +20,10 @@
                        Foreground="{DynamicResource VaultMuted}"
                        FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap"/>
         </StackPanel>
-        <Border Grid.Row="1" CornerRadius="12" Padding="22"
-                Background="{DynamicResource VaultPanel}"
-                BorderBrush="{DynamicResource VaultLine}" BorderThickness="1">
+        <Border Grid.Row="1" CornerRadius="16" Padding="22"
+                Background="{DynamicResource VaultTileWash}"
+                BorderBrush="{DynamicResource VaultEdgeLift}" BorderThickness="1"
+                Effect="{StaticResource VaultPanelShadow}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -64,9 +65,9 @@
                     </ItemsControl>
                     <Border Background="{DynamicResource VaultThemeBanner}"
                             Height="5" CornerRadius="3" Margin="0,0,0,10"/>
-                    <Border CornerRadius="9" Padding="16"
-                            Background="{DynamicResource VaultSidebar}"
-                            BorderBrush="{DynamicResource VaultLine}" BorderThickness="1">
+                    <Border CornerRadius="12" Padding="16"
+                            Background="{DynamicResource VaultHeroWash}"
+                            BorderBrush="{DynamicResource VaultEdgeLift}" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="ARCANE VAULT" FontSize="20" FontWeight="Bold"
                                        Foreground="{DynamicResource VaultAccent}"/>
@@ -81,8 +82,8 @@
                                     <TextBlock Text="Selected card"
                                                Foreground="{DynamicResource VaultAccent}"/>
                                 </Border>
-                                <Border Background="{DynamicResource VaultPanelRaised}"
-                                        BorderBrush="{DynamicResource VaultLine}"
+                                <Border Background="{DynamicResource VaultTileWash}"
+                                        BorderBrush="{DynamicResource VaultEdgeLift}"
                                         BorderThickness="1" CornerRadius="7" Padding="10,6">
                                     <TextBlock Text="Sample collection preview"
                                                Foreground="{DynamicResource VaultText}"/>
