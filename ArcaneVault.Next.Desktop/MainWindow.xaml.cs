@@ -249,7 +249,8 @@ public partial class MainWindow : Window
             var loaded = await Task.Run(() =>
             {
                 var workspace = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
-                var ownership = NativeCatalogOwnership.From(workspace.Collection);
+                var proxies = NativeWorkspaceSafety.ListProxies(workspace.DatabasePath);
+                var ownership = NativeCatalogOwnership.From(workspace.Collection, proxies);
                 var favorites = NativeWorkspaceSafety.ListShortlist(workspace.DatabasePath);
                 return (Ownership: ownership, Favorites: favorites);
             });
@@ -1358,13 +1359,15 @@ public partial class MainWindow : Window
                     NativeSetProgressCache.Physical(verification,
                         NativeWorkspace.CatalogPath, workspace.BackupSha256);
                 var decks = NativeWorkspaceSafety.ListDecks(NativeWorkspace.DefaultPath);
-                return (workspace, verification, progress, decks);
+                var proxies = NativeWorkspaceSafety.ListProxies(workspace.DatabasePath);
+                return (workspace, verification, progress, decks, proxies);
             });
             if (closing || version != modeVersion ||
                 generation != nativeWorkspaceGeneration ||
                 !ReferenceEquals(activeCatalog, catalogSnapshot)) return;
 
-            catalogOwnership = NativeCatalogOwnership.From(bundle.workspace.Collection);
+            catalogOwnership = NativeCatalogOwnership.From(
+                bundle.workspace.Collection, bundle.proxies);
             _ = FilterAsync(); // reflect new edits/restores/CSV imports in catalog owned status
             var view = new NativeCollectionWorkspace(bundle.workspace.Collection,
                 bundle.verification, activeCatalog?.ReadOnlySnapshotPath,
@@ -1789,13 +1792,23 @@ public partial class MainWindow : Window
         if (sender == ColorlessOnlyBox && ColorlessOnlyBox.IsChecked == true)
         {
             // Mutually exclusive choices: colorless isn't a sixth mana color.
-            foreach (var box in new[] { ColorWBox, ColorUBox, ColorBBox, ColorRBox, ColorGBox })
+            foreach (System.Windows.Controls.Primitives.ToggleButton box in
+                     new[] { ColorWBox, ColorUBox, ColorBBox, ColorRBox, ColorGBox })
                 box.IsChecked = false;
         }
         else if (sender is CheckBox box && box.IsChecked == true &&
                  (sender == ColorWBox || sender == ColorUBox || sender == ColorBBox ||
                   sender == ColorRBox || sender == ColorGBox) && ColorlessOnlyBox is not null)
             ColorlessOnlyBox.IsChecked = false;
+        if (sender == OwnershipFilterBox)
+        {
+            bool physicalMode = OwnershipFilterBox?.SelectedIndex == 1;
+            if (CatalogIncludeProxiesBox is not null)
+            {
+                CatalogIncludeProxiesBox.IsEnabled = physicalMode;
+                if (!physicalMode) CatalogIncludeProxiesBox.IsChecked = false;
+            }
+        }
         // ComboBox/checkbox selections are complete values; unlike typing,
         // they do not need the search box's 140 ms debounce.
         _ = FilterAsync(debounce: false);
@@ -1820,7 +1833,9 @@ public partial class MainWindow : Window
             ArenaOnlyBox?.IsChecked == true,
             (CatalogSnapshot.OwnershipMode)Math.Clamp(
                 OwnershipFilterBox?.SelectedIndex ?? 0, 0, 4),
-            (RoleFilterBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "");
+            (RoleFilterBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "",
+            CatalogIncludeProxiesBox?.IsChecked == true &&
+                OwnershipFilterBox?.SelectedIndex == 1);
     }
 
     private async Task FilterAsync(bool debounce = true, bool resetPage = true)
