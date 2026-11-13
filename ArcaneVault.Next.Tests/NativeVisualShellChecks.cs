@@ -984,14 +984,14 @@ internal static class NativeVisualShellChecks
              !manaCode.Contains("HttpClient") &&
              !manaCode.Contains("Process.Start"),
              "Card details must use larger art, an accessible rarity ribbon and offline mana symbols.");
-        Must(NativeManaSymbol.ParseColorIdentity("WU").Select(x => x.Name)
+        Must(NativeManaIdentity.ParseColorIdentity("WU").Select(x => x.Name)
                  .SequenceEqual(new[] { "White", "Blue" }) &&
-             NativeManaSymbol.ParseColorIdentity("U,W").Select(x => x.Symbol)
+             NativeManaIdentity.ParseColorIdentity("U,W").Select(x => x.Symbol)
                  .SequenceEqual(new[] { "W", "U" }) &&
-             NativeManaSymbol.ParseColorIdentity("UBRG").Count == 4 &&
-             NativeManaSymbol.ParseColorIdentity("Colorless").Single().Symbol == "C" &&
-             NativeManaSymbol.ParseColorIdentity("").Single().Symbol == "C" &&
-             NativeManaSymbol.ParseColorIdentity("unknown").Count == 0,
+             NativeManaIdentity.ParseColorIdentity("UBRG").Count == 4 &&
+             NativeManaIdentity.ParseColorIdentity("Colorless").Single().Symbol == "C" &&
+             NativeManaIdentity.ParseColorIdentity("").Single().Symbol == "C" &&
+             NativeManaIdentity.ParseColorIdentity("unknown").Count == 0,
              "Mana identity icons must preserve WUBRG order, colorless fallback and unknown-data safety.");
         var deckCardsXaml = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
