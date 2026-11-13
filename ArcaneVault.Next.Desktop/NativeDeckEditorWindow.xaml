@@ -148,7 +148,8 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="8"/>
@@ -177,6 +178,14 @@
                                     <ComboBoxItem Content="Quantity ↓" Tag="Quantity"/>
                                 </ComboBox>
                             </Grid>
+                            <TextBox x:Name="MainboardManagerSearchBox"
+                                     Margin="0,7,0,0" Padding="8,6"
+                                     MaxLength="255"
+                                     TextChanged="OnMainboardManagerSearchChanged"
+                                     ToolTip="Filter the unsaved mainboard by card name, type or role; never modifies deck contents"
+                                     Background="#202737" Foreground="White"
+                                     BorderBrush="#514276"/>
+                            </StackPanel>
                             <TextBlock Grid.Row="1" x:Name="MainboardManagerStatus"
                                        Text="Visual mainboard loading…"
                                        Margin="0,0,0,7" FontSize="11"
@@ -410,11 +419,15 @@
                                Text="Deck-aware card status loading…"
                                FontSize="10.5" TextWrapping="Wrap"
                                Foreground="{DynamicResource VaultMuted}"/>
+                    <TextBlock x:Name="EdhClickInstructions" Visibility="Collapsed"
+                               Text="Single-click to preview · Double-click to add one copy"
+                               FontSize="11" Margin="0,3,0,0"
+                               Foreground="{DynamicResource VaultAccent}"/>
                 </StackPanel>
                 <ListBox Grid.Row="3" x:Name="OwnedCardsList"
                          DisplayMemberPath="Display"
                          SelectionChanged="OnOwnedCardSelectionChanged"
-                         MouseDoubleClick="OnOwnedCardDoubleClicked"
+                         PreviewMouseLeftButtonDown="OnOwnedCardPreviewMouseDown"
                          Background="#171C28" Foreground="#F2F5FA"
                          BorderBrush="#514276"/>
                 <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
