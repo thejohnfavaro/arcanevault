@@ -78,6 +78,8 @@
                                                 VerticalAlignment="Top"
                                                 Width="33" Height="33"
                                                 Margin="0,3,3,0" Padding="0"
+                                                HorizontalContentAlignment="Center"
+                                                VerticalContentAlignment="Center"
                                                 FontSize="23" FontWeight="Bold"
                                                 Background="#DA17202E"
                                                 BorderBrush="{DynamicResource VaultAccentBorder}"
