@@ -304,7 +304,11 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              reconciliationXaml.Contains("Click=\"OnApplyClicked\"",
                  StringComparison.Ordinal) &&
-             reconciliationCode.Contains("ApplyButton.IsEnabled = report.HasChanges;",
+             reconciliationCode.Contains("ApplyButton.IsEnabled = report.HasChanges &&",
+                 StringComparison.Ordinal) &&
+             reconciliationCode.Contains("report.Audit.UnresolvedRows == 0",
+                 StringComparison.Ordinal) &&
+             reconciliationCode.Contains("UnresolvedAcknowledged.IsChecked == true",
                  StringComparison.Ordinal) &&
              workspaceCode.Contains("PreviewPhysicalReconciliation(",
                  StringComparison.Ordinal) &&
