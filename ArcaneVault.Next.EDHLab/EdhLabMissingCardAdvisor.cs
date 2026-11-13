@@ -115,10 +115,27 @@ public static class EdhLabMissingCardAdvisor
                     ? Math.Min(24, (int)Math.Round(Math.Abs(manaDelta) * 6,
                         MidpointRounding.AwayFromZero)) : 0;
                 int addedRolePoints = Math.Min(18, extras.Length * 6);
-                int focusPoints = EdhLabStrategyGoals.Bias(focus,
-                    candidateRoles.ToHashSet(StringComparer.OrdinalIgnoreCase),
-                    candidateProfile.CommanderSynergy,
-                    candidateProfile.ManaValue ?? double.NaN) / 4;
+                var roleSet = candidateRoles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                // Strategy role preferences remain meaningful even when an
+                // older Scryfall catalog lacks mana-value metadata. Only
+                // the fast-start *mana* bonus requires an actual known MV.
+                int focusPoints = candidateProfile.ManaValue is { } knownMv
+                    ? EdhLabStrategyGoals.Bias(focus, roleSet,
+                        candidateProfile.CommanderSynergy, knownMv) / 4
+                    : focus switch
+                    {
+                        EdhLabStrategyFocus.FastStart => roleSet.Contains("Ramp") ? 8 : 0,
+                        EdhLabStrategyFocus.CardAdvantage =>
+                            (roleSet.Contains("Card Draw") ? 12 : 0) +
+                            (roleSet.Contains("Tutor") ? 8 : 0),
+                        EdhLabStrategyFocus.Interaction =>
+                            (roleSet.Contains("Removal") ? 12 : 0) +
+                            (roleSet.Contains("Protection") ? 9 : 0) +
+                            (roleSet.Contains("Board Wipe") ? 4 : 0),
+                        EdhLabStrategyFocus.CommanderSynergy =>
+                            Math.Clamp(candidateProfile.CommanderSynergy, 0, 20) * 3,
+                        _ => 0
+                    };
                 int copiesBonus = x.RecordedCopies -
                     counts.GetValueOrDefault(x.Name) > 1 ? 3 : 0;
                 int score = 80 + (sameType ? 15 : 0) + addedRolePoints +
