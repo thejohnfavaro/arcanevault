@@ -218,6 +218,7 @@ public partial class MainWindow : Window
                     CatalogSnapshot.OpenPersistent(NativeWorkspace.CatalogPath));
                 if (closing) { persisted.Dispose(); return; }
                 var previous = catalogSnapshot;
+                EdhLabReadOnlyCache.Clear();
                 catalogSnapshot = persisted;
                 modeVersion++;
                 previous?.Dispose();
@@ -455,7 +456,8 @@ public partial class MainWindow : Window
             collectionWindow = null;
             InvalidateNativeWorkspace();
             var previous = catalogSnapshot;
-            catalogSnapshot = fresh;
+            EdhLabReadOnlyCache.Clear();
+                catalogSnapshot = fresh;
             syntheticMode = false;
             modeVersion++;
             previous?.Dispose();
@@ -552,7 +554,8 @@ public partial class MainWindow : Window
             collectionWindow = null;
             InvalidateNativeWorkspace();
             var previous = catalogSnapshot;
-            catalogSnapshot = saved;
+            EdhLabReadOnlyCache.Clear();
+                catalogSnapshot = saved;
             modeVersion++;
             previous?.Dispose();
             EdhLabButton.IsEnabled = true;
@@ -729,7 +732,8 @@ public partial class MainWindow : Window
             InvalidateNativeWorkspace();
                     CancelPendingSearch();
                     var previous = catalogSnapshot;
-                    catalogSnapshot = catalog;
+                    EdhLabReadOnlyCache.Clear();
+                catalogSnapshot = catalog;
                     modeVersion++;
                     previous?.Dispose();
                     _ = FilterAsync();
@@ -1559,7 +1563,8 @@ public partial class MainWindow : Window
             collectionWindow = null;
             InvalidateNativeWorkspace();
             var previous = catalogSnapshot;
-            catalogSnapshot = loaded;
+            EdhLabReadOnlyCache.Clear();
+                catalogSnapshot = loaded;
             syntheticMode = false;
             EdhLabButton.IsEnabled = true;
             SaveNativeCatalogButton.IsEnabled =
@@ -1762,7 +1767,8 @@ public partial class MainWindow : Window
         SaveNativeCatalogButton.IsEnabled = false;
         modeVersion++;
         var previous = catalogSnapshot;
-        catalogSnapshot = null;
+        EdhLabReadOnlyCache.Clear();
+                catalogSnapshot = null;
         syntheticMode = true;
         previous?.Dispose();
         nativeWorkspaceRequested = false; // demo is a catalog-only mode
