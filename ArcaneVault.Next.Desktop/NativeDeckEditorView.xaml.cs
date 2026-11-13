@@ -1947,6 +1947,9 @@ public partial class NativeDeckEditorView : UserControl
         }
     }
 
+    private bool embeddedInitialCoverageLoaded;
+    private bool embeddedInitialSuggestionsLoaded;
+
     public event EventHandler<NativeWorkspaceSafety.Replacement>? Saved;
 
     /// <summary>Close the embedded editor only on explicit discard or save.</summary>
@@ -1993,7 +1996,12 @@ public partial class NativeDeckEditorView : UserControl
         InitializeDeckPrintingChoices();
         // Load independent proxy coverage asynchronously. It does not
         // rewrite the deck, own an official printing or fetch any price.
-        Loaded += async (_, _) => await LoadProxyCoverageAsync();
+        Loaded += async (_, _) =>
+        {
+            if (embeddedInitialCoverageLoaded) return;
+            embeddedInitialCoverageLoaded = true;
+            await LoadProxyCoverageAsync();
+        };
         MainboardModes.SelectedItem = MainboardTextTab;
         // Cleanup is explicit on Save/Discard; switching workspace tabs must
         // not destroy an unfinished draft.
@@ -2064,7 +2072,12 @@ public partial class NativeDeckEditorView : UserControl
                   "all saved cards still receive native preflight review."
                 : $"Editing saved EDH Lab deck with {selected.Revisions:N0} revisions. " +
                   "Changes remain unsaved until Review and save; prior versions are retained.";
-            Loaded += async (_, _) => await LoadEdhSuggestionsAsync();
+            Loaded += async (_, _) =>
+            {
+                if (embeddedInitialSuggestionsLoaded) return;
+                embeddedInitialSuggestionsLoaded = true;
+                await LoadEdhSuggestionsAsync();
+            };
         }
         RefreshDraftSummary();
     }
