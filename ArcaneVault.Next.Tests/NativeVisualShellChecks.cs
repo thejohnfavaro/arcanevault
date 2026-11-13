@@ -522,6 +522,79 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal),
              "EDH Lab ownership filtering must be disabled when no verified collection exists.");
 
+        // v0.9.65: reusable card previews are placed beside the existing
+        // virtualized discovery/deck lists. No standalone window or mutation
+        // is required merely to inspect a commander or a saved deck entry.
+        var sharedPeekXaml = File.ReadAllText(
+            Path.Combine(dir, "NativeCardPeekPane.xaml"));
+        var sharedPeekCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCardPeekPane.xaml.cs"));
+        Must(sharedPeekXaml.Contains("x:Name=\\"PeekArt\\"") &&
+             sharedPeekXaml.Contains("x:Name=\\"PeekIdentity\\"") &&
+             sharedPeekXaml.Contains("x:Name=\\"PeekOracle\\"") &&
+             sharedPeekXaml.Contains("FlowDocumentScrollViewer") &&
+             sharedPeekXaml.Contains("local:NativeManaSymbol") &&
+             sharedPeekXaml.Contains("Click=\\"OnFullDetailsClicked\\"") &&
+             sharedPeekXaml.Contains("Virtual") == false &&
+             sharedPeekCode.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
+             sharedPeekCode.Contains("NativeOfficialCardSymbols") == false &&
+             sharedPeekCode.Contains("CollectionCatalogReview.ReadDetails(catalogPath, name)") &&
+             sharedPeekCode.Contains("version != selectionVersion") &&
+             sharedPeekCode.Contains("new NativeCardDetailsWindow(") &&
+             sharedPeekCode.Contains("catalogPath: selectedCatalogPath") &&
+             sharedPeekCode.Contains("no owned printing inferred"),
+             "Shared preview must display official cached identity and Oracle art, prevent stale selections and remain read-only.");
+        Must(commanderXaml.Contains("x:Name=\\"CommanderCardInspector\\"") &&
+             commanderXaml.Contains("local:NativeCardPeekPane") &&
+             commanderXaml.Contains("SelectionChanged=\\"OnCommanderSelected\\"") &&
+             commanderXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\\"True\\"") &&
+             commanderCode.Contains("CommanderCardInspector.InspectAsync(") &&
+             commanderCode.Contains("selection.Card.OracleText") &&
+             commanderCode.Contains("selection.Card.ImageUrl") &&
+             commanderCode.Contains("CommanderCardInspector?.Clear(") &&
+             mainXaml.Contains("x:Name=\\"EdhLabButton\\"") &&
+             mainCode.Contains("}, active.ReadOnlySnapshotPath)"),
+             "EDH commander discovery must use inline inspection without changing its filters or virtualized list.");
+        Must(deckLibraryXaml.Contains("x:Name=\\"DeckPreviewPanel\\"") &&
+             deckLibraryXaml.Contains("x:Name=\\"DeckContentsList\\"") &&
+             deckLibraryXaml.Contains("x:Name=\\"DeckCardInspector\\"") &&
+             deckLibraryXaml.Contains("local:NativeCardPeekPane") &&
+             deckLibraryXaml.Contains("SelectionChanged=\\"OnDeckContentsSelectionChanged\\"") &&
+             deckLibraryXaml.Contains("Click=\\"OnCloseDeckPreviewClicked\\"") &&
+             deckLibraryXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\\"True\\"") &&
+             deckLibraryCode.Contains("NativeDeckPreviewOutline.Build(selected)") &&
+             deckLibraryCode.Contains("RefreshDeckPreview(selectedDeck)") &&
+             deckLibraryCode.Contains("DeckCardInspector.InspectAsync(") &&
+             deckLibraryCode.Contains("not printing proof") &&
+             deckLibraryCode.Contains("Some imported entries are unsupported"),
+             "Saved decks must expose their actual card list and name-level ownership disclaimers in-place.");
+
+        var savedDeckOutline = new NativeDeckEditing.DeckRow(
+            0, "deck-id", "Preview deck", "Commander A", "Unfiled",
+            3, 7, 0, true,
+            "1 Commander A\\n2 Counterspell\\n4 Sol Ring", "sha", "Commander");
+        var outline = NativeDeckPreviewOutline.Build(savedDeckOutline);
+        Must(outline.Count == 3 &&
+             outline[0].Name == "Commander A" &&
+             outline[0].IsCommander && outline[0].Quantity == 1 &&
+             outline[0].QuantityLabel.Contains("CMD") &&
+             outline[1].Name == "Counterspell" && outline[1].Quantity == 2 &&
+             outline[2].Name == "Sol Ring" && outline[2].Quantity == 4 &&
+             outline.Sum(x => x.Quantity) == 7,
+             "Saving the commander in the mainboard must not add a phantom extra copy.");
+        var separateCommander = savedDeckOutline with {
+            Commander = "Other Commander",
+            MainboardText = "2 Counterspell\\n4 Sol Ring"
+        };
+        var separateOutline = NativeDeckPreviewOutline.Build(separateCommander);
+        Must(separateOutline.Count == 3 &&
+             separateOutline[0].Name == "Other Commander" &&
+             separateOutline[0].IsCommander &&
+             separateOutline[0].Quantity == 0 &&
+             separateOutline[0].QuantityLabel == "CMD" &&
+             separateOutline.Sum(x => x.Quantity) == 6,
+             "A separately stored commander is labeled without incrementing mainboard quantities.");
+
         var keys = app.Descendants()
             .Select(e => e.Attribute(XName.Get("Key", XamlNs))?.Value)
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -543,7 +616,8 @@ internal static class NativeVisualShellChecks
             "NativeCardDetailsWindow",
             "NativeDeckEditorWindow", "NativeImportDiffWindow", "NativeAddPrintingWindow",
             "NativeAdjustPhysicalWindow", "NativeArenaEditorWindow",
-            "NativeFreshStartWindow", "CommanderBrowserWindow"
+            "NativeFreshStartWindow", "CommanderBrowserWindow",
+            "NativeCardPeekPane"
         };
         foreach (var name in sourceWindows)
         {
