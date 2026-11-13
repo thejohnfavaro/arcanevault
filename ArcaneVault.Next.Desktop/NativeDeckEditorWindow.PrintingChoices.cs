@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using ArcaneVault.Next.Domain;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -43,7 +44,7 @@ public partial class NativeDeckEditorWindow
         MainboardPrintingStatus.Text = "Reading official printings from the local catalog…";
         try
         {
-            bool arena = edhLabFormat == ArcaneVault.Next.EDHLab.EdhLabFormat.ArenaBrawl;
+            bool arena = edhLabFormat == EdhLabFormat.ArenaBrawl;
             var gallery = await Task.Run(() => NativePrintingArtwork.Read(
                 catalogPath!, cardName, arenaOnly: arena));
             if (version != printingSelectionVersion || !IsLoaded ||
