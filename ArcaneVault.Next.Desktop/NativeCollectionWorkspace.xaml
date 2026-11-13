@@ -516,6 +516,30 @@
                                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Disabled">
                                     <StackPanel>
+                                        <!-- Name-level inventory check: entirely read-only. -->
+                                        <TextBlock Text="RECORDED COLLECTION COVERAGE"
+                                                   Style="{StaticResource VaultEyebrow}"
+                                                   Margin="0,2,0,6"/>
+                                        <ComboBox x:Name="DeckInspectorOwnershipPool"
+                                                  SelectedIndex="0"
+                                                  SelectionChanged="OnDeckInspectorOwnershipPoolChanged"
+                                                  Background="{DynamicResource VaultPanelRaised}"
+                                                  Foreground="{DynamicResource VaultText}"
+                                                  Margin="0,0,0,6"
+                                                  Padding="7,4"
+                                                  ToolTip="Compare the saved deck with either Physical or Arena recorded copies. This does not verify exact printings, format legality or card availability for multiple decks.">
+                                            <ComboBoxItem Content="Physical collection"/>
+                                            <ComboBoxItem Content="Arena collection"/>
+                                        </ComboBox>
+                                        <TextBlock x:Name="DeckInspectorCoverageSummary"
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource VaultText}"
+                                                   Margin="0,0,0,5"/>
+                                        <TextBlock x:Name="DeckInspectorCoverageGaps"
+                                                   FontSize="10.5" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource VaultMuted}"
+                                                   Margin="0,0,0,12"/>
                                         <TextBlock Text="MAINBOARD"
                                                    Style="{StaticResource VaultEyebrow}"
                                                    Margin="0,2,0,6"/>
@@ -548,6 +572,10 @@
                                                    Foreground="{DynamicResource VaultText}"
                                                    TextWrapping="Wrap" Margin="0,12,0,8"
                                                    Text="Choose a card to inspect"/>
+                                        <TextBlock x:Name="DeckInspectorCardAvailability"
+                                                   FontSize="11" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource VaultMuted}"
+                                                   Margin="0,0,0,8"/>
                                         <Border Width="158" Height="222" CornerRadius="9"
                                                 HorizontalAlignment="Center" ClipToBounds="True"
                                                 Background="{DynamicResource VaultPanel}"

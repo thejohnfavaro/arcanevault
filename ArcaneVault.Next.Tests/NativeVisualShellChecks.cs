@@ -67,6 +67,20 @@ internal static class NativeVisualShellChecks
              v65DeckShell.Contains("deckInspectVersion++;"),
              "Deck Library must show a persistent, read-only card inspector with stale-load protection.");
 
+        // v0.9.66: saved-deck name-level shortages are shown in-place,
+        // with explicit physical/Arena scope and no inferred legality or edits.
+        Must(v65DeckUi.Contains("x:Name=\"DeckInspectorOwnershipPool\"") &&
+             v65DeckUi.Contains("OnDeckInspectorOwnershipPoolChanged") &&
+             v65DeckUi.Contains("x:Name=\"DeckInspectorCoverageSummary\"") &&
+             v65DeckUi.Contains("x:Name=\"DeckInspectorCoverageGaps\"") &&
+             v65DeckUi.Contains("x:Name=\"DeckInspectorCardAvailability\"") &&
+             v65DeckCode.Contains("NativeDeckOwnedPicker.Review(") &&
+             v65DeckCode.Contains("NativeDeckOwnedPicker.CountOwned(") &&
+             v65DeckCode.Contains("UsesSeparateCommander(deck.Format)") &&
+             v65DeckCode.Contains("if (!deck.Editable)") &&
+             v65DeckCode.Contains("UpdateDeckInspectorCoverage();") &&
+             !v65DeckCode.Contains("NativeDeckEditing.Save("),
+             "Saved-deck inspector must compare recorded physical/Arena copies without modifying collection.");
         Must(v65CommanderUi.Contains("x:Name=\"CommanderInspectorPanel\"") &&
              v65CommanderUi.Contains("x:Name=\"CommanderInspectorArt\"") &&
              v65CommanderUi.Contains("x:Name=\"CommanderInspectorOracle\"") &&
