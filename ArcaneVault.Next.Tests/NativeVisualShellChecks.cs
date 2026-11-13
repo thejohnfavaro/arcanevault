@@ -1705,6 +1705,9 @@ internal static class NativeVisualShellChecks
              embeddedMain.Descendants().Any(x =>
                  x.Attribute(XName.Get("Name", XamlNs))?.Value == "EdhLabSurface") &&
              embeddedMainCode.Contains("OpenEmbeddedEdhDraft(editor)") &&
+             embeddedMainCode.Contains("OpenEdhLabAsync(preferDraft: false)") &&
+             embeddedMainCode.Contains("OpenEdhLabAsync(preferDraft: true)") &&
+             embeddedMainCode.Contains("if (preferDraft && embeddedEdhDraft is not null)") &&
              embeddedMainCode.Contains("DiscardEmbeddedEdhDraft()") &&
              embeddedMainCode.Contains("EdhLabSurface.Content = embeddedEdhDraft") &&
              libraryCode.Contains("editInEmbeddedEdhLab(selected, format,") &&
