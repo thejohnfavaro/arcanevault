@@ -1117,7 +1117,8 @@ internal static class NativeVisualShellChecks
              deckEditorCode.Contains("RefreshOwnedCards();") &&
              deckEditorCode.Contains("SetOwnedBrowserRows(results,") &&
              deckEditorCode.Contains("Correct the mainboard to refresh deck status:") &&
-             deckEditorCode.Contains("if (edhLabCommander is not null) RefreshOwnedCards();"),
+             deckEditorCode.Contains("RefreshMainboardManager();") &&
+             deckEditorCode.Contains("RefreshOwnedCards();"),
              "Deck-aware EDH browser must refresh on unsaved edits, retain preview and refuse stale counts.");
 
         foreach (string name in new[] {
