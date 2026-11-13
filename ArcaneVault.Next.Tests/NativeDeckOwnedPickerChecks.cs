@@ -95,6 +95,26 @@ internal static class NativeDeckOwnedPickerChecks
              arenaDraft.MissingCopies == 1 &&
              arenaDraft.Shortages.Single().Name == "Sol Ring",
              "Arena shortage must use only Arena inventory.");
+        // Shared commander/mainboard names must need an extra copy in both
+        // pool comparisons; Arena cannot borrow any of the physical copies.
+        var commanderInMainboard = NativeDeckOwnedPicker.Review(owned,
+            NativeDeckOwnedPicker.Pool.Physical, "4 Sol Ring", "Sol Ring", "Commander");
+        var commanderInArena = NativeDeckOwnedPicker.Review(owned,
+            NativeDeckOwnedPicker.Pool.Arena, "4 Sol Ring", "Sol Ring", "Commander");
+        Must(commanderInMainboard.TotalWithCommander == 5 &&
+             commanderInMainboard.CoveredCopies == 5 &&
+             commanderInMainboard.MissingCopies == 0 &&
+             commanderInArena.TotalWithCommander == 5 &&
+             commanderInArena.CoveredCopies == 1 &&
+             commanderInArena.MissingCopies == 4 &&
+             commanderInArena.Shortages.Single().Name == "Sol Ring",
+             "Read-only Deck Library coverage must include commander copies without mixing inventories.");
+        var emptyWithCommander = NativeDeckOwnedPicker.Review(owned,
+            NativeDeckOwnedPicker.Pool.Arena, "", "Arena Exclusive", "Arena Brawl");
+        Must(emptyWithCommander.MainboardCopies == 0 &&
+             emptyWithCommander.TotalWithCommander == 1 &&
+             emptyWithCommander.MissingCopies == 0,
+             "An empty mainboard with an Arena Brawl commander must still be accounted for.");
         var regularDraft = NativeDeckOwnedPicker.Review(owned,
             NativeDeckOwnedPicker.Pool.Physical,
             "1 Sol Ring", "Missing Commander", "60-card");
