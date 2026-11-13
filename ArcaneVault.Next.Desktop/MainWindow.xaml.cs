@@ -181,6 +181,7 @@ public partial class MainWindow : Window
         {
             closing = true;
             inspectorRequestVersion++;
+            DisconnectInAppNotices();
             catalogSyncCancellation?.Cancel();
             edhLabWindow?.Close();
             collectionWindow?.Close();
@@ -1202,6 +1203,7 @@ public partial class MainWindow : Window
                 ? $"★ {selection.Name} is already in My Shortlist."
                 : $"★ {selection.Name} saved to My Shortlist with native rollback protection. " +
                   "Ownership remains unchanged.";
+            NativeNoticeHub.Publish("My Shortlist", FilterStatus.Text);
             if (result.Saved)
             {
                 if (shortlistWindow is not null)
