@@ -1,0 +1,1469 @@
+<UserControl x:Class="ArcaneVault.Next.Desktop.NativeDeckEditorView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
+        Background="{DynamicResource VaultBackground}"
+        Foreground="{DynamicResource VaultText}">
+    <UserControl.Resources>
+        <Style x:Key="VaultDeckTabStyle" TargetType="{x:Type TabItem}">
+            <Setter Property="Background" Value="#252E3E"/>
+            <Setter Property="Foreground" Value="#E5ECF7"/>
+            <Setter Property="BorderBrush" Value="#586477"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabItem}">
+                        <Border x:Name="TabHeaderChrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="5,5,0,0"
+                                Padding="{TemplateBinding Padding}"
+                                Margin="{TemplateBinding Margin}">
+                            <ContentPresenter ContentSource="Header"
+                                              RecognizesAccessKey="True"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              TextElement.FontWeight="{TemplateBinding FontWeight}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabHeaderChrome" Property="Background" Value="#314F69"/>
+                                <Setter TargetName="TabHeaderChrome" Property="BorderBrush"
+                                        Value="{DynamicResource VaultAccentSurface}"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsSelected" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="TabHeaderChrome" Property="Background" Value="#3A475A"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="TabHeaderChrome" Property="BorderBrush" Value="#F0BB73"/>
+                                <Setter TargetName="TabHeaderChrome" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#99A4B4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <DataTemplate x:Key="DeckChartBarTemplate">
+            <Grid Margin="0,2,0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="92"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="34"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding Label}"
+                           FontSize="11" VerticalAlignment="Center"
+                           Foreground="#DBE2EE" TextTrimming="CharacterEllipsis"/>
+                <ProgressBar Grid.Column="1" Height="12" Minimum="0"
+                             Maximum="{Binding Maximum}" Value="{Binding Count}"
+                             Foreground="{Binding Fill}" Background="#283043"
+                             BorderThickness="0" VerticalAlignment="Center"
+                             IsHitTestVisible="False"/>
+                <TextBlock Grid.Column="2" Text="{Binding Count}"
+                           Margin="6,0,0,0" FontSize="11"
+                           VerticalAlignment="Center" HorizontalAlignment="Right"
+                           Foreground="#EDF2F7"/>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="HeaderText" Grid.Row="0" Text="Create saved deck"
+                   Foreground="{DynamicResource VaultText}"
+                   FontWeight="Bold" FontSize="25" Margin="0,0,0,7"/>
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}"
+                   Margin="0,0,0,8" Text="Edit a local deck with card browsing, mana and strategy tools. Review color identity, format legality and owned-card warnings before saving."/>
+        <Grid Grid.Row="2" Margin="0,0,0,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="14"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="14"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Deck name" Margin="0,0,0,6"/>
+                <TextBox x:Name="DeckNameBox" Padding="10,8" FontSize="14"
+                         Background="{DynamicResource VaultPanelRaised}"
+                         Foreground="{DynamicResource VaultText}"
+                         BorderBrush="{DynamicResource VaultEdgeLift}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Commander (optional)" Margin="0,0,0,6"/>
+                <TextBox x:Name="CommanderBox" TextChanged="OnDraftChanged" Padding="10,8" FontSize="14"
+                         Background="{DynamicResource VaultPanelRaised}"
+                         Foreground="{DynamicResource VaultText}"
+                         BorderBrush="{DynamicResource VaultEdgeLift}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="4">
+                <TextBlock Text="Deck format" Margin="0,0,0,6"/>
+                <ComboBox x:Name="FormatBox" IsEditable="True" SelectionChanged="OnFormatChanged"
+                          Padding="6,7" FontSize="13"
+                          Background="#D7E4EB" Foreground="#0D1017">
+                    <ComboBoxItem Content="Commander"/>
+                    <ComboBoxItem Content="Arena Brawl"/>
+                    <ComboBoxItem Content="60-card"/>
+                    <ComboBoxItem Content="Other"/>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12"
+                    VerticalAlignment="Center">
+            <TextBlock Text="Folder" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBox x:Name="FolderBox" Width="235" Padding="10,7"
+                     Text="Unfiled"
+                     Background="{DynamicResource VaultPanelRaised}"
+                     Foreground="{DynamicResource VaultText}"
+                     BorderBrush="{DynamicResource VaultEdgeLift}"
+                     ToolTip="Deck-library folder name (up to 64 characters)"/>
+            <CheckBox x:Name="FavoriteDeckBox" Content="★ Favorite"
+                      VerticalAlignment="Center" Margin="23,0,0,0"
+                      Foreground="#E5BF79"
+                      ToolTip="Show this deck first in the saved library"/>
+        </StackPanel>
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2.6*" MinWidth="275"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="2.9*" MinWidth="340"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="1.8*" MinWidth="220"/>
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
+                    <Button DockPanel.Dock="Right" Content="Sort A–Z"
+                            Click="OnSortMainboardClicked"
+                            Padding="9,3" Margin="8,0,0,0"
+                            Background="#202737" Foreground="White"
+                            BorderBrush="#514276"
+                            ToolTip="Sort the unsaved mainboard; rejects invalid lines rather than dropping them"/>
+                    <TextBlock Text="Mainboard — manage cards or edit text"
+                               VerticalAlignment="Center" Foreground="#E5BF79"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip="EDH Lab: select a card in Manage to preview and adjust its unsaved count. Text remains the authoritative deck list."/>
+                </DockPanel>
+                <TabControl Grid.Row="1" x:Name="MainboardModes"
+                            Background="{DynamicResource VaultPanel}"
+                            Foreground="{DynamicResource VaultText}"
+                            BorderBrush="{DynamicResource VaultEdgeLift}">
+                    <TabItem x:Name="MainboardManageTab" Header="Manage"
+                             Style="{StaticResource VaultDeckTabStyle}"
+                             Visibility="Collapsed">
+                        <Grid Margin="8,10,8,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="MainboardFilterBox" Grid.Column="0"
+                                          SelectedIndex="0" FontSize="11"
+                                          SelectionChanged="OnMainboardManagerFilterChanged"
+                                          Background="#D7E4EB" Foreground="#0D1017"
+                                          ToolTip="Show all cards or a particular type of card in the unsaved mainboard">
+                                    <ComboBoxItem Content="All cards" Tag="All"/>
+                                    <ComboBoxItem Content="Lands" Tag="Lands"/>
+                                    <ComboBoxItem Content="Creatures" Tag="Creatures"/>
+                                    <ComboBoxItem Content="Artifacts" Tag="Artifacts"/>
+                                    <ComboBoxItem Content="Enchantments" Tag="Enchantments"/>
+                                    <ComboBoxItem Content="Instants &amp; sorceries" Tag="Spells"/>
+                                    <ComboBoxItem Content="Other / unverified" Tag="Other"/>
+                                </ComboBox>
+                                <ComboBox x:Name="MainboardSortBox" Grid.Column="2"
+                                          SelectedIndex="0" FontSize="11"
+                                          SelectionChanged="OnMainboardManagerFilterChanged"
+                                          Background="#D7E4EB" Foreground="#0D1017"
+                                          ToolTip="Organize the visual view; sorting does not rewrite the source deck list">
+                                    <ComboBoxItem Content="By card type" Tag="Type"/>
+                                    <ComboBoxItem Content="Name A–Z" Tag="Name"/>
+                                    <ComboBoxItem Content="Quantity ↓" Tag="Quantity"/>
+                                </ComboBox>
+                            </Grid>
+                            <TextBlock Text="Search mainboard · name, type or role"
+                                       Margin="0,7,0,0" FontSize="10"
+                                       Foreground="{DynamicResource VaultMuted}"/>
+                            <TextBox x:Name="MainboardManagerSearchBox"
+                                     Margin="0,3,0,0" Padding="8,6"
+                                     MaxLength="255"
+                                     TextChanged="OnMainboardManagerSearchChanged"
+                                     ToolTip="Filter the unsaved mainboard by card name, type or role; never modifies deck contents"
+                                     Background="#202737" Foreground="White"
+                                     BorderBrush="#514276"/>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" x:Name="MainboardManagerStatus"
+                                       Text="Visual mainboard loading…"
+                                       Margin="0,0,0,7" FontSize="11"
+                                       Foreground="{DynamicResource VaultMuted}"
+                                       TextWrapping="Wrap"/>
+                            <ListBox Grid.Row="2" x:Name="MainboardManagerList"
+                                     SelectionChanged="OnMainboardManagerSelected"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     VirtualizingStackPanel.IsVirtualizing="True"
+                                     VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                     Background="{DynamicResource VaultPanelRaised}"
+                                     Foreground="{DynamicResource VaultText}"
+                                     BorderBrush="{DynamicResource VaultEdgeLift}">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="{x:Type ListBoxItem}">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding" Value="5,6"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                                <Setter Property="Background" Value="#252C3D"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="48"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- Virtualized row art: only a realized image may load.
+                                                 Fallback remains visible when art is missing/offline. -->
+                                            <Border Grid.RowSpan="2" Grid.Column="0"
+                                                    Width="40" Height="56" CornerRadius="3"
+                                                    Margin="0,0,8,0" ClipToBounds="True"
+                                                    BorderBrush="{DynamicResource VaultLine}"
+                                                    BorderThickness="1"
+                                                    Background="{DynamicResource VaultPanel}">
+                                                <Border.Style>
+                                                    <Style TargetType="{x:Type Border}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <TextBlock Text="✦" FontSize="18"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="{DynamicResource VaultMuted}"/>
+                                                    <Image Loaded="OnMainboardThumbnailLoaded"
+                                                           Unloaded="OnMainboardThumbnailUnloaded"
+                                                           DataContextChanged="OnMainboardThumbnailContextChanged"
+                                                           Stretch="UniformToFill"
+                                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                                           ToolTip="Illustrative official card artwork; not proof of an owned printing"/>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Grid.Row="0" Grid.Column="1"
+                                                       Text="{Binding NameLabel}" FontSize="12"
+                                                       FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Bottom"
+                                                       Foreground="{DynamicResource VaultText}"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="2"
+                                                       Text="{Binding QuantityLabel}"
+                                                       Margin="8,0,0,0" FontWeight="Bold"
+                                                       Foreground="#E5BF79" VerticalAlignment="Bottom"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1"
+                                                       Grid.ColumnSpan="2"
+                                                       Text="{Binding DetailsLabel}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource VaultMuted}"
+                                                       FontSize="10" Margin="0,3,0,0"
+                                                       VerticalAlignment="Top"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Grid.Row="3" x:Name="MainboardManagerSelectedText"
+                                       Text="Select a card to view its details and adjust its quantity."
+                                       Margin="0,9,0,5" FontSize="11"
+                                       Foreground="{DynamicResource VaultText}"
+                                       TextWrapping="Wrap"/>
+                            <WrapPanel Grid.Row="4">
+                                <Button x:Name="MainboardManagerMinus" Content="−1"
+                                        Click="OnMainboardManagerMinusClicked" IsEnabled="False"
+                                        Margin="0,0,6,4" Padding="10,6"
+                                        Background="#202737" Foreground="White"
+                                        BorderBrush="#514276"
+                                        ToolTip="Reduce the selected card quantity by one"/>
+                                <Button x:Name="MainboardManagerPlus" Content="+1"
+                                        Click="OnMainboardManagerPlusClicked" IsEnabled="False"
+                                        Margin="0,0,6,4" Padding="10,6"
+                                        Background="#202737" Foreground="White"
+                                        BorderBrush="#514276"
+                                        ToolTip="Increase a selected card only when its local format copy limit allows"/>
+                                <Button x:Name="MainboardManagerRemove" Content="Remove all"
+                                        Click="OnMainboardManagerRemoveClicked" IsEnabled="False"
+                                        Margin="0,0,0,4" Padding="9,6"
+                                        Background="#202737" Foreground="White"
+                                        BorderBrush="#514276"
+                                        ToolTip="Remove every copy of the selected mainboard card (unsaved; does not remove owned copies)"/>
+                            </WrapPanel>
+                            <StackPanel Grid.Row="5" Margin="0,7,0,0">
+                                <TextBlock Text="Deck-specific artwork printing"
+                                           Foreground="{DynamicResource VaultAccent}"/>
+                                <ComboBox x:Name="MainboardPrintingBox" IsEnabled="False"
+                                          DisplayMemberPath="Display" Background="#D7E4EB"
+                                          Foreground="#0D1017" Margin="0,4,0,4"/>
+                                <Button x:Name="MainboardPrintingApply" Content="Use selected printing"
+                                        Click="OnMainboardPrintingApplyClicked" IsEnabled="False"
+                                        Padding="9,5" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="MainboardPrintingStatus"
+                                           Text="Select a mainboard card to browse available printings."
+                                           TextWrapping="Wrap" FontSize="10.5" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource VaultMuted}"/>
+                            </StackPanel>
+                        </Grid>
+                    </TabItem>
+                    <TabItem x:Name="MainboardTextTab" Header="Text"
+                             Style="{StaticResource VaultDeckTabStyle}">
+                        <TextBox x:Name="MainboardBox" TextChanged="OnDraftChanged"
+                                 SelectionChanged="OnMainboardSelectionChanged"
+                                 GotKeyboardFocus="OnMainboardGotKeyboardFocus"
+                                 PreviewMouseLeftButtonUp="OnMainboardMouseReleased"
+                                 AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 FontSize="14" FontFamily="Consolas"
+                                 Padding="12" Background="{DynamicResource VaultPanel}"
+                                 Foreground="{DynamicResource VaultText}"
+                                 BorderBrush="{DynamicResource VaultEdgeLift}"/>
+                    </TabItem>
+                </TabControl>
+            </Grid>
+            <GridSplitter Grid.Column="1" Width="8" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          Background="#343A4D"/>
+            <TabControl x:Name="EdhWorkspaceTabs" Grid.Column="2" TabStripPlacement="Top"
+                        Background="{DynamicResource VaultPanel}"
+                        Foreground="{DynamicResource VaultText}"
+                        BorderBrush="{DynamicResource VaultEdgeLift}" Padding="3"
+                        Loaded="OnEdhWorkspaceLoaded"
+                        SizeChanged="OnEdhWorkspaceSizeChanged">
+                <TabItem x:Name="EdhCardsTab" Header="Cards" Style="{StaticResource VaultDeckTabStyle}">
+                    <Grid Margin="6,6,6,4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                    <TextBlock x:Name="OwnedCardsHeading" Text="Add from owned cards"
+                               Foreground="{DynamicResource VaultAccent}"/>
+                    <StackPanel x:Name="EdhSuggestionTools"
+                                Visibility="Collapsed" Margin="0,8,0,0">
+                        <StackPanel Margin="0,0,0,8">
+                            <CheckBox x:Name="EdhShowLandRecommendations"
+                                      Content="Recommend lands for this commander"
+                                      IsChecked="False" FontWeight="SemiBold"
+                                      Checked="OnEdhSuggestionsChanged"
+                                      Unchecked="OnEdhSuggestionsChanged"
+                                      ToolTip="Read-only, locally legal land matches. Owned and Proxy inventories stay separate."/>
+                            <DockPanel Margin="0,5,0,0" LastChildFill="True">
+                                <TextBlock Text="Land availability" Margin="0,0,8,0"
+                                           VerticalAlignment="Center"/>
+                                <ComboBox x:Name="EdhCardsLandAvailabilityBox" SelectedIndex="0"
+                                          SelectionChanged="OnEdhLandAvailabilityChanged"
+                                          Background="#D7E4EB" Foreground="#0D1017">
+                                    <ComboBoxItem Content="All eligible"/>
+                                    <ComboBoxItem Content="Owned only"/>
+                                    <ComboBoxItem Content="Proxy only (paper)"/>
+                                    <ComboBoxItem Content="Unowned only"/>
+                                </ComboBox>
+                            </DockPanel>
+                        </StackPanel>
+                        <Expander x:Name="EdhCardsFilters" Header="Filters &amp; commander matches"
+                                  IsExpanded="False" Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                        <CheckBox x:Name="EdhRecordedOnly" Content="Recorded in my inventory only"
+                                  Margin="0,0,0,7" IsChecked="True"
+                                  Checked="OnEdhSuggestionsChanged"
+                                  Unchecked="OnEdhSuggestionsChanged"/>
+                        <DockPanel LastChildFill="True" Margin="0,0,0,7">
+                            <TextBlock Text="Deck status" VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
+                            <ComboBox x:Name="EdhCardPresenceBox" SelectedIndex="0"
+                                      SelectionChanged="OnEdhCardPresenceChanged"
+                                      Background="#D7E4EB" Foreground="#0D1017"
+                                      ToolTip="Available: recorded eligible names not yet in the unsaved mainboard. In deck: eligible cards already in the mainboard (including unowned cards).">
+                                <ComboBoxItem Content="Available · not in deck" Tag="Available"/>
+                                <ComboBoxItem Content="In deck" Tag="InDeck"/>
+                                <ComboBoxItem Content="All eligible" Tag="All"/>
+                            </ComboBox>
+                        </DockPanel>
+                        <DockPanel LastChildFill="True" Margin="0,0,0,7">
+                            <TextBlock Text="Role hints" VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
+                            <ComboBox x:Name="EdhRoleBox" SelectedIndex="0"
+                                      SelectionChanged="OnEdhSuggestionsChanged"
+                                      Background="#D7E4EB" Foreground="#0D1017">
+                                <ComboBoxItem Content="All roles" Tag=""/>
+                                <ComboBoxItem Content="Lands" Tag="Land"/>
+                                <ComboBoxItem Content="Ramp" Tag="Ramp"/>
+                                <ComboBoxItem Content="Card Draw" Tag="Card Draw"/>
+                                <ComboBoxItem Content="Removal" Tag="Removal"/>
+                                <ComboBoxItem Content="Board Wipe" Tag="Board Wipe"/>
+                                <ComboBoxItem Content="Tutor" Tag="Tutor"/>
+                                <ComboBoxItem Content="Protection" Tag="Protection"/>
+                                <ComboBoxItem Content="Token Maker" Tag="Token Maker"/>
+                            </ComboBox>
+                        </DockPanel>
+                        <CheckBox x:Name="EdhPrioritizeSynergy"
+                                  Content="Commander mechanic matches first (owned first)"
+                                  IsChecked="True" Margin="0,0,0,6"
+                                  Checked="OnEdhSuggestionsChanged"
+                                  Unchecked="OnEdhSuggestionsChanged"
+                                  ToolTip="Advisory Oracle-text mechanic matches; does not estimate power or guarantee combos"/>
+                        <CheckBox x:Name="EdhSynergyOnly"
+                                  Content="Only show commander mechanic matches"
+                                  Margin="0,0,0,6"
+                                  Checked="OnEdhSuggestionsChanged"
+                                  Unchecked="OnEdhSuggestionsChanged"/>
+                        <TextBlock x:Name="EdhSynergyStatus" TextWrapping="Wrap"
+                                   Margin="0,0,0,6" FontSize="11"
+                                   Foreground="{DynamicResource VaultText}"
+                                   Text="Reading cached commander text for mechanic matches…"/>
+                        <TextBlock x:Name="EdhSuggestionsStatus" TextWrapping="Wrap"
+                                   FontSize="11" Foreground="{DynamicResource VaultMuted}"
+                                   Text="Local color-identity and legality suggestions loading…"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </StackPanel>
+                <ComboBox Grid.Row="1" x:Name="OwnedPoolBox"
+                          SelectionChanged="OnOwnedPoolChanged"
+                          Background="#D7E4EB" Foreground="#0D1017"
+                          Margin="0,0,0,8">
+                    <ComboBoxItem Content="Physical collection"/>
+                    <ComboBoxItem Content="Arena collection"/>
+                </ComboBox>
+                <StackPanel Grid.Row="2" Margin="0,0,0,6">
+                    <TextBox x:Name="OwnedSearchBox"
+                             TextChanged="OnOwnedSearchChanged"
+                             Padding="9,7" Margin="0,0,0,4"
+                             ToolTip="Filter card names; shows up to 200 eligible matches"
+                             Background="#202737" Foreground="White"
+                             BorderBrush="#514276"/>
+                    <TextBlock x:Name="EdhBrowserStatus" Visibility="Collapsed"
+                               Text="Deck-aware card status loading…"
+                               FontSize="10.5" TextWrapping="Wrap"
+                               Foreground="{DynamicResource VaultMuted}"/>
+                    <TextBlock x:Name="EdhClickInstructions" Visibility="Collapsed"
+                               Text="Single-click to preview · Double-click to add one copy"
+                               FontSize="11" Margin="0,3,0,0"
+                               Foreground="{DynamicResource VaultAccent}"/>
+                </StackPanel>
+                <ListBox Grid.Row="3" x:Name="OwnedCardsList"
+                         DisplayMemberPath="Display"
+                         SelectionChanged="OnOwnedCardSelectionChanged"
+                         PreviewMouseLeftButtonDown="OnOwnedCardPreviewMouseDown"
+                         Background="#171C28" Foreground="#F2F5FA"
+                         BorderBrush="#514276"/>
+                <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Add (+1)" Click="OnAddOwnedClicked"
+                            Padding="10,7" Margin="0,0,7,0"
+                            Background="#202737" Foreground="White" BorderBrush="#514276"/>
+                    <Button Content="Remove (−1)" Click="OnRemoveOwnedClicked"
+                            Padding="10,7"
+                            Background="#202737" Foreground="White" BorderBrush="#514276"
+                            ToolTip="Decrease the selected card's count in the unsaved deck; does not change ownership"/>
+                </StackPanel>
+                <TextBlock Grid.Row="5" x:Name="DeckSummaryText" Margin="0,12,0,5"
+                           TextWrapping="Wrap" Foreground="#E5BF79"
+                           Text="Deck totals will appear here."/>
+                <StackPanel Grid.Row="6">
+                    <TextBlock x:Name="DeckShortageText"
+                               TextWrapping="Wrap" Foreground="#C9A9A9"
+                               MaxHeight="100"
+                               ToolTip="Only the selected ownership pool is counted; missing copies are not auto-added."/>
+                    <TextBlock x:Name="EdhLegalityText"
+                               TextWrapping="Wrap" FontSize="11" Margin="0,7,0,0"
+                               Foreground="{DynamicResource VaultWarning}"/>
+                </StackPanel>
+                    </Grid>
+                </TabItem>
+                <TabItem x:Name="EdhManaTab" Header="Mana &amp; Roles" Visibility="Collapsed"
+                         Style="{StaticResource VaultDeckTabStyle}">
+                    <!-- Height is bounded at runtime to the available tab viewport;
+                         expanding multiple sections scrolls instead of overflowing. -->
+                    <ScrollViewer x:Name="EdhManaScroll" VerticalAlignment="Top"
+                                  VerticalScrollBarVisibility="Visible"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  CanContentScroll="False" PanningMode="VerticalOnly">
+                        <StackPanel Margin="10,8,10,12">
+                            <TextBlock Text="Mana base &amp; deck roles" FontSize="15"
+                                       FontWeight="SemiBold" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource VaultAccent}"/>
+                        <Border Margin="0,8,0,0" Padding="9" CornerRadius="7"
+                                Background="{DynamicResource VaultPanelRaised}"
+                                BorderBrush="{DynamicResource VaultLine}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="DECK BLUEPRINT" FontWeight="SemiBold"
+                                           FontSize="11" Foreground="{DynamicResource VaultAccent}"/>
+                                <TextBlock x:Name="EdhBlueprintText" Margin="0,5,0,6"
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Loading suggested role coverage…"/>
+                                <Button x:Name="EdhFindGapButton" Content="Find next role"
+                                        Click="OnEdhFindGapClicked" IsEnabled="False"
+                                        HorizontalAlignment="Left" Padding="9,5"
+                                        Foreground="{DynamicResource VaultText}"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Browse collection-owned eligible cards for the largest relative role gap; does not add or save cards"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock x:Name="EdhManaHeadline" Margin="0,8,0,3"
+                                   TextWrapping="Wrap" FontSize="11"
+                                   Foreground="{DynamicResource VaultAccent}"
+                                   Text="Mana base: evaluating local deck…"/>
+                        <Expander Header="Arena-style land balancing" IsExpanded="True"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Auto mode changes only regular basic-land counts in this unsaved draft. New EDH drafts start with auto mode enabled; saved decks are opt-in. Existing nonbasic and snow lands are preserved."/>
+                                <WrapPanel Margin="0,8,0,5" Orientation="Horizontal">
+                                    <CheckBox x:Name="EdhAutoBalanceLands"
+                                              Content="Auto-balance basics"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,9,5"
+                                              Checked="OnEdhAutoBalanceChanged"
+                                              Unchecked="OnEdhAutoBalanceChanged"/>
+                                    <TextBlock Text="Land target"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,5,5"/>
+                                    <TextBox x:Name="EdhLandTargetBox"
+                                             Width="38" Text="36" Padding="3,3"
+                                             Margin="0,0,8,5"
+                                             Background="{DynamicResource VaultPanel}"
+                                             Foreground="{DynamicResource VaultText}"
+                                             TextChanged="OnEdhLandTargetChanged"
+                                             ToolTip="Target 20–60 lands. The 99-card mainboard limit is always respected."/>
+                                    <Button x:Name="EdhBalanceNowButton" Content="Balance now"
+                                            Click="OnEdhBalanceNowClicked"
+                                            Margin="0,0,0,5" Padding="7,3"
+                                            Background="{DynamicResource VaultAccentMuted}"
+                                            Foreground="{DynamicResource VaultText}"
+                                            BorderBrush="{DynamicResource VaultAccentBorder}"/>
+                                </WrapPanel>
+                                <CheckBox x:Name="EdhWeightSpellPips"
+                                          Content="Weight basics by spell mana symbols"
+                                          IsChecked="True" Margin="0,1,0,6"
+                                          Checked="OnEdhPipModeChanged"
+                                          Unchecked="OnEdhPipModeChanged"
+                                          ToolTip="Smoothed colored mana requirements of nonland spells; requires a refreshed native Scryfall catalog, otherwise falls back to even split"/>
+                                <TextBlock x:Name="EdhManaDetails" TextWrapping="Wrap"
+                                           FontSize="11" Foreground="{DynamicResource VaultText}"
+                                           Text="Loading land advice…"/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander x:Name="EdhLandDiscoveryExpander"
+                                  Header="Lands I own / Proxy — commander identity"
+                                  IsExpanded="False" Margin="0,8,0,4"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,4">
+                                <TextBlock Text="Suggests locally eligible lands from your recorded physical/Arena collection. Paper proxies are marked separately and never valued. Mana-production icons reflect printed abilities or basic types, not color identity; fetchlands depend on their targets."
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,7"/>
+                                <TextBlock Text="COMMANDER COLOR IDENTITY"
+                                           Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <local:NativeManaStrip x:Name="EdhLandCommanderColors"
+                                                       Kind="Identity" SymbolSize="22"
+                                                       Margin="0,0,0,7"/>
+                                <WrapPanel Margin="0,0,0,8">
+                                    <StackPanel Margin="0,0,9,5">
+                                        <TextBlock Text="FIND LAND" Style="{StaticResource VaultEyebrow}"
+                                                   Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdhLandSearchBox" Width="188"
+                                                 MaxLength="255" Padding="7,5"
+                                                 Background="{DynamicResource VaultPanel}"
+                                                 Foreground="{DynamicResource VaultText}"
+                                                 TextChanged="OnLandDiscoveryFilterChanged"
+                                                 ToolTip="Search by name, land type (Shock, Tap, Fetch, etc.), or mana access. No collection changes."/>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,9,5">
+                                        <TextBlock Text="AVAILABILITY" Style="{StaticResource VaultEyebrow}"
+                                                   Margin="0,0,0,3"/>
+                                        <ComboBox x:Name="EdhLandAvailabilityBox"
+                                                  SelectedIndex="0" Width="172"
+                                                  SelectionChanged="OnLandDiscoveryFilterChanged"
+                                                  Background="{DynamicResource VaultPanel}"
+                                                  Foreground="{DynamicResource VaultText}">
+                                            <ComboBoxItem Content="Owned + Proxy"/>
+                                            <ComboBoxItem Content="Real owned only"/>
+                                            <ComboBoxItem Content="Proxy only (paper)"/>
+                                            <ComboBoxItem Content="All locally eligible"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <CheckBox x:Name="EdhLandIncludeBasics"
+                                              Content="Show basics"
+                                              Margin="0,18,0,4"
+                                              VerticalAlignment="Center"
+                                              Checked="OnLandDiscoveryFilterChanged"
+                                              Unchecked="OnLandDiscoveryFilterChanged"/>
+                                </WrapPanel>
+                                <TextBlock x:Name="EdhLandDiscoveryStatus"
+                                           Text="Waiting for local legal land candidates…"
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultAccent}"
+                                           Margin="0,0,0,6"/>
+                                <ListBox x:Name="EdhLandDiscoveryList"
+                                         Height="212" Margin="0,0,0,8"
+                                         SelectionChanged="OnLandDiscoverySelected"
+                                         PreviewMouseLeftButtonDown="OnLandDiscoveryPreviewMouseDown"
+                                         VirtualizingStackPanel.IsVirtualizing="True"
+                                         VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                         ScrollViewer.CanContentScroll="True"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultLine}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="5,5,5,6">
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource VaultText}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <WrapPanel Margin="0,3,0,3">
+                                                    <Border Background="{DynamicResource VaultAccentMuted}"
+                                                            BorderBrush="{DynamicResource VaultAccentBorder}"
+                                                            BorderThickness="1" CornerRadius="4"
+                                                            Padding="6,2" Margin="0,0,6,0">
+                                                        <TextBlock Text="{Binding LandCategory}"
+                                                                   Foreground="{DynamicResource VaultText}"
+                                                                   FontSize="10.5" FontWeight="SemiBold"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding EntryRequirement}"
+                                                               Foreground="{DynamicResource VaultMuted}"
+                                                               FontSize="10.5" VerticalAlignment="Center"
+                                                               TextWrapping="Wrap"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="{Binding AvailabilityLabel}"
+                                                           FontSize="10.5" Margin="0,3,0,3"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource VaultMuted}"/>
+                                                <WrapPanel>
+                                                    <local:NativeManaStrip Kind="Production"
+                                                                           Value="{Binding ProductionSymbols}"
+                                                                           SymbolSize="17"
+                                                                           VerticalAlignment="Center"
+                                                                           Margin="0,0,5,0"/>
+                                                    <TextBlock Text="{Binding AccessNote}"
+                                                               FontSize="10.5"
+                                                               Foreground="{DynamicResource VaultText}"
+                                                               TextWrapping="Wrap"
+                                                               VerticalAlignment="Center"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock x:Name="EdhLandSelectedNotes"
+                                           Text="Single-click a land to inspect its exact card text; double-click to add one eligible copy to the unsaved deck."
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,6"/>
+                                <Button x:Name="EdhLandAddButton"
+                                        Content="Add selected land once"
+                                        Click="OnLandDiscoveryAddClicked"
+                                        IsEnabled="False"
+                                        HorizontalAlignment="Left" Padding="9,6"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Explicitly add the selected locally legal land once. Existing land copies and ownership stay unchanged."/>
+                                <Border Margin="0,12,0,0" Padding="10" CornerRadius="6"
+                                        Background="{DynamicResource VaultPanelRaised}"
+                                        BorderBrush="{DynamicResource VaultLine}"
+                                        BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="REVIEWABLE MANA BASE"
+                                                   Foreground="{DynamicResource VaultAccent}"
+                                                   FontWeight="SemiBold" FontSize="11"/>
+                                        <TextBlock Text="Propose land changes for the current target and verified collection. Nonbasic lands and spells are never automatically removed. Review the exact changes before applying them to the unsaved draft."
+                                                   TextWrapping="Wrap" Margin="0,5,0,8"
+                                                   Foreground="{DynamicResource VaultMuted}"
+                                                   FontSize="11"/>
+                                        <Button x:Name="EdhManaBaseBuildButton"
+                                                Content="Build proposed mana base"
+                                                Click="OnEdhManaBaseBuildClicked"
+                                                Padding="10,6" IsEnabled="True"
+                                                HorizontalAlignment="Left"
+                                                Background="{DynamicResource VaultAccentMuted}"
+                                                Foreground="{DynamicResource VaultText}"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"/>
+                                        <TextBlock x:Name="EdhManaBasePlanStatus"
+                                                   Text="No proposal yet. Uses the land target above."
+                                                   TextWrapping="Wrap" FontSize="11"
+                                                   Margin="0,7,0,6"
+                                                   Foreground="{DynamicResource VaultText}"/>
+                                        <ListBox x:Name="EdhManaBasePlanChanges" Height="130"
+                                                 Background="{DynamicResource VaultPanel}"
+                                                 BorderBrush="{DynamicResource VaultLine}"
+                                                 Foreground="{DynamicResource VaultText}"
+                                                 VirtualizingStackPanel.IsVirtualizing="True">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Label}"
+                                                               TextWrapping="Wrap"
+                                                               FontSize="11"
+                                                               Margin="4,3"
+                                                               Foreground="{DynamicResource VaultText}"/>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <Button x:Name="EdhManaBaseApplyButton"
+                                                Content="Review and apply proposed changes"
+                                                Click="OnEdhManaBaseApplyClicked"
+                                                IsEnabled="False" Padding="10,6"
+                                                Margin="0,8,0,0"
+                                                HorizontalAlignment="Left"
+                                                Style="{StaticResource VaultPrimaryButton}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Expander>
+                        <TextBlock x:Name="EdhCurveHeadline" Margin="0,10,0,3"
+                                   TextWrapping="Wrap" FontSize="11"
+                                   Foreground="{DynamicResource VaultAccent}"
+                                   Text="Curve and casting consistency: evaluating draft…"/>
+                        <Expander Header="Mana curve &amp; casting consistency" IsExpanded="True"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,6"
+                                           Text="Read-only estimates: natural land drops from a 7-card opener with no mulligans; colored-source warnings are separate, approximate signals, not complete casting probabilities."/>
+                                <TextBlock x:Name="EdhCurveDetails"
+                                           FontFamily="Consolas" FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Waiting for local card metadata…"/>
+                            </StackPanel>
+                        </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem x:Name="EdhImproveTab" Header="Improve" Visibility="Collapsed"
+                         Style="{StaticResource VaultDeckTabStyle}">
+                    <ScrollViewer x:Name="EdhImproveScroll" VerticalAlignment="Top"
+                                  VerticalScrollBarVisibility="Visible"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  CanContentScroll="False" PanningMode="VerticalOnly">
+                        <StackPanel Margin="10,8,10,12">
+                            <TextBlock Text="Collection-aware improvements" FontSize="15"
+                                       FontWeight="SemiBold" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource VaultAccent}"/>
+                            <Border Background="{DynamicResource VaultPanelRaised}"
+                                    BorderBrush="{DynamicResource VaultLine}"
+                                    BorderThickness="1" CornerRadius="6"
+                                    Padding="9" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="DECK STRATEGY PRIORITY"
+                                               FontWeight="SemiBold" FontSize="11"
+                                               Foreground="{DynamicResource VaultAccent}"
+                                               Margin="0,0,0,5"/>
+                                    <ComboBox x:Name="EdhStrategyFocusBox"
+                                              SelectionChanged="OnEdhStrategyFocusChanged"
+                                              Background="{DynamicResource VaultPanel}"
+                                              Foreground="{DynamicResource VaultText}"
+                                              ToolTip="Choose which strategy matters most for card recommendations. This is an unsaved analysis preference; it will not modify your deck.">
+                                        <ComboBoxItem Content="Balanced" Tag="Balanced"/>
+                                        <ComboBoxItem Content="Faster starts" Tag="FastStart"/>
+                                        <ComboBoxItem Content="Card advantage" Tag="CardAdvantage"/>
+                                        <ComboBoxItem Content="Interaction &amp; protection" Tag="Interaction"/>
+                                        <ComboBoxItem Content="Commander synergy" Tag="CommanderSynergy"/>
+                                    </ComboBox>
+                                    <TextBlock x:Name="EdhStrategyExplanation"
+                                               TextWrapping="Wrap" FontSize="11"
+                                               Margin="0,6,0,0"
+                                               Foreground="{DynamicResource VaultMuted}"
+                                               Text="Balance curve, scarce roles, and recognized commander mechanics."/>
+                                    <TextBlock Text="Analysis only · not saved as a deck attribute · no automatic swaps"
+                                               TextWrapping="Wrap" FontSize="10"
+                                               Margin="0,5,0,0"
+                                               Foreground="{DynamicResource VaultMuted}"/>
+                                </StackPanel>
+                            </Border>
+                        <Expander x:Name="EdhMissingExpander"
+                                  Header="Resolve missing cards — recorded alternatives"
+                                  IsExpanded="True" Margin="0,2,0,9"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock x:Name="EdhMissingHeadline"
+                                           FontWeight="SemiBold" FontSize="12"
+                                           TextWrapping="Wrap" Margin="0,0,0,7"
+                                           Foreground="{DynamicResource VaultAccent}"
+                                           Text="Checking missing recorded copies…"/>
+                                <ListBox x:Name="EdhMissingShortagesList"
+                                         SelectionChanged="OnEdhMissingShortageSelected"
+                                         DisplayMemberPath="Display"
+                                         Height="114" Margin="0,0,0,6"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         ScrollViewer.CanContentScroll="True"
+                                         VirtualizingStackPanel.IsVirtualizing="True"/>
+                                <TextBlock x:Name="EdhMissingAlternativesStatus"
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,5"
+                                           Text="Choose a shortage to see recorded, format-eligible alternatives."/>
+                                <ListBox x:Name="EdhMissingAlternativesList"
+                                         SelectionChanged="OnEdhMissingAlternativeSelected"
+                                         DisplayMemberPath="Display"
+                                         Height="145" Margin="0,0,0,6"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         ScrollViewer.CanContentScroll="True"
+                                         VirtualizingStackPanel.IsVirtualizing="True"/>
+                                <TextBlock x:Name="EdhMissingAlternativeDetails"
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,7"
+                                           Text="Nothing will change until you explicitly confirm a swap."/>
+                                <!-- Wrap to one column on narrow Deck Studio panes; do not
+                                     stretch or clip the app's scrollable Improve tab. -->
+                                <StackPanel x:Name="EdhMissingComparisonPanel"
+                                            Visibility="Collapsed" Margin="0,4,0,10">
+                                    <TextBlock Text="CARD-BY-CARD COMPARISON"
+                                               Style="{StaticResource VaultEyebrow}"
+                                               Margin="0,0,0,6"/>
+                                    <WrapPanel Orientation="Horizontal">
+                                        <Border Width="224" CornerRadius="8" Padding="9"
+                                                Margin="0,0,8,8"
+                                                Background="{DynamicResource VaultPanel}"
+                                                BorderBrush="{DynamicResource VaultLine}"
+                                                BorderThickness="1">
+                                            <StackPanel>
+                                                <TextBlock Text="CURRENT · MISSING"
+                                                           Style="{StaticResource VaultEyebrow}"/>
+                                                <TextBlock x:Name="EdhCompareSourceName"
+                                                           TextWrapping="Wrap" FontWeight="SemiBold"
+                                                           FontSize="13" Margin="0,5,0,3"/>
+                                                <TextBlock x:Name="EdhCompareSourceType"
+                                                           TextWrapping="Wrap" FontSize="11"
+                                                           Foreground="{DynamicResource VaultMuted}"/>
+                                                <TextBlock x:Name="EdhCompareSourceManaValue"
+                                                           FontSize="11" Foreground="{DynamicResource VaultMuted}"/>
+                                                <FlowDocumentScrollViewer x:Name="EdhCompareSourceMana"
+                                                           Height="30" IsToolBarVisible="False"
+                                                           IsSelectionEnabled="True"
+                                                           Background="Transparent"
+                                                           BorderThickness="0"
+                                                           VerticalScrollBarVisibility="Hidden"
+                                                           HorizontalScrollBarVisibility="Disabled"/>
+                                                <TextBlock x:Name="EdhCompareSourceRoles"
+                                                           TextWrapping="Wrap" FontSize="11"
+                                                           Foreground="{DynamicResource VaultText}"
+                                                           Margin="0,4,0,0"/>
+                                                <TextBlock x:Name="EdhCompareSourceInventory"
+                                                           TextWrapping="Wrap" FontSize="10.5"
+                                                           Foreground="{DynamicResource VaultMuted}"
+                                                           Margin="0,4,0,6"/>
+                                                <FlowDocumentScrollViewer x:Name="EdhCompareSourceOracle"
+                                                           Height="135" IsToolBarVisible="False"
+                                                           IsSelectionEnabled="True"
+                                                           Background="Transparent"
+                                                           BorderThickness="0"
+                                                           VerticalScrollBarVisibility="Auto"
+                                                           HorizontalScrollBarVisibility="Disabled"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Width="224" CornerRadius="8" Padding="9"
+                                                Margin="0,0,0,8"
+                                                Background="{DynamicResource VaultPanel}"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                                BorderThickness="1">
+                                            <StackPanel>
+                                                <TextBlock Text="ALTERNATIVE · RECORDED"
+                                                           Style="{StaticResource VaultEyebrow}"/>
+                                                <TextBlock x:Name="EdhCompareCandidateName"
+                                                           TextWrapping="Wrap" FontWeight="SemiBold"
+                                                           FontSize="13" Margin="0,5,0,3"/>
+                                                <TextBlock x:Name="EdhCompareCandidateType"
+                                                           TextWrapping="Wrap" FontSize="11"
+                                                           Foreground="{DynamicResource VaultMuted}"/>
+                                                <TextBlock x:Name="EdhCompareCandidateManaValue"
+                                                           FontSize="11" Foreground="{DynamicResource VaultMuted}"/>
+                                                <FlowDocumentScrollViewer x:Name="EdhCompareCandidateMana"
+                                                           Height="30" IsToolBarVisible="False"
+                                                           IsSelectionEnabled="True"
+                                                           Background="Transparent"
+                                                           BorderThickness="0"
+                                                           VerticalScrollBarVisibility="Hidden"
+                                                           HorizontalScrollBarVisibility="Disabled"/>
+                                                <TextBlock x:Name="EdhCompareCandidateRoles"
+                                                           TextWrapping="Wrap" FontSize="11"
+                                                           Foreground="{DynamicResource VaultText}"
+                                                           Margin="0,4,0,0"/>
+                                                <TextBlock x:Name="EdhCompareCandidateInventory"
+                                                           TextWrapping="Wrap" FontSize="10.5"
+                                                           Foreground="{DynamicResource VaultMuted}"
+                                                           Margin="0,4,0,6"/>
+                                                <FlowDocumentScrollViewer x:Name="EdhCompareCandidateOracle"
+                                                           Height="135" IsToolBarVisible="False"
+                                                           IsSelectionEnabled="True"
+                                                           Background="Transparent"
+                                                           BorderThickness="0"
+                                                           VerticalScrollBarVisibility="Auto"
+                                                           HorizontalScrollBarVisibility="Disabled"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </WrapPanel>
+                                    <TextBlock Text="WHY THIS RANKED HERE"
+                                               Style="{StaticResource VaultEyebrow}"
+                                               Margin="0,2,0,5"/>
+                                    <TextBlock x:Name="EdhMissingRankingRationale"
+                                               TextWrapping="Wrap" FontSize="11"
+                                               Foreground="{DynamicResource VaultText}"/>
+                                    <TextBlock Text="Heuristic role matching is not a rules-equivalence, legality or deck-power guarantee."
+                                               TextWrapping="Wrap" FontSize="10"
+                                               Foreground="{DynamicResource VaultMuted}"
+                                               Margin="0,5,0,0"/>
+                                </StackPanel>
+                                <Expander x:Name="EdhMissingImpactPanel"
+                                          Header="Projected whole-deck impact · read-only"
+                                          IsExpanded="True"
+                                          Visibility="Collapsed"
+                                          Background="{DynamicResource VaultPanelRaised}"
+                                          BorderBrush="{DynamicResource VaultAccentBorder}"
+                                          BorderThickness="1" Padding="8"
+                                          Margin="0,6,0,10">
+                                    <StackPanel>
+                                        <TextBlock x:Name="EdhMissingImpactSummary"
+                                                   FontSize="11" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource VaultText}"/>
+                                        <TextBlock x:Name="EdhMissingImpactAvailability"
+                                                   FontSize="11" TextWrapping="Wrap"
+                                                   Margin="0,7,0,0"
+                                                   Foreground="{DynamicResource VaultAccent}"/>
+                                        <TextBlock Text="Simulation only: text-derived role targets, available copies and commander signals are not a full rules engine."
+                                                   FontSize="10" TextWrapping="Wrap"
+                                                   Margin="0,6,0,0"
+                                                   Foreground="{DynamicResource VaultMuted}"/>
+                                    </StackPanel>
+                                </Expander>
+                                <Button x:Name="EdhApplyMissingSwapButton"
+                                        Content="Replace one copy in unsaved draft"
+                                        Click="OnEdhApplyMissingSwapClicked"
+                                        IsEnabled="False"
+                                        HorizontalAlignment="Left"
+                                        Padding="9,5"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Review an eligible recorded replacement, then confirm a one-for-one unsaved draft change. Review and save remains separate."/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander Header="Deck health — strategy and coverage review"
+                                  IsExpanded="True" Margin="0,2,0,9"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock x:Name="EdhHealthHeadline" FontSize="12"
+                                           FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource VaultAccent}"
+                                           Text="Evaluating deck construction…"/>
+                                <TextBlock x:Name="EdhHealthOverview" FontSize="11"
+                                           Margin="0,5,0,7" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Checking local card metadata and role hints…"/>
+                                <ListBox x:Name="EdhHealthAreasList" Height="164"
+                                         SelectionChanged="OnEdhHealthSelectionChanged"
+                                         DisplayMemberPath="Display"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultAccentBorder}"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                <TextBlock x:Name="EdhHealthAreaDetails" FontSize="11"
+                                           TextWrapping="Wrap" Margin="0,8,0,6"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Select a coverage area to see its assumptions and recorded eligible alternatives."/>
+                                <TextBlock x:Name="EdhHealthNextStep" FontSize="11"
+                                           TextWrapping="Wrap" Margin="0,0,0,7"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Recommendations are optional."/>
+                                <Button x:Name="EdhHealthBrowseButton"
+                                        Content="Inspect owned candidate in Cards"
+                                        Click="OnEdhHealthBrowseClicked"
+                                        IsEnabled="False"
+                                        Padding="9,5"
+                                        HorizontalAlignment="Left"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Open the existing manual deck-building search; this does not change your deck, collection or saved data."/>
+                            </StackPanel>
+                        </Expander>
+                        <TextBlock x:Name="EdhOptimizationHeadline"
+                                   Margin="0,10,0,3" TextWrapping="Wrap"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource VaultAccent}"
+                                   Text="Optimization: evaluating owned early spells…"/>
+                        <Expander Header="Collection-aware deck optimization" IsExpanded="True"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock TextWrapping="Wrap" FontSize="11"
+                                           Margin="0,0,0,7"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Advisory curve thresholds, never automatic cuts. Suggestions come only from locally eligible, unused recorded cards for this deck's format and color identity."/>
+                                <TextBlock x:Name="EdhOptimizationDetails"
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Loading recorded improvement candidates…"/>
+                                <Button x:Name="EdhBrowseImprovementsButton"
+                                        Content="Browse owned early-play candidates"
+                                        Click="OnEdhBrowseImprovementsClicked"
+                                        IsEnabled="False" Margin="0,8,0,0"
+                                        HorizontalAlignment="Left"
+                                        Padding="9,5"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Filter the existing EDH Lab card browser to owned, format-eligible early-play options; does not swap, remove, add, craft or save anything"/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander Header="Commander synergy packages — inspect or add"
+                                  IsExpanded="False" Margin="0,3,0,9"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock Text="MECHANIC" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,3"/>
+                                <ComboBox x:Name="EdhPackageThemeBox" Margin="0,0,0,6"
+                                          SelectionChanged="OnEdhPackageThemeChanged"
+                                          Background="{DynamicResource VaultPanel}"
+                                          Foreground="{DynamicResource VaultText}"
+                                          ToolTip="Choose one recognized commander mechanic or show all."/>
+                                <TextBlock x:Name="EdhPackagesStatus" TextWrapping="Wrap"
+                                           FontSize="11" Margin="0,0,0,7"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Reading cached commander mechanics…"/>
+                                <ListBox x:Name="EdhPackagesList" Height="166"
+                                         SelectionChanged="OnEdhPackageSelectionChanged"
+                                         PreviewMouseLeftButtonDown="OnEdhPackagePreviewMouseDown"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultAccentBorder}"
+                                         DisplayMemberPath="Display"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                <TextBlock Text="Single-click to preview · Double-click an eligible card to add"
+                                           FontSize="11" Margin="0,7,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource VaultAccent}"/>
+                                <Button x:Name="EdhPackageAddButton"
+                                        Content="Add selected package card"
+                                        Click="OnEdhPackageAddClicked"
+                                        IsEnabled="False"
+                                        Padding="9,6" Margin="0,6,0,0"
+                                        HorizontalAlignment="Left"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Add one locally eligible card to the UNSAVED mainboard. In-deck and invalid candidates are disabled; ownership is never changed."/>
+                                <TextBlock x:Name="EdhPackagePreviewText"
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Margin="0,7,0,0"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Select a package card to inspect exact text and artwork. Only a deliberate double-click or Add action changes the unsaved deck."/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander Header="Synergy chains — possible two-card links"
+                                  IsExpanded="False" Margin="0,3,0,9"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock x:Name="EdhChainsStatus" TextWrapping="Wrap"
+                                           FontSize="11" Margin="0,0,0,6"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Checking conservative local two-card interaction cues…"/>
+                                <ListBox x:Name="EdhChainsList" Height="150"
+                                         SelectionChanged="OnEdhChainSelectionChanged"
+                                         DisplayMemberPath="Display"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultAccentBorder}"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                <Grid Margin="0,8,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="ENABLER" Foreground="{DynamicResource VaultAccent}"
+                                                   FontWeight="SemiBold" FontSize="10" Margin="0,0,0,3"/>
+                                        <Border Height="132" Background="{DynamicResource VaultPanel}"
+                                                BorderBrush="{DynamicResource VaultLine}" BorderThickness="1"
+                                                CornerRadius="5">
+                                            <Grid>
+                                                <TextBlock x:Name="EdhChainEnablerFallback"
+                                                           Text="Choose a chain" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource VaultMuted}"
+                                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                <Image x:Name="EdhChainEnablerArt" Visibility="Collapsed"
+                                                       Stretch="Uniform"/>
+                                            </Grid>
+                                        </Border>
+                                        <Button x:Name="EdhChainEnablerButton" Content="Inspect enabler"
+                                                Click="OnEdhInspectEnablerClicked" IsEnabled="False"
+                                                Padding="6,5" Margin="0,5,0,0"
+                                                Background="{DynamicResource VaultPanel}"
+                                                Foreground="{DynamicResource VaultText}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="PAYOFF" Foreground="{DynamicResource VaultAccent}"
+                                                   FontWeight="SemiBold" FontSize="10" Margin="0,0,0,3"/>
+                                        <Border Height="132" Background="{DynamicResource VaultPanel}"
+                                                BorderBrush="{DynamicResource VaultLine}" BorderThickness="1"
+                                                CornerRadius="5">
+                                            <Grid>
+                                                <TextBlock x:Name="EdhChainPayoffFallback"
+                                                           Text="Choose a chain" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource VaultMuted}"
+                                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                <Image x:Name="EdhChainPayoffArt" Visibility="Collapsed"
+                                                       Stretch="Uniform"/>
+                                            </Grid>
+                                        </Border>
+                                        <Button x:Name="EdhChainPayoffButton" Content="Inspect payoff"
+                                                Click="OnEdhInspectPayoffClicked" IsEnabled="False"
+                                                Padding="6,5" Margin="0,5,0,0"
+                                                Background="{DynamicResource VaultPanel}"
+                                                Foreground="{DynamicResource VaultText}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Button x:Name="EdhChainJumpButton" Content="Locate owned missing link in Cards"
+                                        Click="OnEdhChainJumpClicked" IsEnabled="False"
+                                        Padding="7,5" Margin="0,0,0,7"
+                                        Background="{DynamicResource VaultPanel}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        ToolTip="Browse the highlighted missing link with the usual manual deck editing flow; does not add a card."/>
+                                <TextBlock x:Name="EdhChainDetails" TextWrapping="Wrap"
+                                           FontSize="11" Margin="0,7,0,0"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Select a possible chain to inspect the suggested card. These are text cues, not verified combos."/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander Header="Three-card engines — inspect possible pathways"
+                                  IsExpanded="False" Margin="0,3,0,9"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock x:Name="EdhEnginesStatus"
+                                           Foreground="{DynamicResource VaultText}"
+                                           TextWrapping="Wrap" FontSize="11" Margin="0,0,0,7"
+                                           Text="Checking three-card pathways from cached Oracle text…"/>
+                                <ListBox x:Name="EdhEnginesList" Height="150"
+                                         SelectionChanged="OnEdhEngineSelectionChanged"
+                                         DisplayMemberPath="Display"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultAccentBorder}"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                <TextBlock x:Name="EdhEngineDetails" TextWrapping="Wrap"
+                                           Margin="0,8,0,6" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Select a pathway to inspect all three cards. This is not a verified combo."/>
+                                <WrapPanel>
+                                    <Button x:Name="EdhEngineProducerButton"
+                                            Content="Inspect producer" IsEnabled="False"
+                                            Click="OnEdhInspectProducerClicked"
+                                            Padding="7,5" Margin="0,0,5,5"
+                                            Background="{DynamicResource VaultPanel}"
+                                            Foreground="{DynamicResource VaultText}"/>
+                                    <Button x:Name="EdhEngineBridgeButton"
+                                            Content="Inspect bridge" IsEnabled="False"
+                                            Click="OnEdhInspectBridgeClicked"
+                                            Padding="7,5" Margin="0,0,5,5"
+                                            Background="{DynamicResource VaultPanel}"
+                                            Foreground="{DynamicResource VaultText}"/>
+                                    <Button x:Name="EdhEnginePayoffButton"
+                                            Content="Inspect payoff" IsEnabled="False"
+                                            Click="OnEdhInspectEnginePayoffClicked"
+                                            Padding="7,5" Margin="0,0,5,5"
+                                            Background="{DynamicResource VaultPanel}"
+                                            Foreground="{DynamicResource VaultText}"/>
+                                </WrapPanel>
+                                <Button x:Name="EdhEngineFindMissingButton"
+                                        Content="Find owned missing engine link in Cards"
+                                        IsEnabled="False"
+                                        Click="OnEdhEngineFindMissingClicked"
+                                        Padding="7,5"
+                                        Background="{DynamicResource VaultPanel}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        ToolTip="Open existing manual card picker; this does not add, purchase or save anything."/>
+                            </StackPanel>
+                        </Expander>
+                        <TextBlock x:Name="EdhSwapHeadline" Margin="0,10,0,3"
+                                   TextWrapping="Wrap" FontSize="11"
+                                   Foreground="{DynamicResource VaultAccent}"
+                                   Text="Swap Lab: checking role-aware cuts…"/>
+                        <Expander Header="Swap Lab — review one-for-one edits"
+                                  IsExpanded="True"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,3">
+                                <TextBlock TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,7"
+                                           Text="Opt-in, heuristic swaps only. Suggestions use unused owned cards, keep locally tracked critical roles and identified commander synergy, and never edit the saved deck or collection."/>
+                                <TextBlock x:Name="EdhSwapStatus" TextWrapping="Wrap"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource VaultText}"
+                                           Text="Waiting for eligible deck suggestions…"/>
+                                <ListBox x:Name="EdhSwapProposalsList" Height="116"
+                                         Margin="0,7,0,4"
+                                         DisplayMemberPath="Display"
+                                         SelectionChanged="OnEdhSwapSelectionChanged"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultLine}"/>
+                                <TextBlock x:Name="EdhSwapPreviewText"
+                                           Margin="0,5,0,7" TextWrapping="Wrap"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Text="Select a proposed cut and replacement to inspect the tradeoff."/>
+                                <Button x:Name="EdhApplySwapButton"
+                                        Content="Apply selected swap to unsaved draft…"
+                                        Click="OnEdhApplySwapClicked"
+                                        IsEnabled="False"
+                                        HorizontalAlignment="Left" Padding="9,6"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Requires explicit confirmation; protected native Review and Save is still separate"/>
+                            </StackPanel>
+                        </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+            <GridSplitter Grid.Column="3" Width="8" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          Background="#343A4D"/>
+            <Border Grid.Column="4" CornerRadius="9" Padding="12"
+                    Background="#171C28" BorderBrush="#514276" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="CARD PREVIEW" FontSize="11"
+                               Foreground="#E5BF79" FontWeight="SemiBold"
+                               Margin="0,0,0,6"/>
+                    <TextBlock x:Name="PreviewCardName" Grid.Row="1"
+                               FontSize="15" FontWeight="SemiBold" Foreground="#F0F1F6"
+                               TextWrapping="Wrap" Text="Select an owned card"
+                               Margin="0,0,0,5"/>
+                    <TextBlock x:Name="PreviewOwnership" Grid.Row="2"
+                               FontSize="11" Foreground="#70B992"
+                               TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Border CornerRadius="7" Background="#242A3C"
+                                    BorderBrush="#514276" BorderThickness="1"
+                                    Padding="6" HorizontalAlignment="Center">
+                                <Grid Width="152" Height="210">
+                                    <TextBlock x:Name="PreviewArtFallback"
+                                               Text="ARCANE VAULT&#10;Card artwork"
+                                               TextAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="#9DA9BD" FontSize="12"/>
+                                    <Image x:Name="PreviewArtwork" Visibility="Collapsed"
+                                           Stretch="Uniform" SnapsToDevicePixels="True"/>
+                                </Grid>
+                            </Border>
+                            <TextBlock x:Name="PreviewSynergyText" Margin="0,9,0,4"
+                                       TextWrapping="Wrap" FontSize="11"
+                                       Foreground="{DynamicResource VaultAccent}"
+                                       Text="Commander mechanic matches appear here."/>
+                            <TextBlock x:Name="PreviewMetadata" Margin="0,9,0,4"
+                                       TextWrapping="Wrap" FontSize="11"
+                                       Foreground="#D8DEEB"
+                                       Text="Select a card to see local catalog information."/>
+                            <TextBlock Text="MANA COST" Style="{StaticResource VaultEyebrow}"
+                                       Margin="0,8,0,5"/>
+                            <local:NativeManaStrip x:Name="PreviewManaCost"
+                                                   Kind="Cost" SymbolSize="21"
+                                                   AutomationProperties.Name="Exact casting mana cost for previewed card"/>
+                            <TextBlock Text="COLOR IDENTITY" Style="{StaticResource VaultEyebrow}"
+                                       Margin="0,8,0,5"/>
+                            <local:NativeManaStrip x:Name="PreviewColorIdentity"
+                                                   Kind="Identity" SymbolSize="20"
+                                                   AutomationProperties.Name="Official color identity of previewed card"/>
+                            <TextBlock Text="ORACLE TEXT" Margin="0,10,0,6"
+                                       Style="{StaticResource VaultEyebrow}"/>
+                            <FlowDocumentScrollViewer x:Name="PreviewOracleText"
+                                                      Height="190" Margin="0,0,0,5"
+                                                      Background="Transparent"
+                                                      Foreground="{DynamicResource VaultText}"
+                                                      BorderThickness="0"
+                                                      IsToolBarVisible="False"
+                                                      IsSelectionEnabled="True"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      AutomationProperties.Name="Draft card Oracle text with official mana symbols"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock x:Name="PreviewStatus" Grid.Row="4"
+                               Margin="0,8,0,0" FontSize="10"
+                               Foreground="#9DA9BD" TextWrapping="Wrap"
+                               Text="Preview is read-only. Artwork is illustrative, not proof of an owned printing."/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <WrapPanel Grid.Row="5" Margin="0,10,0,0">
+            <Button Content="Import .txt" Click="OnImportTextClicked"
+                    Padding="11,8" Margin="0,0,8,4"
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
+            <Button Content="Paste Arena list" Click="OnPasteDeckClicked"
+                    Padding="11,8" Margin="0,0,8,4"
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
+            <Button Content="Copy Arena list" Click="OnCopyDeckClicked"
+                    Padding="11,8" Margin="0,0,8,4"
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
+            <Button Content="Export .txt" Click="OnExportTextClicked"
+                    Padding="11,8" Margin="0,0,8,4"
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
+            <Button x:Name="AnalyzeDeckButton" Content="Analyze deck"
+                    Click="OnAnalyzeDeckClicked" Padding="11,8" Margin="0,0,8,4"
+                    Background="#473A70" Foreground="White" BorderBrush="#7663B3"/>
+        </WrapPanel>
+        <Grid Grid.Row="6" Margin="0,10,0,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Expander x:Name="AnalyticsPanel" Grid.Row="0"
+                      IsExpanded="False" MaxHeight="310"
+                      Background="#171C28" BorderBrush="#514276"
+                      BorderThickness="1" Padding="8">
+                <Expander.Header>
+                    <TextBlock Text="Deck analytics · mana curve / color identity / card types"
+                               FontWeight="SemiBold" Foreground="#E5BF79"/>
+                </Expander.Header>
+                <StackPanel Margin="6,8,6,4">
+                    <TextBlock x:Name="AnalyticsText" TextWrapping="Wrap"
+                               Foreground="#B8D8D0" FontSize="12"
+                               Text="Select Analyze deck to load offline deck statistics."/>
+                    <ScrollViewer MaxHeight="226" Margin="0,10,0,0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <Grid x:Name="AnalyticsCharts" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="MANA CURVE" Foreground="#E5BF79"
+                                           FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <ItemsControl x:Name="ManaCurveBars"
+                                              ItemTemplate="{StaticResource DeckChartBarTemplate}"/>
+                                <TextBlock x:Name="AverageManaText" Margin="0,7,0,0"
+                                           FontSize="11" Foreground="#B5C1D3"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="COLOR IDENTITY" Foreground="#E5BF79"
+                                           FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <ItemsControl x:Name="ColorIdentityBars"
+                                              ItemTemplate="{StaticResource DeckChartBarTemplate}"/>
+                                <TextBlock Text="Exclusive identity groups, by copies"
+                                           Margin="0,7,0,0" FontSize="11"
+                                           Foreground="#B5C1D3" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="CARD TYPES" Foreground="#E5BF79"
+                                           FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <ItemsControl x:Name="CardTypeBars"
+                                              ItemTemplate="{StaticResource DeckChartBarTemplate}"/>
+                                <TextBlock Text="One primary type per card copy"
+                                           Margin="0,7,0,0" FontSize="11"
+                                           Foreground="#B5C1D3" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </StackPanel>
+            </Expander>
+            <TextBlock x:Name="StatusText" Grid.Row="1" Margin="0,6,0,0"
+                       Foreground="#9DA9BD" TextWrapping="Wrap"
+                       Text="Every successful save retains the complete previous native collection as a recovery file."/>
+        </Grid>
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" IsCancel="True"
+                    Padding="18,10" Margin="0,0,12,0"
+                    Background="#202737" Foreground="White" BorderBrush="#514276"/>
+            <Button x:Name="SaveDeckButton" Content="Review and save deck"
+                    Click="OnSaveDeckClicked" Padding="18,10"
+                    Background="#7663B3" Foreground="White" BorderBrush="#B59BFC"/>
+        </StackPanel>
+    </Grid>
+</UserControl>
