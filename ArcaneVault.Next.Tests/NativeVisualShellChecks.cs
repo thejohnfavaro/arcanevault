@@ -1590,6 +1590,97 @@ internal static class NativeVisualShellChecks
              NativeManaIdentity.ParseColorIdentity("").Single().Symbol == "C" &&
              NativeManaIdentity.ParseColorIdentity("unknown").Count == 0,
              "Mana identity icons must preserve WUBRG order, colorless fallback and unknown-data safety.");
+        // v0.9.78: Native mana cost and identity must be separate icon
+        // presentations, not printed W/U/B/R/G letters or improvised pips.
+        static string[] ManaPieces(string? raw, NativeManaStrip.Presentation kind) =>
+            NativeManaStrip.Pieces(raw, kind)
+                .Where(x => x.IsSymbol).Select(x => x.Text).ToArray();
+        Must(ManaPieces("{2}{U}", NativeManaStrip.Presentation.Cost)
+                 .SequenceEqual(new[] { "2", "U" }) &&
+             ManaPieces("{U}{U}", NativeManaStrip.Presentation.Cost)
+                 .SequenceEqual(new[] { "U", "U" }) &&
+             ManaPieces("{W/U}{2/U}{U/P}{C}{X}{S}{T}{Q}",
+                 NativeManaStrip.Presentation.Cost)
+                 .SequenceEqual(new[] { "W/U", "2/U", "U/P", "C", "X", "S", "T", "Q" }) &&
+             ManaPieces("{X}{G} // {1}{U}",
+                 NativeManaStrip.Presentation.Cost)
+                 .SequenceEqual(new[] { "X", "G", "1", "U" }) &&
+             string.Concat(NativeManaStrip.Pieces("{2}{U}",
+                 NativeManaStrip.Presentation.Cost).Select(x =>
+                     x.IsSymbol ? "{" + x.Text + "}" : x.Text)) == "{2}{U}" &&
+             ManaPieces("U,U,W", NativeManaStrip.Presentation.Identity)
+                 .SequenceEqual(new[] { "W", "U" }) &&
+             ManaPieces("WUBRG", NativeManaStrip.Presentation.Identity)
+                 .SequenceEqual(new[] { "W", "U", "B", "R", "G" }) &&
+             ManaPieces("Colorless", NativeManaStrip.Presentation.Identity)
+                 .SequenceEqual(new[] { "C" }) &&
+             NativeManaStrip.Pieces("literal text without symbols",
+                 NativeManaStrip.Presentation.Cost).Single() is
+                 { Text: "literal text without symbols", IsSymbol: false },
+             "Official cost tokens must preserve generic/hybrid/Phyrexian symbols " +
+             "and identity must remain ordered, distinct, and independent.");
+
+        var catalogColorFilters = XDocument.Load(
+            Path.Combine(dir, "MainWindow.xaml"));
+        var commanderColorFilters = XDocument.Load(
+            Path.Combine(dir, "CommanderBrowserWindow.xaml"));
+        foreach (var (name, symbol) in new[] {
+            ("ColorWBox", "W"), ("ColorUBox", "U"),
+            ("ColorBBox", "B"), ("ColorRBox", "R"),
+            ("ColorGBox", "G"), ("ColorlessOnlyBox", "C") })
+        {
+            var control = catalogColorFilters.Descendants().FirstOrDefault(x =>
+                x.Attribute(XName.Get("Name", XamlNs))?.Value == name);
+            Must(control?.Descendants().Any(x =>
+                     x.Name.LocalName == "NativeManaSymbol" &&
+                     x.Attribute("Symbol")?.Value == symbol) == true &&
+                 control.Attribute("Content") is null,
+                 "Catalog WUBRG filter " + name +
+                 " must use the official symbol instead of a letter.");
+        }
+        foreach (var (name, symbol) in new[] {
+            ("WhiteColor", "W"), ("BlueColor", "U"),
+            ("BlackColor", "B"), ("RedColor", "R"),
+            ("GreenColor", "G"), ("Colorless", "C") })
+        {
+            var control = commanderColorFilters.Descendants().FirstOrDefault(x =>
+                x.Attribute(XName.Get("Name", XamlNs))?.Value == name);
+            Must(control?.Descendants().Any(x =>
+                     x.Name.LocalName == "NativeManaSymbol" &&
+                     x.Attribute("Symbol")?.Value == symbol) == true &&
+                 control.Attribute("Content") is null,
+                 "Commander color filter " + name +
+                 " must use the official symbol instead of a letter.");
+        }
+        var commanderUI = File.ReadAllText(
+            Path.Combine(dir, "CommanderBrowserWindow.xaml"));
+        var deckSymbolUI = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
+        var symbolStripCode = File.ReadAllText(
+            Path.Combine(dir, "NativeManaStrip.cs"));
+        var catalogReviewCode = File.ReadAllText(Path.Combine(
+            dir, "..", "ArcaneVault.Next.Collection",
+            "CollectionCatalogReview.cs"));
+        Must(commanderUI.Contains("Kind=\"Identity\"") &&
+             commanderUI.Contains("Value=\"{Binding Card.ColorIdentity}\"") &&
+             commanderUI.Contains("x:Name=\"CommanderInspectorManaCost\"") &&
+             main.Contains("x:Name=\"InspectorManaCost\"") &&
+             dockedCode.Contains("InspectorManaCost.Value = details.ManaCost;") &&
+             deckSymbolUI.Contains("x:Name=\"PreviewManaCost\"") &&
+             deckSymbolUI.Contains("x:Name=\"PreviewColorIdentity\"") &&
+             draftEditorCode.Contains("PreviewManaCost.Value = preview.Info.ManaCost;") &&
+             draftEditorCode.Contains("PreviewColorIdentity.Value = preview.Info.ColorIdentity;") &&
+             detailsXaml.Contains("x:Name=\"CardManaCost\"") &&
+             detailsCode.Contains("CardManaCost.Value = info.ManaCost;") &&
+             deckCardsXaml.Contains("x:Name=\"DeckInspectorManaCost\"") &&
+             v65DeckCode.Contains("DeckInspectorManaCost.Value = details.ManaCost;") &&
+             symbolStripCode.Contains("new NativeManaSymbol") &&
+             symbolStripCode.Contains("NativeOracleSymbolTokenizer.Split(value)") &&
+             catalogReviewCode.Contains("SELECT mana_cost FROM cards") &&
+             catalogReviewCode.Contains("catch (SqliteException)"),
+             "Audited card inspector/list surfaces must show official exact costs " +
+             "and identities using shared cached symbol paths, including old-schema fallback.");
+
         var deckCardsXaml = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
         Must(deckCardsXaml.Contains("Width=\"108\" Height=\"145\"") &&
