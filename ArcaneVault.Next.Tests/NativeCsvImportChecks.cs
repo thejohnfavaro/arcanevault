@@ -166,6 +166,25 @@ internal static class NativeCsvImportChecks
              physicalDiff.Lines.Single(x => x.Card == "Sol Ring").Imported == 3 &&
              physicalDiff.Lines.Single(x => x.Card == "Sol Ring").Delta == 2,
              "Physical CSV diff must consolidate file duplicates and show precise desired-minus-local quantities.");
+        // v0.9.57 source integrity audit reports duplicate source rows,
+        // unresolved copies and complete scope coverage before commit.
+        Must(physicalDiff.Audit.SourceRows == 5 &&
+             physicalDiff.Audit.DistinctIdentities == 4 &&
+             physicalDiff.Audit.CollapsedDuplicateRows == 1 &&
+             physicalDiff.Audit.SourceCopies == 15 &&
+             physicalDiff.Audit.UnresolvedRows == 2 &&
+             physicalDiff.Audit.UnresolvedCopies == 9 &&
+             physicalDiff.Audit.AmbiguousRows == 0 &&
+             physicalDiff.Audit.TargetQuantitiesMatch &&
+             physicalDiff.Audit.EntireScopeMatchesSnapshot &&
+             physicalDiff.Audit.ProposedScopeCopies == 15,
+             "Import audit must distinguish source rows, duplicate identities, unresolved printing risk and complete coverage.");
+        Must(physicalDiff.Lines.Where(x => x.Verification.StartsWith("Unresolved"))
+                 .Count() == 2 &&
+             physicalDiff.Lines.Any(x => x.Verification.Contains(
+                 "exact printing not established", StringComparison.OrdinalIgnoreCase)),
+             "Each unresolved identity must retain the catalog verification reason.");
+
         var physicalCommitted = NativeWorkspaceSafety.ReconcilePhysicalImport(
             reconciledPath, catalog, rows, original.BackupSha256,
             physicalDiff.CandidateSha256);
@@ -178,7 +197,10 @@ internal static class NativeCsvImportChecks
         var noChange = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
             reconciledPath, catalog, rows, physicalCommitted.Current.BackupSha256);
         Must(!noChange.HasChanges && noChange.UnchangedRows == 4 &&
-             noChange.NetCopies == 0,
+             noChange.NetCopies == 0 &&
+             noChange.Audit.TargetQuantitiesMatch &&
+             noChange.Audit.EntireScopeMatchesSnapshot &&
+             noChange.Audit.ProposedScopeCopies == 15,
              "Importing identical CSV a second time must become a genuine no-op.");
         Reject(() => NativeWorkspaceSafety.ReconcilePhysicalImport(
             reconciledPath, catalog, rows, physicalCommitted.Current.BackupSha256,
@@ -195,7 +217,11 @@ internal static class NativeCsvImportChecks
         var smallerDiff = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
             reconciledPath, catalog, smaller, physicalCommitted.Current.BackupSha256);
         Must(smallerDiff.HasChanges && smallerDiff.NetCopies == -2 &&
-             smallerDiff.LocalOnlyRows == 3 && smallerDiff.Lines.Single().Action == "Adjusted",
+             smallerDiff.LocalOnlyRows == 3 &&
+             smallerDiff.Audit.LocalOnlyRows == 3 &&
+             smallerDiff.Audit.LocalOnlyCopies == 12 &&
+             !smallerDiff.Audit.EntireScopeMatchesSnapshot &&
+             smallerDiff.Lines.Single().Action == "Adjusted",
              "Lower imported quantities must subtract only the difference while preserving unlisted local cards.");
         var smallerCommit = NativeWorkspaceSafety.ReconcilePhysicalImport(
             reconciledPath, catalog, smaller, physicalCommitted.Current.BackupSha256,
@@ -212,7 +238,9 @@ internal static class NativeCsvImportChecks
         var zeroRows = NativeCsvCollectionImport.Read(zeroCsv);
         var zeroDiff = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
             reconciledPath, catalog, zeroRows, smallerCommit.Current.BackupSha256);
-        Must(zeroDiff.RemovedRows == 1 && zeroDiff.NetCopies == -1,
+        Must(zeroDiff.RemovedRows == 1 && zeroDiff.NetCopies == -1 &&
+             zeroDiff.Audit.ZeroQuantityRows == 1 &&
+             zeroDiff.Audit.TargetQuantitiesMatch,
              "An explicit zero should preview removal of exactly that printing.");
         var zeroCommit = NativeWorkspaceSafety.ReconcilePhysicalImport(
             reconciledPath, catalog, zeroRows, smallerCommit.Current.BackupSha256,
@@ -234,7 +262,12 @@ internal static class NativeCsvImportChecks
         var arenaDiff = NativeWorkspaceSafety.PreviewArenaReconciliation(
             arenaPath, arenaRows, arenaStart.BackupSha256);
         Must(arenaDiff.AddedRows == 1 && arenaDiff.UnchangedRows == 1 &&
-             arenaDiff.NetCopies == 5 && arenaDiff.Lines.Single(x =>
+             arenaDiff.NetCopies == 5 &&
+             arenaDiff.Audit.SourceRows == 3 &&
+             arenaDiff.Audit.CollapsedDuplicateRows == 1 &&
+             arenaDiff.Audit.SourceCopies == 9 &&
+             arenaDiff.Audit.UnresolvedRows == 0 &&
+             arenaDiff.Audit.EntireScopeMatchesSnapshot && arenaDiff.Lines.Single(x =>
                  x.Card == "New Digital Card").Imported == 5,
              "Arena diff should merge duplicate source names but leave equal existing quantities alone.");
         var arenaCommit = NativeWorkspaceSafety.ReconcileArenaImport(
@@ -262,5 +295,39 @@ internal static class NativeCsvImportChecks
              arenaReduced.Current.Collection.ArenaCards.Any(x =>
                  x.Name == "New Digital Card" && x.Quantity == 5),
              "Arena quantities should be reconciled, not incremented or globally replaced.");
+
+        // Ambiguous set/collector matches remain explicitly unresolved, never
+        // assigned a random Scryfall printing identifier. Import audit warns
+        // even if the candidate's quantities are internally consistent.
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = catalog, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString()))
+        {
+            db.Open();
+            using var insert = db.CreateCommand();
+            insert.CommandText = """
+                INSERT INTO variants VALUES
+                ('00000000-0000-4000-8000-000000000503',
+                 'Sol Ring','tst','21','paper',0);
+                """;
+            insert.ExecuteNonQuery();
+        }
+        var ambiguousRows = new[]
+        {
+            new NativeExcelCollectionImport.Row(2, "Sol Ring", 2,
+                "tst", "21", "foil", "")
+        };
+        var ambiguousPrepared = NativeExcelCollectionImport.Prepare(
+            ambiguousRows, catalog);
+        var ambiguousDiff = NativeCollectionReconciliation.Physical(
+            Backup(), ambiguousPrepared);
+        Must(ambiguousDiff.Audit.AmbiguousRows == 1 &&
+             ambiguousDiff.Audit.UnresolvedRows == 1 &&
+             ambiguousDiff.Audit.UnresolvedCopies == 2 &&
+             ambiguousDiff.Audit.LocalOnlyRows == 1 &&
+             !ambiguousDiff.Audit.EntireScopeMatchesSnapshot &&
+             ambiguousDiff.Lines.Single().Verification.Contains(
+                 "ambiguous matching printings", StringComparison.OrdinalIgnoreCase),
+             "Ambiguous physical variants must be surfaced with a precise warning, not automatically verified.");
+
     }
 }
