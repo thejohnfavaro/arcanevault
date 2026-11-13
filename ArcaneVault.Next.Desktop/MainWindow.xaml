@@ -7,6 +7,49 @@
         Background="{DynamicResource VaultBackground}"
         Foreground="{DynamicResource VaultText}">
     <Window.Resources>
+        <Style x:Key="VaultColorToggleStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="MinWidth" Value="41"/>
+            <Setter Property="Height" Value="37"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Margin" Value="0,0,7,6"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="ToggleChrome" CornerRadius="7"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ToggleChrome" Property="Background"
+                                        Value="{DynamicResource VaultAccentSurface}"/>
+                                <Setter TargetName="ToggleChrome" Property="BorderBrush"
+                                        Value="{DynamicResource VaultAccent}"/>
+                                <Setter TargetName="ToggleChrome" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ToggleChrome" Property="BorderBrush"
+                                        Value="{DynamicResource VaultAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ToggleChrome" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <!-- Catalog pages render at most 200 local results at a time; never
              launch remote art requests during list scrolling. -->
         <DataTemplate x:Key="CatalogCompactTemplate">
@@ -517,60 +560,67 @@
                                     <ComboBoxItem Content="Owned on Arena (card name)"/>
                                     <ComboBoxItem Content="Not owned on Arena (name)"/>
                                 </ComboBox>
+                                <CheckBox x:Name="CatalogIncludeProxiesBox"
+                                          Content="Include Proxies"
+                                          IsEnabled="True" IsChecked="False"
+                                          Checked="OnCatalogFilterChanged"
+                                          Unchecked="OnCatalogFilterChanged"
+                                          Margin="0,7,0,0"
+                                          Foreground="{DynamicResource VaultText}"
+                                          ToolTip="With Owned physical printing, also show names recorded as paper proxies. These are not verified owned printings, are shown once per name, and never contribute to prices or collection value."/>
                             </StackPanel>
                         </WrapPanel>
                         <WrapPanel VerticalAlignment="Center">
                             <TextBlock Text="COLOR IDENTITY" Style="{StaticResource VaultEyebrow}"
                                        VerticalAlignment="Center" Margin="0,0,11,6"/>
-                            <CheckBox x:Name="ColorWBox" Margin="0,0,10,6"
-                                      Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged">
-                                <StackPanel Orientation="Horizontal">
-                                    <local:NativeManaSymbol Symbol="W" Width="20" Height="20" Margin="0,0,4,0"/>
-                                    <TextBlock Text="White" FontSize="11" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </CheckBox>
-                            <CheckBox x:Name="ColorUBox" Margin="0,0,10,6"
-                                      Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged">
-                                <StackPanel Orientation="Horizontal">
-                                    <local:NativeManaSymbol Symbol="U" Width="20" Height="20" Margin="0,0,4,0"/>
-                                    <TextBlock Text="Blue" FontSize="11" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </CheckBox>
-                            <CheckBox x:Name="ColorBBox" Margin="0,0,10,6"
-                                      Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged">
-                                <StackPanel Orientation="Horizontal">
-                                    <local:NativeManaSymbol Symbol="B" Width="20" Height="20" Margin="0,0,4,0"/>
-                                    <TextBlock Text="Black" FontSize="11" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </CheckBox>
-                            <CheckBox x:Name="ColorRBox" Margin="0,0,10,6"
-                                      Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged">
-                                <StackPanel Orientation="Horizontal">
-                                    <local:NativeManaSymbol Symbol="R" Width="20" Height="20" Margin="0,0,4,0"/>
-                                    <TextBlock Text="Red" FontSize="11" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </CheckBox>
-                            <CheckBox x:Name="ColorGBox" Margin="0,0,10,6"
-                                      Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged">
-                                <StackPanel Orientation="Horizontal">
-                                    <local:NativeManaSymbol Symbol="G" Width="20" Height="20" Margin="0,0,4,0"/>
-                                    <TextBlock Text="Green" FontSize="11" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </CheckBox>
-                            <CheckBox x:Name="ColorlessOnlyBox"
-                                      Margin="0,0,13,6"
-                                      Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged">
-                                <StackPanel Orientation="Horizontal">
-                                    <local:NativeManaSymbol Symbol="C" Width="20" Height="20" Margin="0,0,4,0"/>
-                                    <TextBlock Text="Colorless" FontSize="11" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </CheckBox>
+                            <ToggleButton x:Name="ColorWBox"
+                                          Style="{StaticResource VaultColorToggleStyle}"
+                                          ToolTip="White color identity — click to toggle"
+                                          AutomationProperties.Name="White color identity filter"
+                                          Checked="OnCatalogFilterChanged"
+                                          Unchecked="OnCatalogFilterChanged">
+                                <local:NativeManaSymbol Symbol="W" Width="22" Height="22"/>
+                            </ToggleButton>
+                            <ToggleButton x:Name="ColorUBox"
+                                          Style="{StaticResource VaultColorToggleStyle}"
+                                          ToolTip="Blue color identity — click to toggle"
+                                          AutomationProperties.Name="Blue color identity filter"
+                                          Checked="OnCatalogFilterChanged"
+                                          Unchecked="OnCatalogFilterChanged">
+                                <local:NativeManaSymbol Symbol="U" Width="22" Height="22"/>
+                            </ToggleButton>
+                            <ToggleButton x:Name="ColorBBox"
+                                          Style="{StaticResource VaultColorToggleStyle}"
+                                          ToolTip="Black color identity — click to toggle"
+                                          AutomationProperties.Name="Black color identity filter"
+                                          Checked="OnCatalogFilterChanged"
+                                          Unchecked="OnCatalogFilterChanged">
+                                <local:NativeManaSymbol Symbol="B" Width="22" Height="22"/>
+                            </ToggleButton>
+                            <ToggleButton x:Name="ColorRBox"
+                                          Style="{StaticResource VaultColorToggleStyle}"
+                                          ToolTip="Red color identity — click to toggle"
+                                          AutomationProperties.Name="Red color identity filter"
+                                          Checked="OnCatalogFilterChanged"
+                                          Unchecked="OnCatalogFilterChanged">
+                                <local:NativeManaSymbol Symbol="R" Width="22" Height="22"/>
+                            </ToggleButton>
+                            <ToggleButton x:Name="ColorGBox"
+                                          Style="{StaticResource VaultColorToggleStyle}"
+                                          ToolTip="Green color identity — click to toggle"
+                                          AutomationProperties.Name="Green color identity filter"
+                                          Checked="OnCatalogFilterChanged"
+                                          Unchecked="OnCatalogFilterChanged">
+                                <local:NativeManaSymbol Symbol="G" Width="22" Height="22"/>
+                            </ToggleButton>
+                            <ToggleButton x:Name="ColorlessOnlyBox"
+                                          Style="{StaticResource VaultColorToggleStyle}"
+                                          ToolTip="Colorless identity only — click to toggle"
+                                          AutomationProperties.Name="Colorless identity filter"
+                                          Checked="OnCatalogFilterChanged"
+                                          Unchecked="OnCatalogFilterChanged">
+                                <local:NativeManaSymbol Symbol="C" Width="22" Height="22"/>
+                            </ToggleButton>
                             <ComboBox x:Name="ColorMatchBox" SelectedIndex="0"
                                       SelectionChanged="OnCatalogFilterChanged"
                                       Width="127" Height="28" Margin="0,0,0,6"
