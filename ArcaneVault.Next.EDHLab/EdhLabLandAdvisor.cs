@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace ArcaneVault.Next.EDHLab;
@@ -16,6 +18,19 @@ public static class EdhLabLandAdvisor
         ["Plains", "Island", "Swamp", "Mountain", "Forest"];
 
     public enum Availability { OwnedOrProxy, RealOwned, Proxy, All }
+
+    private sealed record BaseLand(EdhLabDraftCatalog.Card Card,
+        string ProductionSymbols, string AccessNote, bool FetchesLand,
+        bool AnyColor, bool Conditional, int CoveredCommanderColors);
+    private sealed class CachedLandSet
+    {
+        public ConcurrentDictionary<int, IReadOnlyList<BaseLand>> ByColors { get; } = new();
+    }
+    // Weak catalog key: recompute Oracle production only after a different
+    // verified local catalog snapshot or commander identity; cheap search,
+    // filter, sorting and draft edits never reparse all land Oracle texts.
+    private static readonly ConditionalWeakTable<
+        IReadOnlyList<EdhLabDraftCatalog.Card>, CachedLandSet> Parsed = new();
 
     public sealed record Land(
         string Name, string Type, string Oracle,
@@ -162,20 +177,29 @@ public static class EdhLabLandAdvisor
             "Land search is too long.", nameof(search));
         int allowed = EdhLabCommanderRules.ColorBits(commanderColors);
 
-        var lands = eligibleCards.Where(card => IsLand(card.Type))
-            .Select(card =>
-            {
-                long proxy = paperProxies?.GetValueOrDefault(card.Name) ?? 0;
-                int drafted = inDeck?.GetValueOrDefault(card.Name) ?? 0;
-                if (proxy < 0 || drafted < 0)
-                    throw new InvalidDataException("Invalid land availability totals.");
-                var access = Production(card, allowed);
-                return new Land(card.Name, card.Type, card.Oracle,
-                    card.RecordedCopies, proxy, drafted,
-                    access.Symbols, access.Note, access.Fetch,
-                    access.Any, access.Conditional, access.Colors,
-                    card.IsBasicLand, card.SuggestedCopyLimit);
-            }).ToArray();
+        var cache = Parsed.GetValue(eligibleCards, _ => new CachedLandSet());
+        var landBases = cache.ByColors.GetOrAdd(allowed, identity =>
+            eligibleCards.Where(card => IsLand(card.Type))
+                .Select(card =>
+                {
+                    var access = Production(card, identity);
+                    return new BaseLand(card, access.Symbols, access.Note,
+                        access.Fetch, access.Any, access.Conditional,
+                        access.Colors);
+                }).ToArray());
+        var lands = landBases.Select(item =>
+        {
+            var card = item.Card;
+            long proxy = paperProxies?.GetValueOrDefault(card.Name) ?? 0;
+            int drafted = inDeck?.GetValueOrDefault(card.Name) ?? 0;
+            if (proxy < 0 || drafted < 0)
+                throw new InvalidDataException("Invalid land availability totals.");
+            return new Land(card.Name, card.Type, card.Oracle,
+                card.RecordedCopies, proxy, drafted,
+                item.ProductionSymbols, item.AccessNote, item.FetchesLand,
+                item.AnyColor, item.Conditional, item.CoveredCommanderColors,
+                card.IsBasicLand, card.SuggestedCopyLimit);
+        }).ToArray();
 
         bool MatchesFilter(Land x) => filter switch
         {
