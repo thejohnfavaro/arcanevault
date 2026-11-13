@@ -136,6 +136,36 @@ internal static class EdhLabDraftChecks
         var arena = EdhLabDraftCatalog.OpenReadOnly(catalog, ownership,
             "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
 
+        // v0.9.67: Missing-card replacements must be candidate-only until
+        // an explicit unsaved edit. Inventory, color and format gating are
+        // inherited from the pre-verified local EDH draft catalog.
+        var paperMissingDraw = EdhLabMissingCardAdvisor.Analyze(paper,
+            new[] { (Name: "Heavy Insight", Quantity: 1) }, "Heavy Insight");
+        Must(paperMissingDraw.Any(x => x.Name == "Tiny Insight" &&
+             x.UnusedRecordedCopies == 1) &&
+             !paperMissingDraw.Any(x => x.Name == "Lightning Bolt") &&
+             paperMissingDraw.All(x => x.SharedRoles.Contains("Card Draw")),
+             "Missing-card review must recommend only unused recorded legal role matches.");
+        Must(!EdhLabMissingCardAdvisor.Analyze(paper,
+            new[] { (Name: "Heavy Insight", Quantity: 1),
+                    (Name: "Tiny Insight", Quantity: 1) },
+            "Heavy Insight").Any(x => x.Name == "Tiny Insight") &&
+             EdhLabMissingCardAdvisor.Analyze(paper,
+                new[] { (Name: "Heavy Generic", Quantity: 1) },
+                "Heavy Generic").Count == 0 &&
+             EdhLabMissingCardAdvisor.Analyze(paper,
+                new[] { (Name: "Not in catalog", Quantity: 1) },
+                "Not in catalog").Count == 0,
+             "Exhausted, unrecognized and uncataloged source names must not yield invented replacements.");
+        var arenaMissingDraw = EdhLabMissingCardAdvisor.Analyze(arena,
+            new[] { (Name: "Heavy Insight", Quantity: 1) }, "Heavy Insight");
+        Must(arenaMissingDraw.Any(x => x.Name == "Brainstorm") &&
+             !arenaMissingDraw.Any(x => x.Name == "Tiny Insight" ||
+                 x.Name == "Counterspell" || x.Name == "Swords to Plowshares") &&
+             EdhLabMissingCardAdvisor.Analyze(arena,
+                 Array.Empty<(string Name, int Quantity)>(),
+                 "Heavy Insight").Count == 0,
+             "Arena-only review must never borrow Physical inventory or propose commander-only cuts.");
         // Package views share the existing offline commander rules and legal
         // snapshot. They must not mistake exhausted cards for available copies.
         var packageDraft = new (string Name, int Quantity)[]
