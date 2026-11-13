@@ -824,6 +824,21 @@ internal static class NativeVisualShellChecks
                     match.Groups[1].Value);
         }
 
+        // The native tab header uses its own contrast-safe template.
+        // Default Windows light theme selected-tab brushes must not override it.
+        string deckEditorXml = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
+        Must(deckEditorXml.Contains("x:Key=\"VaultDeckTabStyle\"", StringComparison.Ordinal) &&
+             deckEditorXml.Contains("x:Name=\"TabHeaderChrome\"", StringComparison.Ordinal) &&
+             deckEditorXml.Contains("ContentSource=\"Header\"", StringComparison.Ordinal) &&
+             deckEditorXml.Contains("TextElement.Foreground=\"{TemplateBinding Foreground}\"",
+                 StringComparison.Ordinal) &&
+             deckEditorXml.Contains("<Trigger Property=\"IsSelected\" Value=\"True\">",
+                 StringComparison.Ordinal) &&
+             deckEditorXml.Contains("Property=\"Foreground\" Value=\"#FFFFFF\"",
+                 StringComparison.Ordinal),
+             "EDH tab selected header must retain contrast in system light themes.");
+
         string main = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
         string optionsXml = File.ReadAllText(Path.Combine(dir, "NativeOptionsWindow.xaml"));
         var optionsDoc = XDocument.Parse(optionsXml);
