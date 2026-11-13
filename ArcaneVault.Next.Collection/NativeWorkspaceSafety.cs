@@ -177,6 +177,12 @@ public static class NativeWorkspaceSafety
         {
             string path = Path.GetFullPath(nativePath);
             CheckCurrent(path, expectedCurrentBackupSha);
+            // A legacy full export does not know proxyCards exists.
+            // Preserve the independent non-valued proxy ledger unless this
+            // is an explicit user-approved whole-workspace fresh start.
+            if (sourceDescription != "fresh-native-collection")
+                incoming = NativeProxyEditing.CarryForwardIfUnspecified(
+                    ReadPreservedBackup(path), incoming);
             var comparison = Compare(path, incoming);
             if (!comparison.HasChanges)
                 throw new InvalidDataException("The native collection is already up to date.");
