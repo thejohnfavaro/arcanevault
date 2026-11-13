@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private CatalogSnapshot? catalogSnapshot;
     private NativeCatalogOwnership? catalogOwnership;
     private CommanderBrowserView? edhLabWindow;
+    private NativeDeckEditorView? embeddedEdhDraft;
     private bool edhLabRequested;
     private NativeCollectionWindow? collectionWindow; // explicit read-only backup preview only
     private NativeCollectionWorkspace? nativeWorkspaceView;
@@ -1671,12 +1672,106 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ShowEmbeddedEdhDraft()
+    {
+        if (embeddedEdhDraft is null) return;
+        EdhLabSurface.Content = embeddedEdhDraft;
+        EdhReturnToDraftButton.IsEnabled = true;
+        nativeWorkspaceRequested = false;
+        edhLabRequested = true;
+        UpdateWorkspaceNavigation();
+    }
+
+    private void OpenEmbeddedEdhDraft(NativeDeckEditorView editor)
+    {
+        if (embeddedEdhDraft is not null)
+            throw new InvalidOperationException("A draft is already open.");
+        embeddedEdhDraft = editor;
+        editor.Saved += OnEmbeddedEdhDraftSaved;
+        ShowEmbeddedEdhDraft();
+    }
+
+    private async void OnEmbeddedEdhDraftSaved(object? sender,
+        NativeWorkspaceSafety.Replacement saved)
+    {
+        if (sender is not NativeDeckEditorView editor ||
+            !ReferenceEquals(embeddedEdhDraft, editor)) return;
+        DiscardEmbeddedEdhDraft();
+        nativeWorkspaceSelectedTab = 2;
+        nativeWorkspaceRequested = true;
+        edhLabRequested = false;
+        UpdateWorkspaceNavigation();
+        await RefreshNativeWorkspaceAsync();
+    }
+
+    private void DiscardEmbeddedEdhDraft()
+    {
+        if (embeddedEdhDraft is null) return;
+        var old = embeddedEdhDraft;
+        if (ReferenceEquals(EdhLabSurface.Content, old))
+            EdhLabSurface.Content = null;
+        old.Saved -= OnEmbeddedEdhDraftSaved;
+        old.DisposeEditor();
+        embeddedEdhDraft = null;
+        EdhReturnToDraftButton.IsEnabled = false;
+    }
+
+    private void OnEdhReturnToDraftClicked(object sender, RoutedEventArgs e) =>
+        ShowEmbeddedEdhDraft();
+
+    private void OnEdhShowCommandersClicked(object sender, RoutedEventArgs e)
+    {
+        if (edhLabWindow is null) return;
+        EdhLabSurface.Content = edhLabWindow;
+        nativeWorkspaceRequested = false;
+        edhLabRequested = true;
+        UpdateWorkspaceNavigation();
+    }
+
+    private async Task OpenSavedDeckInEmbeddedEdhLabAsync(
+        NativeDeckEditing.DeckRow selected, EdhLabFormat format,
+        string colors, bool focusShortages, string? preferredShortageName)
+    {
+        var active = catalogSnapshot ??
+            throw new InvalidOperationException("Sync the Scryfall catalog before editing.");
+        if (embeddedEdhDraft is not null)
+        {
+            if (NativeInAppDialog.Show(this,
+                    "A draft is already open. Discard its unsaved changes and edit the selected deck?",
+                    "Switch EDH Lab deck", MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning, MessageBoxResult.No)
+                != MessageBoxResult.Yes)
+            {
+                ShowEmbeddedEdhDraft();
+                return;
+            }
+            DiscardEmbeddedEdhDraft();
+        }
+        // Always verify the CURRENT SHA and catalog at the moment of editing.
+        var workspace = await Task.Run(() =>
+            NativeWorkspace.Open(NativeWorkspace.DefaultPath));
+        if (closing || !ReferenceEquals(active, catalogSnapshot)) return;
+        var match = NativeWorkspaceSafety.ListDecks(NativeWorkspace.DefaultPath)
+            .FirstOrDefault(x => x.Id == selected.Id);
+        if (match is null || match.SourceSha256 != selected.SourceSha256)
+            throw new InvalidDataException(
+                "The saved deck changed. Refresh the Deck Library before editing.");
+        var editor = new NativeDeckEditorView(
+            NativeWorkspace.DefaultPath, workspace.BackupSha256,
+            workspace.Collection, active.ReadOnlySnapshotPath, match,
+            savedLabFormat: format, savedLabColors: colors,
+            focusShortageReview: focusShortages,
+            preferredShortageName: preferredShortageName);
+        OpenEmbeddedEdhDraft(editor);
+    }
+
     private void ClearEmbeddedEdhLab()
     {
+        DiscardEmbeddedEdhDraft();
         edhLabRequested = false;
         edhLabWindow = null;
-        if (EdhLabHost is not null)
-            EdhLabHost.Content = null;
+        if (EdhLabSurface is not null)
+            EdhLabSurface.Content = null;
         if (EdhLabHost is not null && CatalogWorkspace is not null)
             UpdateWorkspaceNavigation();
     }
@@ -1689,6 +1784,9 @@ public partial class MainWindow : Window
         {
             nativeWorkspaceRequested = false;
             edhLabRequested = true;
+            if (embeddedEdhDraft is not null)
+                EdhLabSurface.Content = embeddedEdhDraft;
+            else EdhLabSurface.Content = edhLabWindow;
             UpdateWorkspaceNavigation();
             return;
         }
@@ -1740,21 +1838,28 @@ public partial class MainWindow : Window
                     var workspace = await Task.Run(() =>
                         NativeWorkspace.Open(NativeWorkspace.DefaultPath));
                     if (closing) return;
-                    var editor = new NativeDeckEditorWindow(
+                    if (embeddedEdhDraft is not null)
+                    {
+                        if (NativeInAppDialog.Show(this,
+                                "A draft is already open. Discard that unsaved draft and start a new one?",
+                                "Change EDH Lab draft", MessageBoxButton.YesNo,
+                                MessageBoxImage.Warning, MessageBoxResult.No)
+                            != MessageBoxResult.Yes)
+                        {
+                            ShowEmbeddedEdhDraft();
+                            return;
+                        }
+                        DiscardEmbeddedEdhDraft();
+                    }
+                    var editor = new NativeDeckEditorView(
                         NativeWorkspace.DefaultPath, workspace.BackupSha256,
                         workspace.Collection, active.ReadOnlySnapshotPath,
                         draftCommander: commander.Name,
-                        draftFormat: format, draftColors: commander.ColorIdentity)
-                    { Owner = this };
-                    if (editor.ShowDialog() == true && !closing)
-                    {
-                        nativeWorkspaceSelectedTab = 2; // Deck Library
-                        nativeWorkspaceRequested = true;
-                        await RefreshNativeWorkspaceAsync();
-                    }
+                        draftFormat: format, draftColors: commander.ColorIdentity);
+                    OpenEmbeddedEdhDraft(editor);
                 }, catalogPath: active.ReadOnlySnapshotPath);
             edhLabWindow = view;
-            EdhLabHost.Content = view;
+            EdhLabSurface.Content = view;
             nativeWorkspaceRequested = false;
             edhLabRequested = true;
             UpdateWorkspaceNavigation();
