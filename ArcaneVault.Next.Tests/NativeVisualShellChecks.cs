@@ -991,10 +991,80 @@ internal static class NativeVisualShellChecks
              detailsXaml.Contains("CardRarityBadge") &&
              detailsCode.Contains("NativeManaIdentity.ParseColorIdentity(info.ColorIdentity)") &&
              detailsCode.Contains("ColorIdentitySymbols.ItemsSource = colors") &&
-             manaCode.Contains("new DrawingImage(group)") &&
+             manaCode.Contains("NativeOfficialCardSymbols.GetAsync(expected)") &&
+             !manaCode.Contains("Geometry.Parse(") &&
+             !manaCode.Contains("new GeometryDrawing(") &&
              !manaCode.Contains("HttpClient") &&
              !manaCode.Contains("Process.Start"),
-             "Card details must use larger art, an accessible rarity ribbon and offline mana symbols.");
+             "Card details must show official Scryfall symbols, never improvised mana shapes.");
+        var officialCode = File.ReadAllText(Path.Combine(dir, "NativeOfficialCardSymbols.cs"));
+        var detailsProject = File.ReadAllText(Path.Combine(
+            dir, "ArcaneVault.Next.Desktop.csproj"));
+        Must(detailsXaml.Contains("WindowStartupLocation=\\"CenterOwner\\"") &&
+             detailsXaml.Contains("x:Name=\\"CardContentGrid\\"") &&
+             detailsXaml.Contains("x:Name=\\"CardArtFrame\\"") &&
+             detailsXaml.Contains("x:Name=\\"CardMetadataPanel\\"") &&
+             detailsXaml.Contains("RichTextBox Grid.Row=\\"1\\" x:Name=\\"OracleText\\"") &&
+             detailsXaml.Contains("Click=\\"OnCopyOracleClicked\\"") &&
+             detailsXaml.Contains("Grid.Row=\\"2\\"") &&
+             detailsCode.Contains("SourceInitialized += (_, _) => FitInitialWindow()") &&
+             detailsCode.Contains("SizeChanged += (_, _) => AdaptContentHeight()") &&
+             detailsCode.Contains("CardContentGrid.ActualHeight") &&
+             detailsCode.Contains("CardMetadataPanel.MaxHeight =") &&
+             detailsCode.Contains("Clipboard.SetText(oraclePlainText)") &&
+             detailsCode.Contains("new InlineUIContainer(glyph)") &&
+             detailsCode.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
+             officialCode.Contains("https://api.scryfall.com/symbology") &&
+             officialCode.Contains("new FileSvgReader(settings)") &&
+             officialCode.Contains("Scryfall") &&
+             detailsProject.Contains("SharpVectors.Wpf"),
+             "Card details must fit monitor, keep actions accessible, and use official SVG symbols inside Oracle text.");
+
+        foreach (var size in new[]
+        {
+            NativeCardDetailsLayout.InitialSize(1920, 1080),
+            NativeCardDetailsLayout.InitialSize(1280, 720),
+            NativeCardDetailsLayout.InitialSize(900, 600),
+            NativeCardDetailsLayout.InitialSize(700, 490)
+        })
+            Must(size.Width >= size.MinWidth && size.Height >= size.MinHeight &&
+                 size.Width <= 1920 && size.Height <= 1080,
+                 "Opening size must be bounded by available monitor work area.");
+        Must(NativeCardDetailsLayout.InitialSize(1280, 720).Height == 686 &&
+             NativeCardDetailsLayout.InitialSize(900, 600).Height == 566 &&
+             NativeCardDetailsLayout.ArtworkHeight(430) == 280 &&
+             NativeCardDetailsLayout.ArtworkHeight(600) == 445 &&
+             NativeCardDetailsLayout.ArtworkHeight(285) == 185,
+             "Small-screen layout must reduce artwork height rather than hiding controls.");
+
+        const string oracleSample =
+            "Add {W}{U}, then {2/W} or {W/U}; {T}: untap.\nPay {3}{B/P}.";
+        var oracleTokens = NativeOracleSymbolTokenizer.Split(oracleSample);
+        Must(NativeOracleSymbolTokenizer.CopyText(oracleTokens) == oracleSample &&
+             oracleTokens.Where(x => x.IsSymbol).Select(x => x.Text)
+                 .SequenceEqual(new[] { "{W}", "{U}", "{2/W}", "{W/U}",
+                     "{T}", "{3}", "{B/P}" }) &&
+             NativeOracleSymbolTokenizer.CopyText(
+                 NativeOracleSymbolTokenizer.Split("Unknown {CUSTOM} must survive.")) ==
+                 "Unknown {CUSTOM} must survive.",
+             "Oracle symbol parser must preserve text, line breaks, hybrid, Phyrexian, tap and unknown tokens exactly.");
+
+        var sourceMap = NativeScryfallSymbology.ReadUris(
+            "{\\"data\\":[{\\"symbol\\":\\"{W}\\",\\"svg_uri\\":\\"https://svgs.scryfall.io/card-symbols/W.svg\\"}," +
+            "{\\"symbol\\":\\"{W/U}\\",\\"svg_uri\\":\\"https://svgs.scryfall.io/card-symbols/WU.svg\\"}," +
+            "{\\"symbol\\":\\"{T}\\",\\"svg_uri\\":\\"https://evil.example/T.svg\\"}]}");
+        Must(sourceMap.Count == 2 &&
+             sourceMap.ContainsKey("{W}") && sourceMap.ContainsKey("{W/U}") &&
+             !sourceMap.ContainsKey("{T}") &&
+             NativeScryfallSymbology.IsTrustedSvgUri(
+                 "https://svgs.scryfall.io/card-symbols/T.svg") &&
+             !NativeScryfallSymbology.IsTrustedSvgUri(
+                 "http://svgs.scryfall.io/card-symbols/W.svg") &&
+             !NativeScryfallSymbology.IsTrustedSvgUri(
+                 "https://svgs.scryfall.io.evil.example/card-symbols/W.svg") &&
+             !NativeScryfallSymbology.IsTrustedSvgUri(
+                 "https://svgs.scryfall.io/card-symbols/W.svg?remote=1"),
+             "Only authentic Scryfall SVG symbol URLs from official API mapping may load.");
         Must(NativeManaIdentity.ParseColorIdentity("WU").Select(x => x.Name)
                  .SequenceEqual(new[] { "White", "Blue" }) &&
              NativeManaIdentity.ParseColorIdentity("U,W").Select(x => x.Symbol)
