@@ -1666,6 +1666,24 @@ internal static class NativeVisualShellChecks
                  { Text: "Mana access unverified", IsSymbol: false },
              "Land colors produced must not be confused with identity, costs, or implied colorless mana.");
 
+        // EDH commander discovery belongs in the main window just like the
+        // Card Catalog and Deck Library; the legacy popup remains temporarily
+        // available for compatibility while the editor is extracted.
+        var embeddedEdh = XDocument.Load(
+            Path.Combine(dir, "CommanderBrowserView.xaml"));
+        var mainHost = XDocument.Load(
+            Path.Combine(dir, "MainWindow.xaml"));
+        Must(embeddedEdh.Root?.Name.LocalName == "UserControl" &&
+             mainHost.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "EdhLabHost") &&
+             File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs"))
+                 .Contains("EdhLabHost.Content = view;", StringComparison.Ordinal) &&
+             File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs"))
+                 .Contains("new CommanderBrowserView(", StringComparison.Ordinal) &&
+             File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs"))
+                 .Contains("edhLabRequested = true;", StringComparison.Ordinal),
+             "Commander discovery must use the main workspace without opening a floating Window.");
+
         var catalogColorFilters = XDocument.Load(
             Path.Combine(dir, "MainWindow.xaml"));
         var commanderColorFilters = XDocument.Load(
