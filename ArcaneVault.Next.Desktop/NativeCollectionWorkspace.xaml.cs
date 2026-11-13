@@ -30,6 +30,8 @@ public partial class NativeCollectionWorkspace : UserControl
     private readonly string? nativePath;
     private string? expectedBackupSha;
     private readonly Func<Task>? reopenNative;
+    private readonly Func<NativeDeckEditing.DeckRow, EdhLabFormat,
+        string, bool, string?, Task>? editInEmbeddedEdhLab;
     private IReadOnlyList<NativeDeckEditing.DeckRow> deckRows;
     private bool deckCoversLoading;
     private bool deckCoversReady;
@@ -47,7 +49,9 @@ public partial class NativeCollectionWorkspace : UserControl
         NativeSetProgress.Result? progress, bool nativeWorkspace = false,
         string? nativePath = null, string? expectedBackupSha = null,
         Func<Task>? reopenNative = null,
-        IReadOnlyList<NativeDeckEditing.DeckRow>? nativeDecks = null)
+        IReadOnlyList<NativeDeckEditing.DeckRow>? nativeDecks = null,
+        Func<NativeDeckEditing.DeckRow, EdhLabFormat, string, bool,
+            string?, Task>? editInEmbeddedEdhLab = null)
     {
         this.backup = backup ?? throw new ArgumentNullException(nameof(backup));
         this.review = review ?? throw new ArgumentNullException(nameof(review));
@@ -56,6 +60,7 @@ public partial class NativeCollectionWorkspace : UserControl
         this.nativePath = nativePath;
         this.expectedBackupSha = expectedBackupSha;
         this.reopenNative = reopenNative;
+        this.editInEmbeddedEdhLab = editInEmbeddedEdhLab;
         deckRows = nativeDecks ?? Array.Empty<NativeDeckEditing.DeckRow>();
         InitializeComponent();
         CollectionTabs.SelectionChanged += (_, e) =>
@@ -873,14 +878,26 @@ public partial class NativeCollectionWorkspace : UserControl
                 return;
             }
 
-            var dialog = new NativeDeckEditorWindow(
-                nativePath, expectedBackupSha, backup, catalogPath, selected,
-                savedLabFormat: format, savedLabColors: commander.ColorIdentity,
-                focusShortageReview: focusShortages,
-                preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null)
-            { Owner = Window.GetWindow(this) };
-            if (dialog.ShowDialog() != true) return;
-            await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
+            if (editInEmbeddedEdhLab is not null)
+            {
+                await editInEmbeddedEdhLab(selected, format,
+                    commander.ColorIdentity, focusShortages,
+                    focusShortages ? inspectedDeckCard?.Name : null);
+            }
+            else
+            {
+                // Read-only backup preview and older independent hosts keep
+                // their existing editor until they provide a main-workspace
+                // routing callback.
+                var dialog = new NativeDeckEditorWindow(
+                    nativePath, expectedBackupSha, backup, catalogPath, selected,
+                    savedLabFormat: format, savedLabColors: commander.ColorIdentity,
+                    focusShortageReview: focusShortages,
+                    preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null)
+                { Owner = Window.GetWindow(this) };
+                if (dialog.ShowDialog() != true) return;
+                await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
+            }
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
             UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or
