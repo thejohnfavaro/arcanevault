@@ -75,7 +75,7 @@ public partial class NativeAddPrintingWindow : Window
             return;
         }
         string finish = (FinishBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-        if (MessageBox.Show(this,
+        if (NativeInAppDialog.Show(this,
             $"Add {quantity:N0} {finish} copy/copies of:\n\n" +
             $"{selected.Name}\n{selected.SetCode.ToUpperInvariant()} #{selected.CollectorNumber}\n" +
             $"Printing ID: {selected.PrintId}\n\n" +
@@ -95,7 +95,7 @@ public partial class NativeAddPrintingWindow : Window
                 NativeWorkspaceSafety.AddVerifiedPhysical(
                     nativePath, catalogPath, selected.PrintId,
                     quantity, finish, expectedBackupSha));
-            MessageBox.Show(this,
+            NativeInAppDialog.Show(this,
                 $"Verified native ownership is now {result.Current.Collection.PhysicalCopies:N0} total paper copies.\n\n" +
                 "Previous native collection saved at:\n" + result.RecoveryPath +
                 "\n\nUse 'Restore native recovery' in the main window to undo.",
@@ -107,7 +107,7 @@ public partial class NativeAddPrintingWindow : Window
             StatusText.Text =
                 "Edit could not be confirmed. Inspect the native collection and recovery files before retrying. " +
                 ex.Message;
-            MessageBox.Show(this, StatusText.Text, "Native edit not confirmed",
+            NativeInAppDialog.Show(this, StatusText.Text, "Native edit not confirmed",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
