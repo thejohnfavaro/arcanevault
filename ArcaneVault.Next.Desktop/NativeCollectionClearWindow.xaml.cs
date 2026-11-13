@@ -22,37 +22,63 @@ public partial class NativeCollectionClearWindow : Window
             $"Saved decks: {view.Decks:N0} · revisions: {view.DeckRevisions:N0} (preserved)";
     }
 
-    private void OnInputsChanged(object sender, RoutedEventArgs e)
+    private bool TryValidate(out NativeWorkspaceSafety.InventoryScope scope,
+        out string reason)
     {
-        if (ScopeBox is null || ConfirmationText is null ||
-            ConfirmButton is null || ConfirmationPrompt is null ||
-            Acknowledged is null) return;
-        int selected = ScopeBox.SelectedIndex;
-        bool validScope = selected >= 0 && selected < Phrases.Length;
-        bool phraseMatches = validScope &&
-            ConfirmationText.Text.Trim().Equals(Phrases[selected],
-                StringComparison.OrdinalIgnoreCase);
-        bool hasAcknowledgedBackup = Acknowledged.IsChecked == true;
-        ConfirmationPrompt.Text = !validScope
-            ? "Select a scope to see its confirmation phrase."
-            : !phraseMatches
-                ? $"Type {Phrases[selected]} (capitalization does not matter)."
-                : !hasAcknowledgedBackup
-                    ? "Phrase accepted. Check the full-backup acknowledgement to enable clearing."
-                    : "Ready to clear the selected inventory. Your previous native workspace will be recoverable.";
-        ConfirmButton.IsEnabled = phraseMatches && hasAcknowledgedBackup;
-    }
-
-    private void OnConfirmClicked(object sender, RoutedEventArgs e)
-    {
-        if (ConfirmButton.IsEnabled != true) return;
-        SelectedScope = ScopeBox.SelectedIndex switch
+        scope = default;
+        int selected = ScopeBox?.SelectedIndex ?? -1;
+        if (selected < 0 || selected >= Phrases.Length)
+        {
+            reason = "Choose Physical only, Arena only, or Both before clearing.";
+            return false;
+        }
+        string typed = ConfirmationText?.Text?.Trim() ?? "";
+        if (!typed.Equals(Phrases[selected], StringComparison.OrdinalIgnoreCase))
+        {
+            reason = $"Type {Phrases[selected]} (capitalization does not matter).";
+            return false;
+        }
+        if (Acknowledged?.IsChecked != true)
+        {
+            reason = "Phrase accepted. Check the full-backup acknowledgement to continue. " +
+                "This is required even when the confirmation phrase is correct.";
+            return false;
+        }
+        scope = selected switch
         {
             0 => NativeWorkspaceSafety.InventoryScope.Physical,
             1 => NativeWorkspaceSafety.InventoryScope.Arena,
             2 => NativeWorkspaceSafety.InventoryScope.Both,
-            _ => throw new InvalidOperationException("An inventory scope must be selected.")
+            _ => throw new ArgumentOutOfRangeException(nameof(selected))
         };
+        reason = "Ready to clear the selected inventory; a native recovery file will be kept.";
+        return true;
+    }
+
+    private void OnInputsChanged(object sender, RoutedEventArgs e)
+    {
+        if (ConfirmationPrompt is null || ConfirmButton is null ||
+            ScopeBox is null || ConfirmationText is null || Acknowledged is null)
+            return;
+        TryValidate(out _, out string explanation);
+        ConfirmationPrompt.Text = explanation;
+        // Always permit the click so validation can display exactly what is
+        // missing, including when a checkbox is clipped, an input notification
+        // is missed, or accessibility tools change focus. Nothing is cleared
+        // until OnConfirmClicked repeats every precondition.
+        ConfirmButton.IsEnabled = true;
+    }
+
+    private void OnConfirmClicked(object sender, RoutedEventArgs e)
+    {
+        if (!TryValidate(out var scope, out string explanation))
+        {
+            ConfirmationPrompt.Text = explanation;
+            MessageBox.Show(this, explanation, "Clear inventory — confirmation needed",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        SelectedScope = scope;
         DialogResult = true;
     }
 }
