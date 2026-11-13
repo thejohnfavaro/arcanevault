@@ -519,6 +519,18 @@ public partial class NativeDeckEditorWindow : Window
             EdhManaDetails.Text = "Choose 20–60 lands (36 is the initial recommendation).";
             EdhCurveHeadline.Text = "Curve: land target needs correction";
             EdhCurveDetails.Text = "Choose a valid land target to compute the 99-card projection.";
+            // A malformed custom target invalidates advice derived from
+            // that parameter. Do not leave old Apply/Browse actions enabled.
+            lastOptimization = null;
+            lastSwapAdvice = null;
+            lastHealthReport = null;
+            EdhApplySwapButton.IsEnabled = false;
+            EdhBrowseImprovementsButton.IsEnabled = false;
+            EdhHealthBrowseButton.IsEnabled = false;
+            EdhFindGapButton.IsEnabled = false;
+            EdhHealthHeadline.Text = "Deck health: choose a valid land target";
+            EdhHealthOverview.Text = "Enter 20–60 lands before reviewing the current deck.";
+            EdhHealthNextStep.Text = "No changes made.";
             EdhBalanceNowButton.IsEnabled = false;
             return;
         }
@@ -645,7 +657,7 @@ public partial class NativeDeckEditorWindow : Window
             // Validate fresh against the current unsaved draft, format-filtered
             // local catalog and ownership. A stale suggestion cannot be used.
             var current = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
-            int landTarget = TryLandTarget(out int custom) ? custom : 36;
+            if (!TryLandTarget(out int landTarget)) return;
             var fresh = EdhLabDeckHealth.Analyze(edhCatalog,
                 current.Select(x => (x.Name, x.Quantity)),
                 landTarget, SelectedStrategyFocus);
