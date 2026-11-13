@@ -541,16 +541,15 @@ public static class NativeWorkspaceSafety
     {
         ArgumentNullException.ThrowIfNull(verified);
         cancellation.ThrowIfCancellationRequested();
-        return NativeDeckLibraryCache.List(verified.BackupSha256, () =>
-        {
-            cancellation.ThrowIfCancellationRequested();
-            var bytes = ReadPreservedBackup(verified.DatabasePath);
-            if (!Digest(bytes).Equals(verified.BackupSha256,
-                    StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException(
-                    "Native deck list changed after the verified save. Reload the workspace.");
-            return bytes;
-        }, cancellation: cancellation);
+        // Check current source even when the display cache itself would hit.
+        byte[] bytes = ReadPreservedBackup(verified.DatabasePath);
+        if (!Digest(bytes).Equals(verified.BackupSha256,
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException(
+                "Native deck list changed after the verified save. Reload the workspace.");
+        cancellation.ThrowIfCancellationRequested();
+        return NativeDeckLibraryCache.List(verified.BackupSha256,
+            () => bytes, cancellation: cancellation);
     }
 
     /// <summary>
