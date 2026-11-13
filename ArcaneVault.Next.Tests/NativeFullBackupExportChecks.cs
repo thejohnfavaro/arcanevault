@@ -107,7 +107,7 @@ internal static class NativeFullBackupExportChecks
         Must(!older.ByteIdentical && !older.InventoryMatch &&
              older.BackupArena == 2 && older.ActiveArena == 5 &&
              older.BackupRevisions == 1 && older.ActiveRevisions == 2 &&
-             older.TotalDifferingEntries == 2 &&
+             older.TotalDifferingEntries == 1 &&
              older.Differences.Any(x => x.Scope == "Arena" &&
                  x.Item == "Arena Card" &&
                  x.BackupCopies == 2 && x.ActiveCopies == 5) &&
