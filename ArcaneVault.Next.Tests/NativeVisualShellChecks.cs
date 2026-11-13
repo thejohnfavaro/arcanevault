@@ -1680,10 +1680,20 @@ internal static class NativeVisualShellChecks
             Must(control?.Descendants().Any(x =>
                      x.Name.LocalName == "NativeManaSymbol" &&
                      x.Attribute("Symbol")?.Value == symbol) == true &&
-                 control.Attribute("Content") is null,
+                 control.Attribute("Content") is null &&
+                 control.Name.LocalName == "ToggleButton" &&
+                 control.Attribute("ToolTip")?.Value.Length > 0 &&
+                 control.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml/presentation")) is null,
                  "Catalog WUBRG filter " + name +
-                 " must use the official symbol instead of a letter.");
+                 " must be a labeled, symbol-only toggle button.");
         }
+        var proxyToggle = catalogColorFilters.Descendants().FirstOrDefault(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "CatalogIncludeProxiesBox");
+        Must(proxyToggle?.Name.LocalName == "CheckBox" &&
+             proxyToggle.Attribute("Content")?.Value == "Include Proxies" &&
+             proxyToggle.Attribute("Checked")?.Value == "OnCatalogFilterChanged" &&
+             proxyToggle.Attribute("Unchecked")?.Value == "OnCatalogFilterChanged",
+             "Card Catalog proxy ownership toggle must stay explicit and discoverable.");
         foreach (var (name, symbol) in new[] {
             ("WhiteColor", "W"), ("BlueColor", "U"),
             ("BlackColor", "B"), ("RedColor", "R"),
