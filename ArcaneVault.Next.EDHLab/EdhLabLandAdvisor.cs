@@ -121,6 +121,9 @@ public static class EdhLabLandAdvisor
                 @"\b(?:one|two|three|X|a) mana\b[^.\r\n]{0,100}\b(?:any color|any type|any combination of colors)\b|\bany (?:one )?color\b",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
                 TimeSpan.FromMilliseconds(50));
+            if (clause.Contains("could produce", StringComparison.OrdinalIgnoreCase) ||
+                clause.Contains("any type that", StringComparison.OrdinalIgnoreCase))
+                anyPhrase = false; // Reflecting Pool depends on other lands.
             bool symbols = Regex.IsMatch(clause, @"\{[WUBRGC]\}",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
                 TimeSpan.FromMilliseconds(50));
