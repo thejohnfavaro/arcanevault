@@ -180,7 +180,7 @@ internal static class NativeVisualShellChecks
              v65StudioCode.Contains("SavedReplacement = saved;") &&
              v65StudioCode.Contains("EdhLabReadOnlyCache.TryGetDraft(") &&
              v65StudioCode.Contains("EdhLabReadOnlyCache.GetDraft(") &&
-             deckLibraryCode.Contains("EdhLabReadOnlyCache.GetCommanderIndex(") &&
+             v65DeckShell.Contains("EdhLabReadOnlyCache.GetCommanderIndex(") &&
              readOnlyCache.Contains("MaxDraftSnapshots = 2") &&
              readOnlyCache.Contains("PoolHash(inventory, format)") &&
              readOnlyCache.Contains("Fingerprint(catalogPath) != before.Catalog"),
