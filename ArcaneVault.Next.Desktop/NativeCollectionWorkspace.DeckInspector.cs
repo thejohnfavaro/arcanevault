@@ -175,7 +175,8 @@ public partial class NativeCollectionWorkspace
             !string.IsNullOrWhiteSpace(deck.Commander);
         int displayedTotal = checked(deck.TotalCopies + (hasCommander ? 1 : 0));
         DeckInspectorSummary.Text =
-            $"{deck.Format} · {displayedTotal:N0} cards incl. commander · " +
+            $"{deck.Format} · {displayedTotal:N0} " +
+            (hasCommander ? "cards incl. commander" : "mainboard copies") + " · " +
             $"{deck.EntryCount:N0} mainboard names" +
             (deck.Editable ? "" : " · imported list requires review");
         IReadOnlyList<NativeDeckEditing.Entry> cards;
