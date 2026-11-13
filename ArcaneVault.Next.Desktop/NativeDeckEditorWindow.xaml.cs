@@ -45,6 +45,9 @@ public partial class NativeDeckEditorWindow : Window
     }
 
     private bool browsingOptimizationCandidates;
+    // Rebinding the deck-aware Cards browser should not repeatedly fetch the
+    // selected card's artwork or clear an intentional mainboard preview.
+    private bool updatingOwnedBrowser;
     private bool applyingManaBalance;
     private int draftVersion;
     private int previewVersion;
@@ -52,10 +55,12 @@ public partial class NativeDeckEditorWindow : Window
     private OwnedDisplay? previewedCard;
     private int previewedPool = -1;
     private sealed record OwnedDisplay(string Name, long Owned, string RoleHints = "",
-        bool LabSuggestion = false, string SynergyExplanation = "", bool MechanicMatch = false)
+        bool LabSuggestion = false, string SynergyExplanation = "", bool MechanicMatch = false,
+        int InDraftCopies = 0)
     {
         public string Display => LabSuggestion
-            ? Name + (Owned > 0 ? $"  ·  {Owned:N0} recorded" : "  ·  missing") +
+            ? Name + (InDraftCopies > 0 ? $"  ·  In deck ×{InDraftCopies}" : "  ·  Not in deck") +
+              (Owned > 0 ? $"  ·  {Owned:N0} recorded" : "  ·  missing") +
               (MechanicMatch ? "  ·  Mechanic match" : "") +
               (RoleHints.Length > 0 ? "  ·  " + RoleHints : "")
             : $"{Name}  ·  {Owned:N0} owned";
@@ -91,49 +96,133 @@ public partial class NativeDeckEditorWindow : Window
         EdhImproveScroll.MaxHeight = viewport;
     }
 
+    private EdhLabCardPresenceFilter SelectedEdhPresence =>
+        (EdhCardPresenceBox?.SelectedItem as
+            System.Windows.Controls.ComboBoxItem)?.Tag?.ToString() switch
+        {
+            "InDeck" => EdhLabCardPresenceFilter.InDeck,
+            "All" => EdhLabCardPresenceFilter.All,
+            _ => EdhLabCardPresenceFilter.Available
+        };
+
+    private void SetOwnedBrowserRows(OwnedDisplay[] cards, string? status = null)
+    {
+        if (OwnedCardsList is null) return;
+        string? previousName = (OwnedCardsList.SelectedItem as OwnedDisplay)?.Name;
+        updatingOwnedBrowser = true;
+        try
+        {
+            OwnedCardsList.ItemsSource = cards;
+            if (previousName is not null)
+                OwnedCardsList.SelectedItem = cards.FirstOrDefault(x =>
+                    x.Name.Equals(previousName, StringComparison.OrdinalIgnoreCase));
+        }
+        finally { updatingOwnedBrowser = false; }
+        if (edhLabCommander is not null && EdhBrowserStatus is not null)
+        {
+            EdhBrowserStatus.Visibility = Visibility.Visible;
+            EdhBrowserStatus.Text = status ?? "";
+        }
+    }
+
     private void RefreshOwnedCards()
     {
         if (OwnedCardsList is null || OwnedPoolBox is null || OwnedSearchBox is null)
             return;
         if (edhLabCommander is not null)
         {
+            if (edhCatalog is null)
+            {
+                SetOwnedBrowserRows([], "Waiting for the locally verified card catalog…");
+                return;
+            }
+
+            // Build the unsaved mainboard quantity index once per refresh.
+            // An unfinished/invalid deck edit must never display misleading
+            // in-deck labels, permit stale suggestions, or rewrite draft text.
+            Dictionary<string, int> counts;
+            try
+            {
+                counts = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
+                    .ToDictionary(x => x.Name, x => x.Quantity,
+                        StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex) when (ex is InvalidDataException or
+                ArgumentException or OverflowException)
+            {
+                SetOwnedBrowserRows([], "Correct the mainboard to refresh deck status: " +
+                    ex.Message);
+                return;
+            }
+            var presence = SelectedEdhPresence;
+            int InDeck(string name) => counts.GetValueOrDefault(name);
+            bool MatchesPresence(string name, long owned) => presence switch
+            {
+                EdhLabCardPresenceFilter.Available =>
+                    InDeck(name) == 0 && owned > 0,
+                EdhLabCardPresenceFilter.InDeck => InDeck(name) > 0,
+                _ => true
+            };
+            OwnedDisplay[] results;
             if (browsingOptimizationCandidates && lastOptimization is { CanBrowse: true })
             {
-                OwnedCardsList.ItemsSource = lastOptimization.OwnedCandidates
+                results = lastOptimization.OwnedCandidates
+                    .Where(candidate =>
+                    {
+                        var recorded = edhCatalog.Find(candidate.Name);
+                        return MatchesPresence(candidate.Name,
+                            recorded?.RecordedCopies ?? 0);
+                    })
                     .Select(candidate =>
                     {
-                        var recorded = edhCatalog?.Find(candidate.Name);
-                        var fit = edhCatalog?.SynergyFor(candidate.Name);
+                        var recorded = edhCatalog.Find(candidate.Name);
+                        var fit = edhCatalog.SynergyFor(candidate.Name);
                         return new OwnedDisplay(candidate.Name,
                             recorded?.RecordedCopies ?? 0,
                             candidate.RoleHints, LabSuggestion: true,
                             SynergyExplanation: fit?.Why ?? "",
-                            MechanicMatch: fit?.Matches == true);
+                            MechanicMatch: fit?.Matches == true,
+                            InDraftCopies: InDeck(candidate.Name));
                     }).ToArray();
-                return;
             }
-            OwnedCardsList.ItemsSource = edhCatalog?.Search(
-                OwnedSearchBox.Text, EdhRecordedOnly.IsChecked == true,
-                EdhRoleBox.SelectedItem is System.Windows.Controls.ComboBoxItem role
-                    ? role.Tag?.ToString() : "", limit: 200,
-                synergyOnly: EdhSynergyOnly?.IsChecked == true,
-                prioritizeSynergy: EdhPrioritizeSynergy?.IsChecked == true)
-                .Select(x =>
-                {
-                    var fit = edhCatalog.SynergyFor(x.Name);
-                    return new OwnedDisplay(x.Name, x.RecordedCopies,
-                        x.RoleHints, LabSuggestion: true,
-                        SynergyExplanation: fit?.Why ?? "",
-                        MechanicMatch: fit?.Matches == true);
-                }).ToArray() ??
-                Array.Empty<OwnedDisplay>();
+            else
+            {
+                results = edhCatalog.Search(
+                    OwnedSearchBox.Text, EdhRecordedOnly.IsChecked == true,
+                    EdhRoleBox.SelectedItem is System.Windows.Controls.ComboBoxItem role
+                        ? role.Tag?.ToString() : "", limit: 200,
+                    synergyOnly: EdhSynergyOnly?.IsChecked == true,
+                    prioritizeSynergy: EdhPrioritizeSynergy?.IsChecked == true,
+                    mainboardCounts: counts, presence: presence)
+                    .Select(x =>
+                    {
+                        var fit = edhCatalog.SynergyFor(x.Name);
+                        return new OwnedDisplay(x.Name, x.RecordedCopies,
+                            x.RoleHints, LabSuggestion: true,
+                            SynergyExplanation: fit?.Why ?? "",
+                            MechanicMatch: fit?.Matches == true,
+                            InDraftCopies: InDeck(x.Name));
+                    }).ToArray();
+            }
+
+            string viewLabel = presence switch
+            {
+                EdhLabCardPresenceFilter.Available => "Available (recorded, not in deck)",
+                EdhLabCardPresenceFilter.InDeck => "In deck",
+                _ => "All eligible"
+            };
+            SetOwnedBrowserRows(results,
+                $"{viewLabel} · {results.Length:N0} shown" +
+                (results.Length == 200 ? " (first 200 matches)" : "") +
+                $" · {counts.Count:N0} distinct mainboard names. " +
+                "Counts reflect the unsaved draft; no inventory changes.");
             return;
         }
         var pool = OwnedPoolBox.SelectedIndex == 1
             ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
-        OwnedCardsList.ItemsSource = NativeDeckOwnedPicker.Search(
+        SetOwnedBrowserRows(NativeDeckOwnedPicker.Search(
             ownership, pool, OwnedSearchBox.Text)
-            .Select(x => new OwnedDisplay(x.Name, x.Owned)).ToArray();
+            .Select(x => new OwnedDisplay(x.Name, x.Owned)).ToArray());
     }
 
     private async void OnOwnedCardSelectionChanged(object sender,
@@ -141,6 +230,7 @@ public partial class NativeDeckEditorWindow : Window
     {
         // Refreshing filters clears the ListBox selection. That should not
         // blank a deliberate mainboard card preview (or start an art fetch).
+        if (updatingOwnedBrowser) return;
         if (OwnedCardsList?.SelectedItem is OwnedDisplay card)
             await ShowCardPreviewAsync(card);
     }
@@ -1208,6 +1298,10 @@ public partial class NativeDeckEditorWindow : Window
         // Explicit refreshes (strategy/format/land-target changes) replace
         // the queued draft-only pass, rather than rendering it a second time.
         edhAnalysisTimer?.Stop();
+        // Shares the existing 220ms draft-analysis debounce. Card counts
+        // and presence filters update without a full catalog reload.
+        if (edhLabCommander is not null && edhCatalog is not null)
+            RefreshOwnedCards();
         if (DeckSummaryText is null || DeckShortageText is null ||
             MainboardBox is null || CommanderBox is null || FormatBox is null ||
             OwnedPoolBox is null)
@@ -1362,6 +1456,15 @@ public partial class NativeDeckEditorWindow : Window
             ResetOptimizationBrowsing();
             RefreshOwnedCards();
         }
+    }
+
+    private void OnEdhCardPresenceChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (edhLabCommander is null || OwnedCardsList is null) return;
+        // Presence is a visual lens on the unsaved mainboard, not a deck edit.
+        ResetOptimizationBrowsing();
+        RefreshOwnedCards();
     }
 
     private async Task LoadEdhSuggestionsAsync()
@@ -1563,6 +1666,7 @@ public partial class NativeDeckEditorWindow : Window
         try
         {
             MainboardBox.Text = NativeDeckOwnedPicker.RemoveOne(MainboardBox.Text, card.Name);
+            if (edhLabCommander is not null) RefreshOwnedCards();
             StatusText.Text = $"Removed 1 {card.Name} from the unsaved draft. " +
                 "Collection quantities are unchanged.";
         }
@@ -1629,6 +1733,7 @@ public partial class NativeDeckEditorWindow : Window
                 : NativeDeckOwnedPicker.AddOne(MainboardBox.Text, card.Name);
             if (updated == MainboardBox.Text) return;
             MainboardBox.Text = updated;
+            if (edhLabCommander is not null) RefreshOwnedCards();
             StatusText.Text = $"Added 1 {card.Name} to the unsaved draft" +
                 (singletonDoubleClick ? " via double-click." : ".") +
                 " Collection quantities are unchanged; save still requires preflight review.";
