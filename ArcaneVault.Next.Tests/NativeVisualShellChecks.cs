@@ -649,10 +649,27 @@ internal static class NativeVisualShellChecks
              clearCode.Contains("\"CLEAR PHYSICAL\"") &&
              clearCode.Contains("\"CLEAR ARENA\"") &&
              clearCode.Contains("\"CLEAR BOTH\"") &&
-             clearCode.Contains("Acknowledged.IsChecked == true") &&
-             clearCode.Contains("ConfirmButton.IsEnabled") &&
+             clearCode.Contains("Acknowledged?.IsChecked != true") &&
+             clearCode.Contains("StringComparison.OrdinalIgnoreCase") &&
+             clearCode.Contains("Phrase accepted. Check the full-backup acknowledgement") &&
+             clearCode.Contains("if (!TryValidate(out var scope, out string explanation))") &&
+             clearCode.Contains("ConfirmButton.IsEnabled = true;") &&
+             clearUi.Descendants().Any(x =>
+                 x.Name.LocalName == "ScrollViewer" &&
+                 x.Descendants().Any(y =>
+                     y.Attribute(XName.Get("Name", XamlNs))?.Value == "Acknowledged")) &&
+             clearUi.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "ConfirmButton" &&
+                 x.Attribute("IsEnabled")?.Value == "True") &&
              !clearCode.Contains("StartFresh("),
-             "Inventory clear must require an explicit scope, phrase and acknowledgement.");
+             "Inventory clear must keep the backup checkbox reachable and guard every click with scope, phrase and acknowledgement.");
+        // v0.9.56: two-line catalog labels remain legible and
+        // tooltips expose full names, ownership and mechanic roles.
+        Must(mainXaml.Contains("ToolTip=\"{Binding OwnershipLabel}\"") &&
+             mainXaml.Contains("ToolTip=\"{Binding RolesLabel}\"") &&
+             mainXaml.Contains("ToolTip=\"{Binding Name}\"") &&
+             mainXaml.Contains("Text=\"{Binding Name}\" FontSize=\"13\""),
+             "Catalog tile/list should reveal truncated labels and maintain readable card names.");
         string collectionCode = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
         // v0.9.54: the ownership summary belongs under the artwork/

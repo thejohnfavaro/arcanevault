@@ -17,15 +17,18 @@
                     <ColumnDefinition Width="88"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Margin="9,3" Grid.Column="0">
-                    <TextBlock Text="{Binding Name}" FontSize="12"
+                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource VaultText}"
-                               TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{Binding OwnershipLabel}" FontSize="10"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding Name}"/>
+                    <TextBlock Text="{Binding OwnershipLabel}" FontSize="11"
                                Foreground="{DynamicResource VaultAccent}"
-                               TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{Binding RolesLabel}" FontSize="10"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding OwnershipLabel}"/>
+                    <TextBlock Text="{Binding RolesLabel}" FontSize="11"
                                Foreground="{DynamicResource VaultGood}"
-                               TextTrimming="CharacterEllipsis"/>
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding RolesLabel}"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="{Binding DisplaySetCode}" FontSize="11"
                            Margin="5,5" Foreground="{DynamicResource VaultAccent}"/>
@@ -88,20 +91,22 @@
                                                 ToolTipService.ShowDuration="15000"/>
                                     </Grid>
                                 </Border>
-                                <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                <TextBlock Text="{Binding Name}" FontSize="13"
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource VaultText}"
                                            TextWrapping="Wrap" TextAlignment="Center"
-                                           MaxHeight="34" Margin="0,4,0,0"/>
-                                <TextBlock Text="{Binding RolesLabel}" FontSize="10.5"
+                                           MaxHeight="36" Margin="0,4,0,0"
+                                           ToolTip="{Binding Name}"/>
+                                <TextBlock Text="{Binding RolesLabel}" FontSize="11"
                                            Foreground="{DynamicResource VaultGood}"
                                            TextAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
                                            ToolTip="{Binding RolesLabel}" Margin="0,3,0,0"/>
-                                <TextBlock Text="{Binding OwnershipLabel}" FontSize="10.5"
+                                <TextBlock Text="{Binding OwnershipLabel}" FontSize="11"
                                            Foreground="{DynamicResource VaultAccent}"
                                            TextAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding OwnershipLabel}"
                                            Margin="0,3,0,0"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
                                             Margin="0,7,0,0">
