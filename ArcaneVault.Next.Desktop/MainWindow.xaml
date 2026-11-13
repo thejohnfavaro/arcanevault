@@ -887,6 +887,10 @@
              verified data and editor flows as the old popup, without a Window. -->
         <ContentControl x:Name="NativeWorkspaceHost" Grid.Column="1"
                         Margin="10,12,10,12" Visibility="Collapsed"/>
+        <!-- EDH commander discovery occupies the same central workspace
+             as Card Catalog and Deck Library. No floating browser window. -->
+        <ContentControl x:Name="EdhLabHost" Grid.Column="1"
+                        Margin="10,12,10,12" Visibility="Collapsed"/>
 
         <!-- App-owned, nonmodal notices and short session activity history.
              Empty grid areas do not intercept catalog navigation. -->
