@@ -224,7 +224,7 @@ internal static class EdhLabDraftChecks
         catch (ArgumentException) { tooLongManagerQueryRejected = true; }
         Must(tooLongManagerQueryRejected &&
              NativeDeckEditing.ParseMainboard(
-                 "4 Island\\n1 Sol Ring\\n1 Tiny Insight\\n1 Lightning Bolt\\n1 Thopter Foundry")
+                 "4 Island\n1 Sol Ring\n1 Tiny Insight\n1 Lightning Bolt\n1 Thopter Foundry")
                  .SequenceEqual(managedEntries),
              "Search must not rewrite the authoritative unsaved mainboard or allow unbounded queries.");
 
