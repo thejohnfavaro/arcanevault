@@ -12,7 +12,6 @@ namespace ArcaneVault.Next.Desktop;
 public sealed class NativeManaStrip : WrapPanel
 {
     public enum Presentation { Identity, Cost }
-    public sealed record Piece(string Text, bool IsSymbol);
 
     public static readonly DependencyProperty ValueProperty =
         DependencyProperty.Register(nameof(Value), typeof(string),
@@ -51,30 +50,10 @@ public sealed class NativeManaStrip : WrapPanel
         Refresh();
     }
 
-    public static IReadOnlyList<Piece> Pieces(string? value, Presentation kind)
-    {
-        if (kind == Presentation.Identity)
-        {
-            // Identity is an ordered, distinct set; generic and hybrid
-            // symbols are NOT valid individual identity indicators.
-            var colors = NativeManaIdentity.ParseColorIdentity(value);
-            if (colors.Count == 0)
-                return new[] { new Piece("Unknown identity", false) };
-            return colors.Select(x => new Piece(x.Symbol, true)).ToArray();
-        }
-
-        if (kind != Presentation.Cost)
-            throw new ArgumentOutOfRangeException(nameof(kind));
-        if (string.IsNullOrWhiteSpace(value))
-            return Array.Empty<Piece>();
-
-        // The token stream preserves every generic value, hybrid ratio,
-        // Phyrexian slash and split-face separator exactly as stored.
-        return NativeOracleSymbolTokenizer.Split(value)
-            .Select(segment => new Piece(segment.IsSymbol
-                    ? segment.Text[1..^1] : segment.Text, segment.IsSymbol))
-            .ToArray();
-    }
+    public static IReadOnlyList<NativeManaSequences.Piece> Pieces(
+        string? value, Presentation kind) =>
+        NativeManaSequences.Pieces(value, kind == Presentation.Identity
+            ? NativeManaSequences.Mode.Identity : NativeManaSequences.Mode.Cost);
 
     private void Refresh()
     {
