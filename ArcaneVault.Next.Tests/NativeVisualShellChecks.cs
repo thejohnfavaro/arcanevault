@@ -1046,6 +1046,29 @@ internal static class NativeVisualShellChecks
              deckEditorCode.Contains("InvalidateAnalytics()", StringComparison.Ordinal),
             "Deck chart visuals must bind computed series and hide stale values.");
 
+        // v0.9.71: EDH Lab double-click must target a real card row,
+        // add at most one copy of the selected card, and leave the normal
+        // Add (+1) action available for basics and special copy limits.
+        Must(deckEditor.Contains("MouseDoubleClick=\"OnOwnedCardDoubleClicked\"",
+                 StringComparison.Ordinal) &&
+             deckEditor.Contains("Click=\"OnAddOwnedClicked\"",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("ContainerFromElement(",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("row.DataContext is not OwnedDisplay clicked",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("singletonDoubleClick: edhLabCommander is not null",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("if (singletonDoubleClick && inDraft > 0)",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("NativeDeckOwnedPicker.AddIfAbsent(",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("NativeDeckOwnedPicker.AddOne(",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("edhLabCommander is not null && edhCatalog is null",
+                 StringComparison.Ordinal),
+            "EDH double-click must be idempotent, row-scoped and catalog-validated; manual add stays distinct.");
+
         foreach (string name in new[] {
             "PreviewCardName", "PreviewOwnership", "PreviewArtwork",
             "PreviewArtFallback", "PreviewMetadata", "PreviewOracleText",

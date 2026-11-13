@@ -151,6 +151,25 @@ public static class NativeDeckOwnedPicker
         return string.Join("\n", lines);
     }
     /// <summary>
+    /// EDH Lab's double-click quick-add is idempotent by card name:
+    /// clicking any existing mainboard card (including a basic land or a
+    /// card with a special deck copy limit) leaves the draft untouched.
+    /// The manual Add (+1) action intentionally retains its usual limits.
+    /// No inventory, saved deck or commander slot is modified.
+    /// </summary>
+    public static string AddIfAbsent(string mainboard, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 255 ||
+            name.Any(char.IsControl))
+            throw new ArgumentException("Invalid selected card name.", nameof(name));
+        var entries = NativeDeckEditing.ParseMainboard(mainboard);
+        if (entries.Any(x => x.Name.Equals(name.Trim(),
+                StringComparison.OrdinalIgnoreCase)))
+            return mainboard;
+        return AddOne(mainboard, name);
+    }
+
+    /// <summary>
     /// Decrement one draft copy. Remove the row entirely at quantity one.
     /// Ownership is never consulted or modified. Refuse malformed drafts or
     /// unlisted card names rather than silently discarding user text.
