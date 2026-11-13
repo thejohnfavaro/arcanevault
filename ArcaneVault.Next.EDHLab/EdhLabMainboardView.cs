@@ -1,5 +1,3 @@
-using ArcaneVault.Next.Collection;
-
 namespace ArcaneVault.Next.EDHLab;
 
 /// <summary>
@@ -60,7 +58,7 @@ public static class EdhLabMainboardView
     };
 
     public static IReadOnlyList<Row> Build(EdhLabDraftCatalog? catalog,
-        IReadOnlyList<NativeDeckEditing.Entry> entries,
+        IReadOnlyList<(string Name, int Quantity)> entries,
         Section section = Section.All, Order order = Order.Type)
     {
         ArgumentNullException.ThrowIfNull(entries);
