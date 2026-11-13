@@ -1727,7 +1727,7 @@ public partial class MainWindow : Window
                         nativeWorkspaceRequested = true;
                         await RefreshNativeWorkspaceAsync();
                     }
-                }) { Owner = this };
+                }, catalogPath: active.ReadOnlySnapshotPath) { Owner = this };
             edhLabWindow = window;
             window.Closed += (_, _) =>
             {
