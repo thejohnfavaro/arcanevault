@@ -43,6 +43,7 @@ public sealed class NativeManaSymbol : Grid
 
     public NativeManaSymbol()
     {
+        fallback.SetResourceReference(TextBlock.ForegroundProperty, "VaultText");
         Children.Add(fallback);
         Children.Add(icon);
         Loaded += (_, _) => _ = ShowOfficialAsync();
