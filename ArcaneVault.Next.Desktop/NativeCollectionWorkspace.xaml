@@ -366,7 +366,12 @@
                                   Unchecked="OnDeckFilterChanged"
                                   Margin="0,0,10,0"/>
                     </WrapPanel>
-                    <ListView Grid.Row="1" x:Name="DeckLibraryList"
+                    <Grid Grid.Row="1" MinHeight="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="0"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ListView Grid.Column="0" x:Name="DeckLibraryList"
                               SelectionChanged="OnDeckSelected"
                               Background="{DynamicResource VaultPanel}"
                               Foreground="{DynamicResource VaultText}"
@@ -475,6 +480,140 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
+                        <Border x:Name="DeckInspectorPanel" Grid.Column="1"
+                                Width="332" Visibility="Collapsed"
+                                Margin="10,0,0,0" Padding="12" CornerRadius="12"
+                                Background="{DynamicResource VaultTileWash}"
+                                BorderBrush="{DynamicResource VaultEdgeLift}"
+                                BorderThickness="1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <DockPanel Grid.Row="0" Margin="0,0,0,9">
+                                    <Button DockPanel.Dock="Right" Content="×"
+                                            Width="29" Height="29" FontSize="18"
+                                            Padding="0" Click="OnHideDeckInspectorClicked"
+                                            Background="{DynamicResource VaultPanelRaised}"
+                                            Foreground="{DynamicResource VaultText}"
+                                            ToolTip="Hide saved-deck inspector"/>
+                                    <StackPanel>
+                                        <TextBlock Text="SAVED DECK INSPECTOR"
+                                                   Style="{StaticResource VaultEyebrow}"/>
+                                        <TextBlock x:Name="DeckInspectorTitle"
+                                                   FontSize="17" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource VaultText}"
+                                                   TextWrapping="Wrap" Margin="0,5,5,0"
+                                                   MaxHeight="54"/>
+                                        <TextBlock x:Name="DeckInspectorSummary"
+                                                   FontSize="10.5"
+                                                   Foreground="{DynamicResource VaultMuted}"
+                                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel>
+                                        <TextBlock Text="MAINBOARD"
+                                                   Style="{StaticResource VaultEyebrow}"
+                                                   Margin="0,2,0,6"/>
+                                        <ListBox x:Name="DeckInspectorCardsList"
+                                                 Height="152" MinHeight="70"
+                                                 SelectionChanged="OnDeckInspectorCardSelected"
+                                                 MouseDoubleClick="OnDeckInspectorCardDoubleClick"
+                                                 Background="{DynamicResource VaultPanel}"
+                                                 Foreground="{DynamicResource VaultText}"
+                                                 BorderBrush="{DynamicResource VaultLine}"
+                                                 ScrollViewer.CanContentScroll="True"
+                                                 VirtualizingStackPanel.IsVirtualizing="True"
+                                                 VirtualizingStackPanel.VirtualizationMode="Recycling">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <DockPanel Margin="3,3" LastChildFill="True">
+                                                        <TextBlock Text="{Binding Quantity}"
+                                                                   Foreground="{DynamicResource VaultAccent}"
+                                                                   Width="25" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   Foreground="{DynamicResource VaultText}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ToolTip="{Binding Name}"/>
+                                                    </DockPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <TextBlock x:Name="DeckInspectorCardName"
+                                                   FontSize="13.5" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource VaultText}"
+                                                   TextWrapping="Wrap" Margin="0,12,0,8"
+                                                   Text="Choose a card to inspect"/>
+                                        <Border Width="158" Height="222" CornerRadius="9"
+                                                HorizontalAlignment="Center" ClipToBounds="True"
+                                                Background="{DynamicResource VaultPanel}"
+                                                BorderBrush="{DynamicResource VaultEdgeLift}"
+                                                BorderThickness="1">
+                                            <Grid>
+                                                <TextBlock Text="Artwork not cached"
+                                                           VerticalAlignment="Center"
+                                                           TextAlignment="Center" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource VaultMuted}"
+                                                           Margin="9"/>
+                                                <local:NativeCardArtImage x:Name="DeckInspectorArt"
+                                                                          DecodeWidth="310"
+                                                                          Width="156" Height="220"/>
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock x:Name="DeckInspectorCardType"
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource VaultText}"
+                                                   Margin="0,10,0,6" TextWrapping="Wrap"/>
+                                        <ItemsControl x:Name="DeckInspectorColorIdentity">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <local:NativeManaSymbol Symbol="{Binding Symbol}"
+                                                                            Width="24" Height="24"
+                                                                            Margin="0,0,4,0"
+                                                                            ToolTip="{Binding Name}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="ORACLE TEXT"
+                                                   Style="{StaticResource VaultEyebrow}"
+                                                   Margin="0,12,0,5"/>
+                                        <FlowDocumentScrollViewer x:Name="DeckInspectorOracle"
+                                                                  Height="170"
+                                                                  IsSelectionEnabled="True"
+                                                                  IsToolBarVisible="False"
+                                                                  Background="Transparent"
+                                                                  BorderThickness="0"
+                                                                  VerticalScrollBarVisibility="Auto"
+                                                                  HorizontalScrollBarVisibility="Disabled"
+                                                                  Foreground="{DynamicResource VaultText}"
+                                                                  AutomationProperties.Name="Saved deck card Oracle rules"/>
+                                        <TextBlock x:Name="DeckInspectorStatus"
+                                                   FontSize="10.5" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource VaultMuted}"
+                                                   Margin="0,9,0,0"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                                <Button Grid.Row="2" Content="Full card details &amp; printings"
+                                        x:Name="DeckInspectorFullDetailsButton"
+                                        Click="OnDeckInspectorFullDetailsClicked"
+                                        IsEnabled="False" Padding="10,8"
+                                        Margin="0,9,0,0"
+                                        Background="{DynamicResource VaultAccentSurface}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Open full read-only details for the selected mainboard card"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
                     <TextBlock Grid.Row="2" x:Name="DeckLibraryStatus"
                                Foreground="{DynamicResource VaultMuted}" TextWrapping="Wrap"
                                Margin="0,11,0,0"
