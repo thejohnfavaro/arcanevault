@@ -28,6 +28,7 @@ public partial class MainWindow
         ActiveNoticeItems.ItemsSource = visibleNotices;
         ActivityHistoryItems.ItemsSource = recentActivity;
         ActivityHistoryButton.Content = "◉   Activity (0)";
+        NativeNoticeHub.Published += PostAppNotice;
     }
 
     private void PostAppNotice(string title, string message, bool warning = false)
@@ -55,6 +56,8 @@ public partial class MainWindow
         var entry = visibleNotices.FirstOrDefault(n => n.Id == id);
         if (entry is not null) visibleNotices.Remove(entry);
     }
+
+    private void DisconnectInAppNotices() => NativeNoticeHub.Published -= PostAppNotice;
 
     private void OnDismissNoticeClicked(object sender, RoutedEventArgs e)
     {
