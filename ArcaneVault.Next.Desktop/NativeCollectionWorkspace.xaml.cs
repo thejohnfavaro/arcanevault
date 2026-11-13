@@ -30,6 +30,8 @@ public partial class NativeCollectionWorkspace : UserControl
     private readonly string? nativePath;
     private string? expectedBackupSha;
     private readonly Func<Task>? reopenNative;
+    private readonly Func<NativeDeckEditing.DeckRow, EdhLabFormat,
+        string, bool, string?, Task>? editInEmbeddedEdhLab;
     private IReadOnlyList<NativeDeckEditing.DeckRow> deckRows;
     private bool deckCoversLoading;
     private bool deckCoversReady;
@@ -47,7 +49,9 @@ public partial class NativeCollectionWorkspace : UserControl
         NativeSetProgress.Result? progress, bool nativeWorkspace = false,
         string? nativePath = null, string? expectedBackupSha = null,
         Func<Task>? reopenNative = null,
-        IReadOnlyList<NativeDeckEditing.DeckRow>? nativeDecks = null)
+        IReadOnlyList<NativeDeckEditing.DeckRow>? nativeDecks = null,
+        Func<NativeDeckEditing.DeckRow, EdhLabFormat, string, bool,
+            string?, Task>? editInEmbeddedEdhLab = null)
     {
         this.backup = backup ?? throw new ArgumentNullException(nameof(backup));
         this.review = review ?? throw new ArgumentNullException(nameof(review));
@@ -56,6 +60,7 @@ public partial class NativeCollectionWorkspace : UserControl
         this.nativePath = nativePath;
         this.expectedBackupSha = expectedBackupSha;
         this.reopenNative = reopenNative;
+        this.editInEmbeddedEdhLab = editInEmbeddedEdhLab;
         deckRows = nativeDecks ?? Array.Empty<NativeDeckEditing.DeckRow>();
         InitializeComponent();
         CollectionTabs.SelectionChanged += (_, e) =>
