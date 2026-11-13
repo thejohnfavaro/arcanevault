@@ -124,6 +124,7 @@ public partial class NativeDeckEditorWindow
     {
         if (updatingMainboardManager) return;
         UpdateMainboardManagerSelection();
+        RefreshSelectedMainboardPrintings();
         if (busy || edhLabCommander is null ||
             MainboardManagerList.SelectedItem is not
                 EdhLabMainboardView.Row { IsHeader: false } selected ||
