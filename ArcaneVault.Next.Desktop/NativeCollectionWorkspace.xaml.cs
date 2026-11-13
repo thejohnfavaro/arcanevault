@@ -661,6 +661,75 @@ public partial class NativeCollectionWorkspace : UserControl
         }
     }
 
+    private void OnCloseDeckPreviewClicked(object sender, RoutedEventArgs e)
+    {
+        DeckPreviewPanel.Visibility = Visibility.Collapsed;
+        DeckCardInspector.Clear();
+    }
+
+    private void OnDeckContentsSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (closing || DeckCardInspector is null) return;
+        if (DeckContentsList?.SelectedItem is not NativeDeckPreviewOutline.Line line)
+        {
+            DeckCardInspector.Clear();
+            return;
+        }
+
+        var deck = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+        if (deck is null) return;
+        bool arena = deck.Format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase);
+        long recorded = arena
+            ? backup.ArenaCards
+                .Where(x => x.Name.Equals(line.Name, StringComparison.OrdinalIgnoreCase))
+                .Sum(x => (long)x.Quantity)
+            : backup.PhysicalCards
+                .Where(x => x.Name.Equals(line.Name, StringComparison.OrdinalIgnoreCase))
+                .Sum(x => (long)x.Quantity);
+        string pool = arena ? "Arena name" : "Physical name";
+        string copies = line.Quantity == 0 && line.IsCommander
+            ? "designated commander" : $"{line.Quantity:N0} in saved mainboard";
+        _ = DeckCardInspector.InspectAsync(line.Name,
+            $"{copies} · {recorded:N0} {pool}-level owned copies (not printing proof)",
+            catalogPath);
+    }
+
+    private void RefreshDeckPreview(NativeDeckEditing.DeckRow? selected)
+    {
+        if (DeckPreviewPanel is null || DeckCardInspector is null ||
+            DeckContentsList is null) return;
+        if (selected is null)
+        {
+            DeckPreviewPanel.Visibility = Visibility.Collapsed;
+            DeckContentsList.ItemsSource = null;
+            DeckCardInspector.Clear("Select a deck");
+            return;
+        }
+
+        string? previouslySelectedName =
+            (DeckContentsList.SelectedItem as NativeDeckPreviewOutline.Line)?.Name;
+        DeckPreviewPanel.Visibility = Visibility.Visible;
+        DeckPreviewTitle.Text = selected.Name;
+        DeckPreviewNotice.Text = selected.Editable
+            ? $"{selected.EntryCount:N0} saved mainboard entries · read-only inspection"
+            : "Some imported entries are unsupported; list may be incomplete. No editing here.";
+        IReadOnlyList<NativeDeckPreviewOutline.Line> contents;
+        try { contents = NativeDeckPreviewOutline.Build(selected); }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException)
+        {
+            DeckPreviewNotice.Text = "Saved list could not be parsed: " + ex.Message;
+            contents = Array.Empty<NativeDeckPreviewOutline.Line>();
+        }
+
+        DeckContentsList.ItemsSource = contents;
+        DeckContentsList.SelectedItem = contents.FirstOrDefault(x =>
+            x.Name.Equals(previouslySelectedName ?? "",
+                StringComparison.OrdinalIgnoreCase)) ?? contents.FirstOrDefault();
+        if (contents.Count == 0)
+            DeckCardInspector.Clear("No supported card entries");
+    }
+
     private void OnDeckSelected(object sender, SelectionChangedEventArgs e)
     {
         if (DeckLibraryList is null || EditDeckButton is null ||
@@ -685,6 +754,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 "This imported deck contains unsupported or ambiguous entries. " +
                 "It is shown read-only; you may delete it with recovery protection, " +
                 "but cannot edit it until its entries are repaired.";
+        RefreshDeckPreview(selectedDeck);
     }
 
     private async void OnAddDeckClicked(object sender, RoutedEventArgs e)
