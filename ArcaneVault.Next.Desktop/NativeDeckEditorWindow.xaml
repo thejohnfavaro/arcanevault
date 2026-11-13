@@ -723,9 +723,18 @@
                                        TextWrapping="Wrap" FontSize="11"
                                        Foreground="#D8DEEB"
                                        Text="Select a card to see local catalog information."/>
-                            <TextBlock x:Name="PreviewOracleText" Margin="0,3,0,0"
-                                       TextWrapping="Wrap" FontSize="11"
-                                       Foreground="#B5C1D3"/>
+                            <TextBlock Text="ORACLE TEXT" Margin="0,10,0,6"
+                                       Style="{StaticResource VaultEyebrow}"/>
+                            <FlowDocumentScrollViewer x:Name="PreviewOracleText"
+                                                      Height="190" Margin="0,0,0,5"
+                                                      Background="Transparent"
+                                                      Foreground="{DynamicResource VaultText}"
+                                                      BorderThickness="0"
+                                                      IsToolBarVisible="False"
+                                                      IsSelectionEnabled="True"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      AutomationProperties.Name="Draft card Oracle text with official mana symbols"/>
                         </StackPanel>
                     </ScrollViewer>
                     <TextBlock x:Name="PreviewStatus" Grid.Row="4"

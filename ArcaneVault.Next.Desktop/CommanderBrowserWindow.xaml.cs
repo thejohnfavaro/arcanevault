@@ -1,3 +1,4 @@
+using ArcaneVault.Next.Collection;
 using ArcaneVault.Next.Domain;
 using ArcaneVault.Next.EDHLab;
 using System.Windows;
@@ -21,6 +22,7 @@ public partial class CommanderBrowserWindow : Window
     private readonly CommanderInventory inventory;
     private readonly bool hasCollection;
     private readonly Func<EdhLabCommanderCard, EdhLabFormat, Task>? startDraft;
+    private readonly string? catalogPath;
     private bool drafting;
     private readonly EdhLabRandomPicker picker = new();
     private int page;
@@ -29,12 +31,14 @@ public partial class CommanderBrowserWindow : Window
 
     public CommanderBrowserWindow(EdhLabCommanderIndex index,
         CommanderInventory? inventory = null, bool hasCollection = false,
-        Func<EdhLabCommanderCard, EdhLabFormat, Task>? startDraft = null)
+        Func<EdhLabCommanderCard, EdhLabFormat, Task>? startDraft = null,
+        string? catalogPath = null)
     {
         this.index = index;
         this.inventory = inventory ?? CommanderInventory.Empty;
         this.hasCollection = hasCollection;
         this.startDraft = startDraft;
+        this.catalogPath = catalogPath;
         InitializeComponent();
         initialized = true;
         RecordedOnly.IsEnabled = hasCollection;
@@ -52,7 +56,63 @@ public partial class CommanderBrowserWindow : Window
     }
 
     private void OnCommanderSelected(object sender,
-        System.Windows.Controls.SelectionChangedEventArgs e) => UpdateDraftButton();
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        UpdateDraftButton();
+        if (CommanderInspectorPanel is null) return;
+        if (CommanderList.SelectedItem is not CommanderRow selected)
+        {
+            CommanderInspectorPanel.Visibility = Visibility.Collapsed;
+            CommanderInspectorArt.ArtUrl = "";
+            return;
+        }
+        var card = selected.Card;
+        CommanderInspectorPanel.Visibility = Visibility.Visible;
+        CommanderInspectorName.Text = card.Name;
+        CommanderInspectorArt.ArtUrl = NativeCardArtwork.IsTrustedArtworkUrl(card.ImageUrl)
+            ? card.ImageUrl : "";
+        CommanderInspectorType.Text = card.TypeLine;
+        CommanderInspectorOwnership.Text = selected.InventoryText +
+            " · name-level, not verified printing ownership";
+        CommanderInspectorIdentity.ItemsSource =
+            NativeManaIdentity.ParseColorIdentity(card.ColorIdentity);
+        CommanderInspectorOracle.Document =
+            NativeOracleReading.Build(card.OracleText);
+        CommanderInspectorStatus.Text =
+            "Format eligibility uses cached legalities, not live bans. Selecting a commander does not modify your deck.";
+    }
+
+    private void OnCloseCommanderInspectorClicked(object sender, RoutedEventArgs e)
+    {
+        CommanderInspectorPanel.Visibility = Visibility.Collapsed;
+        CommanderInspectorArt.ArtUrl = "";
+    }
+
+    private async void OnCommanderInspectorFullDetailsClicked(object sender, RoutedEventArgs e)
+    {
+        if (CommanderList.SelectedItem is not CommanderRow selected) return;
+        CollectionCatalogReview.CardDetails? details = null;
+        if (!string.IsNullOrWhiteSpace(catalogPath))
+        {
+            try
+            {
+                details = await Task.Run(() =>
+                    CollectionCatalogReview.ReadDetails(catalogPath, selected.Name));
+            }
+            catch (Exception)
+            {
+                // Older/offline catalogs still allow inspection of the
+                // commander row without inventing metadata or ownership.
+            }
+        }
+        if (!IsLoaded || CommanderList.SelectedItem is not CommanderRow current ||
+            !string.Equals(current.Name, selected.Name, StringComparison.OrdinalIgnoreCase))
+            return;
+        var dialog = new NativeCardDetailsWindow(selected.Name,
+            selected.InventoryText + " · recorded name counts only",
+            details, catalogPath) { Owner = this };
+        dialog.Show();
+    }
 
     private async void OnBuildDeckClicked(object sender, RoutedEventArgs e)
     {

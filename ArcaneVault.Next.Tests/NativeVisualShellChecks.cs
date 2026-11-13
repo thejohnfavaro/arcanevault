@@ -28,6 +28,68 @@ internal static class NativeVisualShellChecks
     public static void Run()
     {
         string dir = FindDesktop();
+        // v0.9.65: Deck Library and EDH Lab commander discovery use
+        // persistent, read-only selection inspectors. Opening a full
+        // details window requires an explicit separate action.
+        string v65DeckUi = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
+        string v65DeckCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.DeckInspector.cs"));
+        string v65DeckShell = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
+        string v65CommanderUi = File.ReadAllText(
+            Path.Combine(dir, "CommanderBrowserWindow.xaml"));
+        string v65CommanderCode = File.ReadAllText(
+            Path.Combine(dir, "CommanderBrowserWindow.xaml.cs"));
+        string v65StudioUi = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
+        string v65StudioCode = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.xaml.cs"));
+        string v65OracleHelper = File.ReadAllText(
+            Path.Combine(dir, "NativeOracleReading.cs"));
+
+        Must(v65DeckUi.Contains("x:Name=\"DeckInspectorPanel\"") &&
+             v65DeckUi.Contains("x:Name=\"DeckInspectorCardsList\"") &&
+             v65DeckUi.Contains("x:Name=\"DeckInspectorArt\"") &&
+             v65DeckUi.Contains("x:Name=\"DeckInspectorColorIdentity\"") &&
+             v65DeckUi.Contains("x:Name=\"DeckInspectorOracle\"") &&
+             v65DeckUi.Contains("OnDeckInspectorCardSelected") &&
+             v65DeckUi.Contains("OnDeckInspectorCardDoubleClick") &&
+             v65DeckUi.Contains("OnDeckInspectorFullDetailsClicked") &&
+             v65DeckUi.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"") &&
+             v65DeckCode.Contains("NativeDeckEditing.ParseMainboard(deck.MainboardText)") &&
+             v65DeckCode.Contains("NativeOracleReading.Build(details.OracleText)") &&
+             v65DeckCode.Contains("version != deckInspectVersion") &&
+             v65DeckCode.Contains("ReferenceEquals(deck, inspectedSavedDeck)") &&
+             v65DeckCode.Contains("NativeCardArtwork.IsTrustedArtworkUrl(details.ArtworkUrl)") &&
+             v65DeckCode.Contains("new NativeCardDetailsWindow(card.Name") &&
+             v65DeckShell.Contains("ShowDeckInspector(selectedDeck)") &&
+             v65DeckShell.Contains("deckInspectVersion++;"),
+             "Deck Library must show a persistent, read-only card inspector with stale-load protection.");
+
+        Must(v65CommanderUi.Contains("x:Name=\"CommanderInspectorPanel\"") &&
+             v65CommanderUi.Contains("x:Name=\"CommanderInspectorArt\"") &&
+             v65CommanderUi.Contains("x:Name=\"CommanderInspectorOracle\"") &&
+             v65CommanderUi.Contains("x:Name=\"CommanderInspectorIdentity\"") &&
+             v65CommanderUi.Contains("OnCommanderInspectorFullDetailsClicked") &&
+             v65CommanderUi.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"") &&
+             v65CommanderCode.Contains("OnCommanderSelected(") &&
+             v65CommanderCode.Contains("NativeOracleReading.Build(card.OracleText)") &&
+             v65CommanderCode.Contains("NativeManaIdentity.ParseColorIdentity(card.ColorIdentity)") &&
+             v65CommanderCode.Contains("NativeCardArtwork.IsTrustedArtworkUrl(card.ImageUrl)") &&
+             v65CommanderCode.Contains("new NativeCardDetailsWindow(selected.Name") &&
+             v65CommanderCode.Contains("string? catalogPath = null") &&
+             !v65CommanderCode.Contains("NativeDeckEditing.Save("),
+             "Commander discovery must inspect the selected commander in-place without editing decks.");
+
+        Must(v65StudioUi.Contains("FlowDocumentScrollViewer x:Name=\"PreviewOracleText\"") &&
+             v65StudioCode.Contains("PreviewOracleText.Document = NativeOracleReading.Build(preview.Info.OracleText)") &&
+             !v65StudioCode.Contains("PreviewOracleText.Text =") &&
+             v65OracleHelper.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
+             v65OracleHelper.Contains("new NativeManaSymbol") &&
+             v65OracleHelper.Contains("BaselineAlignment.Center"),
+             "Deck Studio must share official mana symbols and unboxed Oracle reading with other card inspectors.");
+
         var app = XDocument.Load(Path.Combine(dir, "App.xaml"));
         // v0.9.26 startup crash: WPF can freeze application resource
         // SolidColorBrush instances. Theme updates must REPLACE resources,
@@ -555,6 +617,9 @@ internal static class NativeVisualShellChecks
             if (name == "MainWindow")
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "MainWindow.InspectorAndNotices.cs"));
+            if (name == "NativeCollectionWorkspace")
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeCollectionWorkspace.DeckInspector.cs"));
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
