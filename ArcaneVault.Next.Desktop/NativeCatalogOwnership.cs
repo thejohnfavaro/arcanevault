@@ -14,8 +14,11 @@ public sealed class NativeCatalogOwnership
     private readonly Dictionary<Guid, NativePhysicalRow[]> physicalById;
     private readonly Dictionary<string, int> arenaByName;
     private readonly Dictionary<string, int> unresolvedByName;
+    // Name-level paper proxy coverage is NEVER a verified physical printing.
+    private readonly Dictionary<string, int> proxiesByName;
 
-    public sealed record Counts(int VerifiedPhysical, int Arena, int UnresolvedName)
+    public sealed record Counts(int VerifiedPhysical, int Arena, int UnresolvedName,
+        int Proxy = 0)
     {
         public string Label
         {
@@ -25,6 +28,7 @@ public sealed class NativeCatalogOwnership
                 // Quantity remains in VerifiedPhysical; the catalog does not show per-card Physical N badges.
                 // Arena quantities are shown in the Arena inventory, not as catalog badges.
                 if (UnresolvedName > 0) parts.Add($"Unresolved name {UnresolvedName}");
+                if (Proxy > 0) parts.Add($"Proxy {Proxy} (not owned)");
                 return parts.Count == 0
                     ? (VerifiedPhysical > 0 ? "Owned" : "Not verified as owned")
                     : string.Join(" · ", parts);
@@ -34,14 +38,17 @@ public sealed class NativeCatalogOwnership
 
     private NativeCatalogOwnership(
         Dictionary<Guid, NativePhysicalRow[]> physical,
-        Dictionary<string, int> arena, Dictionary<string, int> unresolved)
+        Dictionary<string, int> arena, Dictionary<string, int> unresolved,
+        Dictionary<string, int> proxies)
     {
         physicalById = physical;
         arenaByName = arena;
         unresolvedByName = unresolved;
+        proxiesByName = proxies;
     }
 
-    public static NativeCatalogOwnership From(NativeBackupView view)
+    public static NativeCatalogOwnership From(NativeBackupView view,
+        IReadOnlyList<ArcaneVault.Next.Collection.NativeProxyEditing.ProxyRow>? proxies = null)
     {
         ArgumentNullException.ThrowIfNull(view);
         var byId = new Dictionary<Guid, List<NativePhysicalRow>>();
@@ -72,8 +79,17 @@ public sealed class NativeCatalogOwnership
                 arena.GetValueOrDefault(row.Name) + row.Quantity);
         }
 
+        var paperProxies = new Dictionary<string, int>(
+            StringComparer.OrdinalIgnoreCase);
+        if (proxies is not null)
+            foreach (var row in proxies)
+                if (row.Quantity > 0)
+                    paperProxies[row.Name] = checked(
+                        paperProxies.GetValueOrDefault(row.Name) + row.Quantity);
+
         return new NativeCatalogOwnership(
-            byId.ToDictionary(x => x.Key, x => x.Value.ToArray()), arena, unresolved);
+            byId.ToDictionary(x => x.Key, x => x.Value.ToArray()), arena,
+            unresolved, paperProxies);
     }
 
     public Counts ForPrinting(string printId, string name,
@@ -95,6 +111,7 @@ public sealed class NativeCatalogOwnership
             }
         }
         return new Counts(physical, arenaByName.GetValueOrDefault(name),
-            unresolvedByName.GetValueOrDefault(name));
+            unresolvedByName.GetValueOrDefault(name),
+            proxiesByName.GetValueOrDefault(name));
     }
 }

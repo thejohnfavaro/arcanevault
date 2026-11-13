@@ -20,6 +20,14 @@ internal static class NativeOwnershipCatalogChecks
             "Native catalog ownership: " + description);
     }
 
+    private static void Reject(Action action)
+    {
+        try { action(); }
+        catch (ArgumentException) { return; }
+        throw new InvalidOperationException(
+            "Invalid proxy scope was not rejected by the catalog.");
+    }
+
     private static string Hash(string file) =>
         Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(file)));
 
@@ -57,6 +65,20 @@ internal static class NativeOwnershipCatalogChecks
         });
         var view = NativeBackupReader.Read(backup);
         var ownership = NativeCatalogOwnership.From(view);
+        var proxyOwnership = NativeCatalogOwnership.From(view,
+            new ArcaneVault.Next.Collection.NativeProxyEditing.ProxyRow[]
+            {
+                new("Sol Ring", 2), new("Never Owned", 4),
+                new("Digital Only", 1), new("Unknown Third Party Card", 3)
+            });
+        Must(proxyOwnership.ForPrinting(Second, "Sol Ring", "sld", "123")
+                is { VerifiedPhysical: 0, Proxy: 2 } &&
+             proxyOwnership.ForPrinting(First, "Sol Ring", "cmm", "396")
+                is { VerifiedPhysical: 3, Proxy: 2 } &&
+             proxyOwnership.ForPrinting(Sixth, "Never Owned", "tst", "7")
+                is { VerifiedPhysical: 0, Proxy: 4 },
+             "Proxy name coverage must not change exact verified physical ownership.");
+
 
         Must(ownership.ForPrinting(First, "Sol Ring", "cmm", "396").VerifiedPhysical == 3,
             "The same physical printing must merge multiple finishes for owned counts.");
@@ -168,6 +190,30 @@ internal static class NativeOwnershipCatalogChecks
              physical.Rows.Any(r => r.SetCode == "cmm") &&
              physical.Rows.All(r => r.PhysicalOwned > 0),
             "Physical owned filter must show only individually verified printings.");
+
+        var withProxies = snapshot.SearchFiltered("", new(
+            Ownership: CatalogSnapshot.OwnershipMode.PhysicalVerified,
+            IncludeProxies: true), ownership: proxyOwnership);
+        Must(withProxies.Rows.Count == 4 &&
+             withProxies.Rows.Any(x => x.Name == "Never Owned" &&
+                 x.ProxyCopies == 4 && x.PhysicalOwned == 0 &&
+                 x.OwnershipLabel.Contains("Proxy ×4") &&
+                 x.OwnershipLabel.Contains("not owned")) &&
+             withProxies.Rows.Count(x => x.Name == "Sol Ring") == 2 &&
+             withProxies.Rows.Count(x => x.Name == "Digital Only") == 0 &&
+             withProxies.Rows.All(x => x.Name != "Unknown Third Party Card"),
+             "Physical + Proxy should show one paper representative for proxy-only names, retain real verified printings, never fabricate digital/uncataloged physical printings.");
+        Must(snapshot.SearchFiltered("", new(
+            Ownership: CatalogSnapshot.OwnershipMode.PhysicalVerified),
+            ownership: proxyOwnership).Rows.Count == 2 &&
+             snapshot.SearchFiltered("", new(
+                Ownership: CatalogSnapshot.OwnershipMode.PhysicalNotVerified),
+                ownership: proxyOwnership).Rows.Any(x => x.Name == "Never Owned"),
+             "Disabling the proxy toggle must preserve original exact-printing filters.");
+        Reject(() => snapshot.SearchFiltered("", new(
+            Ownership: CatalogSnapshot.OwnershipMode.ArenaOwned,
+            IncludeProxies: true), ownership: proxyOwnership));
+
         var unverified = snapshot.SearchFiltered("Sol", new(
             Ownership: CatalogSnapshot.OwnershipMode.PhysicalNotVerified),
             ownership: ownership);
