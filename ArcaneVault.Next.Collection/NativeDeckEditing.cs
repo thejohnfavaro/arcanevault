@@ -180,8 +180,8 @@ public static class NativeDeckEditing
             {
                 EntryPrintingIds = entries.OfType<JsonObject>()
                     .Where(x => GetString(x, "name").Length > 0 &&
-                        Guid.TryParse(GetString(x, "displayPrintId"), out var id) &&
-                        id != Guid.Empty)
+                        Guid.TryParse(GetString(x, "displayPrintId"), out var printingId) &&
+                        printingId != Guid.Empty)
                     .GroupBy(x => GetString(x, "name"), StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(x => x.Key, x => GetString(x.First(), "displayPrintId"),
                         StringComparer.OrdinalIgnoreCase)
