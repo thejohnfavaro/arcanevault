@@ -136,6 +136,59 @@ internal static class EdhLabDraftChecks
         var arena = EdhLabDraftCatalog.OpenReadOnly(catalog, ownership,
             "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
 
+        // v0.9.72: Card-browser status must be evaluated BEFORE its 200-row
+        // UI cap, and reflect the current unsaved mainboard rather than an
+        // ownership mutation. In-deck includes eligible unowned names.
+        var draftedCardCounts = new Dictionary<string, int>(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            ["Heavy Insight"] = 1,   // eligible, not recorded
+            ["Tiny Insight"] = 1,    // eligible, recorded
+            ["Sol Ring"] = 1        // eligible, recorded
+        };
+        var availableBrowser = paper.Search("", recordedOnly: false,
+            limit: 200, mainboardCounts: draftedCardCounts,
+            presence: EdhLabCardPresenceFilter.Available);
+        Must(availableBrowser.Any(x => x.Name == "Swords to Plowshares") &&
+             availableBrowser.All(x => x.RecordedCopies > 0 &&
+                !draftedCardCounts.ContainsKey(x.Name)) &&
+             !availableBrowser.Any(x => x.Name is "Heavy Insight" or "Tiny Insight" or
+                 "Sol Ring" or "Lightning Bolt"),
+             "Available must include only recorded, locally legal names not in the unsaved deck.");
+        var inDeckBrowser = paper.Search("", recordedOnly: true,
+            limit: 200, mainboardCounts: draftedCardCounts,
+            presence: EdhLabCardPresenceFilter.InDeck);
+        Must(inDeckBrowser.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
+                .SetEquals(draftedCardCounts.Keys) &&
+             inDeckBrowser.Single(x => x.Name == "Heavy Insight").RecordedCopies == 0,
+             "In deck must show eligible unowned names despite the recorded-only checkbox.");
+        Must(paper.Search("", recordedOnly: false,
+                limit: 1, mainboardCounts: new Dictionary<string, int>(
+                    StringComparer.OrdinalIgnoreCase) { ["Tiny Insight"] = 1 },
+                presence: EdhLabCardPresenceFilter.InDeck)
+                .Single().Name == "Tiny Insight" &&
+             paper.Search("insight", recordedOnly: false,
+                limit: 200, role: "Card Draw",
+                mainboardCounts: draftedCardCounts,
+                presence: EdhLabCardPresenceFilter.InDeck).Count == 2,
+             "Presence and role/text filters must apply before the UI limit and retain all valid matches.");
+        var arenaBrowser = arena.Search("", recordedOnly: false,
+            mainboardCounts: draftedCardCounts,
+            presence: EdhLabCardPresenceFilter.InDeck);
+        Must(arenaBrowser.Any(x => x.Name == "Heavy Insight") &&
+             arenaBrowser.Any(x => x.Name == "Sol Ring") &&
+             !arenaBrowser.Any(x => x.Name == "Swords to Plowshares"),
+             "In-deck membership must still obey Arena format and commander eligibility.");
+        bool missingDraftRefused = false;
+        try
+        {
+            paper.Search("", recordedOnly: false,
+                presence: EdhLabCardPresenceFilter.InDeck);
+        }
+        catch (ArgumentException) { missingDraftRefused = true; }
+        Must(missingDraftRefused,
+             "Presence filtering without current mainboard data must fail closed.");
+
         // v0.9.70: Cache is bounded and must vary with catalog source,
         // verified commander/format/identity and actual owned names/copies.
         EdhLabReadOnlyCache.Clear();
