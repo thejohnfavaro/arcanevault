@@ -650,9 +650,19 @@ internal static class NativeVisualShellChecks
              clearCode.Contains("\"CLEAR ARENA\"") &&
              clearCode.Contains("\"CLEAR BOTH\"") &&
              clearCode.Contains("Acknowledged.IsChecked == true") &&
+             clearCode.Contains("StringComparison.OrdinalIgnoreCase") &&
+             clearCode.Contains("Phrase accepted. Check the full-backup acknowledgement") &&
+             clearCode.Contains("ConfirmButton.IsEnabled = phraseMatches && hasAcknowledgedBackup;") &&
              clearCode.Contains("ConfirmButton.IsEnabled") &&
              !clearCode.Contains("StartFresh("),
              "Inventory clear must require an explicit scope, phrase and acknowledgement.");
+        // v0.9.56: two-line catalog labels remain legible and
+        // tooltips expose full names, ownership and mechanic roles.
+        Must(mainXaml.Contains("ToolTip=\"{Binding OwnershipLabel}\"") &&
+             mainXaml.Contains("ToolTip=\"{Binding RolesLabel}\"") &&
+             mainXaml.Contains("ToolTip=\"{Binding Name}\"") &&
+             mainXaml.Contains("Text=\"{Binding Name}\" FontSize=\"13\""),
+             "Catalog tile/list should reveal truncated labels and maintain readable card names.");
         string collectionCode = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
         // v0.9.54: the ownership summary belongs under the artwork/
