@@ -97,6 +97,7 @@ public partial class NativeCollectionWorkspace : UserControl
         Unloaded += (_, _) =>
         {
             closing = true;
+            deckInspectVersion++;
             setQueryVersion++;
             valuationVersion++;
         };
@@ -666,6 +667,8 @@ public partial class NativeCollectionWorkspace : UserControl
         if (DeckLibraryList is null || EditDeckButton is null ||
             DeleteDeckButton is null || DuplicateDeckButton is null) return;
         var selectedDeck = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+        if (!ReferenceEquals(selectedDeck, inspectedSavedDeck))
+            ShowDeckInspector(selectedDeck);
         bool editable = selectedDeck?.Editable == true && !deckBusy &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
         EditDeckButton.IsEnabled = editable;
