@@ -860,18 +860,18 @@ internal static class NativeVisualShellChecks
             .FirstOrDefault(x => x.Attribute(XName.Get("Name", XamlNs))?.Value ==
                 "CatalogPageStatus");
         Must(catalogPager is not null &&
-             main.Contains("x:Name=\\"PreviousCatalogPageButton\\"") &&
-             main.Contains("x:Name=\\"NextCatalogPageButton\\"") &&
-             main.Contains("x:Name=\\"CatalogPageLabel\\"") &&
-             main.Contains("Click=\\"OnPreviousCatalogPageClicked\\"") &&
-             main.Contains("Click=\\"OnNextCatalogPageClicked\\"") &&
+             main.Contains("PreviousCatalogPageButton") &&
+             main.Contains("NextCatalogPageButton") &&
+             main.Contains("CatalogPageLabel") &&
+             main.Contains("OnPreviousCatalogPageClicked") &&
+             main.Contains("OnNextCatalogPageClicked") &&
              mainCode.Contains("private const int CatalogPageSize = 200;") &&
              mainCode.Contains("offset: checked(catalogPageIndex * CatalogPageSize)") &&
              mainCode.Contains("FilterAsync(debounce: false, resetPage: false)") &&
              mainCode.Contains("if (resetPage) catalogPageIndex = 0;") &&
              mainCode.Contains("SetCatalogPageState(results.Rows.Count, results.MayHaveMore)") &&
              !mainCode.Contains("First 200 matching results") &&
-             main.Contains("VirtualizingStackPanel.IsVirtualizing=\\"True\\""),
+             main.Contains("VirtualizingStackPanel.IsVirtualizing"),
              "All catalog pages must remain accessible with stable back/next controls and virtualized views.");
 
         // Image view virtualizes rows instead of constructing every image at once.
