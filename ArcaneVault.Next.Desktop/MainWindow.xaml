@@ -937,6 +937,38 @@
              verified data and editor flows as the old popup, without a Window. -->
         <ContentControl x:Name="NativeWorkspaceHost" Grid.Column="1"
                         Margin="10,12,10,12" Visibility="Collapsed"/>
+        <!-- EDH commander discovery occupies the same central workspace
+             as Card Catalog and Deck Library. No floating browser window. -->
+        <Grid x:Name="EdhLabHost" Grid.Column="1"
+              Margin="10,12,10,12" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0" Padding="8,6" Margin="0,0,0,6"
+                    BorderBrush="{DynamicResource VaultLine}"
+                    BorderThickness="0,0,0,1">
+                <DockPanel LastChildFill="False">
+                    <TextBlock Text="EDH LAB" Foreground="{DynamicResource VaultAccent}"
+                               FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                               DockPanel.Dock="Left" Margin="4,0,14,0"/>
+                    <Button x:Name="EdhShowCommandersButton"
+                            Content="Commander browser"
+                            Click="OnEdhShowCommandersClicked"
+                            Padding="10,5" Margin="0,0,8,0"
+                            DockPanel.Dock="Left"
+                            Background="{DynamicResource VaultPanelRaised}"
+                            Foreground="{DynamicResource VaultText}"/>
+                    <Button x:Name="EdhReturnToDraftButton"
+                            Content="Return to draft"
+                            Click="OnEdhReturnToDraftClicked" IsEnabled="False"
+                            Padding="10,5" DockPanel.Dock="Left"
+                            Background="{DynamicResource VaultPanelRaised}"
+                            Foreground="{DynamicResource VaultText}"/>
+                </DockPanel>
+            </Border>
+            <ContentControl x:Name="EdhLabSurface" Grid.Row="1"/>
+        </Grid>
 
         <!-- App-owned, nonmodal notices and short session activity history.
              Empty grid areas do not intercept catalog navigation. -->
