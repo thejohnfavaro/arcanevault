@@ -54,7 +54,7 @@
         <CheckBox Grid.Row="4" x:Name="Acknowledged"
                   Content="I understand I must explicitly reimport the cleared cards, and I have checked my full backup."
                   Checked="OnInputsChanged" Unchecked="OnInputsChanged"
-                  TextWrapping="Wrap" Margin="0,7,0,0"
+                  Margin="0,7,0,0"
                   Foreground="{DynamicResource VaultText}"/>
         <StackPanel Grid.Row="5" Orientation="Horizontal"
                     HorizontalAlignment="Right">
