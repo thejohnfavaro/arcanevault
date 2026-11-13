@@ -1228,6 +1228,7 @@ public partial class NativeDeckEditorWindow : Window
                       : "");
             if (edhLabCommander is not null)
             {
+                RefreshMissingCardReview(summary);
                 var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
                 if (edhCatalog is not null)
                 {
@@ -1251,6 +1252,7 @@ public partial class NativeDeckEditorWindow : Window
             DeckShortageText.Text = ex.Message;
             if (edhLabCommander is not null)
             {
+                ClearMissingCardReview("Correct the decklist to review recorded-copy shortages.");
                 EdhBlueprintText.Text = "Correct the decklist to update role coverage.";
                 EdhFindGapButton.IsEnabled = false;
                 EdhFindGapButton.Content = "Find next role";
@@ -1386,12 +1388,20 @@ public partial class NativeDeckEditorWindow : Window
             if (EdhAutoBalanceLands.IsChecked == true)
                 ApplyManaBalance(automatic: true);
             RefreshDraftSummary();
+            if (focusShortageReview)
+            {
+                EdhWorkspaceTabs.SelectedItem = EdhImproveTab;
+                EdhMissingExpander.IsExpanded = true;
+                StatusText.Text = "Reviewing saved-deck shortages with recorded, " +
+                    "locally eligible alternatives. Nothing has been swapped or saved.";
+            }
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
             Microsoft.Data.Sqlite.SqliteException or ArgumentException)
         {
             EdhSuggestionsStatus.Text = "Suggestions unavailable: " + ex.Message +
                 ". You can still edit a deck manually; saving runs preflight.";
+            ClearMissingCardReview("A synced local catalog is required for replacement suggestions.");
             EdhBlueprintText.Text = "Blueprint unavailable without a local catalog.";
             EdhSynergyStatus.Text = "Mechanic recommendations unavailable without a synced catalog.";
             EdhSynergyOnly.IsEnabled = false;
@@ -1588,12 +1598,16 @@ public partial class NativeDeckEditorWindow : Window
         EdhLabFormat? draftFormat = null,
         string? draftColors = null,
         EdhLabFormat? savedLabFormat = null,
-        string? savedLabColors = null)
+        string? savedLabColors = null,
+        bool focusShortageReview = false,
+        string? preferredShortageName = null)
     {
         this.nativePath = nativePath;
         this.expectedSha = expectedSha;
         this.ownership = ownership ?? throw new ArgumentNullException(nameof(ownership));
         this.catalogPath = catalogPath;
+        this.focusShortageReview = focusShortageReview;
+        this.preferredShortageName = preferredShortageName;
         original = selected;
         if (selected is not null && savedLabFormat is not null &&
             (EdhLabSavedDeckAccess.FormatFor(selected.Format) != savedLabFormat ||
