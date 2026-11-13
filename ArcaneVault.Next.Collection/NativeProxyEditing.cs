@@ -57,6 +57,34 @@ public static class NativeProxyEditing
         return rows.AsReadOnly();
     }
 
+    /// <summary>
+    /// Legacy/older full exports have no proxyCards field. Retain the user's
+    /// current proxy section when importing one of those snapshots, rather
+    /// than silently erasing it. An explicit proxyCards array remains
+    /// authoritative, and an explicit whole-workspace fresh start may clear it.
+    /// </summary>
+    public static byte[] CarryForwardIfUnspecified(
+        byte[] currentBackup, byte[] incomingBackup)
+    {
+        ArgumentNullException.ThrowIfNull(currentBackup);
+        ArgumentNullException.ThrowIfNull(incomingBackup);
+        using var current = JsonDocument.Parse(currentBackup);
+        using var incoming = JsonDocument.Parse(incomingBackup);
+        if (!current.RootElement.TryGetProperty("proxyCards", out var oldRows) ||
+            incoming.RootElement.TryGetProperty("proxyCards", out _) ||
+            oldRows.ValueKind != JsonValueKind.Array ||
+            oldRows.GetArrayLength() == 0)
+            return incomingBackup;
+        // Fail closed if the existing ledger is malformed before copying it.
+        _ = Read(currentBackup);
+        var node = JsonNode.Parse(incomingBackup) as JsonObject ??
+            throw new InvalidDataException("Invalid imported full backup.");
+        node["proxyCards"] = JsonNode.Parse(oldRows.GetRawText());
+        byte[] merged = Encoding.UTF8.GetBytes(node.ToJsonString());
+        _ = Read(merged);
+        return merged;
+    }
+
     public static byte[] SetQuantity(byte[] completeBackup, string cardName,
         int newQuantity)
     {
