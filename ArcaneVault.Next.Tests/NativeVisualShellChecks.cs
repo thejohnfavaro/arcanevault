@@ -108,6 +108,7 @@ internal static class NativeVisualShellChecks
         Must(!mainXaml.Contains("Color=\"#302748\"", StringComparison.Ordinal),
              "Hard-coded purple catalog banner must not override non-purple themes.");
 
+        string depthMainCode = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs"));
         // v0.9.59: the visual-depth pass must be genuinely theme-aware,
         // not hardcoded purple or a heavyweight shadow on every catalog row.
         // Dynamic resources must be replaced atomically when themes switch.
@@ -128,7 +129,7 @@ internal static class NativeVisualShellChecks
              mainXaml.Contains("Background=\"{DynamicResource VaultSidebarWash}\"") &&
              mainXaml.Contains("Style=\"{StaticResource VaultElevatedPanel}\"") &&
              mainXaml.Contains("VaultCatalogTileStyle") &&
-             mainShellCode.Contains("FindResource(\"VaultNavButtonDepth\")") &&
+             depthMainCode.Contains("FindResource(\"VaultNavButtonDepth\")") &&
              !appXaml.Contains("Foreground\" Value=\"#E5DBFF") &&
              !appXaml.Contains("Foreground\" Value=\"#E5D9FF"),
              "Catalog depth, active navigation and selected text must follow the chosen theme.");
