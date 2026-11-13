@@ -1672,7 +1672,7 @@ internal static class NativeVisualShellChecks
              draftEditorCode.Contains("PreviewColorIdentity.Value = preview.Info.ColorIdentity;") &&
              detailsXaml.Contains("x:Name=\"CardManaCost\"") &&
              detailsCode.Contains("CardManaCost.Value = info.ManaCost;") &&
-             deckCardsXaml.Contains("x:Name=\"DeckInspectorManaCost\"") &&
+             v65DeckUi.Contains("x:Name=\"DeckInspectorManaCost\"") &&
              v65DeckCode.Contains("DeckInspectorManaCost.Value = details.ManaCost;") &&
              symbolStripCode.Contains("new NativeManaSymbol") &&
              symbolStripCode.Contains("NativeOracleSymbolTokenizer.Split(value)") &&
