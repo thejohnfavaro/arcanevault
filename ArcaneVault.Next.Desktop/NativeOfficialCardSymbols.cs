@@ -35,8 +35,6 @@ public static class NativeOfficialCardSymbols
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
         client.DefaultRequestHeaders.UserAgent.Add(
             new ProductInfoHeaderValue("ArcaneVault", "0.9.62"));
-        client.DefaultRequestHeaders.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("application/json"));
         return client;
     }
 
@@ -65,6 +63,7 @@ public static class NativeOfficialCardSymbols
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Get, SymbologyUri);
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             using var response = await Client.SendAsync(req,
                 HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
@@ -111,6 +110,7 @@ public static class NativeOfficialCardSymbols
             if (!File.Exists(file))
             {
                 using var req = new HttpRequestMessage(HttpMethod.Get, uri);
+                req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("image/svg+xml"));
                 using var response = await Client.SendAsync(req,
                     HttpCompletionOption.ResponseHeadersRead);
                 if (!response.IsSuccessStatusCode ||
