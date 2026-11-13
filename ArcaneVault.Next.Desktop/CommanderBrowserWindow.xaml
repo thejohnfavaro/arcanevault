@@ -14,11 +14,21 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Margin="0,0,0,14">
-            <TextBlock FontSize="26" FontWeight="Bold" Text="EDH Lab"/>
-            <TextBlock FontSize="13" Foreground="{DynamicResource VaultMuted}" Margin="0,4,0,0"
-                       Text="Read-only commander discovery · Paper Commander / 100-card Arena Brawl · No collection edits"/>
-        </StackPanel>
+        <Border Grid.Row="0" Margin="0,0,0,14" Padding="17,15"
+                Background="{DynamicResource VaultHeroWash}"
+                BorderBrush="{DynamicResource VaultEdgeLift}"
+                BorderThickness="1" CornerRadius="16"
+                Effect="{StaticResource VaultPanelShadow}">
+            <StackPanel>
+                <Border Height="4" Width="145" HorizontalAlignment="Left"
+                        Background="{DynamicResource VaultThemeBanner}"
+                        CornerRadius="2" Margin="0,0,0,10"/>
+                <TextBlock FontSize="26" FontWeight="Bold" Text="EDH Lab"/>
+                <TextBlock FontSize="13" Foreground="{DynamicResource VaultMuted}" Margin="0,4,0,0"
+                           TextWrapping="Wrap"
+                           Text="Read-only commander discovery · Paper Commander / 100-card Arena Brawl · No collection edits"/>
+            </StackPanel>
+        </Border>
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
             <TextBlock Text="Format" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <ComboBox x:Name="FormatChoice" Width="185" Margin="0,0,20,0"
@@ -76,7 +86,7 @@
         <ListView Grid.Row="4" x:Name="CommanderList"
                   SelectionChanged="OnCommanderSelected"
                   Background="{DynamicResource VaultPanel}" Foreground="{DynamicResource VaultText}"
-                  BorderBrush="{DynamicResource VaultLine}"
+                  BorderBrush="{DynamicResource VaultEdgeLift}"
                   ScrollViewer.CanContentScroll="True"
                   VirtualizingStackPanel.IsVirtualizing="True"
                   VirtualizingStackPanel.VirtualizationMode="Recycling">
