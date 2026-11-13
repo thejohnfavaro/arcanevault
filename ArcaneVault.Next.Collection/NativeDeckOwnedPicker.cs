@@ -192,6 +192,35 @@ public static class NativeDeckOwnedPicker
     }
 
     /// <summary>
+    /// Set one EXISTING mainboard entry to an exact quantity (0 removes it).
+    /// The caller enforces current format-specific copy limits on increases.
+    /// Parsing prevents partial text edits or invalid deck structures.
+    /// There is no collection, card catalog or saved-deck write.
+    /// </summary>
+    public static string SetQuantity(string mainboard, string name, int quantity)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 255 ||
+            name.Any(char.IsControl))
+            throw new ArgumentException("Invalid selected card name.", nameof(name));
+        if (quantity is < 0 or > 250)
+            throw new ArgumentOutOfRangeException(nameof(quantity),
+                "A mainboard entry must have 0–250 copies.");
+        var entries = NativeDeckEditing.ParseMainboard(mainboard);
+        var current = entries.FirstOrDefault(x =>
+            x.Name.Equals(name.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (current is null)
+            throw new InvalidDataException("The selected card is no longer in the mainboard.");
+        if (current.Quantity == quantity) return mainboard;
+        if (entries.Sum(x => x.Quantity) - current.Quantity + quantity > 1_000)
+            throw new InvalidDataException("The deck editor supports at most 1,000 copies.");
+        return string.Join("\n", entries
+            .Where(x => !x.Name.Equals(current.Name, StringComparison.OrdinalIgnoreCase) ||
+                quantity > 0)
+            .Select(x => (x.Name.Equals(current.Name, StringComparison.OrdinalIgnoreCase)
+                ? quantity : x.Quantity) + " " + x.Name));
+    }
+
+    /// <summary>
     /// Normalized, deterministic sorting for name/quantity-only mainboards.
     /// Parsing first prevents incomplete or unsupported lines being lost.
     /// </summary>
