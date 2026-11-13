@@ -1069,6 +1069,25 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal),
             "EDH double-click must be idempotent, row-scoped and catalog-validated; manual add stays distinct.");
 
+        // v0.9.72: EDH card browser must label unsaved draft membership,
+        // filter available/in-deck/all without losing selected previews,
+        // and refresh status from the existing debounced draft update.
+        Must(deckEditor.Contains("x:Name=\"EdhCardPresenceBox\"") &&
+             deckEditor.Contains("SelectionChanged=\"OnEdhCardPresenceChanged\"") &&
+             deckEditor.Contains("Content=\"Available · not in deck\"") &&
+             deckEditor.Contains("Content=\"In deck\"") &&
+             deckEditor.Contains("Content=\"All eligible\"") &&
+             deckEditor.Contains("x:Name=\"EdhBrowserStatus\"") &&
+             deckEditorCode.Contains("In deck ×{InDraftCopies}") &&
+             deckEditorCode.Contains("mainboardCounts: counts, presence: presence") &&
+             deckEditorCode.Contains("NativeDeckEditing.ParseMainboard(MainboardBox.Text)") &&
+             deckEditorCode.Contains("if (updatingOwnedBrowser) return;") &&
+             deckEditorCode.Contains("RefreshOwnedCards();") &&
+             deckEditorCode.Contains("SetOwnedBrowserRows(results,") &&
+             deckEditorCode.Contains("Correct the mainboard to refresh deck status:") &&
+             deckEditorCode.Contains("if (edhLabCommander is not null) RefreshOwnedCards();"),
+             "Deck-aware EDH browser must refresh on unsaved edits, retain preview and refuse stale counts.");
+
         foreach (string name in new[] {
             "PreviewCardName", "PreviewOwnership", "PreviewArtwork",
             "PreviewArtFallback", "PreviewMetadata", "PreviewOracleText",
