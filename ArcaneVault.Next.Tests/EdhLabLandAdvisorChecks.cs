@@ -125,7 +125,7 @@ internal static class EdhLabLandAdvisorChecks
              "Arena suggestions must not inherit physical proxies.");
 
         var named = EdhLabLandAdvisor.Recommend(candidates, "WU", deck, proxies,
-            EdhLabLandAdvisor.Availability.All, includeBasics: true, search: "  isLa  ");
+            EdhLabLandAdvisor.Availability.All, includeBasics: true, search: "  bAsIc lAnD  ");
         Must(named.Rows.Count == 1 && named.Rows[0].Name == "Island" &&
              named.Rows[0].ProductionSymbols == "U" &&
              named.Rows[0].CopyLimit == int.MaxValue,
