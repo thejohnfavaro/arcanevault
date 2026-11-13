@@ -727,7 +727,18 @@ public partial class NativeCollectionWorkspace : UserControl
         if (reopenNative is not null) await reopenNative();
     }
 
-    private async void OnEditDeckInEdhLabClicked(object sender, RoutedEventArgs e)
+    private void OnEditDeckInEdhLabClicked(object sender, RoutedEventArgs e) =>
+        OpenSelectedDeckInEdhLabAsync(focusShortages: false);
+
+    private void OnReviewDeckShortagesClicked(object sender, RoutedEventArgs e)
+    {
+        if (inspectedSavedDeck is null ||
+            !ReferenceEquals(DeckLibraryList.SelectedItem, inspectedSavedDeck))
+            return;
+        OpenSelectedDeckInEdhLabAsync(focusShortages: true);
+    }
+
+    private async void OpenSelectedDeckInEdhLabAsync(bool focusShortages)
     {
         if (deckBusy || closing || string.IsNullOrWhiteSpace(nativePath) ||
             string.IsNullOrWhiteSpace(expectedBackupSha) ||
@@ -746,6 +757,7 @@ public partial class NativeCollectionWorkspace : UserControl
         deckBusy = true;
         EditDeckButton.IsEnabled = false;
         EditDeckInEdhLabButton.IsEnabled = false;
+        ReviewDeckShortagesButton.IsEnabled = false;
         AddDeckButton.IsEnabled = false;
         DeleteDeckButton.IsEnabled = false;
         DuplicateDeckButton.IsEnabled = false;
@@ -773,7 +785,9 @@ public partial class NativeCollectionWorkspace : UserControl
 
             var dialog = new NativeDeckEditorWindow(
                 nativePath, expectedBackupSha, backup, catalogPath, selected,
-                savedLabFormat: format, savedLabColors: commander.ColorIdentity)
+                savedLabFormat: format, savedLabColors: commander.ColorIdentity,
+                focusShortageReview: focusShortages,
+                preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null)
             { Owner = Window.GetWindow(this) };
             if (dialog.ShowDialog() != true) return;
             Close();
@@ -797,6 +811,7 @@ public partial class NativeCollectionWorkspace : UserControl
                     new SelectionChangedEventArgs(
                         System.Windows.Controls.Primitives.Selector.SelectionChangedEvent,
                         Array.Empty<object>(), Array.Empty<object>()));
+                UpdateDeckInspectorCoverage();
             }
         }
     }
