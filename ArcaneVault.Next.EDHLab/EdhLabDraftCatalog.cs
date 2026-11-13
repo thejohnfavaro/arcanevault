@@ -261,7 +261,12 @@ public sealed class EdhLabDraftCatalog
                     (x.RecordedCopies > 0 && DraftCopies(x.Name) == 0)) &&
                 (presence != EdhLabCardPresenceFilter.InDeck ||
                     DraftCopies(x.Name) > 0) &&
-                (!recordedOnly || x.RecordedCopies > 0) &&
+                // "In deck" must show all locally eligible drafted names,
+                // including names with zero recorded copies. The separate
+                // recorded-only checkbox still governs All; Available already
+                // requires a recorded unused name.
+                (!recordedOnly || x.RecordedCopies > 0 ||
+                    presence == EdhLabCardPresenceFilter.InDeck) &&
                 (!synergyOnly || synergyByName[x.Name].Matches) &&
                 (selectedRole.Length == 0 || x.RoleHints.Split(" · ",
                     StringSplitOptions.RemoveEmptyEntries)
