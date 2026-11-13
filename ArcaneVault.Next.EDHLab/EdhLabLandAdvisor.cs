@@ -23,7 +23,8 @@ public static class EdhLabLandAdvisor
     private sealed record BaseLand(EdhLabDraftCatalog.Card Card,
         string ProductionSymbols, string AccessNote, bool FetchesLand,
         bool AnyColor, bool Conditional, int CoveredCommanderColors,
-        string Tempo, bool Restricted);
+        string Tempo, bool Restricted,
+        EdhLabLandArchetypes.Classification Kind);
     private sealed class CachedLandSet
     {
         public ConcurrentDictionary<int, IReadOnlyList<BaseLand>> ByColors { get; } = new();
@@ -41,14 +42,19 @@ public static class EdhLabLandAdvisor
         bool FetchesLand, bool AnyColor, bool Conditional,
         int CoveredCommanderColors, bool IsBasic, int CopyLimit,
         string Tempo = "Unknown entry", bool Restricted = false,
-        int GapPriority = 0)
+        int GapPriority = 0,
+        string LandCategory = "Utility / other land",
+        string EntryRequirement = "Review card text",
+        string LandTypeDetail = "")
     {
         public bool CanQuickAdd => InDeckCopies == 0 && CopyLimit > 0;
         public string AvailabilityLabel =>
             $"{RealOwned:N0} real owned" +
             (ProxyCopies > 0 ? $" · {ProxyCopies:N0} Proxy" : "") +
             (InDeckCopies > 0 ? $" · In deck ×{InDeckCopies}" : " · Not in deck");
-        public string Explanation => AccessNote + " · " + Tempo +
+        public string Explanation => LandCategory + " · " + EntryRequirement +
+            " · " + AccessNote +
+            (LandTypeDetail.Length > 0 ? " · " + LandTypeDetail : "") +
             (Restricted ? " · Restricted mana spending." : "") +
             (Conditional ? " · Read printed conditions before adding." : "") +
             (FetchesLand ? " · Color production depends on fetched targets." : "") +
@@ -219,9 +225,11 @@ public static class EdhLabLandAdvisor
                 .Select(card =>
                 {
                     var access = Production(card, identity);
+                    var kind = EdhLabLandArchetypes.Classify(
+                        card.Name, card.Type, card.Oracle, access.Fetch);
                     return new BaseLand(card, access.Symbols, access.Note,
                         access.Fetch, access.Any, access.Conditional,
-                        access.Colors, access.Tempo, access.Restricted);
+                        access.Colors, access.Tempo, access.Restricted, kind);
                 }).ToArray());
         var lands = landBases.Select(item =>
         {
@@ -235,7 +243,9 @@ public static class EdhLabLandAdvisor
                 item.ProductionSymbols, item.AccessNote, item.FetchesLand,
                 item.AnyColor, item.Conditional, item.CoveredCommanderColors,
                 card.IsBasicLand, card.SuggestedCopyLimit,
-                item.Tempo, item.Restricted);
+                item.Tempo, item.Restricted, LandCategory: item.Kind.Category,
+                EntryRequirement: item.Kind.EntryNote,
+                LandTypeDetail: item.Kind.Detail);
         }).ToArray();
 
         // Evaluate which colors the current mainboard is actually short on.
@@ -297,7 +307,9 @@ public static class EdhLabLandAdvisor
                 (search.Length == 0 ||
                  x.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                  x.Type.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                 x.AccessNote.Contains(search, StringComparison.OrdinalIgnoreCase)))
+                 x.AccessNote.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                 x.LandCategory.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                 x.EntryRequirement.Contains(search, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(x => x.InDeckCopies > 0)
             .ThenByDescending(x => x.RealOwned > 0)
             .ThenByDescending(x => x.ProxyCopies > 0)
