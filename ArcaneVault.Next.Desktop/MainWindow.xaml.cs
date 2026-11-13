@@ -145,13 +145,14 @@ public partial class MainWindow : Window
             if (ReferenceEquals(node, sender)) break;
         }
         selectedTilePrinting = card;
-        // Selection updates the persistent in-app inspector; no windows are
-        // spawned during browsing. Double click widens it for reading.
+        // A single click updates the persistent read-only inspector.
+        // Double-click opens the exact clicked printing in full details,
+        // without changing the inspector's width or the catalog view.
         _ = ShowCardInInspectorAsync(card);
         if (e.ClickCount >= 2)
         {
             e.Handled = true;
-            SetInspectorExpanded(true);
+            OnCatalogCardDetailsClicked(sender, new RoutedEventArgs());
         }
     }
 
@@ -1431,8 +1432,9 @@ public partial class MainWindow : Window
 
 
     /// <summary>
-    /// Catalog browsing does not imply ownership. Selecting a printing
-    /// inspects it in-place; the larger independent window is opt-in only.
+    /// Catalog browsing never modifies ownership. Single-click inspects
+    /// in-place; double-click explicitly opens the selected printing's full
+    /// details/printings without changing the underlying virtualized list.
     /// </summary>
     private void OnCatalogCardRowDoubleClick(object sender, MouseButtonEventArgs e)
     {
@@ -1442,7 +1444,7 @@ public partial class MainWindow : Window
                 CatalogSnapshot.PrintingRow card) return;
         e.Handled = true;
         _ = ShowCardInInspectorAsync(card);
-        SetInspectorExpanded(true);
+        OnCatalogCardDetailsClicked(sender, new RoutedEventArgs());
     }
 
     private async void OnCatalogCardDetailsClicked(object sender, RoutedEventArgs e)

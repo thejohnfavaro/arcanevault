@@ -968,7 +968,8 @@ internal static class NativeVisualShellChecks
              main.Contains("Click=\"OnInspectorFullDetailsClicked\"") &&
              main.Contains("Click=\"OnInspectorExpandClicked\"") &&
              mainCode.Contains("_ = ShowCardInInspectorAsync(card);") &&
-             mainCode.Contains("SetInspectorExpanded(true);") &&
+             mainCode.Contains("OnCatalogCardDetailsClicked(sender, new RoutedEventArgs());") &&
+             dockedCode.Contains("SetInspectorExpanded(!inspectorExpanded)") &&
              dockedCode.Contains("inspectorRequestVersion") &&
              dockedCode.Contains("version != inspectorRequestVersion") &&
              dockedCode.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
@@ -977,6 +978,56 @@ internal static class NativeVisualShellChecks
              main.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"") &&
              mainCode.Contains("CatalogTileLayout.BuildRows("),
              "Card details must update inside a persistent inspector without sacrificing virtualization.");
+
+        // v0.9.64: an intentional double click opens the ORIGINAL full
+        // details window for the clicked printing in both list and art modes.
+        // Normal selection remains in the persistent inspector. No old
+        // Widen-inspector-on-double-click behavior is allowed.
+        string tileDoubleClick = mainCode.Split(
+            "private void OnCatalogTileMouseDown(", 2)[1]
+            .Split("public MainWindow()", 2)[0];
+        string listDoubleClick = mainCode.Split(
+            "private void OnCatalogCardRowDoubleClick(", 2)[1]
+            .Split("private async void OnCatalogCardDetailsClicked(", 2)[0];
+        Must(tileDoubleClick.Contains("e.ClickCount >= 2") &&
+             tileDoubleClick.Contains("selectedTilePrinting = card;") &&
+             tileDoubleClick.Contains("_ = ShowCardInInspectorAsync(card);") &&
+             tileDoubleClick.Contains("OnCatalogCardDetailsClicked(sender, new RoutedEventArgs());") &&
+             !tileDoubleClick.Contains("SetInspectorExpanded(true)") &&
+             tileDoubleClick.Contains("CardShortlistStar") &&
+             listDoubleClick.Contains("NativeCardRowActivation.SelectClickedRow") &&
+             listDoubleClick.Contains("OnCatalogCardDetailsClicked(sender, new RoutedEventArgs());") &&
+             !listDoubleClick.Contains("SetInspectorExpanded(true)") &&
+             mainCode.Contains("dialog.Show();") &&
+             mainCode.Contains("CardsList.SelectedItem = previouslySelected;") &&
+             mainCode.Contains("selectedTilePrinting = previouslySelected;") &&
+             main.Contains("double-click for full details and printings"),
+             "Art, detailed and compact view must share double-click full details with intact inspector and star safeguards.");
+
+        var inlineOracle = XDocument.Parse(main).Descendants()
+            .FirstOrDefault(x => x.Attribute(XName.Get("Name", XamlNs))?.Value ==
+                "InspectorOracle");
+        string detailOracleXml = File.ReadAllText(
+            Path.Combine(dir, "NativeCardDetailsWindow.xaml"));
+        var detailOracle = XDocument.Parse(detailOracleXml).Descendants()
+            .FirstOrDefault(x => x.Attribute(XName.Get("Name", XamlNs))?.Value ==
+                "OracleText");
+        Must(inlineOracle?.Name.LocalName == "FlowDocumentScrollViewer" &&
+             detailOracle?.Name.LocalName == "FlowDocumentScrollViewer" &&
+             inlineOracle.Attribute("Background")?.Value == "Transparent" &&
+             detailOracle.Attribute("Background")?.Value == "Transparent" &&
+             inlineOracle.Attribute("BorderThickness")?.Value == "0" &&
+             detailOracle.Attribute("BorderThickness")?.Value == "0" &&
+             inlineOracle.Attribute("VerticalScrollBarVisibility")?.Value == "Auto" &&
+             detailOracle.Attribute("VerticalScrollBarVisibility")?.Value == "Auto" &&
+             inlineOracle.Attribute("IsSelectionEnabled")?.Value == "True" &&
+             detailOracle.Attribute("IsSelectionEnabled")?.Value == "True" &&
+             dockedCode.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
+             detailsCode.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
+             detailsCode.Contains("Clipboard.SetText(oraclePlainText)") &&
+             !main.Contains("<RichTextBox x:Name=\"InspectorOracle\"") &&
+             !detailOracleXml.Contains("<RichTextBox Grid.Row=\"1\" x:Name=\"OracleText\""),
+             "Oracle text must read like a document rather than an input control, while keeping exact symbols, selection, scroll and copy.");
 
         Must(main.Contains("x:Name=\"ActivityHistoryButton\"") &&
              main.Contains("x:Name=\"ActivityHistoryPanel\"") &&
@@ -1060,7 +1111,7 @@ internal static class NativeVisualShellChecks
              detailsXaml.Contains("x:Name=\"CardContentGrid\"") &&
              detailsXaml.Contains("x:Name=\"CardArtFrame\"") &&
              detailsXaml.Contains("x:Name=\"CardMetadataPanel\"") &&
-             detailsXaml.Contains("RichTextBox Grid.Row=\"1\" x:Name=\"OracleText\"") &&
+             detailsXaml.Contains("FlowDocumentScrollViewer Grid.Row=\"1\" x:Name=\"OracleText\"") &&
              detailsXaml.Contains("Click=\"OnCopyOracleClicked\"") &&
              detailsXaml.Contains("Grid.Row=\"2\"") &&
              detailsCode.Contains("SourceInitialized += (_, _) => FitInitialWindow()") &&
