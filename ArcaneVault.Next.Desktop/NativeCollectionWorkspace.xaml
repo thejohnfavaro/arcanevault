@@ -331,6 +331,13 @@
                                 IsEnabled="False" Margin="0,0,10,0"
                                 Background="{DynamicResource VaultAccentMuted}" Foreground="White"
                                 BorderBrush="{DynamicResource VaultAccent}"/>
+                        <Button x:Name="ShowDeckPreviewButton" Content="Show card preview"
+                                Click="OnShowDeckPreviewClicked" Padding="12,8"
+                                IsEnabled="False" Margin="0,0,10,0"
+                                Background="{DynamicResource VaultAccentSurface}"
+                                Foreground="{DynamicResource VaultText}"
+                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                ToolTip="Reopen the selected deck's read-only card list and inspector"/>
                         <Button x:Name="EditDeckButton" Content="Edit selected deck"
                                 Click="OnEditDeckClicked" Padding="14,8"
                                 IsEnabled="False" Margin="0,0,10,0"
