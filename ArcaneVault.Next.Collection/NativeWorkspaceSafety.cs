@@ -597,6 +597,31 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    /// <summary>
+    /// Increment many independently labeled paper proxies in one SHA-gated
+    /// atomic workspace replacement with one automatic recovery point.
+    /// The complete batch is validated before any local data is touched.
+    /// </summary>
+    public static Replacement AddProxyBatch(string nativePath,
+        string pastedCards, string expectedCurrentBackupSha,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        var additions = NativeProxyEditing.ParseAdditions(pastedCards);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] updated = NativeProxyEditing.AddBatch(
+                ReadPreservedBackup(path), additions);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "native-proxy-batch",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     /// <summary>Read the legacy-compatible preference without writing a backup.</summary>
     public static NativePrintingArtwork.Preferred? GetPreferredArtwork(
         string nativePath, string cardName)
