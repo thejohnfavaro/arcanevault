@@ -790,8 +790,7 @@ public partial class NativeCollectionWorkspace : UserControl
         var dialog = new NativeDeckEditorWindow(nativePath, expectedBackupSha, backup, catalogPath)
         { Owner = Window.GetWindow(this) };
         if (dialog.ShowDialog() != true) return;
-        Close();
-        if (reopenNative is not null) await reopenNative();
+        await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
     }
 
     private async void OnEditDeckClicked(object sender, RoutedEventArgs e)
@@ -812,8 +811,7 @@ public partial class NativeCollectionWorkspace : UserControl
         var dialog = new NativeDeckEditorWindow(
             nativePath, expectedBackupSha, backup, catalogPath, selected) { Owner = Window.GetWindow(this) };
         if (dialog.ShowDialog() != true) return;
-        Close();
-        if (reopenNative is not null) await reopenNative();
+        await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
     }
 
     private void OnEditDeckInEdhLabClicked(object sender, RoutedEventArgs e) =>
@@ -879,8 +877,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null)
             { Owner = Window.GetWindow(this) };
             if (dialog.ShowDialog() != true) return;
-            Close();
-            if (reopenNative is not null) await reopenNative();
+            await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
             UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or
@@ -941,8 +938,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 "The complete prior native collection was saved at:\n" +
                 created.RecoveryPath,
                 "Deck copy verified", MessageBoxButton.OK, MessageBoxImage.Information);
-            Close();
-            if (reopenNative is not null) await reopenNative();
+            await FinishSavedDeckChangeAsync(created);
         }
         catch (Exception ex)
         {
@@ -998,8 +994,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 "The complete prior collection was saved at:\n" + updated.RecoveryPath,
                 "Deck deletion verified", MessageBoxButton.OK,
                 MessageBoxImage.Information);
-            Close();
-            if (reopenNative is not null) await reopenNative();
+            await FinishSavedDeckChangeAsync(updated);
         }
         catch (Exception ex)
         {
