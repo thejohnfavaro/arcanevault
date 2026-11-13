@@ -23,6 +23,10 @@ public partial class NativeDeckEditorWindow : Window
     private EdhLabDraftCatalog? edhCatalog;
     private EdhLabDeckOptimizer.Report? lastOptimization;
     private EdhLabDeckHealth.Report? lastHealthReport;
+    // Only the analysis pass is deferred while typing. Draft text, the
+    // explicit save path and manual card editing remain synchronous.
+    private System.Windows.Threading.DispatcherTimer? edhAnalysisTimer;
+    private const int EdhAnalysisQuietMilliseconds = 220;
     private EdhLabSwapAdvisor.Report? lastSwapAdvice;
     private EdhLabSynergyPackages.Report? lastPackageReport;
     private EdhLabSynergyChains.Report? lastChainReport;
@@ -344,8 +348,53 @@ public partial class NativeDeckEditorWindow : Window
             EdhAutoBalanceLands?.IsChecked == true)
             ApplyManaBalance(automatic: true);
         InvalidateAnalytics();
-        RefreshDraftSummary();
+        if (edhLabCommander is not null && edhCatalog is not null)
+            ScheduleEdhAnalysis();
+        else
+            RefreshDraftSummary();
         RefreshPreviewOwnership();
+    }
+
+    private void ScheduleEdhAnalysis()
+    {
+        if (edhCatalog is null || edhLabCommander is null || MainboardBox is null)
+            return;
+        // A former suggestion must not remain clickable while the current
+        // draft has not yet been analyzed. The ordinary preflight on Save
+        // remains fully authoritative and is never delayed.
+        lastOptimization = null;
+        lastSwapAdvice = null;
+        lastHealthReport = null;
+        lastPackageReport = null;
+        lastChainReport = null;
+        lastEngineReport = null;
+        EdhBrowseImprovementsButton.IsEnabled = false;
+        EdhApplySwapButton.IsEnabled = false;
+        EdhFindGapButton.IsEnabled = false;
+        EdhHealthBrowseButton.IsEnabled = false;
+        EdhChainJumpButton.IsEnabled = false;
+        EdhEngineFindMissingButton.IsEnabled = false;
+        EdhBalanceNowButton.IsEnabled = false;
+        EdhHealthHeadline.Text = "Deck health: updating after mainboard edit…";
+        EdhChainsStatus.Text = "Synergy chains: updating after mainboard edit…";
+        EdhEnginesStatus.Text = "Three-card engines: updating after mainboard edit…";
+        if (edhAnalysisTimer is null)
+        {
+            edhAnalysisTimer = new System.Windows.Threading.DispatcherTimer(
+                System.Windows.Threading.DispatcherPriority.Background,
+                Dispatcher)
+            {
+                Interval = TimeSpan.FromMilliseconds(EdhAnalysisQuietMilliseconds)
+            };
+            edhAnalysisTimer.Tick += (_, _) =>
+            {
+                edhAnalysisTimer.Stop();
+                if (IsLoaded && !busy)
+                    RefreshDraftSummary();
+            };
+        }
+        edhAnalysisTimer.Stop();
+        edhAnalysisTimer.Start();
     }
 
     private void OnFormatChanged(object sender,
@@ -1141,6 +1190,9 @@ public partial class NativeDeckEditorWindow : Window
 
     private void RefreshDraftSummary()
     {
+        // Explicit refreshes (strategy/format/land-target changes) replace
+        // the queued draft-only pass, rather than rendering it a second time.
+        edhAnalysisTimer?.Stop();
         if (DeckSummaryText is null || DeckShortageText is null ||
             MainboardBox is null || CommanderBox is null || FormatBox is null ||
             OwnedPoolBox is null)
@@ -1543,7 +1595,13 @@ public partial class NativeDeckEditorWindow : Window
             selected is null ? draftFormat : savedLabFormat;
         edhLabColors = selected is null ? draftColors : savedLabColors;
         InitializeComponent();
-        Closed += (_, _) => { previewVersion++; previewRequest?.Cancel(); };
+        Closed += (_, _) =>
+        {
+            edhAnalysisTimer?.Stop();
+            previewVersion++;
+            previewRequest?.Cancel();
+            chainArtworkRequest?.Cancel();
+        };
         OwnedPoolBox.SelectedIndex = edhLabFormat == EdhLabFormat.ArenaBrawl ||
             selected?.Format.Equals("Arena Brawl",
                 StringComparison.OrdinalIgnoreCase) == true ? 1 : 0;
