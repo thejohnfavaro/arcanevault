@@ -874,6 +874,73 @@
                     </ListView>
                 </Grid>
             </TabItem>
+            <!-- This is NOT physical ownership. No Scryfall printing identity,
+                 price lookup, collection valuation or set-progress credit. -->
+            <TabItem Header="Proxies · no value">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" TextWrapping="Wrap"
+                               Margin="0,0,0,12" FontSize="12"
+                               Foreground="{DynamicResource VaultMuted}"
+                               Text="Record third-party / proxy cards separately from owned Magic printings. Proxies may be used in paper decks, but are excluded entirely from collection value, physical ownership, printing progress and Scryfall price lookup."/>
+                    <WrapPanel Grid.Row="1" Margin="0,0,0,10">
+                        <StackPanel Margin="0,0,12,0">
+                            <TextBlock Text="CARD NAME" FontSize="10"
+                                       Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="ProxyNameBox" Width="270" MaxLength="255"
+                                     Padding="9,8" Background="{DynamicResource VaultPanel}"
+                                     Foreground="{DynamicResource VaultText}"
+                                     BorderBrush="{DynamicResource VaultEdgeLift}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,0">
+                            <TextBlock Text="PROXY COPIES" FontSize="10"
+                                       Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="ProxyQuantityBox" Width="92" Text="1"
+                                     MaxLength="6" Padding="9,8"
+                                     Background="{DynamicResource VaultPanel}"
+                                     Foreground="{DynamicResource VaultText}"
+                                     BorderBrush="{DynamicResource VaultEdgeLift}"/>
+                        </StackPanel>
+                        <Button x:Name="ProxySaveButton" Content="Record / update proxy"
+                                Click="OnProxySaveClicked" IsEnabled="False"
+                                Padding="12,8" Margin="0,16,8,0"
+                                Style="{StaticResource VaultPrimaryButton}"/>
+                        <Button x:Name="ProxyRemoveButton" Content="Remove selected proxy"
+                                Click="OnProxyRemoveClicked" IsEnabled="False"
+                                Padding="12,8" Margin="0,16,0,0"
+                                Style="{StaticResource VaultDangerButton}"/>
+                    </WrapPanel>
+                    <TextBlock Grid.Row="2" x:Name="ProxyStatusText"
+                               Text="Proxy inventory is loading…" FontSize="12"
+                               Foreground="{DynamicResource VaultAccent}"
+                               TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <ListView Grid.Row="3" x:Name="ProxyList"
+                              SelectionChanged="OnProxySelected"
+                              VirtualizingStackPanel.IsVirtualizing="True"
+                              VirtualizingStackPanel.VirtualizationMode="Recycling"
+                              Background="{DynamicResource VaultPanelRaised}"
+                              Foreground="{DynamicResource VaultText}"
+                              BorderBrush="{DynamicResource VaultEdgeLift}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Card / proxy name" Width="290"
+                                                DisplayMemberBinding="{Binding Name}"/>
+                                <GridViewColumn Header="Copies" Width="100"
+                                                DisplayMemberBinding="{Binding Quantity}"/>
+                                <GridViewColumn Header="Inventory type" Width="110"
+                                                DisplayMemberBinding="{Binding Kind}"/>
+                                <GridViewColumn Header="Collection valuation" Width="230"
+                                                DisplayMemberBinding="{Binding Valuation}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+            </TabItem>
         </TabControl>
         <TextBlock Grid.Row="4" x:Name="StatusText" Margin="0,12,0,0"
                    Foreground="#B7C9D8" TextWrapping="Wrap"
