@@ -26,6 +26,9 @@ public static class NativeDeckEditing
         // Presentation-only catalog art, never persisted into the deck library.
         public string CoverArtworkUrl { get; init; } = "";
         public string FavoriteLabel => Favorite ? "★ Favorite" : "";
+        // Exact per-deck display choice; independent of collection ownership.
+        public IReadOnlyDictionary<string, string> EntryPrintingIds { get; init; } =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
     private static string Hash(string json) =>
@@ -173,7 +176,16 @@ public static class NativeDeckEditing
             items.Add(new DeckRow(i, id, name, commander,
                 string.IsNullOrWhiteSpace(folder) ? "Unfiled" : folder,
                 entries.Count, copies, revisions, editable,
-                string.Join("\n", mainboard), Hash(json), format, favorite));
+                string.Join("\n", mainboard), Hash(json), format, favorite)
+            {
+                EntryPrintingIds = entries.OfType<JsonObject>()
+                    .Where(x => GetString(x, "name").Length > 0 &&
+                        Guid.TryParse(GetString(x, "displayPrintId"), out var printingId) &&
+                        printingId != Guid.Empty)
+                    .GroupBy(x => GetString(x, "name"), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(x => x.Key, x => GetString(x.First(), "displayPrintId"),
+                        StringComparer.OrdinalIgnoreCase)
+            });
         }
         return items.AsReadOnly();
     }
@@ -229,6 +241,26 @@ public static class NativeDeckEditing
         return result;
     }
 
+    private static bool SamePrintingMap(IReadOnlyDictionary<string, string> a,
+        IReadOnlyDictionary<string, string> b) =>
+        a.Count == b.Count && a.All(x =>
+            b.TryGetValue(x.Key, out var id) &&
+            string.Equals(x.Value, id, StringComparison.OrdinalIgnoreCase));
+
+    private static JsonArray WithDisplayPrints(JsonArray entries,
+        IReadOnlyDictionary<string, string>? selected)
+    {
+        if (selected is null) return entries;
+        foreach (var row in entries.OfType<JsonObject>())
+        {
+            var name = GetString(row, "name");
+            if (selected.TryGetValue(name, out var id))
+                row["displayPrintId"] = Guid.Parse(id).ToString("D");
+            else row.Remove("displayPrintId");
+        }
+        return entries;
+    }
+
     private static void VerifyOtherSections(NativeBackupView before,
         NativeBackupView after, int expectedDeckCount, int expectedRevisions)
     {
@@ -267,7 +299,8 @@ public static class NativeDeckEditing
     public static byte[] Save(byte[] backup,
         string name, string commander, string mainboardText,
         DeckRow? selected = null, string? format = null,
-        string? folder = null, bool? favorite = null)
+        string? folder = null, bool? favorite = null,
+        IReadOnlyDictionary<string, string>? displayPrintIds = null)
     {
         ArgumentNullException.ThrowIfNull(backup);
         string safeName = CheckedText(name, nameof(name), 120, true);
@@ -279,6 +312,18 @@ public static class NativeDeckEditing
             folder ?? selected?.Folder ?? "Unfiled", nameof(folder), 64, true);
         bool safeFavorite = favorite ?? selected?.Favorite ?? false;
         var entries = ParseMainboard(mainboardText);
+        // Null preserves all legacy selections; non-null is the explicit
+        // authoritative unsaved display-choice map, with no ownership effect.
+        if (displayPrintIds is not null)
+        {
+            var known = entries.Select(e => e.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var (cardName, printId) in displayPrintIds)
+                if (!known.Contains(cardName) || !Guid.TryParse(printId, out var id) ||
+                    id == Guid.Empty)
+                    throw new InvalidDataException(
+                        "A selected display printing has an invalid ID or card name.");
+        }
         var before = NativeBackupReader.Read(backup);
         var currentRows = Describe(backup, out var root, out var library);
         int expectedCount = library.Count, expectedRevisions = before.DeckRevisions;
@@ -296,7 +341,8 @@ public static class NativeDeckEditing
                 ["name"] = safeName,
                 ["commander"] = safeCommander,
                 ["format"] = safeFormat,
-                ["entries"] = EntriesForSave(entries, null),
+                ["entries"] = WithDisplayPrints(EntriesForSave(entries, null),
+                    displayPrintIds),
                 ["updated"] = DateTimeOffset.UtcNow.ToString("O"),
                 ["favorite"] = safeFavorite,
                 ["folder"] = safeFolder,
@@ -322,7 +368,9 @@ public static class NativeDeckEditing
                 parsedOld.MainboardText == newText &&
                 parsedOld.Format == safeFormat &&
                 parsedOld.Folder == safeFolder &&
-                parsedOld.Favorite == safeFavorite)
+                parsedOld.Favorite == safeFavorite &&
+                (displayPrintIds is null ||
+                 SamePrintingMap(parsedOld.EntryPrintingIds, displayPrintIds)))
                 throw new InvalidDataException("The deck has no changes; nothing was saved.");
 
             var history = row["revisions"] as JsonArray;
@@ -342,7 +390,8 @@ public static class NativeDeckEditing
             row["format"] = safeFormat;
             row["folder"] = safeFolder;
             row["favorite"] = safeFavorite;
-            row["entries"] = EntriesForSave(entries, previousEntries);
+            row["entries"] = WithDisplayPrints(
+                EntriesForSave(entries, previousEntries), displayPrintIds);
             row["updated"] = DateTimeOffset.UtcNow.ToString("O");
         }
 
