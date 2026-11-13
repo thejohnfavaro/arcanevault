@@ -572,7 +572,7 @@ internal static class NativeVisualShellChecks
         var savedDeckOutline = new NativeDeckEditing.DeckRow(
             0, "deck-id", "Preview deck", "Commander A", "Unfiled",
             3, 7, 0, true,
-            "1 Commander A\\n2 Counterspell\\n4 Sol Ring", "sha", "Commander");
+            "1 Commander A\n2 Counterspell\n4 Sol Ring", "sha", "Commander");
         var outline = NativeDeckPreviewOutline.Build(savedDeckOutline);
         Must(outline.Count == 3 &&
              outline[0].Name == "Commander A" &&
@@ -584,7 +584,7 @@ internal static class NativeVisualShellChecks
              "Saving the commander in the mainboard must not add a phantom extra copy.");
         var separateCommander = savedDeckOutline with {
             Commander = "Other Commander",
-            MainboardText = "2 Counterspell\\n4 Sol Ring"
+            MainboardText = "2 Counterspell\n4 Sol Ring"
         };
         var separateOutline = NativeDeckPreviewOutline.Build(separateCommander);
         Must(separateOutline.Count == 3 &&
