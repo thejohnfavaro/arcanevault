@@ -296,6 +296,39 @@ internal static class EdhLabDraftChecks
                 new[] { (Name: "Missing Metadata Card", Quantity: 1) })
                 .UnknownCopies == 1,
              "No chain without a card in the current deck; unknown draft cards are not analyzed.");
+        // v0.9.51 immutable catalog indexes must not cache the draft:
+        // repeated edits must update statuses and must not leak inventory
+        // between two commander/format catalog snapshots.
+        for (int iteration = 0; iteration < 6; iteration++)
+        {
+            var current = iteration % 2 == 0
+                ? new[] { (Name: "Clockwork Maker", Quantity: 1) }
+                : new[] { (Name: "Clockwork Maker", Quantity: 1),
+                          (Name: "Artifact Arrival", Quantity: 1) };
+            var pair = EdhLabSynergyChains.Analyze(payoffPaper, current);
+            Must(pair.Chains.Any(x =>
+                    x.Enabler == "Clockwork Maker" &&
+                    x.Payoff == "Artifact Arrival" &&
+                    x.Status == (iteration % 2 == 0
+                        ? "Owned missing link" : "Both in deck")),
+                "Cached two-card predicates must recheck current draft copy use and status.");
+            var triple = EdhLabThreeCardEngines.Analyze(drawPaper,
+                iteration % 2 == 0 ? threeDraft :
+                threeDraft.Append((Name: "Draw Reward", Quantity: 1)));
+            Must(triple.Engines.Any(x =>
+                    x.Producer == "Clockwork Maker" &&
+                    x.Bridge == "Artifact Arrival" &&
+                    x.Payoff == "Draw Reward" &&
+                    x.Status == (iteration % 2 == 0
+                        ? "Owned missing link" : "All three in deck")),
+                "Cached three-card predicates must rerank full/deck gap states on edit.");
+        }
+        Must(!EdhLabSynergyChains.Analyze(arena,
+                 new[] { (Name: "Clockwork Maker", Quantity: 1) })
+                 .Chains.Any(x => x.Status == "Owned missing link") &&
+             !EdhLabThreeCardEngines.Analyze(arena, threeDraft)
+                 .Engines.Any(x => x.Status == "Owned missing link"),
+             "Snapshot indexes must never reuse physical ownership for Arena Brawl.");
         bool invalidChainQuantity = false;
         try
         {
