@@ -114,6 +114,12 @@ public static class EdhLabMissingCardAdvisor
                 int manaPenalty = comparableMana
                     ? Math.Min(24, (int)Math.Round(Math.Abs(manaDelta) * 6,
                         MidpointRounding.AwayFromZero)) : 0;
+                // Equal-size curve shifts are not necessarily symmetric:
+                // reducing MV is a modest usability signal, while a
+                // more expensive replacement should require extra scrutiny.
+                // Small enough not to swamp role or commander fit.
+                int curveDirection = !comparableMana ? 0
+                    : manaDelta < 0 ? 6 : manaDelta > 0 ? -6 : 0;
                 int addedRolePoints = Math.Min(18, extras.Length * 6);
                 var roleSet = candidateRoles.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 // Strategy role preferences remain meaningful even when an
@@ -140,7 +146,7 @@ public static class EdhLabMissingCardAdvisor
                     counts.GetValueOrDefault(x.Name) > 1 ? 3 : 0;
                 int score = 80 + (sameType ? 15 : 0) + addedRolePoints +
                     Math.Clamp(synergyDifference * 4, -48, 48) +
-                    focusPoints + copiesBonus - manaPenalty;
+                    focusPoints + copiesBonus + curveDirection - manaPenalty;
 
                 string manaNote = !comparableMana
                     ? "Mana-value comparison unavailable (sync metadata for a curve comparison)"
