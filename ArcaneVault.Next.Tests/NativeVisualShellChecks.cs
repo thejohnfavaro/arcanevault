@@ -950,13 +950,24 @@ internal static class NativeVisualShellChecks
              (printing with { IsShortlisted = true }).Name == printing.Name,
              "Bookmark UI state must never modify catalog printing identity.");
 
-        Must(CatalogTileLayout.ColumnsForWidth(365) == 1 &&
+        // v0.9.61: resizing must change ONLY the column count, not the
+        // intrinsic size of a card. No hard five-column limit on wide screens.
+        Must(CatalogTileLayout.TileWidth == 218 &&
+             CatalogTileLayout.SlotWidth == 224 &&
+             CatalogTileLayout.ColumnsForWidth(365) == 1 &&
              CatalogTileLayout.ColumnsForWidth(675) == 2 &&
              CatalogTileLayout.ColumnsForWidth(955) == 4 &&
-             CatalogTileLayout.ColumnsForWidth(1600) == 5 &&
-             CatalogTileLayout.ColumnsForWidth(double.NaN) == 2,
-             "Compact Catalog tile grid width breakpoints regressed.");
+             CatalogTileLayout.ColumnsForWidth(1600) == 7 &&
+             CatalogTileLayout.ColumnsForWidth(2600) == 11 &&
+             CatalogTileLayout.ColumnsForWidth(3840) == 16 &&
+             CatalogTileLayout.ColumnsForWidth(double.NaN) == 2 &&
+             CatalogTileLayout.ColumnsForWidth(6 * CatalogTileLayout.SlotWidth +
+                 CatalogTileLayout.ViewportReserve - 1) == 5 &&
+             CatalogTileLayout.ColumnsForWidth(6 * CatalogTileLayout.SlotWidth +
+                 CatalogTileLayout.ViewportReserve) == 6,
+             "Fixed-width catalog tiles must add/remove columns at fit thresholds without stretching.");
         Must(main.Contains("Height=\"366\"", StringComparison.Ordinal) &&
+             main.Contains("Width=\"218\" HorizontalAlignment=\"Center\"", StringComparison.Ordinal) &&
              main.Contains("Width=\"200\" Height=\"278\"", StringComparison.Ordinal) &&
              main.Contains("ArtUrl=\"{Binding ImageUrl}\"", StringComparison.Ordinal) &&
              main.Contains("DecodeWidth=\"320\"", StringComparison.Ordinal) &&
@@ -1021,6 +1032,22 @@ internal static class NativeVisualShellChecks
         Must(tileRows.SelectMany(row => row.Cards).Where(x => x is not null)
                 .SequenceEqual(markerCards.Cast<object?>()),
              "Responsive grid must preserve exact printing objects and order.");
+
+        var allResizedCards = Enumerable.Range(1, 200).Cast<object>().ToArray();
+        foreach (int width in new[] { 365, 675, 955, 1367, 1368, 1600, 2600, 3840 })
+        {
+            int columns = CatalogTileLayout.ColumnsForWidth(width);
+            var resizedRows = CatalogTileLayout.BuildRows(allResizedCards, columns);
+            Must(resizedRows.All(row => row.Cards.Count == columns) &&
+                 resizedRows.SelectMany(row => row.Cards)
+                    .Where(card => card is not null)
+                    .SequenceEqual(allResizedCards.Cast<object?>()) &&
+                 resizedRows.Count == (200 + columns - 1) / columns,
+                 "Resizing must not drop, duplicate, reorder, or skip any of 200 cards.");
+        }
+        Must(CatalogTileLayout.BuildRows(allResizedCards, 99)
+                .All(row => row.Cards.Count == CatalogTileLayout.MaximumColumns),
+             "Four-K column limit must still bound per-row artwork controls.");
 
         Must(main.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
                  StringComparison.Ordinal),
