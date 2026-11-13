@@ -1592,30 +1592,30 @@ internal static class NativeVisualShellChecks
              "Mana identity icons must preserve WUBRG order, colorless fallback and unknown-data safety.");
         // v0.9.78: Native mana cost and identity must be separate icon
         // presentations, not printed W/U/B/R/G letters or improvised pips.
-        static string[] ManaPieces(string? raw, NativeManaStrip.Presentation kind) =>
-            NativeManaStrip.Pieces(raw, kind)
+        static string[] ManaPieces(string? raw, NativeManaSequences.Mode kind) =>
+            NativeManaSequences.Pieces(raw, kind)
                 .Where(x => x.IsSymbol).Select(x => x.Text).ToArray();
-        Must(ManaPieces("{2}{U}", NativeManaStrip.Presentation.Cost)
+        Must(ManaPieces("{2}{U}", NativeManaSequences.Mode.Cost)
                  .SequenceEqual(new[] { "2", "U" }) &&
-             ManaPieces("{U}{U}", NativeManaStrip.Presentation.Cost)
+             ManaPieces("{U}{U}", NativeManaSequences.Mode.Cost)
                  .SequenceEqual(new[] { "U", "U" }) &&
              ManaPieces("{W/U}{2/U}{U/P}{C}{X}{S}{T}{Q}",
-                 NativeManaStrip.Presentation.Cost)
+                 NativeManaSequences.Mode.Cost)
                  .SequenceEqual(new[] { "W/U", "2/U", "U/P", "C", "X", "S", "T", "Q" }) &&
              ManaPieces("{X}{G} // {1}{U}",
-                 NativeManaStrip.Presentation.Cost)
+                 NativeManaSequences.Mode.Cost)
                  .SequenceEqual(new[] { "X", "G", "1", "U" }) &&
-             string.Concat(NativeManaStrip.Pieces("{2}{U}",
-                 NativeManaStrip.Presentation.Cost).Select(x =>
+             string.Concat(NativeManaSequences.Pieces("{2}{U}",
+                 NativeManaSequences.Mode.Cost).Select(x =>
                      x.IsSymbol ? "{" + x.Text + "}" : x.Text)) == "{2}{U}" &&
-             ManaPieces("U,U,W", NativeManaStrip.Presentation.Identity)
+             ManaPieces("U,U,W", NativeManaSequences.Mode.Identity)
                  .SequenceEqual(new[] { "W", "U" }) &&
-             ManaPieces("WUBRG", NativeManaStrip.Presentation.Identity)
+             ManaPieces("WUBRG", NativeManaSequences.Mode.Identity)
                  .SequenceEqual(new[] { "W", "U", "B", "R", "G" }) &&
-             ManaPieces("Colorless", NativeManaStrip.Presentation.Identity)
+             ManaPieces("Colorless", NativeManaSequences.Mode.Identity)
                  .SequenceEqual(new[] { "C" }) &&
-             NativeManaStrip.Pieces("literal text without symbols",
-                 NativeManaStrip.Presentation.Cost).Single() is
+             NativeManaSequences.Pieces("literal text without symbols",
+                 NativeManaSequences.Mode.Cost).Single() is
                  { Text: "literal text without symbols", IsSymbol: false },
              "Official cost tokens must preserve generic/hybrid/Phyrexian symbols " +
              "and identity must remain ordered, distinct, and independent.");
@@ -1658,6 +1658,8 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
         var symbolStripCode = File.ReadAllText(
             Path.Combine(dir, "NativeManaStrip.cs"));
+        var symbolSequenceCode = File.ReadAllText(
+            Path.Combine(dir, "NativeManaSequences.cs"));
         var catalogReviewCode = File.ReadAllText(Path.Combine(
             dir, "..", "ArcaneVault.Next.Collection",
             "CollectionCatalogReview.cs"));
@@ -1675,7 +1677,7 @@ internal static class NativeVisualShellChecks
              v65DeckUi.Contains("x:Name=\"DeckInspectorManaCost\"") &&
              v65DeckCode.Contains("DeckInspectorManaCost.Value = details.ManaCost;") &&
              symbolStripCode.Contains("new NativeManaSymbol") &&
-             symbolStripCode.Contains("NativeOracleSymbolTokenizer.Split(value)") &&
+             symbolSequenceCode.Contains("NativeOracleSymbolTokenizer.Split(value)") &&
              catalogReviewCode.Contains("SELECT mana_cost FROM cards") &&
              catalogReviewCode.Contains("catch (SqliteException)"),
              "Audited card inspector/list surfaces must show official exact costs " +
