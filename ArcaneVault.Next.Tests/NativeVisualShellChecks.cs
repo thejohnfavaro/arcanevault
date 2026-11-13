@@ -635,6 +635,39 @@ internal static class NativeVisualShellChecks
             "Card Catalog and Deck Library sidebar navigation must preserve in-shell routing.");
         string collectionCode = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
+        // v0.9.54: the ownership summary belongs under the artwork/
+        // printings pane. The card text keeps its own star-sized row, and
+        // long metadata/legalities remain independently scrollable.
+        var cardDetailsLayout = XDocument.Load(
+            Path.Combine(dir, "NativeCardDetailsWindow.xaml"));
+        var detailsGrid = cardDetailsLayout.Descendants()
+            .FirstOrDefault(x => x.Name.LocalName == "Grid" &&
+                x.Elements().Any(y => y.Name.LocalName == "ScrollViewer" &&
+                    y.Attribute("Grid.Column")?.Value == "0"));
+        Must(detailsGrid is not null,
+            "Card Details must retain separate artwork and text columns.");
+        var leftScroll = detailsGrid.Elements().FirstOrDefault(x =>
+            x.Name.LocalName == "ScrollViewer" &&
+            x.Attribute("Grid.Column")?.Value == "0");
+        var rightGrid = detailsGrid.Elements().FirstOrDefault(x =>
+            x.Name.LocalName == "Grid" &&
+            x.Attribute("Grid.Column")?.Value == "2");
+        Must(leftScroll?.Descendants().Any(x =>
+                x.Attribute(XName.Get("Name", XamlNs))?.Value == "Ownership") == true &&
+             rightGrid is not null &&
+             !rightGrid.Descendants().Any(x =>
+                x.Attribute(XName.Get("Name", XamlNs))?.Value == "Ownership") &&
+             rightGrid.Descendants().Any(x =>
+                x.Attribute(XName.Get("Name", XamlNs))?.Value == "OracleText") &&
+             rightGrid.Elements().Any(x =>
+                x.Name.LocalName == "Border" &&
+                x.Attribute("Grid.Row")?.Value == "0" &&
+                x.Attribute("MaxHeight")?.Value == "230") &&
+             rightGrid.Elements().Any(x =>
+                x.Name.LocalName == "Border" &&
+                x.Attribute("Grid.Row")?.Value == "1" &&
+                x.Attribute("MinHeight")?.Value == "190"),
+             "Ownership must sit below artwork; Oracle text must retain a minimum height independently of long legalities.");
         string detailsCode = File.ReadAllText(
             Path.Combine(dir, "NativeCardDetailsWindow.xaml.cs"));
         string galleryCode = File.ReadAllText(
