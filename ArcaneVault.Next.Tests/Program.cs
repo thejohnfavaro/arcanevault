@@ -142,6 +142,7 @@ try
     NativeWorkspaceSafetyChecks.Run(work);
     NativeFreshStartChecks.Run(work);
     NativePhysicalEditingChecks.Run(work);
+    NativeProxyEditingChecks.Run(work);
     NativePhysicalQuantityChecks.Run(work);
     NativeArenaEditingChecks.Run(work);
     NativeArenaImportChecks.Run(work);
