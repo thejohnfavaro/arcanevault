@@ -794,6 +794,8 @@ internal static class NativeVisualShellChecks
                     Path.Combine(dir, "NativeDeckEditorWindow.MainboardArtwork.cs"));
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeDeckEditorWindow.ProxyCoverage.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeDeckEditorWindow.LandDiscovery.cs"));
             }
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
