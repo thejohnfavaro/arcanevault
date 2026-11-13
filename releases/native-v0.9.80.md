@@ -5,9 +5,16 @@
 - Mainboard Manage: choose an official Scryfall printing per saved deck card entry, prioritize verified owned printing IDs, and preview selected artwork without changing global preferred artwork, prices, collection inventory or Proxy ledger. Persist and restore through saved deck entries and revision backups.
 - EDH Lab Cards: collection-aware land recommendations filtered by commander legal identity, availability (owned, paper Proxy, unowned), and local catalog hints. This preserves existing click-to-preview and double-click-to-add workflows.
 
+## Changed
+- Deck Library now includes the separately stored command-zone leader in the inspector summary and list.
+- Mainboard printing preference is deck-specific rather than global; card counts and the source text remain authoritative.
+
 ## Fixed
 - Deck Library inspector no longer shows an unlabeled second row of color-identity pips immediately under the exact mana cost. Oracle symbols and casting costs remain intact.
 - EDH Lab Cards / Mana & Roles / Improve tabs use explicit selected, hover and focus colors to avoid white-on-white text on Windows light themes.
+
+## Removed
+- Redundant, unlabeled Deck Library color-identity strip beneath exact mana cost (exact cost and Oracle mana symbols are retained).
 
 ## Safety and compatibility
 - Existing native collection, printing ownership, proxy valuation, saved deck quantities and prior backups are preserved.
