@@ -156,6 +156,36 @@ internal static class NativeVisualShellChecks
              !comparisonCode.Contains("NativeDeckEditing.Save("),
              "Projected whole-deck alternative impact must remain read-only and be rechecked on confirmation.");
 
+        // v0.9.70: ordinary saved-deck edits return through a verified
+        // deck-only in-place refresh. Catalog and collection display remain
+        // mounted, and cached EDH eligibility uses real source/owned hashes.
+        var fastSafety = File.ReadAllText(Path.Combine(
+            Directory.GetParent(dir)!.FullName,
+            "ArcaneVault.Next.Collection", "NativeWorkspaceSafety.cs"));
+        var readOnlyCache = File.ReadAllText(Path.Combine(
+            Directory.GetParent(dir)!.FullName,
+            "ArcaneVault.Next.EDHLab", "EdhLabReadOnlyCache.cs"));
+        Must(v65DeckShell.Contains("TryRefreshSavedDecksAsync(") &&
+             v65DeckShell.Contains("FinishSavedDeckChangeAsync(") &&
+             v65DeckShell.Contains("NativeWorkspaceSafety.ListDecksFromVerified(") &&
+             v65DeckShell.Contains("backup.PhysicalCards.SequenceEqual(next.PhysicalCards)") &&
+             v65DeckShell.Contains("backup.ArenaCards.SequenceEqual(next.ArenaCards)") &&
+             v65DeckShell.Contains("await FinishSavedDeckChangeAsync(dialog.SavedReplacement)") &&
+             v65DeckShell.Contains("await FinishSavedDeckChangeAsync(created)") &&
+             v65DeckShell.Contains("await FinishSavedDeckChangeAsync(updated)") &&
+             v65DeckShell.Contains("if (reopenNative is not null) await reopenNative();") &&
+             fastSafety.Contains("ReadPreservedBackup(verified.DatabasePath)") &&
+             fastSafety.Contains("Digest(bytes).Equals(verified.BackupSha256") &&
+             v65StudioCode.Contains("public NativeWorkspaceSafety.Replacement? SavedReplacement") &&
+             v65StudioCode.Contains("SavedReplacement = saved;") &&
+             v65StudioCode.Contains("EdhLabReadOnlyCache.TryGetDraft(") &&
+             v65StudioCode.Contains("EdhLabReadOnlyCache.GetDraft(") &&
+             deckLibraryCode.Contains("EdhLabReadOnlyCache.GetCommanderIndex(") &&
+             readOnlyCache.Contains("MaxDraftSnapshots = 2") &&
+             readOnlyCache.Contains("PoolHash(inventory, format)") &&
+             readOnlyCache.Contains("Fingerprint(catalogPath) != before.Catalog"),
+             "Deck-only refresh must not reload the whole collection or reuse stale EDH advisory metadata.");
+
         var app = XDocument.Load(Path.Combine(dir, "App.xaml"));
         // v0.9.26 startup crash: WPF can freeze application resource
         // SolidColorBrush instances. Theme updates must REPLACE resources,
@@ -604,7 +634,7 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              draftEditorCode.Contains("EdhLabDeckBlueprint.Analyze(",
                  StringComparison.Ordinal) &&
-             draftEditorCode.Contains("EdhLabDraftCatalog.OpenReadOnly(",
+             draftEditorCode.Contains("EdhLabReadOnlyCache.GetDraft(",
                  StringComparison.Ordinal) &&
              draftEditorCode.Contains("NativeDeckPreflight.Check(",
                  StringComparison.Ordinal) &&
@@ -621,7 +651,7 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckLibraryXaml.Contains("Click=\"OnEditDeckInEdhLabClicked\"",
                  StringComparison.Ordinal) &&
-             deckLibraryCode.Contains("CommanderCatalog.OpenReadOnly(catalogPath!)",
+             deckLibraryCode.Contains("EdhLabReadOnlyCache.GetCommanderIndex(catalogPath!)",
                  StringComparison.Ordinal) &&
              deckLibraryCode.Contains("EdhLabSavedDeckAccess.FindEligibleCommander(",
                  StringComparison.Ordinal) &&
