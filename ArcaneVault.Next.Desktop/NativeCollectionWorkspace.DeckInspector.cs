@@ -17,6 +17,96 @@ public partial class NativeCollectionWorkspace
     private NativeDeckEditing.DeckRow? inspectedSavedDeck;
     private NativeDeckEditing.Entry? inspectedDeckCard;
 
+    private NativeDeckOwnedPicker.Pool InspectorPool =>
+        DeckInspectorOwnershipPool?.SelectedIndex == 1
+            ? NativeDeckOwnedPicker.Pool.Arena
+            : NativeDeckOwnedPicker.Pool.Physical;
+
+    private static bool UsesSeparateCommander(string? format) =>
+        string.Equals(format?.Trim(), "Commander", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(format?.Trim(), "Arena Brawl", StringComparison.OrdinalIgnoreCase);
+
+    private void OnDeckInspectorOwnershipPoolChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DeckInspectorOwnershipPool is null ||
+            !ReferenceEquals(e.OriginalSource, DeckInspectorOwnershipPool)) return;
+        UpdateDeckInspectorCoverage();
+    }
+
+    // Do not infer a printing, legality or reservation in any other deck.
+    // All counts are within ONE explicitly selected physical/Arena pool.
+    private void UpdateDeckInspectorCoverage()
+    {
+        if (DeckInspectorCoverageSummary is null ||
+            DeckInspectorCoverageGaps is null ||
+            DeckInspectorCardAvailability is null) return;
+        var deck = inspectedSavedDeck;
+        if (deck is null)
+        {
+            DeckInspectorCoverageSummary.Text = "";
+            DeckInspectorCoverageGaps.Text = "";
+            DeckInspectorCardAvailability.Text = "";
+            return;
+        }
+        if (!deck.Editable)
+        {
+            DeckInspectorCoverageSummary.Text = "Coverage unavailable: saved deck needs review.";
+            DeckInspectorCoverageGaps.Text =
+                "Unsupported imported entries may be missing from the displayed mainboard.";
+            DeckInspectorCardAvailability.Text = "";
+            return;
+        }
+        try
+        {
+            var coverage = NativeDeckOwnedPicker.Review(
+                backup, InspectorPool, deck.MainboardText, deck.Commander, deck.Format);
+            string scope = InspectorPool == NativeDeckOwnedPicker.Pool.Arena
+                ? "Arena" : "Physical";
+            DeckInspectorCoverageSummary.Text =
+                $"{scope}: {coverage.CoveredCopies:N0}/{coverage.TotalWithCommander:N0} " +
+                $"copies recorded · {coverage.MissingCopies:N0} missing";
+            DeckInspectorCoverageGaps.Text = coverage.Shortages.Count == 0
+                ? "All required names covered by recorded copies. No copies are reserved; this is not a legality or printing check."
+                : "Shortages (by name): " +
+                  string.Join(" · ", coverage.Shortages.Take(4)
+                      .Select(x => $"{x.Missing:N0} × {x.Name}")) +
+                  (coverage.Shortages.Count > 4
+                      ? $" · +{coverage.Shortages.Count - 4:N0} more names" : "") +
+                  ". Counts may be shared with other saved decks.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or OverflowException)
+        {
+            DeckInspectorCoverageSummary.Text = "Coverage unavailable for this saved deck.";
+            DeckInspectorCoverageGaps.Text =
+                "Review the mainboard in Deck Studio; collection counts were not changed.";
+        }
+        UpdateDeckInspectorCardAvailability();
+    }
+
+    private void UpdateDeckInspectorCardAvailability()
+    {
+        if (DeckInspectorCardAvailability is null) return;
+        var deck = inspectedSavedDeck;
+        var card = inspectedDeckCard;
+        if (deck is null || card is null || !deck.Editable)
+        {
+            DeckInspectorCardAvailability.Text = "";
+            return;
+        }
+        long recorded = NativeDeckOwnedPicker.CountOwned(backup, InspectorPool, card.Name);
+        bool includesLeader = UsesSeparateCommander(deck.Format) &&
+            string.Equals(deck.Commander?.Trim(), card.Name,
+                StringComparison.OrdinalIgnoreCase);
+        int needed = checked(card.Quantity + (includesLeader ? 1 : 0));
+        long missing = Math.Max(0, needed - recorded);
+        string scope = InspectorPool == NativeDeckOwnedPicker.Pool.Arena
+            ? "Arena" : "Physical";
+        DeckInspectorCardAvailability.Text =
+            $"{scope}: {recorded:N0} recorded · {needed:N0} required" +
+            (includesLeader ? " (including commander)" : "") +
+            (missing == 0 ? " · covered" : $" · {missing:N0} missing");
+    }
+
     private void ShowDeckInspector(NativeDeckEditing.DeckRow? deck)
     {
         ++deckInspectVersion;
@@ -30,6 +120,9 @@ public partial class NativeCollectionWorkspace
         DeckInspectorColorIdentity.ItemsSource = null;
         DeckInspectorOracle.Document = NativeOracleReading.Build("");
         DeckInspectorFullDetailsButton.IsEnabled = false;
+        DeckInspectorCoverageSummary.Text = "";
+        DeckInspectorCoverageGaps.Text = "";
+        DeckInspectorCardAvailability.Text = "";
 
         if (deck is null)
         {
@@ -39,6 +132,11 @@ public partial class NativeCollectionWorkspace
 
         DeckInspectorPanel.Visibility = Visibility.Visible;
         DeckInspectorTitle.Text = deck.Name;
+        // Arena Brawl defaults to Arena; all other formats start Physical.
+        // Either pool remains independently selectable for comparison.
+        DeckInspectorOwnershipPool.SelectedIndex =
+            string.Equals(deck.Format?.Trim(), "Arena Brawl",
+                StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         DeckInspectorSummary.Text =
             $"{deck.Format} · {deck.TotalCopies:N0} copies · {deck.EntryCount:N0} names" +
             (deck.Editable ? "" : " · imported list requires review");
@@ -51,6 +149,7 @@ public partial class NativeCollectionWorkspace
         {
             DeckInspectorStatus.Text =
                 "This saved deck has unsupported entries. Open the deck editor to review. Nothing was changed.";
+            UpdateDeckInspectorCoverage();
             return;
         }
         DeckInspectorCardsList.ItemsSource = cards;
@@ -59,6 +158,7 @@ public partial class NativeCollectionWorkspace
             : "Select a mainboard card for an in-place preview. These are saved quantities, not proof of ownership.";
         if (cards.Count > 0)
             DeckInspectorCardsList.SelectedIndex = 0;
+        UpdateDeckInspectorCoverage();
     }
 
     private void OnHideDeckInspectorClicked(object sender, RoutedEventArgs e)
@@ -86,6 +186,7 @@ public partial class NativeCollectionWorkspace
         if (selected is null || deck is null) return;
 
         DeckInspectorCardName.Text = $"{selected.Quantity} × {selected.Name}";
+        UpdateDeckInspectorCardAvailability();
         DeckInspectorStatus.Text =
             "Loading local catalog rules · saved deck and inventory are unchanged.";
         if (string.IsNullOrWhiteSpace(catalogPath))
