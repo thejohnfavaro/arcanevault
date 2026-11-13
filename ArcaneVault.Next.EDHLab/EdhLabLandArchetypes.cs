@@ -95,7 +95,7 @@ public static class EdhLabLandArchetypes
             return new("Pain land", entry,
                 "Colored mana can cost 1 life", tapped, conditionalEntry);
 
-        if (Rx(oracle, @"\b\{1\}[^.\r\n]{0,60}\{T\}[^.\r\n]{0,40}:\s*Add\s+\{[WUBRG]\}"))
+        if (Rx(oracle, @"\{1\}\s*,\s*\{T\}\s*:\s*Add\s+\{[WUBRG]\}"))
             return new("Filter land", entry,
                 "Filters paid mana into colored mana", tapped, conditionalEntry);
 
