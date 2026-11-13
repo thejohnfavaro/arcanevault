@@ -498,6 +498,34 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal),
              "Mainboard click, keyboard selection and ownership must share a read-only preview without depending on the Cards tab.");
 
+        // v0.9.73: An in-place visual mainboard must retain the original
+        // TextBox as authoritative source for imports, preflight and saves.
+        // New control handlers live in the editor's partial class.
+        string visualMainboardCode = File.ReadAllText(Path.Combine(
+            dir, "NativeDeckEditorWindow.MainboardManager.cs"));
+        Must(NamedEditor("MainboardModes").Name.LocalName == "TabControl" &&
+             NearestTab(NamedEditor("MainboardManagerList")) == "MainboardManageTab" &&
+             NearestTab(NamedEditor("MainboardBox")) == "MainboardTextTab" &&
+             deckEditorXaml.Contains("x:Name=\"MainboardManagerList\"") &&
+             deckEditorXaml.Contains("x:Name=\"MainboardFilterBox\"") &&
+             deckEditorXaml.Contains("x:Name=\"MainboardSortBox\"") &&
+             deckEditorXaml.Contains("Click=\"OnMainboardManagerMinusClicked\"") &&
+             deckEditorXaml.Contains("Click=\"OnMainboardManagerPlusClicked\"") &&
+             deckEditorXaml.Contains("Click=\"OnMainboardManagerRemoveClicked\"") &&
+             deckEditorXaml.Contains("SelectionChanged=\"OnMainboardManagerSelected\"") &&
+             draftEditorCode.Contains("MainboardModes.SelectedItem = MainboardManageTab;") &&
+             draftEditorCode.Contains("MainboardModes.SelectedItem = MainboardTextTab;") &&
+             draftEditorCode.Contains("if (edhLabCommander is not null) RefreshMainboardManager();") &&
+             visualMainboardCode.Contains("EdhLabMainboardView.Build(") &&
+             visualMainboardCode.Contains("MainboardBox.Text = updated;") &&
+             visualMainboardCode.Contains("NativeDeckOwnedPicker.SetQuantity(") &&
+             visualMainboardCode.Contains("NativeDeckEditing.ParseMainboard(MainboardBox.Text)") &&
+             visualMainboardCode.Contains("card.SuggestedCopyLimit") &&
+             visualMainboardCode.Contains("edhCatalog?.Find(existing.Name)") &&
+             visualMainboardCode.Contains("ShowCardPreviewAsync(") &&
+             !visualMainboardCode.Contains("NativeWorkspaceSafety.SaveDeck("),
+             "EDH manager must share exact mainboard text, validate count increases and use card preview without saving.");
+
         var reconciliationXaml = File.ReadAllText(
             Path.Combine(dir, "NativeImportDiffWindow.xaml"));
         var reconciliationCode = File.ReadAllText(
@@ -717,8 +745,12 @@ internal static class NativeVisualShellChecks
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeCollectionWorkspace.DeckInspector.cs"));
             if (name == "NativeDeckEditorWindow")
+            {
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeDeckEditorWindow.MissingSwap.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeDeckEditorWindow.MainboardManager.cs"));
+            }
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -1085,7 +1117,8 @@ internal static class NativeVisualShellChecks
              deckEditorCode.Contains("RefreshOwnedCards();") &&
              deckEditorCode.Contains("SetOwnedBrowserRows(results,") &&
              deckEditorCode.Contains("Correct the mainboard to refresh deck status:") &&
-             deckEditorCode.Contains("if (edhLabCommander is not null) RefreshOwnedCards();"),
+             deckEditorCode.Contains("RefreshMainboardManager();") &&
+             deckEditorCode.Contains("RefreshOwnedCards();"),
              "Deck-aware EDH browser must refresh on unsaved edits, retain preview and refuse stale counts.");
 
         foreach (string name in new[] {

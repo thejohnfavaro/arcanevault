@@ -128,22 +128,150 @@
                             Background="#202737" Foreground="White"
                             BorderBrush="#514276"
                             ToolTip="Sort the unsaved mainboard; rejects invalid lines rather than dropping them"/>
-                    <TextBlock Text="Mainboard — click a card line to preview"
+                    <TextBlock Text="Mainboard — manage cards or edit text"
                                VerticalAlignment="Center" Foreground="#E5BF79"
                                TextTrimming="CharacterEllipsis"
-                               ToolTip="Click a card line, or use Up/Down to move the caret, to view its official catalog card image and text in CARD PREVIEW. No deck or ownership changes."/>
+                               ToolTip="EDH Lab: select a card in Manage to preview and adjust its unsaved count. Text remains the authoritative deck list."/>
                 </DockPanel>
-                <TextBox Grid.Row="1" x:Name="MainboardBox" TextChanged="OnDraftChanged"
-                         SelectionChanged="OnMainboardSelectionChanged"
-                         GotKeyboardFocus="OnMainboardGotKeyboardFocus"
-                         PreviewMouseLeftButtonUp="OnMainboardMouseReleased"
-                         AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Auto"
-                         FontSize="14" FontFamily="Consolas"
-                         Padding="12" Background="{DynamicResource VaultPanel}"
-                         Foreground="{DynamicResource VaultText}"
-                         BorderBrush="{DynamicResource VaultEdgeLift}"/>
+                <TabControl Grid.Row="1" x:Name="MainboardModes"
+                            Background="{DynamicResource VaultPanel}"
+                            Foreground="{DynamicResource VaultText}"
+                            BorderBrush="{DynamicResource VaultEdgeLift}">
+                    <TabItem x:Name="MainboardManageTab" Header="Manage"
+                             Style="{StaticResource VaultDeckTabStyle}"
+                             Visibility="Collapsed">
+                        <Grid Margin="8,10,8,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="MainboardFilterBox" Grid.Column="0"
+                                          SelectedIndex="0" FontSize="11"
+                                          SelectionChanged="OnMainboardManagerFilterChanged"
+                                          Background="#D7E4EB" Foreground="#0D1017"
+                                          ToolTip="Show all cards or a particular type of card in the unsaved mainboard">
+                                    <ComboBoxItem Content="All cards" Tag="All"/>
+                                    <ComboBoxItem Content="Lands" Tag="Lands"/>
+                                    <ComboBoxItem Content="Creatures" Tag="Creatures"/>
+                                    <ComboBoxItem Content="Artifacts" Tag="Artifacts"/>
+                                    <ComboBoxItem Content="Enchantments" Tag="Enchantments"/>
+                                    <ComboBoxItem Content="Instants &amp; sorceries" Tag="Spells"/>
+                                    <ComboBoxItem Content="Other / unverified" Tag="Other"/>
+                                </ComboBox>
+                                <ComboBox x:Name="MainboardSortBox" Grid.Column="2"
+                                          SelectedIndex="0" FontSize="11"
+                                          SelectionChanged="OnMainboardManagerFilterChanged"
+                                          Background="#D7E4EB" Foreground="#0D1017"
+                                          ToolTip="Organize the visual view; sorting does not rewrite the source deck list">
+                                    <ComboBoxItem Content="By card type" Tag="Type"/>
+                                    <ComboBoxItem Content="Name A–Z" Tag="Name"/>
+                                    <ComboBoxItem Content="Quantity ↓" Tag="Quantity"/>
+                                </ComboBox>
+                            </Grid>
+                            <TextBlock Grid.Row="1" x:Name="MainboardManagerStatus"
+                                       Text="Visual mainboard loading…"
+                                       Margin="0,0,0,7" FontSize="11"
+                                       Foreground="{DynamicResource VaultMuted}"
+                                       TextWrapping="Wrap"/>
+                            <ListBox Grid.Row="2" x:Name="MainboardManagerList"
+                                     SelectionChanged="OnMainboardManagerSelected"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     VirtualizingStackPanel.IsVirtualizing="True"
+                                     VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                     Background="{DynamicResource VaultPanelRaised}"
+                                     Foreground="{DynamicResource VaultText}"
+                                     BorderBrush="{DynamicResource VaultEdgeLift}">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="{x:Type ListBoxItem}">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding" Value="5,6"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                                <Setter Property="Background" Value="#252C3D"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                                       Text="{Binding NameLabel}" FontSize="12"
+                                                       FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource VaultText}"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1"
+                                                       Text="{Binding QuantityLabel}"
+                                                       Margin="8,0,0,0" FontWeight="Bold"
+                                                       Foreground="#E5BF79"/>
+                                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+                                                       Text="{Binding DetailsLabel}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource VaultMuted}"
+                                                       FontSize="10" Margin="0,3,0,0"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Grid.Row="3" x:Name="MainboardManagerSelectedText"
+                                       Text="Select a card to view its details and adjust its quantity."
+                                       Margin="0,9,0,5" FontSize="11"
+                                       Foreground="{DynamicResource VaultText}"
+                                       TextWrapping="Wrap"/>
+                            <WrapPanel Grid.Row="4">
+                                <Button x:Name="MainboardManagerMinus" Content="−1"
+                                        Click="OnMainboardManagerMinusClicked" IsEnabled="False"
+                                        Margin="0,0,6,4" Padding="10,6"
+                                        Background="#202737" Foreground="White"
+                                        BorderBrush="#514276"
+                                        ToolTip="Reduce the selected card quantity by one"/>
+                                <Button x:Name="MainboardManagerPlus" Content="+1"
+                                        Click="OnMainboardManagerPlusClicked" IsEnabled="False"
+                                        Margin="0,0,6,4" Padding="10,6"
+                                        Background="#202737" Foreground="White"
+                                        BorderBrush="#514276"
+                                        ToolTip="Increase a selected card only when its local format copy limit allows"/>
+                                <Button x:Name="MainboardManagerRemove" Content="Remove all"
+                                        Click="OnMainboardManagerRemoveClicked" IsEnabled="False"
+                                        Margin="0,0,0,4" Padding="9,6"
+                                        Background="#202737" Foreground="White"
+                                        BorderBrush="#514276"
+                                        ToolTip="Remove every copy of the selected mainboard card (unsaved; does not remove owned copies)"/>
+                            </WrapPanel>
+                        </Grid>
+                    </TabItem>
+                    <TabItem x:Name="MainboardTextTab" Header="Text"
+                             Style="{StaticResource VaultDeckTabStyle}">
+                        <TextBox x:Name="MainboardBox" TextChanged="OnDraftChanged"
+                                 SelectionChanged="OnMainboardSelectionChanged"
+                                 GotKeyboardFocus="OnMainboardGotKeyboardFocus"
+                                 PreviewMouseLeftButtonUp="OnMainboardMouseReleased"
+                                 AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 FontSize="14" FontFamily="Consolas"
+                                 Padding="12" Background="{DynamicResource VaultPanel}"
+                                 Foreground="{DynamicResource VaultText}"
+                                 BorderBrush="{DynamicResource VaultEdgeLift}"/>
+                    </TabItem>
+                </TabControl>
             </Grid>
             <GridSplitter Grid.Column="1" Width="8" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch"

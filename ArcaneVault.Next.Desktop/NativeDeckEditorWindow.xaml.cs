@@ -1306,6 +1306,7 @@ public partial class NativeDeckEditorWindow : Window
             MainboardBox is null || CommanderBox is null || FormatBox is null ||
             OwnedPoolBox is null)
             return;
+        if (edhLabCommander is not null) RefreshMainboardManager();
         var pool = OwnedPoolBox.SelectedIndex == 1
             ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
         try
@@ -1666,7 +1667,11 @@ public partial class NativeDeckEditorWindow : Window
         try
         {
             MainboardBox.Text = NativeDeckOwnedPicker.RemoveOne(MainboardBox.Text, card.Name);
-            if (edhLabCommander is not null) RefreshOwnedCards();
+            if (edhLabCommander is not null)
+            {
+                RefreshMainboardManager();
+                RefreshOwnedCards();
+            }
             StatusText.Text = $"Removed 1 {card.Name} from the unsaved draft. " +
                 "Collection quantities are unchanged.";
         }
@@ -1733,7 +1738,11 @@ public partial class NativeDeckEditorWindow : Window
                 : NativeDeckOwnedPicker.AddOne(MainboardBox.Text, card.Name);
             if (updated == MainboardBox.Text) return;
             MainboardBox.Text = updated;
-            if (edhLabCommander is not null) RefreshOwnedCards();
+            if (edhLabCommander is not null)
+            {
+                RefreshMainboardManager();
+                RefreshOwnedCards();
+            }
             StatusText.Text = $"Added 1 {card.Name} to the unsaved draft" +
                 (singletonDoubleClick ? " via double-click." : ".") +
                 " Collection quantities are unchanged; save still requires preflight review.";
@@ -1774,6 +1783,7 @@ public partial class NativeDeckEditorWindow : Window
             selected is null ? draftFormat : savedLabFormat;
         edhLabColors = selected is null ? draftColors : savedLabColors;
         InitializeComponent();
+        MainboardModes.SelectedItem = MainboardTextTab;
         Closed += (_, _) =>
         {
             edhAnalysisTimer?.Stop();
@@ -1802,6 +1812,8 @@ public partial class NativeDeckEditorWindow : Window
         }
         if (edhLabCommander is not null)
         {
+            MainboardManageTab.Visibility = Visibility.Visible;
+            MainboardModes.SelectedItem = MainboardManageTab;
             HeaderText.Text = selected is null
                 ? "EDH Lab — Construct a deck" : "EDH Lab — Edit saved deck";
             OwnedCardsHeading.Text = "Eligible cards (double-click to add one)";
