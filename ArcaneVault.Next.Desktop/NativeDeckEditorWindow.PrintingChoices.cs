@@ -122,5 +122,8 @@ public partial class NativeDeckEditorWindow
             : "Display printing selected for this unsaved deck. Review and save to persist. " +
               "No ownership, proxy ledger or card price was changed.";
         StatusText.Text = MainboardPrintingStatus.Text;
+        if (previewedCard is { } visible &&
+            visible.Name.Equals(row.Name, StringComparison.OrdinalIgnoreCase))
+            _ = ShowCardPreviewAsync(visible);
     }
 }
