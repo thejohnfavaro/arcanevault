@@ -151,7 +151,6 @@ public partial class NativeCollectionWorkspace
         DeckInspectorArt.ArtUrl = "";
         DeckInspectorCardName.Text = "Choose a card to inspect";
         DeckInspectorCardType.Text = "";
-        DeckInspectorColorIdentity.ItemsSource = null;
         DeckInspectorOracle.Document = NativeOracleReading.Build("");
         DeckInspectorFullDetailsButton.IsEnabled = false;
         DeckInspectorCoverageSummary.Text = "";
@@ -227,7 +226,6 @@ public partial class NativeCollectionWorkspace
         DeckInspectorFullDetailsButton.IsEnabled = selected is not null;
         DeckInspectorArt.ArtUrl = "";
         DeckInspectorManaCost.Value = "";
-        DeckInspectorColorIdentity.ItemsSource = null;
         DeckInspectorCardType.Text = "";
         DeckInspectorOracle.Document = NativeOracleReading.Build("");
         if (selected is null || deck is null) return;
@@ -266,8 +264,6 @@ public partial class NativeCollectionWorkspace
             ? details.ArtworkUrl : "";
         DeckInspectorCardType.Text = details.TypeLine;
         DeckInspectorManaCost.Value = details.ManaCost;
-        DeckInspectorColorIdentity.ItemsSource =
-            NativeManaIdentity.ParseColorIdentity(details.ColorIdentity);
         DeckInspectorOracle.Document =
             NativeOracleReading.Build(details.OracleText);
         DeckInspectorStatus.Text =
