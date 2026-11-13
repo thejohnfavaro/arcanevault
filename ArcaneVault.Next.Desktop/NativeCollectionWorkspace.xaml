@@ -540,7 +540,7 @@
                                                    FontSize="10.5" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource VaultMuted}"
                                                    Margin="0,0,0,12"/>
-                                        <TextBlock Text="MAINBOARD"
+                                        <TextBlock Text="COMMAND ZONE &amp; MAINBOARD"
                                                    Style="{StaticResource VaultEyebrow}"
                                                    Margin="0,2,0,6"/>
                                         <ListBox x:Name="DeckInspectorCardsList"
@@ -559,7 +559,7 @@
                                                         <TextBlock Text="{Binding Quantity}"
                                                                    Foreground="{DynamicResource VaultAccent}"
                                                                    Width="25" FontWeight="Bold"/>
-                                                        <TextBlock Text="{Binding Name}"
+                                                        <TextBlock Text="{Binding DisplayName}"
                                                                    Foreground="{DynamicResource VaultText}"
                                                                    TextTrimming="CharacterEllipsis"
                                                                    ToolTip="{Binding Name}"/>
