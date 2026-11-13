@@ -51,7 +51,8 @@ public partial class NativeDeckEditorWindow
         try
         {
             var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
-            var rows = EdhLabMainboardView.Build(edhCatalog, entries,
+            var rows = EdhLabMainboardView.Build(edhCatalog,
+                entries.Select(x => (x.Name, x.Quantity)).ToArray(),
                 MainboardManagerSection, MainboardManagerOrder);
             updatingMainboardManager = true;
             try
