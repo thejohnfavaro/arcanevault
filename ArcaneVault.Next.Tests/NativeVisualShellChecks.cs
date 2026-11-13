@@ -640,7 +640,7 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
         Must(workspaceXaml.Contains("ArtUrl=\"{Binding CoverArtworkUrl}\"",
                  StringComparison.Ordinal) &&
-             workspaceXaml.Contains("DecodeWidth=\"220\"", StringComparison.Ordinal) &&
+             workspaceXaml.Contains("DecodeWidth=\"260\"", StringComparison.Ordinal) &&
              workspaceXaml.Contains("VirtualizationMode=\"Recycling\"", StringComparison.Ordinal),
              "Deck covers must use the existing virtualized, cached card art viewer.");
 
