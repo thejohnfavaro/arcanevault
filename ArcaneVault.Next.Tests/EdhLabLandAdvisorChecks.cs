@@ -189,6 +189,86 @@ internal static class EdhLabLandAdvisorChecks
              draft["Many Plains"] == 10,
              "Draft source coverage must be visible and strictly read-only.");
 
+        // Classify archetypes from printed Oracle behavior, not Scryfall name
+        // guesses, and retain explicit entry conditions in row and inspector.
+        var archetypes = new[]
+        {
+            Card("Current Shock", "Land — Plains Island",
+                "As Current Shock enters, you may pay 2 life. If you don't, it enters tapped. {T}: Add {W} or {U}.", 1),
+            Card("Old Shock", "Land — Plains Island",
+                "Old Shock enters tapped unless you pay 2 life. {T}: Add {W} or {U}.", 1),
+            Card("Ordinary Tap", "Land",
+                "Ordinary Tap enters the battlefield tapped. {T}: Add {U}.", 1),
+            Card("Fast Style", "Land",
+                "Fast Style enters tapped unless you control two or fewer other lands. {T}: Add {W} or {U}.", 1),
+            Card("Slow Style", "Land",
+                "Slow Style enters tapped unless you control two or more other lands. {T}: Add {W} or {U}.", 1),
+            Card("Check Style", "Land",
+                "Check Style enters tapped unless you control a Plains or Island. {T}: Add {W} or {U}.", 1),
+            Card("Reveal Style", "Land",
+                "Reveal Style enters tapped unless you reveal a Plains card from your hand. {T}: Add {W} or {U}.", 1),
+            Card("Bond Style", "Land",
+                "Bond Style enters tapped unless you have two or more opponents. {T}: Add {W} or {U}.", 1),
+            Card("Pain Style", "Land",
+                "{T}: Add {C}. {T}: Add {W} or {U}. Pain Style deals 1 damage to you.", 1),
+            Card("Bounce Style", "Land",
+                "Bounce Style enters tapped. When Bounce Style enters, return a land you control to its owner's hand. {T}: Add {W}{U}.", 1),
+            Card("Filter Style", "Land",
+                "{1}, {T}: Add {W}{U}.", 1),
+            Card("Fetch Style", "Land",
+                "{T}, Sacrifice Fetch Style: Search your library for a Plains or Island card.", 1),
+            Card("Three Typed", "Land — Plains Island Swamp",
+                "Three Typed enters tapped. Cycling {3}.", 1),
+            Card("Any Color", "Land",
+                "{T}: Add one mana of any color.", 1),
+            Card("Regular Typed", "Land — Plains Island", "", 1),
+            Card("Simple Utility", "Land", "{T}: Add {C}.", 1),
+            Card("Snowy Plains", "Basic Snow Land — Plains", "", 1,
+                basic: true, copyLimit: int.MaxValue)
+        };
+        var allTypes = EdhLabLandAdvisor.Recommend(archetypes, "WUB",
+            filter: EdhLabLandAdvisor.Availability.All, includeBasics: true,
+            limit: 100);
+        var kinds = allTypes.Rows.ToDictionary(x => x.Name,
+            StringComparer.OrdinalIgnoreCase);
+        void Category(string name, string expected) =>
+            Must(kinds[name].LandCategory == expected, name +
+                " classified as " + kinds[name].LandCategory +
+                " instead of " + expected);
+        Category("Current Shock", "Shock land");
+        Category("Old Shock", "Shock land");
+        Category("Ordinary Tap", "Tap land");
+        Category("Fast Style", "Fast land");
+        Category("Slow Style", "Slow land");
+        Category("Check Style", "Check land");
+        Category("Reveal Style", "Reveal land");
+        Category("Bond Style", "Bond land");
+        Category("Pain Style", "Pain land");
+        Category("Bounce Style", "Bounce land");
+        Category("Filter Style", "Filter land");
+        Category("Fetch Style", "Fetch land");
+        Category("Three Typed", "Triome-style land");
+        Category("Any Color", "Rainbow land");
+        Category("Regular Typed", "Typed dual land");
+        Category("Simple Utility", "Utility / other land");
+        Category("Snowy Plains", "Basic land");
+        Must(kinds["Current Shock"].EntryRequirement == "Pay 2 life or enter tapped" &&
+             kinds["Old Shock"].EntryRequirement == "Pay 2 life or enter tapped" &&
+             kinds["Ordinary Tap"].EntryRequirement == "Enters tapped" &&
+             kinds["Fast Style"].EntryRequirement.Contains("two or fewer") &&
+             kinds["Slow Style"].EntryRequirement.Contains("two or more") &&
+             kinds["Fetch Style"].Explanation.Contains("Fetch targets"),
+             "Entry requirement must be distinct from archetype badge.");
+        var shockSearch = EdhLabLandAdvisor.Recommend(archetypes, "WUB",
+            filter: EdhLabLandAdvisor.Availability.All, includeBasics: true,
+            search: "shock");
+        Must(shockSearch.Rows.Count == 2 &&
+             shockSearch.Rows.All(x => x.LandCategory == "Shock land"),
+             "Archetype labels must be searchable without changing collection data.");
+        Must(archetypes.All(x => x.RecordedCopies == 1) &&
+             allTypes.Rows.Count == archetypes.Length,
+             "Classification must be offline and non-mutating.");
+
         Reject(() => EdhLabLandAdvisor.Recommend(candidates, "WU",
             search: new string('X', 256)));
         Reject(() => EdhLabLandAdvisor.Recommend(candidates, "WU", limit: 0));
