@@ -825,6 +825,7 @@ public partial class NativeDeckEditorWindow : Window
         {
             EdhPackagesStatus.Text = report.Explanation;
             EdhPackagesList.ItemsSource = null;
+            EdhPackageAddButton.IsEnabled = false;
             EdhPackagePreviewText.Text = "No recognized mechanic package is available.";
             return;
         }
@@ -857,17 +858,103 @@ public partial class NativeDeckEditorWindow : Window
             EdhPackagesList.SelectedItem = display.FirstOrDefault(x =>
                 x.Name.Equals(previous.Name, StringComparison.OrdinalIgnoreCase) &&
                 x.Theme == previous.Theme && x.Group == previous.Group);
+        UpdatePackageAddButton();
+    }
+
+    private bool CanAddPackageCard(PackageDisplay? candidate)
+    {
+        if (busy || edhLabCommander is null || edhCatalog is null ||
+            candidate is null || candidate.Group == "In deck" ||
+            EdhPackagesList?.Items.Contains(candidate) != true ||
+            MainboardBox is null) return false;
+        var catalogCard = edhCatalog.Find(candidate.Name);
+        if (catalogCard is null) return false;
+        try
+        {
+            int copies = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
+                .FirstOrDefault(x => x.Name.Equals(candidate.Name,
+                    StringComparison.OrdinalIgnoreCase))?.Quantity ?? 0;
+            // Package quick-add is a one-copy intentional gesture. Basics
+            // already present use the normal +1 buttons for extra copies.
+            return copies == 0 && catalogCard.SuggestedCopyLimit > 0;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException) { return false; }
+    }
+
+    private void UpdatePackageAddButton()
+    {
+        if (EdhPackageAddButton is null || EdhPackagesList is null) return;
+        var candidate = EdhPackagesList.SelectedItem as PackageDisplay;
+        bool allowed = CanAddPackageCard(candidate);
+        EdhPackageAddButton.IsEnabled = allowed;
+        EdhPackageAddButton.Content = candidate is null
+            ? "Add selected package card" : "Add " + candidate.Name;
+        EdhPackageAddButton.ToolTip = candidate is null
+            ? "Select a package card to inspect before intentionally adding it."
+            : allowed ? "Add one locally eligible copy to the UNSAVED mainboard. " +
+                (candidate.Recorded > 0 ? "Recorded in inventory." :
+                    "Not recorded in inventory; saving will still review missing copies.")
+            : "Already in the deck, not locally eligible, or the draft requires review.";
+    }
+
+    private void OnEdhPackagePreviewMouseDown(object sender,
+        System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != System.Windows.Input.MouseButton.Left ||
+            e.ClickCount != 2 || EdhPackagesList is null ||
+            e.OriginalSource is not DependencyObject source ||
+            System.Windows.Controls.ItemsControl.ContainerFromElement(
+                EdhPackagesList, source) is not System.Windows.Controls.ListBoxItem row ||
+            row.DataContext is not PackageDisplay clicked)
+            return;
+
+        // Unlike the Cards tab this is a distinct list; its normal
+        // SelectionChanged is preview-only and clears Cards selection.
+        if (!ReferenceEquals(clicked, EdhPackagesList.SelectedItem))
+            EdhPackagesList.SelectedItem = clicked;
+        TryAddPackageSelection(clicked, "double-click");
+        e.Handled = true;
+    }
+
+    private void OnEdhPackageAddClicked(object sender, RoutedEventArgs e)
+    {
+        if (EdhPackagesList?.SelectedItem is PackageDisplay selected)
+            TryAddPackageSelection(selected, "Add button");
+    }
+
+    private void TryAddPackageSelection(PackageDisplay selected, string action)
+    {
+        if (!CanAddPackageCard(selected))
+        {
+            StatusText.Text = "That package card is already in the draft or " +
+                "is not currently eligible. Inspect the current package and deck.";
+            UpdatePackageAddButton();
+            return;
+        }
+        // Reuse the same authoritative catalog + copy-limit gate as Cards.
+        // A Missing option may be drafted, but never invents ownership.
+        AddEligibleCardToMainboard(selected.Name,
+            singletonDoubleClick: true, source: "package " + action);
+        UpdatePackageAddButton();
     }
 
     private async void OnEdhPackageSelectionChanged(object sender,
         System.Windows.Controls.SelectionChangedEventArgs e)
     {
+        UpdatePackageAddButton();
         if (EdhPackagesList?.SelectedItem is not PackageDisplay selected ||
             busy || OwnedPoolBox is null) return;
         EdhPackagePreviewText.Text = selected.Theme + " · " +
             selected.Group + " · " + selected.Kind + "\n" +
             selected.Explanation + "\n" +
-            "Read-only suggestion; no draft, ownership or save action.";
+            (CanAddPackageCard(selected)
+                ? "Single-click only previews. Double-click or use Add to place one " +
+                  "copy in the UNSAVED mainboard. Inventory is unchanged." +
+                  (selected.Recorded == 0
+                      ? " This card is not recorded as owned." : "")
+                : "This card is already drafted, locally ineligible, or the " +
+                  "draft needs correction. Selection only previews; no edits.");
         // A suggestion preview must never leave the Cards-tab Add/Remove
         // controls targeting a different highlighted card.
         OwnedCardsList?.UnselectAll();
@@ -1706,6 +1793,14 @@ public partial class NativeDeckEditorWindow : Window
     private void AddSelectedOwnedCard(bool singletonDoubleClick = false)
     {
         if (busy || OwnedCardsList.SelectedItem is not OwnedDisplay card) return;
+        AddEligibleCardToMainboard(card.Name, singletonDoubleClick,
+            singletonDoubleClick ? "Cards double-click" : "Cards Add button");
+    }
+
+    private void AddEligibleCardToMainboard(string cardName,
+        bool singletonDoubleClick = false, string source = "manual")
+    {
+        if (busy || string.IsNullOrWhiteSpace(cardName)) return;
         try
         {
             // A still-loading EDH catalog must never be treated as proof of
@@ -1718,28 +1813,28 @@ public partial class NativeDeckEditorWindow : Window
             }
             if (edhCatalog is not null)
             {
-                var suggested = edhCatalog.Find(card.Name);
+                var suggested = edhCatalog.Find(cardName);
                 if (suggested is null)
                     throw new InvalidDataException(
                         "This card is not eligible for the selected EDH Lab draft.");
                 int inDraft = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
-                    .FirstOrDefault(x => x.Name.Equals(card.Name,
+                    .FirstOrDefault(x => x.Name.Equals(cardName,
                         StringComparison.OrdinalIgnoreCase))?.Quantity ?? 0;
                 if (singletonDoubleClick && inDraft > 0)
                 {
-                    StatusText.Text = $"{card.Name} is already in the mainboard. " +
+                    StatusText.Text = $"{cardName} is already in the mainboard. " +
                         "Double-click adds at most one copy of each card; " +
                         "use Add (+1) for basic lands or allowed multi-copy cards.";
                     return;
                 }
                 if (inDraft >= suggested.SuggestedCopyLimit)
                     throw new InvalidDataException(
-                        $"{card.Name} has reached the locally supported " +
+                        $"{cardName} has reached the locally supported " +
                         $"copy limit ({suggested.SuggestedCopyLimit}).");
             }
             string updated = singletonDoubleClick
-                ? NativeDeckOwnedPicker.AddIfAbsent(MainboardBox.Text, card.Name)
-                : NativeDeckOwnedPicker.AddOne(MainboardBox.Text, card.Name);
+                ? NativeDeckOwnedPicker.AddIfAbsent(MainboardBox.Text, cardName)
+                : NativeDeckOwnedPicker.AddOne(MainboardBox.Text, cardName);
             if (updated == MainboardBox.Text) return;
             MainboardBox.Text = updated;
             if (edhLabCommander is not null)
@@ -1747,9 +1842,9 @@ public partial class NativeDeckEditorWindow : Window
                 RefreshMainboardManager();
                 RefreshOwnedCards();
             }
-            StatusText.Text = $"Added 1 {card.Name} to the unsaved draft" +
-                (singletonDoubleClick ? " via double-click." : ".") +
-                " Collection quantities are unchanged; save still requires preflight review.";
+            UpdatePackageAddButton();
+            StatusText.Text = $"Added 1 {cardName} to the unsaved draft via {source}. " +
+                "Collection quantities are unchanged; save still requires preflight review.";
         }
         catch (Exception ex) when (ex is InvalidDataException or ArgumentException or OverflowException)
         {
