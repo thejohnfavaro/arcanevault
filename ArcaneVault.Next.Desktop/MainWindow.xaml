@@ -71,7 +71,7 @@
                                 Height="366" Style="{StaticResource VaultCatalogTileStyle}"
                                 Tag="{Binding}"
                                 PreviewMouseLeftButtonDown="OnCatalogTileMouseDown"
-                                ToolTip="Select a card; double-click for enlarged artwork and details">
+                                ToolTip="Single-click to inspect; double-click for full details and printings">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
