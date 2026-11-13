@@ -236,6 +236,91 @@ internal static class EdhLabDraftChecks
              rankedWithMana[1].RankingReasons.Contains("3 higher mana value"),
              "Rankings must account for synced mana values, retain exact mana symbols and enumerate deterministic ranks.");
 
+        // v0.9.69: Whole-deck impact uses a temporary counterfactual.
+        // An original deck with multiple named cards must retain all copies,
+        // including unrelated commander-mechanic matches, without writes.
+        var unknownCurveImpact = EdhLabSwapImpact.Analyze(paper,
+            new[] { (Name: "Heavy Insight", Quantity: 1),
+                    (Name: "Artifact Arrival", Quantity: 1) },
+            "Heavy Insight", "Tiny Insight");
+        Must(unknownCurveImpact.MainboardBefore == 2 &&
+             unknownCurveImpact.MainboardAfter == 2 &&
+             unknownCurveImpact.UnknownBefore == 0 &&
+             unknownCurveImpact.UnknownAfter == 0 &&
+             unknownCurveImpact.Roles.Single(x => x.Role == "Card Draw").Delta == 0 &&
+             unknownCurveImpact.Summary.Contains("no reliable local mana values") &&
+             unknownCurveImpact.Summary.Contains("Nothing has been edited"),
+             "Whole-deck counterfactual must preserve copy totals and avoid invented curve data.");
+        bool absentSwapRejected = false, exhaustedSwapRejected = false;
+        try
+        {
+            EdhLabSwapImpact.Analyze(paper,
+                new[] { (Name: "Heavy Insight", Quantity: 1) },
+                "Unlisted Source", "Tiny Insight");
+        }
+        catch (InvalidDataException) { absentSwapRejected = true; }
+        try
+        {
+            EdhLabSwapImpact.Analyze(paper,
+                new[] { (Name: "Heavy Insight", Quantity: 1),
+                        (Name: "Tiny Insight", Quantity: 1) },
+                "Heavy Insight", "Tiny Insight");
+        }
+        catch (InvalidDataException) { exhaustedSwapRejected = true; }
+        Must(absentSwapRejected && exhaustedSwapRejected,
+             "Counterfactual swaps must reject absent source and exhausted candidates.");
+
+        // A second isolated fixture tests deck-aware ranking against tracked
+        // underfilled roles without disturbing the prior stable rankings.
+        string impactCatalogPath = Path.Combine(work, "edh-impact-ranking.sqlite");
+        File.Copy(rankingCatalogPath, impactCatalogPath, overwrite: true);
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = impactCatalogPath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false
+        }.ToString()))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO cards(name,type,oracle,colors,legalities,arena,mana_cost,mv)
+                VALUES('Versatile Answer','Instant','Draw a card. Destroy target creature.',
+                    'WU','{"commander":"legal","brawl":"legal"}',1,'{W}{U}',2);
+                """;
+            cmd.ExecuteNonQuery();
+        }
+        var impactInventory = new NativeBackupView(
+            new[] {
+                new NativePhysicalRow("Tiny Insight", 1, "", "", "", ""),
+                new NativePhysicalRow("Versatile Answer", 1, "", "", "", "")
+            },
+            Array.Empty<NativeArenaRow>(), 0, 0, 0, 2, 0, 0, 2);
+        var impactPaper = EdhLabDraftCatalog.OpenReadOnly(impactCatalogPath,
+            impactInventory, "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        var impactDraft = new[] { (Name: "Heavy Insight", Quantity: 1) };
+        var gapRankings = EdhLabMissingCardAdvisor.Analyze(impactPaper,
+            impactDraft, "Heavy Insight");
+        Must(gapRankings.Count == 2 &&
+             gapRankings[0].Name == "Versatile Answer" &&
+             gapRankings[0].RankingReasons.Contains(
+                 "Addresses tracked role shortfalls: Removal") &&
+             gapRankings[0].Score > gapRankings[1].Score,
+             "Ranking must prioritize a recognized tracked deck-wide shortage, not just card-to-card similarity.");
+        var projected = EdhLabSwapImpact.Analyze(impactPaper, impactDraft,
+            "Heavy Insight", "Versatile Answer");
+        Must(projected.MainboardBefore == projected.MainboardAfter &&
+             projected.Roles.Single(x => x.Role == "Card Draw").Delta == 0 &&
+             projected.Roles.Single(x => x.Role == "Removal").Before == 0 &&
+             projected.Roles.Single(x => x.Role == "Removal").After == 1 &&
+             projected.Roles.Single(x => x.Role == "Removal").GapAfter <
+                 projected.Roles.Single(x => x.Role == "Removal").GapBefore &&
+             projected.RolesImproved == 1 && projected.RolesWorsened == 0 &&
+             projected.AverageManaBefore == 4 &&
+             projected.AverageManaAfter == 2 &&
+             projected.Summary.Contains("Role", StringComparison.OrdinalIgnoreCase),
+             "Projected impact must show deck-wide role improvement and actual known MV delta.");
+
         // Package views share the existing offline commander rules and legal
         // snapshot. They must not mistake exhausted cards for available copies.
         var packageDraft = new (string Name, int Quantity)[]

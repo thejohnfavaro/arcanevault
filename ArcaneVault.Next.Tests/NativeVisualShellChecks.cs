@@ -144,6 +144,18 @@ internal static class NativeVisualShellChecks
              !comparisonCode.Contains("NativeDeckEditing.Save("),
              "Missing-card side-by-side comparison must render official symbols and revalidate before unsaved swap.");
 
+        // v0.9.69: a candidate projects whole-deck role, synergy,
+        // mana-curve and recorded-copy coverage without modifying the draft.
+        Must(v65StudioUi.Contains("x:Name=\"EdhMissingImpactPanel\"") &&
+             v65StudioUi.Contains("x:Name=\"EdhMissingImpactSummary\"") &&
+             v65StudioUi.Contains("x:Name=\"EdhMissingImpactAvailability\"") &&
+             comparisonCode.Contains("EdhLabSwapImpact.Analyze(") &&
+             comparisonCode.Contains("ShowProjectedMissingSwapImpact(selected)") &&
+             comparisonCode.Contains("NativeDeckOwnedPicker.Review(ownership, pool,") &&
+             comparisonCode.Contains("Projected whole-deck impact:") &&
+             !comparisonCode.Contains("NativeDeckEditing.Save("),
+             "Projected whole-deck alternative impact must remain read-only and be rechecked on confirmation.");
+
         var app = XDocument.Load(Path.Combine(dir, "App.xaml"));
         // v0.9.26 startup crash: WPF can freeze application resource
         // SolidColorBrush instances. Theme updates must REPLACE resources,
