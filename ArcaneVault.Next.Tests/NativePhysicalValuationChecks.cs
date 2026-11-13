@@ -91,6 +91,28 @@ internal static class NativePhysicalValuationChecks
              result.PricedCopies == 8 && result.MissingCopies == 26 &&
              result.PricedRows == 4 && result.MissingRows == 4,
             "Valuation must use each exact printing+finish and leave unknown copies out.");
+
+        // A matching-name, independently registered proxy must NEVER gain
+        // an official Scryfall quotation or inflate physical collection value.
+        byte[] withProxy = NativeProxyEditing.SetQuantity(owned, "Reprint", 99);
+        withProxy = NativeProxyEditing.SetQuantity(withProxy,
+            "Third-party custom art", 7);
+        var physicalOnly = NativeBackupReader.Read(withProxy);
+        var proxyRows = NativeProxyEditing.Read(withProxy);
+        var reviewedPhysical = CollectionCatalogReview.Examine(physicalOnly, catalog);
+        var pricedPhysical = NativePhysicalValuation.Calculate(reviewedPhysical,
+            catalog, now);
+        Must(proxyRows.Sum(x => x.Quantity) == 106 &&
+             physicalOnly.PhysicalCopies == backup.PhysicalCopies &&
+             reviewedPhysical.TotalCopies == review.TotalCopies &&
+             pricedPhysical.PricedSubtotalUsd == result.PricedSubtotalUsd &&
+             pricedPhysical.PricedCopies == result.PricedCopies &&
+             pricedPhysical.MissingCopies == result.MissingCopies &&
+             pricedPhysical.Lines.Count == result.Lines.Count &&
+             pricedPhysical.Lines.Zip(result.Lines)
+                .All(pair => pair.First.LineUsd == pair.Second.LineUsd),
+            "Proxy or third-party copies must not be priced, looked up by printing, " +
+            "or counted toward real collection value even if their names match owned cards.");
         Must(result.Lines[0].UnitUsd == 2.10m &&
              result.Lines[1].UnitUsd == 6.25m &&
              result.Lines[2].UnitUsd == 25m &&
