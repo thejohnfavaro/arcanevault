@@ -1537,7 +1537,23 @@ public partial class NativeDeckEditorWindow : Window
     }
 
     private void OnOwnedCardDoubleClicked(object sender,
-        System.Windows.Input.MouseButtonEventArgs e) => AddSelectedOwnedCard();
+        System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // A ListBox raises MouseDoubleClick for blank space and scrollbars,
+        // too. Only act when the user double-clicked an actual visible card.
+        if (OwnedCardsList is null ||
+            e.OriginalSource is not DependencyObject source ||
+            System.Windows.Controls.ItemsControl.ContainerFromElement(
+                OwnedCardsList, source) is not System.Windows.Controls.ListBoxItem row ||
+            row.DataContext is not OwnedDisplay clicked ||
+            !ReferenceEquals(clicked, OwnedCardsList.SelectedItem))
+            return;
+
+        // EDH Lab uses an idempotent quick-add; the manual (+1) button
+        // continues to support basics and recognized multi-copy exceptions.
+        AddSelectedOwnedCard(singletonDoubleClick: edhLabCommander is not null);
+        e.Handled = true;
+    }
 
     private void OnAddOwnedClicked(object sender, RoutedEventArgs e) => AddSelectedOwnedCard();
 
@@ -1574,27 +1590,48 @@ public partial class NativeDeckEditorWindow : Window
     }
 
 
-    private void AddSelectedOwnedCard()
+    private void AddSelectedOwnedCard(bool singletonDoubleClick = false)
     {
         if (busy || OwnedCardsList.SelectedItem is not OwnedDisplay card) return;
         try
         {
+            // A still-loading EDH catalog must never be treated as proof of
+            // card legality, availability or commander color identity.
+            if (edhLabCommander is not null && edhCatalog is null)
+            {
+                StatusText.Text = "Verified EDH card catalog is still loading. " +
+                    "Choose a card after eligibility checks finish.";
+                return;
+            }
             if (edhCatalog is not null)
             {
                 var suggested = edhCatalog.Find(card.Name);
                 if (suggested is null)
-                    throw new InvalidDataException("This card is not eligible for the selected EDH Lab draft.");
+                    throw new InvalidDataException(
+                        "This card is not eligible for the selected EDH Lab draft.");
                 int inDraft = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
                     .FirstOrDefault(x => x.Name.Equals(card.Name,
                         StringComparison.OrdinalIgnoreCase))?.Quantity ?? 0;
+                if (singletonDoubleClick && inDraft > 0)
+                {
+                    StatusText.Text = $"{card.Name} is already in the mainboard. " +
+                        "Double-click adds at most one copy of each card; " +
+                        "use Add (+1) for basic lands or allowed multi-copy cards.";
+                    return;
+                }
                 if (inDraft >= suggested.SuggestedCopyLimit)
                     throw new InvalidDataException(
                         $"{card.Name} has reached the locally supported " +
                         $"copy limit ({suggested.SuggestedCopyLimit}).");
             }
-            MainboardBox.Text = NativeDeckOwnedPicker.AddOne(MainboardBox.Text, card.Name);
-            StatusText.Text = $"Added 1 {card.Name} to the unsaved draft. " +
-                "Collection quantities are unchanged; save still requires preflight review.";
+            string updated = singletonDoubleClick
+                ? NativeDeckOwnedPicker.AddIfAbsent(MainboardBox.Text, card.Name)
+                : NativeDeckOwnedPicker.AddOne(MainboardBox.Text, card.Name);
+            if (updated == MainboardBox.Text) return;
+            MainboardBox.Text = updated;
+            StatusText.Text = $"Added 1 {card.Name} to the unsaved draft" +
+                (singletonDoubleClick ? " via double-click." : ".") +
+                " Collection quantities are unchanged; save still requires preflight review.";
         }
         catch (Exception ex) when (ex is InvalidDataException or ArgumentException or OverflowException)
         {
@@ -1662,7 +1699,9 @@ public partial class NativeDeckEditorWindow : Window
         {
             HeaderText.Text = selected is null
                 ? "EDH Lab — Construct a deck" : "EDH Lab — Edit saved deck";
-            OwnedCardsHeading.Text = "Eligible cards (catalog verified)";
+            OwnedCardsHeading.Text = "Eligible cards (double-click to add one)";
+            OwnedCardsList.ToolTip = "Double-click an eligible card to add it once. " +
+                "Use Add (+1) for additional basic lands or allowed multi-copy cards.";
             Title = "EDH Lab — " + edhLabCommander;
             if (selected is null)
             {
