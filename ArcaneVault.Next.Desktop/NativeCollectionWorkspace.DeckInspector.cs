@@ -16,7 +16,14 @@ public partial class NativeCollectionWorkspace
 {
     private int deckInspectVersion;
     private NativeDeckEditing.DeckRow? inspectedSavedDeck;
-    private NativeDeckEditing.Entry? inspectedDeckCard;
+    // View-only projection: the commander is stored in the deck's separate
+    // leader slot and must never be injected into MainboardText.
+    private sealed record InspectorCardRow(string Name, int Quantity, bool IsCommander)
+    {
+        public string DisplayName => IsCommander ? Name + "  ·  Commander" : Name;
+    }
+
+    private InspectorCardRow? inspectedDeckCard;
 
     private NativeDeckOwnedPicker.Pool InspectorPool =>
         DeckInspectorOwnershipPool?.SelectedIndex == 1
@@ -111,7 +118,14 @@ public partial class NativeCollectionWorkspace
         bool includesLeader = UsesSeparateCommander(deck.Format) &&
             string.Equals(deck.Commander?.Trim(), card.Name,
                 StringComparison.OrdinalIgnoreCase);
-        int needed = checked(card.Quantity + (includesLeader ? 1 : 0));
+        // A commander selected in the command zone is one required copy;
+        // if the same name is also in the imported mainboard, count those
+        // additional copies exactly once, not once per displayed row.
+        int needed = card.IsCommander
+            ? checked(1 + NativeDeckEditing.ParseMainboard(deck.MainboardText)
+                .Where(x => x.Name.Equals(card.Name, StringComparison.OrdinalIgnoreCase))
+                .Sum(x => x.Quantity))
+            : checked(card.Quantity + (includesLeader ? 1 : 0));
         long proxy = InspectorPool == NativeDeckOwnedPicker.Pool.Physical
             ? proxyRows.FirstOrDefault(x =>
                 x.Name.Equals(card.Name, StringComparison.OrdinalIgnoreCase))?.Quantity ?? 0
@@ -137,7 +151,6 @@ public partial class NativeCollectionWorkspace
         DeckInspectorArt.ArtUrl = "";
         DeckInspectorCardName.Text = "Choose a card to inspect";
         DeckInspectorCardType.Text = "";
-        DeckInspectorColorIdentity.ItemsSource = null;
         DeckInspectorOracle.Document = NativeOracleReading.Build("");
         DeckInspectorFullDetailsButton.IsEnabled = false;
         DeckInspectorCoverageSummary.Text = "";
@@ -157,8 +170,13 @@ public partial class NativeCollectionWorkspace
         DeckInspectorOwnershipPool.SelectedIndex =
             string.Equals(deck.Format?.Trim(), "Arena Brawl",
                 StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        bool hasCommander = UsesSeparateCommander(deck.Format) &&
+            !string.IsNullOrWhiteSpace(deck.Commander);
+        int displayedTotal = checked(deck.TotalCopies + (hasCommander ? 1 : 0));
         DeckInspectorSummary.Text =
-            $"{deck.Format} · {deck.TotalCopies:N0} copies · {deck.EntryCount:N0} names" +
+            $"{deck.Format} · {displayedTotal:N0} " +
+            (hasCommander ? "cards incl. commander" : "mainboard copies") + " · " +
+            $"{deck.EntryCount:N0} mainboard names" +
             (deck.Editable ? "" : " · imported list requires review");
         IReadOnlyList<NativeDeckEditing.Entry> cards;
         try
@@ -172,11 +190,18 @@ public partial class NativeCollectionWorkspace
             UpdateDeckInspectorCoverage();
             return;
         }
-        DeckInspectorCardsList.ItemsSource = cards;
-        DeckInspectorStatus.Text = cards.Count == 0
+        // Commander is displayed first, but remains a separate saved deck
+        // field rather than a fabricated mainboard entry or owned printing.
+        var displayRows = new List<InspectorCardRow>(cards.Count + (hasCommander ? 1 : 0));
+        if (hasCommander)
+            displayRows.Add(new InspectorCardRow(deck.Commander.Trim(), 1, true));
+        displayRows.AddRange(cards.Select(x =>
+            new InspectorCardRow(x.Name, x.Quantity, false)));
+        DeckInspectorCardsList.ItemsSource = displayRows;
+        DeckInspectorStatus.Text = displayRows.Count == 0
             ? "Empty mainboard · no cards to preview."
-            : "Select a mainboard card for an in-place preview. These are saved quantities, not proof of ownership.";
-        if (cards.Count > 0)
+            : "Select the commander or a mainboard card to preview. Saved quantities do not prove ownership.";
+        if (displayRows.Count > 0)
             DeckInspectorCardsList.SelectedIndex = 0;
         UpdateDeckInspectorCoverage();
     }
@@ -194,19 +219,20 @@ public partial class NativeCollectionWorkspace
     private async void OnDeckInspectorCardSelected(object sender, SelectionChangedEventArgs e)
     {
         if (DeckInspectorCardsList is null) return;
-        var selected = DeckInspectorCardsList.SelectedItem as NativeDeckEditing.Entry;
+        var selected = DeckInspectorCardsList.SelectedItem as InspectorCardRow;
         inspectedDeckCard = selected;
         int version = ++deckInspectVersion;
         var deck = inspectedSavedDeck;
         DeckInspectorFullDetailsButton.IsEnabled = selected is not null;
         DeckInspectorArt.ArtUrl = "";
         DeckInspectorManaCost.Value = "";
-        DeckInspectorColorIdentity.ItemsSource = null;
         DeckInspectorCardType.Text = "";
         DeckInspectorOracle.Document = NativeOracleReading.Build("");
         if (selected is null || deck is null) return;
 
-        DeckInspectorCardName.Text = $"{selected.Quantity} × {selected.Name}";
+        DeckInspectorCardName.Text = selected.IsCommander
+            ? $"Commander · {selected.Name}"
+            : $"{selected.Quantity} × {selected.Name}";
         UpdateDeckInspectorCardAvailability();
         DeckInspectorStatus.Text =
             "Loading local catalog rules · saved deck and inventory are unchanged.";
@@ -238,18 +264,17 @@ public partial class NativeCollectionWorkspace
             ? details.ArtworkUrl : "";
         DeckInspectorCardType.Text = details.TypeLine;
         DeckInspectorManaCost.Value = details.ManaCost;
-        DeckInspectorColorIdentity.ItemsSource =
-            NativeManaIdentity.ParseColorIdentity(details.ColorIdentity);
         DeckInspectorOracle.Document =
             NativeOracleReading.Build(details.OracleText);
         DeckInspectorStatus.Text =
+            (selected.IsCommander ? "Command zone · " : "") +
             "Read-only card identity · illustration is not verification of your owned printing.";
     }
 
     private void OnDeckInspectorCardDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is not FrameworkElement
-            { DataContext: NativeDeckEditing.Entry entry } ||
+            { DataContext: InspectorCardRow entry } ||
             !ReferenceEquals(entry, inspectedDeckCard)) return;
         e.Handled = true;
         OnDeckInspectorFullDetailsClicked(sender, new RoutedEventArgs());
@@ -276,7 +301,8 @@ public partial class NativeCollectionWorkspace
             !ReferenceEquals(card, inspectedDeckCard)) return;
 
         var dialog = new NativeCardDetailsWindow(card.Name,
-            $"{card.Quantity} saved in {deck.Name} · saved deck entry, not verified ownership",
+            (card.IsCommander ? "Commander in " : $"{card.Quantity} saved in ") +
+            $"{deck.Name} · saved deck entry, not verified ownership",
             details, catalogPath)
         { Owner = Window.GetWindow(this) };
         dialog.Show();
