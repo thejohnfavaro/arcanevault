@@ -55,6 +55,26 @@ internal static class NativeDeckOwnedPickerChecks
             "3 Sol Ring\n1 Island", "Existing card count was not incremented.");
         Must(NativeDeckOwnedPicker.AddOne("1 Fire // Ice", "Island") ==
             "1 Fire // Ice\n1 Island", "Split names were not preserved.");
+        // v0.9.71: Double-click quick-add is a name-level singleton gesture,
+        // independent of Commander exceptions for basic lands and variants.
+        Must(NativeDeckOwnedPicker.AddIfAbsent("", "Sol Ring") == "1 Sol Ring" &&
+             NativeDeckOwnedPicker.AddIfAbsent("1 Island", "Sol Ring") ==
+                 "1 Island\n1 Sol Ring" &&
+             NativeDeckOwnedPicker.AddIfAbsent("1 Sol Ring\n1 Island", "sol ring") ==
+                 "1 Sol Ring\n1 Island" &&
+             NativeDeckOwnedPicker.AddIfAbsent("4 Forest\n1 Island", "FOREST") ==
+                 "4 Forest\n1 Island" &&
+             NativeDeckOwnedPicker.AddIfAbsent("1 Fire // Ice", "fire // ice") ==
+                 "1 Fire // Ice" &&
+             NativeDeckOwnedPicker.AddIfAbsent("1 Sol Ring\n1 Island", "Island") ==
+                 "1 Sol Ring\n1 Island",
+             "Double-click must add a missing card exactly once, preserve existing quantities and ignore case.");
+        Must(NativeDeckOwnedPicker.AddOne("4 Forest", "Forest") == "5 Forest",
+             "Manual Add (+1) must remain usable for multiple basics.");
+        bool invalidQuickAdd = false;
+        try { NativeDeckOwnedPicker.AddIfAbsent("malformed", "Sol Ring"); }
+        catch (InvalidDataException) { invalidQuickAdd = true; }
+        Must(invalidQuickAdd, "Quick-add must reject malformed mainboards without silent rewriting.");
         bool invalid = false;
         try { NativeDeckOwnedPicker.AddOne("bad line", "Sol Ring"); }
         catch (InvalidDataException) { invalid = true; }
