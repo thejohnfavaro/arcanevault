@@ -68,7 +68,8 @@ public static class NativeDeckPreflight
 
     public static Report Check(NativeBackupView ownership,
         IReadOnlyList<NativeDeckEditing.Entry> entries, string commander,
-        string format, string? catalogPath)
+        string format, string? catalogPath,
+        IReadOnlyList<NativeProxyEditing.ProxyRow>? proxies = null)
     {
         ArgumentNullException.ThrowIfNull(ownership);
         ArgumentNullException.ThrowIfNull(entries);
@@ -109,6 +110,11 @@ public static class NativeDeckPreflight
             physical[x.Name] = checked(physical.GetValueOrDefault(x.Name) + x.Quantity);
         foreach (var x in ownership.ArenaCards)
             arena[x.Name] = checked(arena.GetValueOrDefault(x.Name) + x.Quantity);
+        var proxyCounts = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        if (proxies is not null)
+            foreach (var p in proxies)
+                proxyCounts[p.Name] = checked(
+                    proxyCounts.GetValueOrDefault(p.Name) + p.Quantity);
 
         var desired = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in entries)
@@ -120,12 +126,22 @@ public static class NativeDeckPreflight
         {
             long paper = physical.GetValueOrDefault(pair.Key);
             long digital = arena.GetValueOrDefault(pair.Key);
-            if (edh && paper < pair.Value)
-                Warn($"Physical inventory: {pair.Key} needs {pair.Value}, owned {paper}.");
+            long proxy = proxyCounts.GetValueOrDefault(pair.Key);
+            long paperAvailable = checked(paper + proxy);
+            long proxyUsed = Math.Min(proxy, Math.Max(0, pair.Value - paper));
+            if (edh && paperAvailable < pair.Value)
+                Warn($"Physical inventory: {pair.Key} needs {pair.Value}, " +
+                    $"owned {paper}, Proxy {proxy}, still missing {pair.Value - paperAvailable}.");
             else if (brawl && digital < pair.Value)
                 Warn($"Arena inventory: {pair.Key} needs {pair.Value}, owned {digital}.");
-            else if (!singleton && regular && paper < pair.Value && digital < pair.Value)
-                Review($"Neither inventory individually covers {pair.Value}× {pair.Key} (paper {paper}, Arena {digital}).");
+            else if (!singleton && regular && paperAvailable < pair.Value &&
+                     digital < pair.Value)
+                Review($"Neither inventory individually covers {pair.Value}× {pair.Key} " +
+                    $"(paper owned {paper}, Proxy {proxy}, Arena {digital}).");
+            if (!brawl && proxyUsed > 0)
+                Review($"Proxy: {proxyUsed}× {pair.Key} fills a paper deck copy " +
+                    "but is not an owned printing, is excluded from collection value, " +
+                    "and may not be valid for sanctioned play.");
         }
 
         var records = new Dictionary<string, Card>(StringComparer.OrdinalIgnoreCase);
