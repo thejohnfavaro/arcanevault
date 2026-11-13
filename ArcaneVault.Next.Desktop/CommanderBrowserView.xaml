@@ -1,0 +1,276 @@
+<UserControl x:Class="ArcaneVault.Next.Desktop.CommanderBrowserView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
+        Background="{DynamicResource VaultBackground}" Foreground="{DynamicResource VaultText}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0" Margin="0,0,0,14" Padding="17,15"
+                Background="{DynamicResource VaultHeroWash}"
+                BorderBrush="{DynamicResource VaultEdgeLift}"
+                BorderThickness="1" CornerRadius="16"
+                Effect="{StaticResource VaultPanelShadow}">
+            <StackPanel>
+                <Border Height="4" Width="145" HorizontalAlignment="Left"
+                        Background="{DynamicResource VaultThemeBanner}"
+                        CornerRadius="2" Margin="0,0,0,10"/>
+                <TextBlock FontSize="26" FontWeight="Bold" Text="EDH Lab"/>
+                <TextBlock FontSize="13" Foreground="{DynamicResource VaultMuted}" Margin="0,4,0,0"
+                           TextWrapping="Wrap"
+                           Text="Read-only commander discovery · Paper Commander / 100-card Arena Brawl · No collection edits"/>
+            </StackPanel>
+        </Border>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Format" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="FormatChoice" Width="185" Margin="0,0,20,0"
+                      SelectedIndex="0" SelectionChanged="OnFiltersChanged">
+                <ComboBoxItem Content="Paper Commander"/>
+                <ComboBoxItem Content="Arena Brawl"/>
+            </ComboBox>
+            <TextBlock Text="Color match" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="ColorMatchChoice" Width="180" Margin="0,0,20,0"
+                      SelectedIndex="0" SelectionChanged="OnFiltersChanged">
+                <ComboBoxItem Content="Exact identity"/>
+                <ComboBoxItem Content="Contains all selected"/>
+                <ComboBoxItem Content="Contains any selected"/>
+            </ComboBox>
+            <CheckBox x:Name="AvoidRepeats" Content="Random: no repeats" VerticalAlignment="Center"
+                      IsChecked="True" Margin="0,0,18,0"/>
+            <CheckBox x:Name="RecordedOnly" Content="In my inventory only"
+                      VerticalAlignment="Center"
+                      ToolTip="Name-level inventory presence for the selected format. Physical printing IDs are not verified by this filter."
+                      Checked="OnRecordedOnlyChanged" Unchecked="OnRecordedOnlyChanged"/>
+        </StackPanel>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Text="Identity" VerticalAlignment="Center" Margin="0,0,12,0"/>
+            <CheckBox x:Name="WhiteColor" Tag="W" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
+                <StackPanel Orientation="Horizontal">
+                    <local:NativeManaSymbol Symbol="W" Width="20" Height="20" Margin="0,0,4,0"/>
+                    <TextBlock Text="White" VerticalAlignment="Center" FontSize="11"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox x:Name="BlueColor" Tag="U" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
+                <StackPanel Orientation="Horizontal">
+                    <local:NativeManaSymbol Symbol="U" Width="20" Height="20" Margin="0,0,4,0"/>
+                    <TextBlock Text="Blue" VerticalAlignment="Center" FontSize="11"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox x:Name="BlackColor" Tag="B" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
+                <StackPanel Orientation="Horizontal">
+                    <local:NativeManaSymbol Symbol="B" Width="20" Height="20" Margin="0,0,4,0"/>
+                    <TextBlock Text="Black" VerticalAlignment="Center" FontSize="11"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox x:Name="RedColor" Tag="R" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
+                <StackPanel Orientation="Horizontal">
+                    <local:NativeManaSymbol Symbol="R" Width="20" Height="20" Margin="0,0,4,0"/>
+                    <TextBlock Text="Red" VerticalAlignment="Center" FontSize="11"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox x:Name="GreenColor" Tag="G" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
+                <StackPanel Orientation="Horizontal">
+                    <local:NativeManaSymbol Symbol="G" Width="20" Height="20" Margin="0,0,4,0"/>
+                    <TextBlock Text="Green" VerticalAlignment="Center" FontSize="11"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox x:Name="Colorless" Tag="C" Margin="0,0,16,0"
+                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
+                <StackPanel Orientation="Horizontal">
+                    <local:NativeManaSymbol Symbol="C" Width="20" Height="20" Margin="0,0,4,0"/>
+                    <TextBlock Text="Colorless" VerticalAlignment="Center" FontSize="11"/>
+                </StackPanel>
+            </CheckBox>
+            <Button Content="Clear colors" Padding="10,5" Click="OnClearColors"/>
+        </StackPanel>
+        <DockPanel Grid.Row="3" Margin="0,0,0,12">
+            <Button x:Name="BuildDeckButton" DockPanel.Dock="Right"
+                    Content="Build with selected commander"
+                    Click="OnBuildDeckClicked" IsEnabled="False"
+                    ToolTip="Create an unsaved EDH Lab draft in native Deck Studio using your recorded collection"
+                    Padding="14,9" Margin="10,0,0,0"
+                    Foreground="{DynamicResource VaultText}"
+                    Background="{DynamicResource VaultAccentMuted}"
+                    BorderBrush="{DynamicResource VaultAccentBorder}"/>
+            <Button Content="Surprise Me!" DockPanel.Dock="Right" Click="OnRandomClicked"
+                    Padding="18,9" Background="{DynamicResource VaultAccentMuted}" Foreground="White" BorderBrush="{DynamicResource VaultAccentBorder}"
+                    Margin="12,0,0,0"/>
+            <TextBox x:Name="CommanderSearch" TextChanged="OnFiltersChanged"
+                     ToolTip="Search commander name or Oracle text"
+                     FontSize="14" Padding="10,9"
+                     Background="{DynamicResource VaultPanelRaised}" Foreground="White" BorderBrush="{DynamicResource VaultLine}"/>
+        </DockPanel>
+        <Grid Grid.Row="4" MinHeight="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="0"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ListView Grid.Column="0" x:Name="CommanderList"
+                  SelectionChanged="OnCommanderSelected"
+                  Background="{DynamicResource VaultPanel}" Foreground="{DynamicResource VaultText}"
+                  BorderBrush="{DynamicResource VaultEdgeLift}"
+                  ScrollViewer.CanContentScroll="True"
+                  VirtualizingStackPanel.IsVirtualizing="True"
+                  VirtualizingStackPanel.VirtualizationMode="Recycling">
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Margin="4,7">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="110"/>
+                            <ColumnDefinition Width="145"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
+                            <TextBlock Text="{Binding TypeLine}" Foreground="{DynamicResource VaultMuted}" FontSize="12"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <local:NativeManaStrip Grid.Column="1" Kind="Identity"
+                                               Value="{Binding Card.ColorIdentity}"
+                                               SymbolSize="17"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"
+                                               ToolTip="Official symbols for commander color identity; not the casting cost"/>
+                        <TextBlock Grid.Column="2" Text="{Binding InventoryText}"
+                                   TextAlignment="Right" VerticalAlignment="Center"
+                                   Margin="10,0,0,0" FontSize="11"
+                                   Foreground="{DynamicResource VaultMuted}"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+            <!-- The EDH Lab commander inspector follows selection in-place,
+                 without spawning a window per candidate or losing list paging. -->
+            <Border x:Name="CommanderInspectorPanel" Grid.Column="1"
+                    Width="315" Visibility="Collapsed" Padding="12"
+                    Margin="12,0,0,0" CornerRadius="13"
+                    Background="{DynamicResource VaultTileWash}"
+                    BorderBrush="{DynamicResource VaultEdgeLift}"
+                    BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,9">
+                        <Button Content="×" DockPanel.Dock="Right"
+                                Width="29" Height="29" Padding="0" FontSize="18"
+                                Click="OnCloseCommanderInspectorClicked"
+                                Background="{DynamicResource VaultPanelRaised}"
+                                Foreground="{DynamicResource VaultText}"
+                                ToolTip="Hide commander inspector"/>
+                        <StackPanel>
+                            <TextBlock Text="COMMANDER INSPECTOR"
+                                       Style="{StaticResource VaultEyebrow}"/>
+                            <TextBlock x:Name="CommanderInspectorName" FontSize="17"
+                                       FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource VaultText}"
+                                       Margin="0,5,5,0" MaxHeight="62"/>
+                        </StackPanel>
+                    </DockPanel>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Border Width="188" Height="263"
+                                    BorderBrush="{DynamicResource VaultEdgeLift}"
+                                    BorderThickness="1" CornerRadius="9"
+                                    HorizontalAlignment="Center" ClipToBounds="True"
+                                    Background="{DynamicResource VaultPanel}">
+                                <Grid>
+                                    <TextBlock Text="Artwork not cached"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Center" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource VaultMuted}"
+                                               Margin="12"/>
+                                    <local:NativeCardArtImage x:Name="CommanderInspectorArt"
+                                                              DecodeWidth="350"
+                                                              Width="186" Height="261"/>
+                                </Grid>
+                            </Border>
+                            <TextBlock x:Name="CommanderInspectorType"
+                                       Margin="0,10,0,0" FontSize="12.5"
+                                       FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource VaultText}"/>
+                            <TextBlock Text="MANA COST (EXACT)"
+                                       Style="{StaticResource VaultEyebrow}" Margin="0,10,0,5"/>
+                            <local:NativeManaStrip x:Name="CommanderInspectorManaCost"
+                                                   Kind="Cost" SymbolSize="21"
+                                                   AutomationProperties.Name="Exact commander card casting cost"/>
+                            <TextBlock x:Name="CommanderInspectorOwnership"
+                                       Margin="0,5,0,0" FontSize="11"
+                                       TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}"/>
+                            <TextBlock Text="COLOR IDENTITY" Style="{StaticResource VaultEyebrow}"
+                                       Margin="0,12,0,5"/>
+                            <ItemsControl x:Name="CommanderInspectorIdentity">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <local:NativeManaSymbol Symbol="{Binding Symbol}"
+                                                                Width="26" Height="26"
+                                                                Margin="0,0,5,0"
+                                                                ToolTip="{Binding Name}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="ORACLE TEXT" Style="{StaticResource VaultEyebrow}"
+                                       Margin="0,12,0,5"/>
+                            <FlowDocumentScrollViewer x:Name="CommanderInspectorOracle"
+                                                      Height="185"
+                                                      Background="Transparent"
+                                                      BorderThickness="0"
+                                                      IsSelectionEnabled="True"
+                                                      IsToolBarVisible="False"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      Foreground="{DynamicResource VaultText}"
+                                                      AutomationProperties.Name="Commander Oracle text with official mana symbols"/>
+                            <TextBlock x:Name="CommanderInspectorStatus"
+                                       Margin="0,9,0,0" FontSize="10.5"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource VaultMuted}"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <Button Grid.Row="2" x:Name="CommanderInspectorFullDetailsButton"
+                            Content="Full card details &amp; printings"
+                            Click="OnCommanderInspectorFullDetailsClicked"
+                            Padding="10,8" Margin="0,10,0,0"
+                            Background="{DynamicResource VaultAccentSurface}"
+                            Foreground="{DynamicResource VaultText}"
+                            BorderBrush="{DynamicResource VaultAccentBorder}"
+                            ToolTip="Open the full read-only details viewer for the selected commander"/>
+                </Grid>
+            </Border>
+        </Grid>
+        <DockPanel Grid.Row="5" Margin="0,12,0,0">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button x:Name="PreviousButton" Content="Previous" Click="OnPrevious" Padding="10,7" Margin="8,0,0,0"/>
+                <Button x:Name="NextButton" Content="Next" Click="OnNext" Padding="10,7" Margin="8,0,0,0"/>
+            </StackPanel>
+            <TextBlock x:Name="ResultStatus" VerticalAlignment="Center"
+                       Foreground="{DynamicResource VaultMuted}" Text="Loading…"/>
+        </DockPanel>
+        <TextBlock Grid.Row="6" TextWrapping="Wrap" Margin="0,12,0,0"
+                   Foreground="{DynamicResource VaultMuted}" FontSize="11"
+                   Text="Preview uses locally cached format legality, not live bans. Inventory is recorded by card name, not verified to a specific physical printing. Specialized Vehicle/Spacecraft and paired commander configurations need additional metadata."/>
+    </Grid>
+</UserControl>
