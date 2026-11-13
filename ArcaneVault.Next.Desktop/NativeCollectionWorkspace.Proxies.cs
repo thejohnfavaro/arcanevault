@@ -42,6 +42,9 @@ public partial class NativeCollectionWorkspace
                 "Inventory kind: Proxy. Valuation excluded; never price-scraped, " +
                 "credited as real owned printings, or included in set progress.";
             ProxyRemoveButton.IsEnabled = false;
+            // Refresh the already-open Deck Library coverage labels without
+            // reloading artwork, collection values or changing the deck.
+            UpdateDeckInspectorCoverage();
         }
         catch (Exception ex) when (ex is InvalidDataException or
             SqliteException or IOException or UnauthorizedAccessException or
