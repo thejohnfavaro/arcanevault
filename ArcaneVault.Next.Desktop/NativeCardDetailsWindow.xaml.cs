@@ -174,9 +174,8 @@ public partial class NativeCardDetailsWindow : Window
         {
             CardMetadata.Text =
                 "No local card metadata available — download or open the Scryfall catalog.";
-            OracleText.Text =
-                "Card name and owned quantities remain in your collection. " +
-                "No catalog metadata is currently loaded.";
+            RenderOracleText("Card name and owned quantities remain in your collection. " +
+                "No catalog metadata is currently loaded.");
         }
         else
         {
@@ -196,7 +195,6 @@ public partial class NativeCardDetailsWindow : Window
                 : string.Join(" · ", colors.Select(color => color.Name));
             RenderOracleText(info.OracleText);
         }
-        if (info is null) RenderOracleText("");
         // Convert cached Scryfall format status codes to readable rows without
         // changing the SQLite catalog, deck validator, or stored JSON.
         var formatLegality = NativeFormatLegality.Parse(info?.Legalities);
