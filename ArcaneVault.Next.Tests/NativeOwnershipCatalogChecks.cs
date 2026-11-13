@@ -20,6 +20,14 @@ internal static class NativeOwnershipCatalogChecks
             "Native catalog ownership: " + description);
     }
 
+    private static void Reject(Action action)
+    {
+        try { action(); }
+        catch (ArgumentException) { return; }
+        throw new InvalidOperationException(
+            "Invalid proxy scope was not rejected by the catalog.");
+    }
+
     private static string Hash(string file) =>
         Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(file)));
 
