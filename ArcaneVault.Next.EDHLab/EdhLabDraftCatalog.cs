@@ -236,7 +236,8 @@ public sealed class EdhLabDraftCatalog
         string? role = null, int limit = 200,
         bool synergyOnly = false, bool prioritizeSynergy = false,
         IReadOnlyDictionary<string, int>? mainboardCounts = null,
-        EdhLabCardPresenceFilter presence = EdhLabCardPresenceFilter.All)
+        EdhLabCardPresenceFilter presence = EdhLabCardPresenceFilter.All,
+        IReadOnlyDictionary<string, long>? proxyCounts = null)
     {
         if (limit is < 1 or > 500) throw new ArgumentOutOfRangeException(nameof(limit));
         if (!Enum.IsDefined(presence))
@@ -256,16 +257,21 @@ public sealed class EdhLabDraftCatalog
             mainboardCounts is not null &&
             mainboardCounts.TryGetValue(name, out int quantity)
                 ? quantity : 0;
+        bool HasPaperProxy(string name) =>
+            proxyCounts is not null &&
+            proxyCounts.TryGetValue(name, out long quantity) && quantity > 0;
+        bool RecordedOrProxy(Card candidate) =>
+            candidate.RecordedCopies > 0 || HasPaperProxy(candidate.Name);
         var matches = cards.Where(x =>
                 (presence != EdhLabCardPresenceFilter.Available ||
-                    (x.RecordedCopies > 0 && DraftCopies(x.Name) == 0)) &&
+                    (RecordedOrProxy(x) && DraftCopies(x.Name) == 0)) &&
                 (presence != EdhLabCardPresenceFilter.InDeck ||
                     DraftCopies(x.Name) > 0) &&
                 // "In deck" must show all locally eligible drafted names,
                 // including names with zero recorded copies. The separate
                 // recorded-only checkbox still governs All; Available already
                 // requires a recorded unused name.
-                (!recordedOnly || x.RecordedCopies > 0 ||
+                (!recordedOnly || RecordedOrProxy(x) ||
                     presence == EdhLabCardPresenceFilter.InDeck) &&
                 (!synergyOnly || synergyByName[x.Name].Matches) &&
                 (selectedRole.Length == 0 || x.RoleHints.Split(" · ",
@@ -275,7 +281,7 @@ public sealed class EdhLabDraftCatalog
         // Recorded-first remains the primary key; an unowned card can never
         // displace an owned candidate just because it shares more mechanic tags.
         if (prioritizeSynergy)
-            matches = matches.OrderByDescending(x => x.RecordedCopies > 0)
+            matches = matches.OrderByDescending(x => RecordedOrProxy(x))
                 .ThenByDescending(x => synergyByName[x.Name].Score)
                 .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase);
         return matches.Take(limit).ToArray();
