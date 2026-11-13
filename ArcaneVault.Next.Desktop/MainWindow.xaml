@@ -55,9 +55,10 @@
         <!-- Tile art is displayed in rows of 1–4 cards. The outer ListView
              virtualizes ROWS so off-screen card image controls never load.
              Grouped rows reflow when the available width crosses a breakpoint. -->
+        <!-- Card-first density: the artwork now occupies most of each cell.
+             All images are still hosted inside virtualized catalog ROWS. -->
         <DataTemplate x:Key="CatalogTileRowTemplate">
-            <ItemsControl ItemsSource="{Binding Cards}"
-                          HorizontalAlignment="Stretch">
+            <ItemsControl ItemsSource="{Binding Cards}" HorizontalAlignment="Stretch">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <UniformGrid Rows="1"/>
@@ -65,69 +66,98 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Margin="3,4" Padding="7"
-                                Height="302" Style="{StaticResource VaultCatalogTileStyle}"
+                        <Border Margin="3,4" Padding="5"
+                                Height="366" Style="{StaticResource VaultCatalogTileStyle}"
                                 Tag="{Binding}"
                                 PreviewMouseLeftButtonDown="OnCatalogTileMouseDown"
-                                ToolTip="Click to select; double-click for card details">
-                            <StackPanel>
-                                <Border HorizontalAlignment="Center"
-                                        Width="132" Height="184"
+                                ToolTip="Select a card; double-click for enlarged artwork and details">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" HorizontalAlignment="Center"
+                                        Width="200" Height="278" CornerRadius="9"
                                         Background="{DynamicResource VaultBackground}"
                                         BorderBrush="{DynamicResource VaultLine}"
-                                        BorderThickness="1" CornerRadius="8">
+                                        BorderThickness="1" ClipToBounds="True">
                                     <Grid>
                                         <TextBlock Text="Image not cached"
                                                    Foreground="{DynamicResource VaultMuted}"
-                                                   TextWrapping="Wrap"
-                                                   TextAlignment="Center"
-                                                   Margin="7" FontSize="11"
+                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                   Margin="14" FontSize="11"
                                                    VerticalAlignment="Center"/>
                                         <local:NativeCardArtImage ArtUrl="{Binding ImageUrl}"
-                                                                  Width="128" Height="180"/>
+                                                                  Width="196" Height="274"
+                                                                  DecodeWidth="320"/>
+                                        <Border VerticalAlignment="Bottom" Height="25"
+                                                Background="#DA10151F">
+                                            <DockPanel Margin="7,0" LastChildFill="True">
+                                                <TextBlock Text="{Binding RarityLabel}"
+                                                           DockPanel.Dock="Left"
+                                                           FontWeight="Bold" FontSize="10.5"
+                                                           VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground"
+                                                                    Value="{DynamicResource VaultMuted}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Rarity}" Value="uncommon">
+                                                                    <Setter Property="Foreground" Value="#C9D1DD"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Rarity}" Value="rare">
+                                                                    <Setter Property="Foreground" Value="#EDC875"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Rarity}" Value="mythic">
+                                                                    <Setter Property="Foreground" Value="#FFAD79"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding DisplaySetCode}"
+                                                           FontSize="10" TextAlignment="Right"
+                                                           Foreground="White"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Margin="7,0,0,0"/>
+                                            </DockPanel>
+                                        </Border>
                                         <Button x:Name="CardShortlistStar"
                                                 Content="{Binding ShortlistStar}"
                                                 Tag="{Binding}"
                                                 ToolTip="{Binding ShortlistTooltip}"
                                                 Click="OnCatalogShortlistStarClicked"
-                                                HorizontalAlignment="Right"
-                                                VerticalAlignment="Top"
-                                                Width="33" Height="33"
-                                                Margin="0,3,3,0" Padding="0"
+                                                HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                Width="33" Height="33" Margin="0,3,3,0" Padding="0"
                                                 HorizontalContentAlignment="Center"
                                                 VerticalContentAlignment="Center"
                                                 FontSize="23" FontWeight="Bold"
-                                                Background="#DA17202E"
+                                                Background="#E017202E"
                                                 BorderBrush="{DynamicResource VaultAccentBorder}"
                                                 Foreground="{DynamicResource VaultWarning}"
                                                 Cursor="Hand"
                                                 ToolTipService.ShowDuration="15000"/>
                                     </Grid>
                                 </Border>
-                                <TextBlock Text="{Binding Name}" FontSize="12.5"
-                                           FontWeight="SemiBold"
-                                           Foreground="{DynamicResource VaultText}"
-                                           TextWrapping="Wrap" TextAlignment="Center"
-                                           MaxHeight="34" Margin="0,4,0,0"/>
-                                <TextBlock Text="{Binding RolesLabel}" FontSize="10.5"
-                                           Foreground="{DynamicResource VaultGood}"
-                                           TextAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding RolesLabel}" Margin="0,3,0,0"/>
-                                <TextBlock Text="{Binding OwnershipLabel}" FontSize="10.5"
-                                           Foreground="{DynamicResource VaultAccent}"
-                                           TextAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           Margin="0,3,0,0"/>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
-                                            Margin="0,7,0,0">
-                                    <TextBlock Text="{Binding DisplaySetCode}" FontSize="11"
-                                               Foreground="{DynamicResource VaultMuted}"/>
-                                    <TextBlock Text="  ·  #" Foreground="{DynamicResource VaultMuted}"/>
-                                    <TextBlock Text="{Binding DisplayCollectorNumber}" FontSize="11"
-                                               Foreground="{DynamicResource VaultMuted}"/>
+                                <StackPanel Grid.Row="1" Margin="5,6,5,0">
+                                    <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource VaultText}"
+                                               TextWrapping="Wrap" TextAlignment="Center"
+                                               MaxHeight="34" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding RolesLabel}" FontSize="10.5"
+                                               Foreground="{DynamicResource VaultGood}"
+                                               TextAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding RolesLabel}" Margin="0,2,0,0"/>
+                                    <TextBlock Text="{Binding OwnershipLabel}" FontSize="10.5"
+                                               Foreground="{DynamicResource VaultAccent}"
+                                               TextAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,2,0,0"/>
                                 </StackPanel>
-                            </StackPanel>
+                            </Grid>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -342,16 +372,15 @@
             </DockPanel>
         </Border>
 
-        <Grid x:Name="CatalogWorkspace" Grid.Column="1" Margin="27,23,27,18">
+        <Grid x:Name="CatalogWorkspace" Grid.Column="1" Margin="21,15,21,13">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" Margin="0,0,0,21">
+            <Grid Grid.Row="0" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -378,36 +407,8 @@
                 </Border>
             </Grid>
 
-            <Border Grid.Row="1" CornerRadius="18" Padding="26,22"
-                    BorderBrush="{DynamicResource VaultEdgeLift}"
-                    BorderThickness="1" Margin="0,0,0,22"
-                    Background="{DynamicResource VaultHeroWash}"
-                    Effect="{StaticResource VaultHeroShadow}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel>
-                        <TextBlock Text="YOUR COLLECTION. YOUR RULES."
-                                   Foreground="{DynamicResource VaultAccent}" FontSize="11"
-                                   FontWeight="Bold" Margin="0,0,0,8"/>
-                        <TextBlock Text="Every printing tells a story."
-                                   FontSize="24" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource VaultText}"/>
-                        <TextBlock Text="A complete local collection, with exact editions and recoverable edits."
-                                   Style="{StaticResource VaultMutedText}"
-                                   Margin="0,7,0,0"/>
-                    </StackPanel>
-                    <TextBlock Grid.Column="1" Text="✦"
-                               FontSize="78" Margin="24,-12,0,-10"
-                               Foreground="{DynamicResource VaultAccent}" Opacity="0.38"
-                               VerticalAlignment="Center"/>
-                </Grid>
-            </Border>
-
-            <Border Grid.Row="2" Style="{StaticResource VaultElevatedPanel}"
-                    Margin="0,0,0,17" Padding="18,15">
+            <Border Grid.Row="1" Style="{StaticResource VaultElevatedPanel}"
+                    Margin="0,0,0,12" Padding="16,12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -488,12 +489,13 @@
                                          Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
                                          Foreground="{DynamicResource VaultText}"/>
                             </StackPanel>
-                            <CheckBox x:Name="ArenaOnlyBox" Content="On Arena"
+                            <CheckBox x:Name="ArenaOnlyBox"
+                                      Content="Arena catalog (one per card)"
                                       VerticalAlignment="Bottom" Margin="0,0,13,12"
                                       Foreground="{DynamicResource VaultText}"
                                       Checked="OnCatalogFilterChanged"
                                       Unchecked="OnCatalogFilterChanged"
-                                      ToolTip="Only printings flagged by Scryfall as available in MTG Arena"/>
+                                      ToolTip="Show only cards available in MTG Arena, once per card name. This is NOT your owned Arena inventory; use Collection Ownership to filter owned cards."/>
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="COLLECTION OWNERSHIP"
                                            Style="{StaticResource VaultEyebrow}"
@@ -564,7 +566,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Row="3"
+            <Border Grid.Row="2"
                     Background="{DynamicResource VaultPanel}"
                     BorderBrush="{DynamicResource VaultEdgeLift}"
                     BorderThickness="1" CornerRadius="16"
@@ -687,7 +689,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Row="4" Margin="0,14,0,0"
+            <Border Grid.Row="3" Margin="0,14,0,0"
                     BorderBrush="{DynamicResource VaultEdgeLift}"
                     BorderThickness="0,1,0,0" Padding="4,11,4,0">
                 <Grid>
