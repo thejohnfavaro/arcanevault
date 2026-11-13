@@ -11,6 +11,7 @@
     <Compile Include="..\ArcaneVault.Next.Desktop\CatalogTileLayout.cs" Link="CatalogTileLayout.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeManaIdentity.cs" Link="NativeManaIdentity.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeNoticeJournal.cs" Link="NativeNoticeJournal.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\NativeDeckPreviewOutline.cs" Link="NativeDeckPreviewOutline.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCardDetailsLayout.cs" Link="NativeCardDetailsLayout.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeOracleSymbolTokenizer.cs" Link="NativeOracleSymbolTokenizer.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeScryfallSymbology.cs" Link="NativeScryfallSymbology.cs" />
