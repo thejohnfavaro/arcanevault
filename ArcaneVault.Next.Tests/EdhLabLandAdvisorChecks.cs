@@ -139,7 +139,7 @@ internal static class EdhLabLandAdvisorChecks
         var colorless = EdhLabLandAdvisor.Recommend(
             new[] { Card("Wastes", "Basic Land", "{T}: Add {C}.",
                 real: 10, basic: true, copyLimit: int.MaxValue) },
-            "C", includeBasics: true);
+            "", includeBasics: true);
         Must(colorless.Rows.Single().ProductionSymbols == "C" &&
              colorless.Rows.Single().CoveredCommanderColors == 0,
              "Colorless decks may suggest Wastes without inventing a WUBRG identity.");
