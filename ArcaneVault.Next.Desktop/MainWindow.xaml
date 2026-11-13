@@ -781,17 +781,23 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <TextBlock Text="ORACLE TEXT" Style="{StaticResource VaultEyebrow}"
-                                           Margin="0,12,0,6"/>
-                                <RichTextBox x:Name="InspectorOracle" IsReadOnly="True"
-                                             IsDocumentEnabled="True"
-                                             Height="190" Padding="7,5"
-                                             Background="{DynamicResource VaultPanel}"
-                                             Foreground="{DynamicResource VaultText}"
-                                             BorderBrush="{DynamicResource VaultLine}"
-                                             VerticalScrollBarVisibility="Auto"
-                                             HorizontalScrollBarVisibility="Disabled"
-                                             AutomationProperties.Name="Selected card Oracle text with official symbols"/>
+                                <Border BorderBrush="{DynamicResource VaultEdgeLift}"
+                                        BorderThickness="0,1,0,0" Margin="0,13,0,8"
+                                        Padding="0,10,0,0">
+                                    <TextBlock Text="ORACLE TEXT"
+                                               Style="{StaticResource VaultEyebrow}"/>
+                                </Border>
+                                <!-- Native reading surface: no caret, text-box bezel,
+                                     or editable-looking input chrome. -->
+                                <FlowDocumentScrollViewer x:Name="InspectorOracle"
+                                     Height="192"
+                                     Background="Transparent"
+                                     BorderThickness="0" Padding="0"
+                                     Foreground="{DynamicResource VaultText}"
+                                     IsToolBarVisible="False" IsSelectionEnabled="True"
+                                     VerticalScrollBarVisibility="Auto"
+                                     HorizontalScrollBarVisibility="Disabled"
+                                     AutomationProperties.Name="Selected card Oracle text with official symbols"/>
                                 <TextBlock x:Name="InspectorStatus"
                                            Margin="0,7,0,0" FontSize="10.5"
                                            TextWrapping="Wrap"
