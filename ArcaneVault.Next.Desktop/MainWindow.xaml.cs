@@ -1723,14 +1723,8 @@ public partial class MainWindow : Window
     private void OnEdhReturnToDraftClicked(object sender, RoutedEventArgs e) =>
         ShowEmbeddedEdhDraft();
 
-    private void OnEdhShowCommandersClicked(object sender, RoutedEventArgs e)
-    {
-        if (edhLabWindow is null) return;
-        EdhLabSurface.Content = edhLabWindow;
-        nativeWorkspaceRequested = false;
-        edhLabRequested = true;
-        UpdateWorkspaceNavigation();
-    }
+    private async void OnEdhShowCommandersClicked(object sender, RoutedEventArgs e) =>
+        await OpenEdhLabAsync(preferDraft: false);
 
     private async Task OpenSavedDeckInEmbeddedEdhLabAsync(
         NativeDeckEditing.DeckRow selected, EdhLabFormat format,
@@ -1780,11 +1774,14 @@ public partial class MainWindow : Window
             UpdateWorkspaceNavigation();
     }
 
-    private async void OnEdhLabClicked(object sender, RoutedEventArgs e)
+    private async void OnEdhLabClicked(object sender, RoutedEventArgs e) =>
+        await OpenEdhLabAsync(preferDraft: true);
+
+    private async Task OpenEdhLabAsync(bool preferDraft)
     {
-        // The sidebar should return directly to an unfinished draft before
-        // opening commander discovery, including drafts started in Deck Library.
-        if (embeddedEdhDraft is not null)
+        // EDH sidebar prefers the live draft; explicit Commander browser
+        // must work even when saved-deck editing preceded discovery.
+        if (preferDraft && embeddedEdhDraft is not null)
         {
             ShowEmbeddedEdhDraft();
             return;
@@ -1795,7 +1792,7 @@ public partial class MainWindow : Window
         {
             nativeWorkspaceRequested = false;
             edhLabRequested = true;
-            if (embeddedEdhDraft is not null)
+            if (preferDraft && embeddedEdhDraft is not null)
                 EdhLabSurface.Content = embeddedEdhDraft;
             else EdhLabSurface.Content = edhLabWindow;
             UpdateWorkspaceNavigation();
