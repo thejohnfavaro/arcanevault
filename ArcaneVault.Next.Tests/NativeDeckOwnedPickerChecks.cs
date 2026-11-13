@@ -83,6 +83,34 @@ internal static class NativeDeckOwnedPickerChecks
             "1 Sol Ring\n1 Island", "Removing one copy should decrement only that name.");
         Must(NativeDeckOwnedPicker.RemoveOne("1 Fire // Ice\n2 Island", "fire // ice") ==
             "2 Island", "Removing final split-card copy should delete only its line.");
+        // v0.9.73 visual mainboard manager always edits the single
+        // authoritative plain-text list; no separate list is persisted.
+        Must(NativeDeckOwnedPicker.SetQuantity("4 Forest\n1 Sol Ring", "forest", 5) ==
+                 "5 Forest\n1 Sol Ring" &&
+             NativeDeckOwnedPicker.SetQuantity("4 Forest\n1 Sol Ring", "forest", 0) ==
+                 "1 Sol Ring" &&
+             NativeDeckOwnedPicker.SetQuantity("4 Forest\n1 Sol Ring", "Sol Ring", 0) ==
+                 "4 Forest" &&
+             NativeDeckOwnedPicker.SetQuantity("1 Fire // Ice\n1 Island",
+                 "fire // ice", 2) == "2 Fire // Ice\n1 Island",
+             "Manager count edits must modify only the chosen card, respecting split names and removal.");
+        string exactText = " 1 Island\r\n2 Plains\r\n";
+        Must(NativeDeckOwnedPicker.SetQuantity(exactText, "island", 1) == exactText,
+             "Unchanged manager quantity must preserve original raw text exactly.");
+        bool refusedAbsent = false, refusedInvalidCount = false,
+            refusedMalformedManager = false, refusedOverTotal = false;
+        try { NativeDeckOwnedPicker.SetQuantity("1 Sol Ring", "Island", 0); }
+        catch (InvalidDataException) { refusedAbsent = true; }
+        try { NativeDeckOwnedPicker.SetQuantity("1 Island", "Island", 251); }
+        catch (ArgumentOutOfRangeException) { refusedInvalidCount = true; }
+        try { NativeDeckOwnedPicker.SetQuantity("not a deck", "Island", 1); }
+        catch (InvalidDataException) { refusedMalformedManager = true; }
+        try { NativeDeckOwnedPicker.SetQuantity("250 Island\n250 Plains\n250 Swamp\n250 Mountain",
+            "Island", 251); }
+        catch (ArgumentOutOfRangeException) { refusedOverTotal = true; }
+        Must(refusedAbsent && refusedInvalidCount && refusedMalformedManager && refusedOverTotal,
+             "Manager must refuse stale or invalid edits rather than silently rewriting the draft.");
+
         Must(NativeDeckOwnedPicker.SortAlphabetically("2 Swamp\n1 Fire // Ice\n3 Island") ==
             "1 Fire // Ice\n3 Island\n2 Swamp", "Sorting must preserve exact quantities and split names.");
         Must(NativeDeckOwnedPicker.SortAlphabetically("") == "",
