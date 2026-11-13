@@ -171,7 +171,7 @@ public partial class NativeDeckEditorWindow : Window
                 // existing preview / double-click / manual +1 edit pipeline.
                 // These labels describe offline Oracle hints, NOT a promise
                 // that the land enters untapped or makes unconditional mana.
-                var filter = EdhLandAvailabilityBox?.SelectedIndex switch
+                var filter = EdhCardsLandAvailabilityBox?.SelectedIndex switch
                 {
                     1 => EdhLabLandRecommendations.AvailabilityFilter.Owned,
                     2 => EdhLabLandRecommendations.AvailabilityFilter.Proxy,
