@@ -14,7 +14,7 @@ public sealed class CatalogSnapshot : IDisposable
     public sealed record PrintingRow(string Name, string SetCode, string CollectorNumber,
         int PhysicalOwned = 0, int ArenaOwned = 0, int UnresolvedName = 0,
         string ImageUrl = "", string RolesLabel = "", bool ArenaPresentation = false,
-        string Rarity = "")
+        string Rarity = "", int ProxyCopies = 0)
     {
         public string RarityLabel => Rarity.Length == 0
             ? "" : Rarity.ToUpperInvariant();
@@ -30,12 +30,14 @@ public sealed class CatalogSnapshot : IDisposable
         public string DisplayCollectorNumber => ArenaPresentation ? "" : CollectorNumber;
 
         public string OwnershipLabel =>
-            PhysicalOwned == 0 && ArenaOwned == 0 && UnresolvedName == 0
+            PhysicalOwned == 0 && ArenaOwned == 0 && UnresolvedName == 0 &&
+            ProxyCopies == 0
                 ? ""
                 : string.Join(" · ", new[]
                 {
                     
-                    UnresolvedName > 0 ? $"Unresolved name {UnresolvedName}" : ""
+                    UnresolvedName > 0 ? $"Unresolved name {UnresolvedName}" : "",
+                    ProxyCopies > 0 ? $"Proxy ×{ProxyCopies} · not owned" : ""
                 }.Where(x => x.Length > 0));
     }
     public sealed record SearchResult(IReadOnlyList<PrintingRow> Rows, double SqlMilliseconds, bool MayHaveMore);
@@ -68,12 +70,13 @@ public sealed class CatalogSnapshot : IDisposable
         string ColorMask = "", ColorMatching ColorMatch = ColorMatching.ContainsAll,
         bool ColorlessOnly = false, bool ArenaOnly = false,
         OwnershipMode Ownership = OwnershipMode.All,
-        string Role = "")
+        string Role = "", bool IncludeProxies = false)
     {
         public bool IsDefault =>
             SetCode.Length == 0 && Rarity.Length == 0 && TypeContains.Length == 0 &&
             ColorMask.Length == 0 && !ColorlessOnly && !ArenaOnly &&
-            Ownership == OwnershipMode.All && Role.Length == 0;
+            Ownership == OwnershipMode.All && Role.Length == 0 &&
+            !IncludeProxies;
     }
 
     private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true,
@@ -149,7 +152,8 @@ public sealed class CatalogSnapshot : IDisposable
             ? reader.GetString(9).Trim().ToLowerInvariant() : "";
         return new PrintingRow(name, set, collector,
             counts?.VerifiedPhysical ?? 0, counts?.Arena ?? 0,
-            counts?.UnresolvedName ?? 0, image, roles, arenaPresentation, rarity);
+            counts?.UnresolvedName ?? 0, image, roles, arenaPresentation, rarity,
+            counts?.Proxy ?? 0);
     }
 
     private static bool IsPaper(SqliteDataReader reader)
@@ -355,6 +359,10 @@ public sealed class CatalogSnapshot : IDisposable
         if (filters.Ownership != OwnershipMode.All && ownership is null)
             throw new InvalidDataException(
                 "Load or create a native collection to filter owned and unverified printings.");
+        if (filters.IncludeProxies &&
+            filters.Ownership != OwnershipMode.PhysicalVerified)
+            throw new ArgumentException(
+                "Include Proxies applies only to Owned physical printing.");
         if ((filters.Ownership is OwnershipMode.PhysicalVerified or
                  OwnershipMode.PhysicalNotVerified) && !HasPaperPrintingMetadata)
             throw new InvalidDataException(
@@ -480,6 +488,11 @@ public sealed class CatalogSnapshot : IDisposable
             }
             var encounteredArenaNames = arenaScope
                 ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
+            // Name-level proxies are not verified printings. Show at most
+            // one representative catalog printing for proxy-only names,
+            // while retaining exact real-owned printing matches separately.
+            var encounteredProxyOnlyNames = filters.IncludeProxies
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
             var rows = new List<PrintingRow>(limit);
             bool hasExtra = false;
             int eligibleBeforePage = 0;
@@ -504,13 +517,18 @@ public sealed class CatalogSnapshot : IDisposable
                 var row = ReadRow(reader, ownership, HasRoleMetadata, arenaScope);
                 bool matches = filters.Ownership switch
                 {
-                    OwnershipMode.PhysicalVerified => row.PhysicalOwned > 0,
+                    OwnershipMode.PhysicalVerified => row.PhysicalOwned > 0 ||
+                        (filters.IncludeProxies && row.ProxyCopies > 0 &&
+                         IsPaper(reader)),
                     OwnershipMode.PhysicalNotVerified => row.PhysicalOwned == 0,
                     OwnershipMode.ArenaOwned => row.ArenaOwned > 0,
                     OwnershipMode.ArenaNotOwned => row.ArenaOwned == 0,
                     _ => true
                 };
                 if (!matches) continue;
+                if (row.PhysicalOwned == 0 && encounteredProxyOnlyNames is not null &&
+                    !encounteredProxyOnlyNames.Add(row.Name))
+                    continue;
                 if (encounteredArenaNames is not null &&
                     !encounteredArenaNames.Add(row.Name)) continue;
                 if (inMemoryPage && eligibleBeforePage++ < offset) continue;
