@@ -1160,6 +1160,76 @@ internal static class NativeVisualShellChecks
              !deckEditor.Contains("MouseDoubleClick=\"OnOwnedCardDoubleClicked\""),
              "Single-click must preview without adding; only a second click on an actual card adds.");
 
+        // v0.9.76: Commander synergy packages are a separate ListBox from
+        // Cards. Selection remains read-only; a real second left click OR
+        // the explicit Add button invokes the same catalog/copy-limit gate.
+        var packageList = NamedEditor("EdhPackagesList");
+        var packageAddButton = NamedEditor("EdhPackageAddButton");
+        int packagePreviewStart = deckEditorCode.IndexOf(
+            "private async void OnEdhPackageSelectionChanged(", StringComparison.Ordinal);
+        int packagePreviewEnd = deckEditorCode.IndexOf(
+            "private void RefreshSynergyChains(", packagePreviewStart,
+            StringComparison.Ordinal);
+        int packageClickStart = deckEditorCode.IndexOf(
+            "private void OnEdhPackagePreviewMouseDown(", StringComparison.Ordinal);
+        int packageClickEnd = deckEditorCode.IndexOf(
+            "private void OnEdhPackageAddClicked(", packageClickStart,
+            StringComparison.Ordinal);
+        Must(packageList.Name.LocalName == "ListBox" &&
+             packageList.Attribute("SelectionChanged")?.Value ==
+                 "OnEdhPackageSelectionChanged" &&
+             packageList.Attribute("PreviewMouseLeftButtonDown")?.Value ==
+                 "OnEdhPackagePreviewMouseDown" &&
+             packageAddButton.Name.LocalName == "Button" &&
+             packageAddButton.Attribute("Click")?.Value ==
+                 "OnEdhPackageAddClicked" &&
+             packageAddButton.Attribute("IsEnabled")?.Value == "False" &&
+             deckEditor.Contains(
+                 "Single-click to preview · Double-click an eligible card to add") &&
+             packagePreviewStart >= 0 && packagePreviewEnd > packagePreviewStart &&
+             deckEditorCode[packagePreviewStart..packagePreviewEnd].Contains(
+                 "await ShowCardPreviewAsync(", StringComparison.Ordinal) &&
+             !deckEditorCode[packagePreviewStart..packagePreviewEnd].Contains(
+                 "AddEligibleCardToMainboard(", StringComparison.Ordinal) &&
+             !deckEditorCode[packagePreviewStart..packagePreviewEnd].Contains(
+                 "MainboardBox.Text =", StringComparison.Ordinal) &&
+             packageClickStart >= 0 && packageClickEnd > packageClickStart &&
+             deckEditorCode[packageClickStart..packageClickEnd].Contains(
+                 "e.ClickCount != 2", StringComparison.Ordinal) &&
+             deckEditorCode[packageClickStart..packageClickEnd].Contains(
+                 "e.ChangedButton != System.Windows.Input.MouseButton.Left",
+                 StringComparison.Ordinal) &&
+             deckEditorCode[packageClickStart..packageClickEnd].Contains(
+                 "ContainerFromElement(", StringComparison.Ordinal) &&
+             deckEditorCode[packageClickStart..packageClickEnd].Contains(
+                 "EdhPackagesList, source", StringComparison.Ordinal) &&
+             deckEditorCode[packageClickStart..packageClickEnd].Contains(
+                 "row.DataContext is not PackageDisplay clicked",
+                 StringComparison.Ordinal) &&
+             deckEditorCode[packageClickStart..packageClickEnd].Contains(
+                 "TryAddPackageSelection(clicked, \"double-click\")",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains(
+                 "candidate.Group == \"In deck\"", StringComparison.Ordinal) &&
+             deckEditorCode.Contains(
+                 "edhCatalog.Find(candidate.Name)", StringComparison.Ordinal) &&
+             deckEditorCode.Contains(
+                 "EdhPackagesList?.Items.Contains(candidate)", StringComparison.Ordinal) &&
+             deckEditorCode.Contains(
+                 "return copies == 0 && catalogCard.SuggestedCopyLimit > 0;",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains(
+                 "AddEligibleCardToMainboard(selected.Name,", StringComparison.Ordinal) &&
+             deckEditorCode.Contains(
+                 "singletonDoubleClick: true, source: \"package \" + action",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains(
+                 "AddEligibleCardToMainboard(card.Name, singletonDoubleClick,",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains(
+                 "UpdatePackageAddButton();", StringComparison.Ordinal),
+             "Synergy package single click must only preview; explicit second click/Add must reuse the verified singleton deck path.");
+
         // v0.9.72: EDH card browser must label unsaved draft membership,
         // filter available/in-deck/all without losing selected previews,
         // and refresh status from the existing debounced draft update.
