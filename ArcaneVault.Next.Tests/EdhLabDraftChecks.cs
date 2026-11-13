@@ -136,6 +136,64 @@ internal static class EdhLabDraftChecks
         var arena = EdhLabDraftCatalog.OpenReadOnly(catalog, ownership,
             "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
 
+        // v0.9.70: Cache is bounded and must vary with catalog source,
+        // verified commander/format/identity and actual owned names/copies.
+        EdhLabReadOnlyCache.Clear();
+        var cachedPaper = EdhLabReadOnlyCache.GetDraft(catalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        Must(ReferenceEquals(cachedPaper, EdhLabReadOnlyCache.GetDraft(
+                catalog, ownership, "Selected Leader", "WU",
+                EdhLabFormat.PaperCommander)) &&
+             EdhLabReadOnlyCache.TryGetDraft(catalog, ownership, "Selected Leader",
+                 "WU", EdhLabFormat.PaperCommander, out var warm) &&
+             ReferenceEquals(cachedPaper, warm) &&
+             cachedPaper.Find("Tiny Insight")?.RecordedCopies == 1,
+             "Repeated verified EDH Lab loads must reuse the same owned snapshot.");
+        var cachedArena = EdhLabReadOnlyCache.GetDraft(catalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
+        Must(!ReferenceEquals(cachedArena, cachedPaper) &&
+             cachedArena.Find("Tiny Insight")?.RecordedCopies == 0 &&
+             cachedArena.Find("Brainstorm")?.RecordedCopies == 1,
+             "Paper and Arena must never reuse a cache entry with the wrong inventory pool.");
+        var changedHoldings = new NativeBackupView(
+            new[] { new NativePhysicalRow("Brainstorm", 1, "", "", "", "") },
+            ownership.ArenaCards, 0, 0, 0, 1, 6, 0, 1);
+        var updatedPaper = EdhLabReadOnlyCache.GetDraft(catalog, changedHoldings,
+            "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        Must(!ReferenceEquals(cachedPaper, updatedPaper) &&
+             updatedPaper.Find("Tiny Insight")?.RecordedCopies == 0 &&
+             updatedPaper.Find("Brainstorm")?.RecordedCopies == 1,
+             "Same-format ownership changes must invalidate cached recorded quantities.");
+        EdhLabReadOnlyCache.Clear();
+        Must(!ReferenceEquals(cachedPaper, EdhLabReadOnlyCache.GetDraft(
+            catalog, ownership, "Selected Leader", "WU",
+            EdhLabFormat.PaperCommander)),
+            "Explicit catalog invalidation must discard cached eligibility snapshots.");
+
+        string cacheCatalog = Path.Combine(work, "edh-cache-invalidation.sqlite");
+        File.Copy(catalog, cacheCatalog, overwrite: true);
+        var preSync = EdhLabReadOnlyCache.GetDraft(cacheCatalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        using (var changedCatalog = new SqliteConnection(
+            new SqliteConnectionStringBuilder {
+                DataSource = cacheCatalog, Mode = SqliteOpenMode.ReadWrite,
+                Pooling = false
+            }.ToString()))
+        {
+            changedCatalog.Open();
+            using var cmd = changedCatalog.CreateCommand();
+            cmd.CommandText = "UPDATE cards SET oracle='Draw four cards.' WHERE name='Tiny Insight'";
+            cmd.ExecuteNonQuery();
+        }
+        File.SetLastWriteTimeUtc(cacheCatalog, DateTime.UtcNow.AddSeconds(-5));
+        var postSync = EdhLabReadOnlyCache.GetDraft(cacheCatalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.PaperCommander);
+        Must(!ReferenceEquals(preSync, postSync) &&
+             postSync.Find("Tiny Insight")?.Oracle == "Draw four cards." &&
+             preSync.Find("Tiny Insight")?.Oracle == "Draw a card.",
+             "An updated catalog source must never reuse old Oracle/legality metadata.");
+        EdhLabReadOnlyCache.Clear();
+
         // v0.9.67: Missing-card replacements must be candidate-only until
         // an explicit unsaved edit. Inventory, color and format gating are
         // inherited from the pre-verified local EDH draft catalog.
