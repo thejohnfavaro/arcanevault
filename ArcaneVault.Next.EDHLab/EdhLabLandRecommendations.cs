@@ -39,13 +39,16 @@ public static class EdhLabLandRecommendations
         IReadOnlyDictionary<string, int>? mainboard = null,
         IReadOnlyDictionary<string, long>? proxies = null,
         AvailabilityFilter availability = AvailabilityFilter.All,
-        int limit = 200)
+        int limit = 200, string? nameQuery = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         if (!Enum.IsDefined(availability))
             throw new ArgumentOutOfRangeException(nameof(availability));
         if (limit is < 1 or > 500)
             throw new ArgumentOutOfRangeException(nameof(limit));
+        nameQuery = (nameQuery ?? "").Trim();
+        if (nameQuery.Length > 255)
+            throw new ArgumentException("Search is too long.", nameof(nameQuery));
 
         var candidates = new List<Land>();
         foreach (var card in catalog.AllEligibleCards)
@@ -56,9 +59,13 @@ public static class EdhLabLandRecommendations
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
                     TimeSpan.FromMilliseconds(100)))
                 continue;
+            if (nameQuery.Length > 0 &&
+                !card.Name.Contains(nameQuery, StringComparison.OrdinalIgnoreCase))
+                continue;
 
             var draft = mainboard?.GetValueOrDefault(card.Name) ?? 0;
-            if (draft >= card.SuggestedCopyLimit) continue;
+            // Keep already-drafted singleton lands visible in the In Deck lens.
+            // The existing verified add path still enforces copy limits.
             var proxy = proxies?.GetValueOrDefault(card.Name) ?? 0;
             if (availability == AvailabilityFilter.Owned && card.RecordedCopies <= 0) continue;
             if (availability == AvailabilityFilter.Proxy && proxy <= 0) continue;
