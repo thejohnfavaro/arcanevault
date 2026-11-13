@@ -58,7 +58,8 @@ public static class EdhLabMissingCardAdvisor
         EdhLabDraftCatalog catalog,
         IEnumerable<(string Name, int Quantity)> mainboard,
         string missingName, int limit = 8,
-        EdhLabStrategyFocus focus = EdhLabStrategyFocus.Balanced)
+        EdhLabStrategyFocus focus = EdhLabStrategyFocus.Balanced,
+        int landTarget = 36)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(mainboard);
@@ -85,6 +86,13 @@ public static class EdhLabMissingCardAdvisor
         bool land = source.Type.Contains("Land", StringComparison.OrdinalIgnoreCase);
         var sourceProfile = Profile(catalog, source, counts.GetValueOrDefault(source.Name));
         string sourceType = PrimaryType(source.Type);
+        // One baseline per shortlist, never a full deck scan per candidate.
+        // Reward improvements that address the EXISTING deck's tracked role
+        // shortfalls, rather than treating every extra role as equally useful.
+        var blueprint = EdhLabDeckBlueprint.Analyze(catalog,
+            counts.Select(x => (x.Key, x.Value)), landTarget);
+        var gaps = blueprint.Roles.ToDictionary(x => x.Role, x => x.Shortfall,
+            StringComparer.OrdinalIgnoreCase);
 
         var ranked = catalog.AllEligibleCards
             .Where(x => x.RecordedCopies > counts.GetValueOrDefault(x.Name) &&
@@ -121,6 +129,9 @@ public static class EdhLabMissingCardAdvisor
                 int curveDirection = !comparableMana ? 0
                     : manaDelta < 0 ? 6 : manaDelta > 0 ? -6 : 0;
                 int addedRolePoints = Math.Min(18, extras.Length * 6);
+                int gapBonus = Math.Min(30, extras.Sum(role =>
+                    gaps.TryGetValue(role, out int missing) && missing > 0
+                        ? 10 + Math.Min(5, missing) : 0));
                 var roleSet = candidateRoles.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 // Strategy role preferences remain meaningful even when an
                 // older Scryfall catalog lacks mana-value metadata. Only
@@ -146,7 +157,8 @@ public static class EdhLabMissingCardAdvisor
                     counts.GetValueOrDefault(x.Name) > 1 ? 3 : 0;
                 int score = 80 + (sameType ? 15 : 0) + addedRolePoints +
                     Math.Clamp(synergyDifference * 4, -48, 48) +
-                    focusPoints + copiesBonus + curveDirection - manaPenalty;
+                    focusPoints + copiesBonus + curveDirection +
+                    gapBonus - manaPenalty;
 
                 string manaNote = !comparableMana
                     ? "Mana-value comparison unavailable (sync metadata for a curve comparison)"
@@ -157,12 +169,19 @@ public static class EdhLabMissingCardAdvisor
                 string extraText = extras.Length == 0
                     ? "No additional detected roles" : "Additional role hints: " +
                         string.Join(", ", extras);
+                string[] gapsAddressed = extras.Where(x =>
+                    gaps.TryGetValue(x, out int missing) && missing > 0).ToArray();
+                string deckGapNote = gapsAddressed.Length == 0
+                    ? "No tracked whole-deck role shortfall is improved"
+                    : "Addresses tracked role shortfalls: " +
+                      string.Join(", ", gapsAddressed);
                 string reasons =
                     $"Shared roles: {string.Join(", ", neededRoles)}. " +
                     $"Type: {(sameType ? "same primary type" : sourceType + " → " + PrimaryType(x.Type))}. " +
                     $"{manaNote}. " +
                     $"Commander-mechanic signal: {sourceProfile.CommanderSynergy} → " +
                     $"{candidateProfile.CommanderSynergy}. {extraText}. " +
+                    $"{deckGapNote}. " +
                     $"Strategy weighting: {EdhLabStrategyGoals.Label(focus)}.";
                 long available = x.RecordedCopies - counts.GetValueOrDefault(x.Name);
                 return new Alternative(x.Name, available,
