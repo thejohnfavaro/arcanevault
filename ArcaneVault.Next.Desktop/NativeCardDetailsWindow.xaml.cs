@@ -1,6 +1,11 @@
 using ArcaneVault.Next.Collection;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace ArcaneVault.Next.Desktop;
@@ -17,6 +22,121 @@ public partial class NativeCardDetailsWindow : Window
     private int artworkVersion;
     private bool bookmarkBusy;
     private bool bookmarkSaved;
+    private string oraclePlainText = "";
+
+    // Match the monitor containing the owner, not necessarily the primary
+    // display. Windows reports physical work-area pixels; convert to DIPs.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left, Top, Right, Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        public int Size;
+        public NativeRect Monitor, Work;
+        public int Flags;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern nint MonitorFromWindow(nint window, uint flags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfo(nint monitor, ref MonitorInfo info);
+
+    private static (double Width, double Height) WorkingSize(Window? owner)
+    {
+        if (owner is not null)
+        {
+            nint handle = new WindowInteropHelper(owner).Handle;
+            if (handle != 0)
+            {
+                nint monitor = MonitorFromWindow(handle, 2);
+                var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+                if (monitor != 0 && GetMonitorInfo(monitor, ref info))
+                {
+                    Matrix fromDevice = PresentationSource.FromVisual(owner)?
+                        .CompositionTarget?.TransformFromDevice ?? Matrix.Identity;
+                    return ((info.Work.Right - info.Work.Left) * fromDevice.M11,
+                        (info.Work.Bottom - info.Work.Top) * fromDevice.M22);
+                }
+            }
+        }
+        Rect fallback = SystemParameters.WorkArea;
+        return (fallback.Width, fallback.Height);
+    }
+
+    private void FitInitialWindow()
+    {
+        var area = WorkingSize(Owner);
+        var fit = NativeCardDetailsLayout.InitialSize(area.Width, area.Height);
+        MinWidth = fit.MinWidth;
+        MinHeight = fit.MinHeight;
+        Width = fit.Width;
+        Height = fit.Height;
+        MaxWidth = Math.Max(fit.Width, area.Width);
+        MaxHeight = Math.Max(fit.Height, area.Height);
+    }
+
+    private void AdaptContentHeight()
+    {
+        if (CardContentGrid is null || CardArtFrame is null ||
+            CardMetadataPanel is null) return;
+        double space = CardContentGrid.ActualHeight;
+        if (space <= 0) return;
+        double artwork = NativeCardDetailsLayout.ArtworkHeight(space);
+        if (Math.Abs(CardArtFrame.Height - artwork) > 1)
+            CardArtFrame.Height = artwork;
+        // A long legality list must never consume the Oracle-text row.
+        CardMetadataPanel.MaxHeight = Math.Clamp(space - 205, 100, 230);
+    }
+
+    private void RenderOracleText(string? original)
+    {
+        oraclePlainText = original ?? "";
+        var doc = new FlowDocument
+        {
+            PagePadding = new Thickness(0),
+            FontSize = 13.5,
+            LineHeight = 20
+        };
+        foreach (string line in oraclePlainText.Replace("\r\n", "\n").Split('\n'))
+        {
+            var paragraph = new Paragraph { Margin = new Thickness(0, 0, 0, 3) };
+            foreach (var segment in NativeOracleSymbolTokenizer.Split(line))
+            {
+                if (segment.IsSymbol && segment.Text.Length >= 3)
+                {
+                    var glyph = new NativeManaSymbol
+                    {
+                        Symbol = segment.Text[1..^1],
+                        Width = 19, Height = 19,
+                        Margin = new Thickness(1, 0, 1, 0)
+                    };
+                    paragraph.Inlines.Add(new InlineUIContainer(glyph)
+                    {
+                        BaselineAlignment = BaselineAlignment.Center
+                    });
+                }
+                else paragraph.Inlines.Add(new Run(segment.Text));
+            }
+            doc.Blocks.Add(paragraph);
+        }
+        OracleText.Document = doc;
+    }
+
+    private void OnCopyOracleClicked(object sender, RoutedEventArgs e)
+    {
+        try { Clipboard.SetText(oraclePlainText); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Could not copy Oracle text: " + ex.Message,
+                "Clipboard unavailable", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
 
     public bool ShortlistChanged { get; private set; }
 
@@ -44,6 +164,7 @@ public partial class NativeCardDetailsWindow : Window
         BookmarkCardButton.IsEnabled = !string.IsNullOrWhiteSpace(nativePath) &&
             File.Exists(nativePath);
         CardName.Text = name;
+        CardName.ToolTip = name;
         Ownership.Text = ownership;
         CardRarityBadge.Text = "RARITY UNKNOWN";
         CardRarityBadge.Tag = "";
@@ -73,8 +194,9 @@ public partial class NativeCardDetailsWindow : Window
             ColorIdentityLabel.Text = colors.Count == 0
                 ? "Unknown identity"
                 : string.Join(" · ", colors.Select(color => color.Name));
-            OracleText.Text = info.OracleText;
+            RenderOracleText(info.OracleText);
         }
+        if (info is null) RenderOracleText("");
         // Convert cached Scryfall format status codes to readable rows without
         // changing the SQLite catalog, deck validator, or stored JSON.
         var formatLegality = NativeFormatLegality.Parse(info?.Legalities);
@@ -85,8 +207,11 @@ public partial class NativeCardDetailsWindow : Window
             : "No usable format legalities in the local catalog. Refresh official card data to try again.";
 
         ArtworkStatus.Text = "No cached artwork yet. Card details remain available offline.";
+        SourceInitialized += (_, _) => FitInitialWindow();
+        SizeChanged += (_, _) => AdaptContentHeight();
         Loaded += async (_, _) =>
         {
+            AdaptContentHeight();
             _ = RefreshBookmarkAsync();
             await ShowPreferredArtworkAsync();
         };
