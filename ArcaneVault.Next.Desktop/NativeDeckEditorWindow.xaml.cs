@@ -13,6 +13,9 @@ public partial class NativeDeckEditorWindow : Window
 {
     private readonly string nativePath;
     private readonly string expectedSha;
+    // On a confirmed save, carry the already fully verified replacement
+    // back to the embedded library; do not reopen the whole collection.
+    public NativeWorkspaceSafety.Replacement? SavedReplacement { get; private set; }
     private readonly NativeDeckEditing.DeckRow? original;
     private readonly NativeBackupView ownership;
     private readonly string? catalogPath;
@@ -1365,12 +1368,20 @@ public partial class NativeDeckEditorWindow : Window
     {
         if (edhLabCommander is null || edhLabFormat is null ||
             string.IsNullOrWhiteSpace(catalogPath)) return;
-        EdhSuggestionsStatus.Text = "Checking local format legality and color identity…";
+        EdhSuggestionsStatus.Text = "Loading verified offline EDH cards (reused on later opens)…";
         try
         {
-            var suggestions = await Task.Run(() => EdhLabDraftCatalog.OpenReadOnly(
-                catalogPath!, ownership, edhLabCommander,
-                edhLabColors ?? "", edhLabFormat.Value));
+            // Warm commander/ownership/format snapshots are immediately
+            // available; a cold first read runs off the UI thread.
+            EdhLabDraftCatalog suggestions;
+            if (EdhLabReadOnlyCache.TryGetDraft(catalogPath!, ownership,
+                    edhLabCommander, edhLabColors ?? "", edhLabFormat.Value,
+                    out var cached) && cached is not null)
+                suggestions = cached;
+            else
+                suggestions = await Task.Run(() => EdhLabReadOnlyCache.GetDraft(
+                    catalogPath!, ownership, edhLabCommander,
+                    edhLabColors ?? "", edhLabFormat.Value));
             if (!IsLoaded) return;
             edhCatalog = suggestions;
             EdhSuggestionsStatus.Text =
@@ -1892,6 +1903,7 @@ public partial class NativeDeckEditorWindow : Window
                 "The complete prior native collection is preserved at:\n" +
                 saved.RecoveryPath,
                 "Saved deck verified", MessageBoxButton.OK, MessageBoxImage.Information);
+            SavedReplacement = saved;
             DialogResult = true;
         }
         catch (Exception ex)

@@ -15,7 +15,7 @@ namespace ArcaneVault.Next.Desktop;
 /// </summary>
 public partial class NativeCollectionWorkspace : UserControl
 {
-    private readonly NativeBackupView backup;
+    private NativeBackupView backup;
     private readonly CollectionCatalogReview.Result review;
     private readonly string? catalogPath;
     private readonly NativeSetProgress.Result? progress;
@@ -28,11 +28,12 @@ public partial class NativeCollectionWorkspace : UserControl
     private int setQueryVersion;
     private bool closing;
     private readonly string? nativePath;
-    private readonly string? expectedBackupSha;
+    private string? expectedBackupSha;
     private readonly Func<Task>? reopenNative;
     private IReadOnlyList<NativeDeckEditing.DeckRow> deckRows;
     private bool deckCoversLoading;
     private bool deckCoversReady;
+    private int deckCoversVersion;
     private bool deckBusy;
     private GridView? physicalDetailedView;
     private bool excelBusy;
@@ -144,6 +145,88 @@ public partial class NativeCollectionWorkspace : UserControl
         IsEnabled = false; // never allow stale collection edits during a SHA refresh
         setQueryVersion++;
         valuationVersion++;
+    }
+
+    /// <summary>
+    /// A deck-only save already performed a full independent integrity check,
+    /// atomic backup swap and recovery verification. Reuse that verified
+    /// result to update the library in place instead of redoing catalog
+    /// reconciliation, set progress, price lookups and catalog filters.
+    /// Failure falls back to the ordinary full verified re-open.
+    /// </summary>
+    private async Task<bool> TryRefreshSavedDecksAsync(
+        NativeWorkspaceSafety.Replacement? replacement)
+    {
+        if (closing || replacement is null ||
+            string.IsNullOrWhiteSpace(nativePath) ||
+            !Path.GetFullPath(nativePath).Equals(
+                Path.GetFullPath(replacement.Current.DatabasePath),
+                StringComparison.OrdinalIgnoreCase))
+            return false;
+        var next = replacement.Current.Collection;
+        // Fast path is STRICTLY deck-only. If anything about the underlying
+        // inventory/artwork changed, force the complete verifier and refresh.
+        if (!backup.PhysicalCards.SequenceEqual(next.PhysicalCards) ||
+            !backup.ArenaCards.SequenceEqual(next.ArenaCards) ||
+            backup.PreferredArtworks != next.PreferredArtworks ||
+            backup.PhysicalCopies != next.PhysicalCopies ||
+            backup.ArenaCopies != next.ArenaCopies)
+            return false;
+
+        IReadOnlyList<NativeDeckEditing.DeckRow> fresh;
+        try
+        {
+            fresh = await Task.Run(() =>
+                NativeWorkspaceSafety.ListDecksFromVerified(replacement.Current));
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or
+            UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or
+            System.Text.Json.JsonException or ArgumentException)
+        {
+            return false;
+        }
+        if (closing) return false;
+        var selected = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+        backup = next;
+        expectedBackupSha = replacement.Current.BackupSha256;
+        deckRows = fresh;
+        deckCoversReady = false;
+        deckCoversVersion++;
+        RefreshDeckRows();
+        // A saved edit changes the row fingerprint. Preserve the user's
+        // selection using the exact stable ID, not the old SHA.
+        var available = DeckLibraryList.ItemsSource as
+            IEnumerable<NativeDeckEditing.DeckRow>;
+        var reselected = selected is null ? null : available?.FirstOrDefault(x =>
+            x.Id == selected.Id && x.Ordinal == selected.Ordinal);
+        DeckLibraryList.SelectedItem = reselected;
+        if (reselected is null) ShowDeckInspector(null);
+        OnDeckSelected(DeckLibraryList, new SelectionChangedEventArgs(
+            System.Windows.Controls.Primitives.Selector.SelectionChangedEvent,
+            Array.Empty<object>(), Array.Empty<object>()));
+
+        TotalsText.Text =
+            $"Physical: {backup.PhysicalCopies:N0} copies · " +
+            $"{backup.PhysicalCards.Count:N0} lines · " +
+            $"{backup.DistinctPhysicalNames:N0} names  |  " +
+            $"Arena: {backup.ArenaCopies:N0} copies  |  " +
+            $"Decks: {backup.Decks:N0} ({backup.DeckRevisions:N0} revisions)  |  " +
+            $"Preferred artwork: {backup.PreferredArtworks:N0}";
+        DeckLibraryStatus.Text =
+            $"Saved decks: {deckRows.Count:N0} · verified deck-only refresh. " +
+            "Inventory, set progress, catalog and price views reused unchanged.";
+        _ = LoadDeckCoversAsync(); // optional artwork refresh, never blocks library
+        return true;
+    }
+
+    private async Task FinishSavedDeckChangeAsync(
+        NativeWorkspaceSafety.Replacement? replacement)
+    {
+        if (await TryRefreshSavedDecksAsync(replacement)) return;
+        // Source mismatch, changed inventory or verification failure: the
+        // original full reload is the safe fallback. Never use stale SHA.
+        Close();
+        if (reopenNative is not null) await reopenNative();
     }
 
     private void RefreshLists()
@@ -602,13 +685,14 @@ public partial class NativeCollectionWorkspace : UserControl
             .ToArray();
         if (commanders.Length == 0) { deckCoversReady = true; return; }
         deckCoversLoading = true;
+        int loadVersion = deckCoversVersion;
         try
         {
             // Only local metadata is read here; the virtualized cover images
             // fetch bytes through the existing throttled on-screen image cache.
             var covers = await Task.Run(() => NativeDeckCoverCache.Get(
                 commanders, catalogPath!, expectedBackupSha!));
-            if (closing) return;
+            if (closing || loadVersion != deckCoversVersion) return;
             deckRows = deckRows.Select(x =>
             {
                 bool commanderFormat = x.Format.Equals("Commander",
@@ -629,7 +713,12 @@ public partial class NativeCollectionWorkspace : UserControl
                 DeckLibraryStatus.Text = "Saved decks are available, but commander cover " +
                     "art could not be loaded: " + ex.Message;
         }
-        finally { deckCoversLoading = false; }
+        finally
+        {
+            deckCoversLoading = false;
+            if (!closing && loadVersion != deckCoversVersion)
+                _ = LoadDeckCoversAsync();
+        }
     }
 
     private void OnDeckFilterChanged(object sender, RoutedEventArgs e) => RefreshDeckRows();
@@ -701,8 +790,7 @@ public partial class NativeCollectionWorkspace : UserControl
         var dialog = new NativeDeckEditorWindow(nativePath, expectedBackupSha, backup, catalogPath)
         { Owner = Window.GetWindow(this) };
         if (dialog.ShowDialog() != true) return;
-        Close();
-        if (reopenNative is not null) await reopenNative();
+        await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
     }
 
     private async void OnEditDeckClicked(object sender, RoutedEventArgs e)
@@ -723,8 +811,7 @@ public partial class NativeCollectionWorkspace : UserControl
         var dialog = new NativeDeckEditorWindow(
             nativePath, expectedBackupSha, backup, catalogPath, selected) { Owner = Window.GetWindow(this) };
         if (dialog.ShowDialog() != true) return;
-        Close();
-        if (reopenNative is not null) await reopenNative();
+        await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
     }
 
     private void OnEditDeckInEdhLabClicked(object sender, RoutedEventArgs e) =>
@@ -769,7 +856,7 @@ public partial class NativeCollectionWorkspace : UserControl
             // from the current read-only catalog before offering role guidance.
             var commander = await Task.Run(() =>
             {
-                var index = CommanderCatalog.OpenReadOnly(catalogPath!);
+                var index = EdhLabReadOnlyCache.GetCommanderIndex(catalogPath!);
                 return EdhLabSavedDeckAccess.FindEligibleCommander(
                     index, selected.Commander, format);
             });
@@ -790,8 +877,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null)
             { Owner = Window.GetWindow(this) };
             if (dialog.ShowDialog() != true) return;
-            Close();
-            if (reopenNative is not null) await reopenNative();
+            await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
             UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or
@@ -852,8 +938,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 "The complete prior native collection was saved at:\n" +
                 created.RecoveryPath,
                 "Deck copy verified", MessageBoxButton.OK, MessageBoxImage.Information);
-            Close();
-            if (reopenNative is not null) await reopenNative();
+            await FinishSavedDeckChangeAsync(created);
         }
         catch (Exception ex)
         {
@@ -909,8 +994,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 "The complete prior collection was saved at:\n" + updated.RecoveryPath,
                 "Deck deletion verified", MessageBoxButton.OK,
                 MessageBoxImage.Information);
-            Close();
-            if (reopenNative is not null) await reopenNative();
+            await FinishSavedDeckChangeAsync(updated);
         }
         catch (Exception ex)
         {
