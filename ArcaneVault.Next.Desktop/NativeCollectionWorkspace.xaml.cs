@@ -878,14 +878,26 @@ public partial class NativeCollectionWorkspace : UserControl
                 return;
             }
 
-            var dialog = new NativeDeckEditorWindow(
-                nativePath, expectedBackupSha, backup, catalogPath, selected,
-                savedLabFormat: format, savedLabColors: commander.ColorIdentity,
-                focusShortageReview: focusShortages,
-                preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null)
-            { Owner = Window.GetWindow(this) };
-            if (dialog.ShowDialog() != true) return;
-            await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
+            if (editInEmbeddedEdhLab is not null)
+            {
+                await editInEmbeddedEdhLab(selected, format,
+                    commander.ColorIdentity, focusShortages,
+                    focusShortages ? inspectedDeckCard?.Name : null);
+            }
+            else
+            {
+                // Read-only backup preview and older independent hosts keep
+                // their existing editor until they provide a main-workspace
+                // routing callback.
+                var dialog = new NativeDeckEditorWindow(
+                    nativePath, expectedBackupSha, backup, catalogPath, selected,
+                    savedLabFormat: format, savedLabColors: commander.ColorIdentity,
+                    focusShortageReview: focusShortages,
+                    preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null)
+                { Owner = Window.GetWindow(this) };
+                if (dialog.ShowDialog() != true) return;
+                await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
+            }
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
             UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or
