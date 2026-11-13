@@ -85,6 +85,7 @@ public partial class MainWindow
         inspectorSelection = null;
         CardInspectorPanel.Visibility = Visibility.Collapsed;
         InspectorArt.ArtUrl = "";
+        InspectorManaCost.Value = "";
         InspectorOracle.Document = new FlowDocument();
     }
 
@@ -158,6 +159,7 @@ public partial class MainWindow
         InspectorOwnership.Text = selected.OwnershipLabel;
         InspectorType.Text = "Loading card details…";
         InspectorIdentityIcons.ItemsSource = null;
+        InspectorManaCost.Value = "";
         InspectorOracle.Document = OraclePreview("Loading Oracle text…");
         InspectorStatus.Text = "Read-only catalog preview · choose another card anytime";
         if (snapshot is null)
@@ -187,6 +189,7 @@ public partial class MainWindow
             return;
         }
         InspectorType.Text = details.TypeLine;
+        InspectorManaCost.Value = details.ManaCost;
         InspectorIdentityIcons.ItemsSource = NativeManaIdentity.ParseColorIdentity(details.ColorIdentity);
         InspectorOracle.Document = OraclePreview(details.OracleText);
         InspectorStatus.Text = "Select a different card to update this pane; full details are optional.";
