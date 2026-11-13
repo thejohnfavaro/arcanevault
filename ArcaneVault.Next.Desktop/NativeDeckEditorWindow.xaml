@@ -179,6 +179,18 @@
                                   Checked="OnEdhSuggestionsChanged"
                                   Unchecked="OnEdhSuggestionsChanged"/>
                         <DockPanel LastChildFill="True" Margin="0,0,0,7">
+                            <TextBlock Text="Deck status" VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
+                            <ComboBox x:Name="EdhCardPresenceBox" SelectedIndex="0"
+                                      SelectionChanged="OnEdhCardPresenceChanged"
+                                      Background="#D7E4EB" Foreground="#0D1017"
+                                      ToolTip="Available: recorded eligible names not yet in the unsaved mainboard. In deck: eligible cards already in the mainboard (including unowned cards).">
+                                <ComboBoxItem Content="Available · not in deck" Tag="Available"/>
+                                <ComboBoxItem Content="In deck" Tag="InDeck"/>
+                                <ComboBoxItem Content="All eligible" Tag="All"/>
+                            </ComboBox>
+                        </DockPanel>
+                        <DockPanel LastChildFill="True" Margin="0,0,0,7">
                             <TextBlock Text="Role hints" VerticalAlignment="Center"
                                        Margin="0,0,8,0"/>
                             <ComboBox x:Name="EdhRoleBox" SelectedIndex="0"
@@ -224,12 +236,18 @@
                     <ComboBoxItem Content="Physical collection"/>
                     <ComboBoxItem Content="Arena collection"/>
                 </ComboBox>
-                <TextBox Grid.Row="2" x:Name="OwnedSearchBox"
-                         TextChanged="OnOwnedSearchChanged"
-                         Padding="9,7" Margin="0,0,0,8"
-                         ToolTip="Filter owned card names; shows up to 200 matches"
-                         Background="#202737" Foreground="White"
-                         BorderBrush="#514276"/>
+                <StackPanel Grid.Row="2" Margin="0,0,0,6">
+                    <TextBox x:Name="OwnedSearchBox"
+                             TextChanged="OnOwnedSearchChanged"
+                             Padding="9,7" Margin="0,0,0,4"
+                             ToolTip="Filter card names; shows up to 200 eligible matches"
+                             Background="#202737" Foreground="White"
+                             BorderBrush="#514276"/>
+                    <TextBlock x:Name="EdhBrowserStatus" Visibility="Collapsed"
+                               Text="Deck-aware card status loading…"
+                               FontSize="10.5" TextWrapping="Wrap"
+                               Foreground="{DynamicResource VaultMuted}"/>
+                </StackPanel>
                 <ListBox Grid.Row="3" x:Name="OwnedCardsList"
                          DisplayMemberPath="Display"
                          SelectionChanged="OnOwnedCardSelectionChanged"

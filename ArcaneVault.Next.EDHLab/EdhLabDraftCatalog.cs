@@ -4,6 +4,14 @@ using System.Text.Json;
 
 namespace ArcaneVault.Next.EDHLab;
 
+/// <summary>What the Cards browser shows relative to the UNSAVED mainboard.</summary>
+public enum EdhLabCardPresenceFilter
+{
+    Available, // eligible, recorded copy, no matching name yet in draft
+    InDeck,    // eligible name present, including if recorded copies are zero
+    All
+}
+
 /// <summary>
 /// One read-only snapshot of eligible EDH Lab deck candidates. This is a
 /// suggestion aid, NOT a final tournament-legality verdict or verification
@@ -226,13 +234,39 @@ public sealed class EdhLabDraftCatalog
 
     public IReadOnlyList<Card> Search(string? text, bool recordedOnly,
         string? role = null, int limit = 200,
-        bool synergyOnly = false, bool prioritizeSynergy = false)
+        bool synergyOnly = false, bool prioritizeSynergy = false,
+        IReadOnlyDictionary<string, int>? mainboardCounts = null,
+        EdhLabCardPresenceFilter presence = EdhLabCardPresenceFilter.All)
     {
         if (limit is < 1 or > 500) throw new ArgumentOutOfRangeException(nameof(limit));
+        if (!Enum.IsDefined(presence))
+            throw new ArgumentOutOfRangeException(nameof(presence));
+        if (presence != EdhLabCardPresenceFilter.All && mainboardCounts is null)
+            throw new ArgumentException(
+                "A current mainboard is required to filter draft presence.",
+                nameof(mainboardCounts));
         text = (text ?? "").Trim();
         if (text.Length > 255) throw new ArgumentException("Search is too long.", nameof(text));
         var selectedRole = (role ?? "").Trim();
-        var matches = cards.Where(x => (!recordedOnly || x.RecordedCopies > 0) &&
+        // Apply deck-presence filtering BEFORE the 200-result UI window,
+        // so the in-deck view never disappears behind an earlier large page.
+        // Availability here means a recorded eligible name absent from the
+        // unsaved draft, not an inferred purchase or printing guarantee.
+        int DraftCopies(string name) =>
+            mainboardCounts is not null &&
+            mainboardCounts.TryGetValue(name, out int quantity)
+                ? quantity : 0;
+        var matches = cards.Where(x =>
+                (presence != EdhLabCardPresenceFilter.Available ||
+                    (x.RecordedCopies > 0 && DraftCopies(x.Name) == 0)) &&
+                (presence != EdhLabCardPresenceFilter.InDeck ||
+                    DraftCopies(x.Name) > 0) &&
+                // "In deck" must show all locally eligible drafted names,
+                // including names with zero recorded copies. The separate
+                // recorded-only checkbox still governs All; Available already
+                // requires a recorded unused name.
+                (!recordedOnly || x.RecordedCopies > 0 ||
+                    presence == EdhLabCardPresenceFilter.InDeck) &&
                 (!synergyOnly || synergyByName[x.Name].Matches) &&
                 (selectedRole.Length == 0 || x.RoleHints.Split(" · ",
                     StringSplitOptions.RemoveEmptyEntries)
