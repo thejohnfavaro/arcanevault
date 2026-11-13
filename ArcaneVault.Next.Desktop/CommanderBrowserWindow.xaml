@@ -209,6 +209,11 @@
                                        Margin="0,10,0,0" FontSize="12.5"
                                        FontWeight="SemiBold" TextWrapping="Wrap"
                                        Foreground="{DynamicResource VaultText}"/>
+                            <TextBlock Text="MANA COST (EXACT)"
+                                       Style="{StaticResource VaultEyebrow}" Margin="0,10,0,5"/>
+                            <local:NativeManaStrip x:Name="CommanderInspectorManaCost"
+                                                   Kind="Cost" SymbolSize="21"
+                                                   AutomationProperties.Name="Exact commander card casting cost"/>
                             <TextBlock x:Name="CommanderInspectorOwnership"
                                        Margin="0,5,0,0" FontSize="11"
                                        TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}"/>
