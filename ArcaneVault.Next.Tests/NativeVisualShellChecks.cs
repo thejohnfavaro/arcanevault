@@ -777,7 +777,8 @@ internal static class NativeVisualShellChecks
             "NativeCardDetailsWindow",
             "NativeDeckEditorWindow", "NativeImportDiffWindow", "NativeAddPrintingWindow",
             "NativeAdjustPhysicalWindow", "NativeArenaEditorWindow",
-            "NativeFreshStartWindow", "CommanderBrowserWindow"
+            "NativeFreshStartWindow", "CommanderBrowserWindow",
+            "CommanderBrowserView", "NativeDeckEditorView"
         };
         foreach (var name in sourceWindows)
         {
@@ -796,22 +797,30 @@ internal static class NativeVisualShellChecks
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeCollectionWorkspace.Proxies.cs"));
             }
-            if (name == "NativeDeckEditorWindow")
+            if (name == "NativeDeckEditorWindow" ||
+                name == "NativeDeckEditorView")
             {
                 code += "\n" + File.ReadAllText(
-                    Path.Combine(dir, "NativeDeckEditorWindow.MissingSwap.cs"));
+                    Path.Combine(dir, (name == "NativeDeckEditorView" ?
+                        "NativeDeckEditorView." : "NativeDeckEditorWindow.") + "MissingSwap.cs"));
                 code += "\n" + File.ReadAllText(
-                    Path.Combine(dir, "NativeDeckEditorWindow.MainboardManager.cs"));
+                    Path.Combine(dir, (name == "NativeDeckEditorView" ?
+                        "NativeDeckEditorView." : "NativeDeckEditorWindow.") + "MainboardManager.cs"));
                 code += "\n" + File.ReadAllText(
-                    Path.Combine(dir, "NativeDeckEditorWindow.MainboardArtwork.cs"));
+                    Path.Combine(dir, (name == "NativeDeckEditorView" ?
+                        "NativeDeckEditorView." : "NativeDeckEditorWindow.") + "MainboardArtwork.cs"));
                 code += "\n" + File.ReadAllText(
-                    Path.Combine(dir, "NativeDeckEditorWindow.ProxyCoverage.cs"));
+                    Path.Combine(dir, (name == "NativeDeckEditorView" ?
+                        "NativeDeckEditorView." : "NativeDeckEditorWindow.") + "ProxyCoverage.cs"));
                 code += "\n" + File.ReadAllText(
-                    Path.Combine(dir, "NativeDeckEditorWindow.LandDiscovery.cs"));
+                    Path.Combine(dir, (name == "NativeDeckEditorView" ?
+                        "NativeDeckEditorView." : "NativeDeckEditorWindow.") + "LandDiscovery.cs"));
                 code += "\n" + File.ReadAllText(
-                    Path.Combine(dir, "NativeDeckEditorWindow.PrintingChoices.cs"));
+                    Path.Combine(dir, (name == "NativeDeckEditorView" ?
+                        "NativeDeckEditorView." : "NativeDeckEditorWindow.") + "PrintingChoices.cs"));
                 code += "\n" + File.ReadAllText(
-                    Path.Combine(dir, "NativeDeckEditorWindow.ManaBaseProposal.cs"));
+                    Path.Combine(dir, (name == "NativeDeckEditorView" ?
+                        "NativeDeckEditorView." : "NativeDeckEditorWindow.") + "ManaBaseProposal.cs"));
             }
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
@@ -1683,6 +1692,25 @@ internal static class NativeVisualShellChecks
              File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs"))
                  .Contains("edhLabRequested = true;", StringComparison.Ordinal),
              "Commander discovery must use the main workspace without opening a floating Window.");
+
+        var embeddedEditorUi = XDocument.Load(
+            Path.Combine(dir, "NativeDeckEditorView.xaml"));
+        var embeddedMain = XDocument.Load(
+            Path.Combine(dir, "MainWindow.xaml"));
+        var embeddedMainCode = File.ReadAllText(
+            Path.Combine(dir, "MainWindow.xaml.cs"));
+        var libraryCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
+        Must(embeddedEditorUi.Root?.Name.LocalName == "UserControl" &&
+             embeddedMain.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "EdhLabSurface") &&
+             embeddedMainCode.Contains("OpenEmbeddedEdhDraft(editor)") &&
+             embeddedMainCode.Contains("DiscardEmbeddedEdhDraft()") &&
+             embeddedMainCode.Contains("EdhLabSurface.Content = embeddedEdhDraft") &&
+             libraryCode.Contains("editInEmbeddedEdhLab(selected, format,") &&
+             File.ReadAllText(Path.Combine(dir, "NativeDeckEditorView.xaml.cs"))
+                 .Contains("Saved?.Invoke(this, saved);"),
+             "EDH Lab deck edits must use the in-app workspace with draft preservation and explicit save callbacks.");
 
         var catalogColorFilters = XDocument.Load(
             Path.Combine(dir, "MainWindow.xaml"));
