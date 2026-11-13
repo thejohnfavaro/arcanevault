@@ -125,6 +125,49 @@ internal static class NativeDeckEditingChecks
         Reject(() => NativeDeckEditing.ParseMainboard(
             string.Join("\n", Enumerable.Repeat("2 Plains", 501))));
 
+        // Deck-specific art selections round-trip without changing owned
+        // printings, card quantities, or unrelated saved decks.
+        const string chosenPrint = "00000000-0000-4000-8000-000000000771";
+        var chosen = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Sol Ring"] = chosenPrint,
+            ["Split // Back"] = "00000000-0000-4000-8000-000000000772"
+        };
+        var artSaved = NativeDeckEditing.Save(source,
+            "Legacy Commander", "Test Commander",
+            list[0].MainboardText, list[0], displayPrintIds: chosen);
+        var artRows = NativeDeckEditing.List(artSaved);
+        Must(artRows[0].EntryPrintingIds["Sol Ring"] == chosenPrint &&
+             artRows[0].EntryPrintingIds.ContainsKey("Split // Back") &&
+             artRows[0].TotalCopies == list[0].TotalCopies &&
+             artRows[0].Revisions == list[0].Revisions + 1 &&
+             artRows[1].SourceSha256 == list[1].SourceSha256,
+             "Deck-specific printing choice did not round-trip independently.");
+        using (var choicesJson = JsonDocument.Parse(artSaved))
+        {
+            var artRoot = choicesJson.RootElement;
+            var deck = artRoot.GetProperty("deckLibrary")[0];
+            Must(deck.GetProperty("entries")[0].GetProperty("displayPrintId")
+                     .GetString() == chosenPrint &&
+                 deck.GetProperty("revisions")[1].GetProperty("entries")[0]
+                     .TryGetProperty("displayPrintId", out _) == false &&
+                 artRoot.GetProperty("physicalCards")[0].GetProperty("scryfallId")
+                     .GetString() == chosenPrint,
+                 "Printing preference modified original physical identity or revisions.");
+        }
+        var cleared = NativeDeckEditing.Save(artSaved,
+            "Legacy Commander", "Test Commander",
+            artRows[0].MainboardText, artRows[0],
+            displayPrintIds: new Dictionary<string, string>());
+        Must(NativeDeckEditing.List(cleared)[0].EntryPrintingIds.Count == 0,
+             "Explicitly restoring default artwork did not remove deck preference.");
+        Reject(() => NativeDeckEditing.Save(source, "Legacy Commander",
+            "Test Commander", list[0].MainboardText, list[0],
+            displayPrintIds: new Dictionary<string, string> { ["Missing"] = chosenPrint }));
+        Reject(() => NativeDeckEditing.Save(source, "Legacy Commander",
+            "Test Commander", list[0].MainboardText, list[0],
+            displayPrintIds: new Dictionary<string, string> { ["Sol Ring"] = "bogus" }));
+
         var updated = NativeWorkspaceSafety.SaveDeck(path,
             "Legacy Commander Revised", "Test Commander",
             "1 Sol Ring\n13 Island\n1 Split // Back\n1 Counterspell",
