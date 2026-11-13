@@ -195,7 +195,7 @@ public static class NativeProxyEditing
             }
             // Reject ambiguous counts rather than recording the wrong name.
             else if (System.Text.RegularExpressions.Regex.IsMatch(line,
-                @"^\d+\s*[xX×]?(?:\s|$)",
+                @"^\d+(?:\s*[xX×])?(?:\s|$)",
                 System.Text.RegularExpressions.RegexOptions.CultureInvariant,
                 TimeSpan.FromMilliseconds(50)))
                 throw new InvalidDataException("Invalid quantity in proxy row: " + line);
