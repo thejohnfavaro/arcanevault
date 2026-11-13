@@ -853,6 +853,27 @@ internal static class NativeVisualShellChecks
         Must(setSymbolCode.Contains("svgs.scryfall.io/sets/", StringComparison.Ordinal) &&
              setSymbolCode.Contains("set-symbols", StringComparison.Ordinal),
              "Official set symbols must have a persistent per-user icon cache.");
+        // v0.9.58: catalog search cannot terminate at the first 200 matches.
+        // Paging controls remain below the virtualized results in all 3 views.
+        var catalogLayout = XDocument.Parse(main);
+        var catalogPager = catalogLayout.Descendants()
+            .FirstOrDefault(x => x.Attribute(XName.Get("Name", XamlNs))?.Value ==
+                "CatalogPageStatus");
+        Must(catalogPager is not null &&
+             main.Contains("x:Name=\\"PreviousCatalogPageButton\\"") &&
+             main.Contains("x:Name=\\"NextCatalogPageButton\\"") &&
+             main.Contains("x:Name=\\"CatalogPageLabel\\"") &&
+             main.Contains("Click=\\"OnPreviousCatalogPageClicked\\"") &&
+             main.Contains("Click=\\"OnNextCatalogPageClicked\\"") &&
+             mainCode.Contains("private const int CatalogPageSize = 200;") &&
+             mainCode.Contains("offset: checked(catalogPageIndex * CatalogPageSize)") &&
+             mainCode.Contains("FilterAsync(debounce: false, resetPage: false)") &&
+             mainCode.Contains("if (resetPage) catalogPageIndex = 0;") &&
+             mainCode.Contains("SetCatalogPageState(results.Rows.Count, results.MayHaveMore)") &&
+             !mainCode.Contains("First 200 matching results") &&
+             main.Contains("VirtualizingStackPanel.IsVirtualizing=\\"True\\""),
+             "All catalog pages must remain accessible with stable back/next controls and virtualized views.");
+
         // Image view virtualizes rows instead of constructing every image at once.
         Must(main.Contains("CatalogTileRowTemplate", StringComparison.Ordinal) &&
              main.Contains("UniformGrid Rows=\"1\"", StringComparison.Ordinal) &&
