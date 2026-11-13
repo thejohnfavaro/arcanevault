@@ -21,6 +21,7 @@ public partial class CommanderBrowserWindow : Window
     private readonly CommanderInventory inventory;
     private readonly bool hasCollection;
     private readonly Func<EdhLabCommanderCard, EdhLabFormat, Task>? startDraft;
+    private readonly string? catalogPath;
     private bool drafting;
     private readonly EdhLabRandomPicker picker = new();
     private int page;
@@ -29,8 +30,10 @@ public partial class CommanderBrowserWindow : Window
 
     public CommanderBrowserWindow(EdhLabCommanderIndex index,
         CommanderInventory? inventory = null, bool hasCollection = false,
-        Func<EdhLabCommanderCard, EdhLabFormat, Task>? startDraft = null)
+        Func<EdhLabCommanderCard, EdhLabFormat, Task>? startDraft = null,
+        string? catalogPath = null)
     {
+        this.catalogPath = catalogPath;
         this.index = index;
         this.inventory = inventory ?? CommanderInventory.Empty;
         this.hasCollection = hasCollection;
@@ -52,7 +55,18 @@ public partial class CommanderBrowserWindow : Window
     }
 
     private void OnCommanderSelected(object sender,
-        System.Windows.Controls.SelectionChangedEventArgs e) => UpdateDraftButton();
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        UpdateDraftButton();
+        if (CommanderCardInspector is null) return;
+        if (CommanderList.SelectedItem is CommanderRow selection)
+            _ = CommanderCardInspector.InspectAsync(selection.Name,
+                selection.InventoryText, catalogPath, selection.Card.TypeLine,
+                selection.Card.OracleText, selection.Card.ColorIdentity,
+                selection.Card.ImageUrl);
+        else
+            CommanderCardInspector.Clear("Select a commander");
+    }
 
     private async void OnBuildDeckClicked(object sender, RoutedEventArgs e)
     {
@@ -111,6 +125,7 @@ public partial class CommanderBrowserWindow : Window
         var cards = inventory.Filter(result, query.Format, RecordedOnly.IsChecked == true);
         var pages = Math.Max(1, (cards.Count + query.PageSize - 1) / query.PageSize);
         page = Math.Clamp(page, 0, pages - 1);
+        CommanderCardInspector?.Clear("Select a commander");
         CommanderList.ItemsSource = cards.Skip(page * query.PageSize)
             .Take(query.PageSize).Select(c => new CommanderRow(c)
             {
