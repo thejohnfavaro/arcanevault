@@ -50,45 +50,6 @@ public static class NativeOfficialCardSymbols
         }
     }
 
-    /// <summary>
-    /// Validate Scryfall's URI before ever retrieving content. URLs supplied
-    /// by card text are never trusted, nor can symbols redirect elsewhere.
-    /// </summary>
-    public static bool IsTrustedSvgUri(string? raw)
-    {
-        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri)) return false;
-        return uri.Scheme == Uri.UriSchemeHttps &&
-            uri.Host.Equals("svgs.scryfall.io", StringComparison.OrdinalIgnoreCase) &&
-            uri.AbsolutePath.StartsWith("/card-symbols/", StringComparison.Ordinal) &&
-            uri.AbsolutePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) &&
-            uri.Query.Length == 0 && uri.Fragment.Length == 0 &&
-            uri.UserInfo.Length == 0 && uri.Port == 443;
-    }
-
-    private static IReadOnlyDictionary<string, string> ReadUris(string json)
-    {
-        using var doc = JsonDocument.Parse(json);
-        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (!doc.RootElement.TryGetProperty("data", out var data) ||
-            data.ValueKind != JsonValueKind.Array)
-            return result;
-        foreach (var item in data.EnumerateArray())
-        {
-            if (!item.TryGetProperty("symbol", out var s) ||
-                !item.TryGetProperty("svg_uri", out var u) ||
-                s.ValueKind != JsonValueKind.String ||
-                u.ValueKind != JsonValueKind.String) continue;
-            string token = s.GetString() ?? "";
-            string svg = u.GetString() ?? "";
-            if (token.Length is < 3 or > 28 ||
-                !token.StartsWith("{", StringComparison.Ordinal) ||
-                !token.EndsWith("}", StringComparison.Ordinal) ||
-                !IsTrustedSvgUri(svg)) continue;
-            result[token] = svg;
-        }
-        return result;
-    }
-
     private static async Task<IReadOnlyDictionary<string, string>> LoadOfficialUrisAsync()
     {
         string cache = Path.Combine(CacheDirectory, "scryfall-symbology.json");
@@ -97,7 +58,7 @@ public static class NativeOfficialCardSymbols
             // The cached official mapping is safe to use offline. It also
             // avoids a network request for every card-details window.
             if (File.Exists(cache))
-                return ReadUris(await File.ReadAllTextAsync(cache));
+                return NativeScryfallSymbology.ReadUris(await File.ReadAllTextAsync(cache));
         }
         catch (Exception) { /* Try a fresh official mapping. */ }
 
@@ -112,7 +73,7 @@ public static class NativeOfficialCardSymbols
             byte[] bytes = await response.Content.ReadAsByteArrayAsync();
             if (bytes.Length > MaxSymbologyBytes) return new Dictionary<string, string>();
             string json = Encoding.UTF8.GetString(bytes);
-            var map = ReadUris(json);
+            var map = NativeScryfallSymbology.ReadUris(json);
             if (map.Count == 0) return map;
             try
             {
@@ -137,7 +98,7 @@ public static class NativeOfficialCardSymbols
         string token = "{" + code.Trim().Trim('{', '}').ToUpperInvariant() + "}";
         if (Images.TryGetValue(token, out var hit)) return hit;
         var map = await SymbolUris.Value;
-        if (!map.TryGetValue(token, out string? uri) || !IsTrustedSvgUri(uri))
+        if (!map.TryGetValue(token, out string? uri) || !NativeScryfallSymbology.IsTrustedSvgUri(uri))
             return null;
 
         await DownloadGate.WaitAsync();
