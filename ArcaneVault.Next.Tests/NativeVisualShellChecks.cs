@@ -519,7 +519,8 @@ internal static class NativeVisualShellChecks
              deckEditorXaml.Contains("SelectionChanged=\"OnMainboardManagerSelected\"") &&
              draftEditorCode.Contains("MainboardModes.SelectedItem = MainboardManageTab;") &&
              draftEditorCode.Contains("MainboardModes.SelectedItem = MainboardTextTab;") &&
-             draftEditorCode.Contains("if (edhLabCommander is not null) RefreshMainboardManager();") &&
+             draftEditorCode.Contains("RefreshMainboardManager();") &&
+             draftEditorCode.Contains("RefreshLandDiscovery();") &&
              visualMainboardCode.Contains("EdhLabMainboardView.Build(") &&
              visualMainboardCode.Contains("MainboardBox.Text = updated;") &&
              visualMainboardCode.Contains("NativeDeckOwnedPicker.SetQuantity(") &&
@@ -793,6 +794,8 @@ internal static class NativeVisualShellChecks
                     Path.Combine(dir, "NativeDeckEditorWindow.MainboardArtwork.cs"));
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeDeckEditorWindow.ProxyCoverage.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeDeckEditorWindow.LandDiscovery.cs"));
             }
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
@@ -1620,6 +1623,18 @@ internal static class NativeVisualShellChecks
              "Official cost tokens must preserve generic/hybrid/Phyrexian symbols " +
              "and identity must remain ordered, distinct, and independent.");
 
+        // v0.9.79: land-production glyphs are their own semantic mode.
+        // Unknown production MUST NOT default to the colorless {C} symbol.
+        Must(ManaPieces("WUC", NativeManaSequences.Mode.Production)
+                 .SequenceEqual(new[] { "W", "U", "C" }) &&
+             ManaPieces("C", NativeManaSequences.Mode.Production)
+                 .SequenceEqual(new[] { "C" }) &&
+             ManaPieces("", NativeManaSequences.Mode.Production).Length == 0 &&
+             NativeManaSequences.Pieces("not verified",
+                 NativeManaSequences.Mode.Production).Single() is
+                 { Text: "Mana access unverified", IsSymbol: false },
+             "Land colors produced must not be confused with identity, costs, or implied colorless mana.");
+
         var catalogColorFilters = XDocument.Load(
             Path.Combine(dir, "MainWindow.xaml"));
         var commanderColorFilters = XDocument.Load(
@@ -1656,6 +1671,29 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "CommanderBrowserWindow.xaml"));
         var deckSymbolUI = File.ReadAllText(
             Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
+        // A separately bounded, read-only land suggestion pane with
+        // intentional add actions must not alter the deck on selection.
+        string landDiscoveryCode = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.LandDiscovery.cs"));
+        Must(deckSymbolUI.Contains("x:Name=\"EdhLandDiscoveryExpander\"") &&
+             deckSymbolUI.Contains("x:Name=\"EdhLandDiscoveryList\"") &&
+             deckSymbolUI.Contains("Kind=\"Production\"") &&
+             deckSymbolUI.Contains("Value=\"{Binding ProductionSymbols}\"") &&
+             deckSymbolUI.Contains("PreviewMouseLeftButtonDown=\"OnLandDiscoveryPreviewMouseDown\"") &&
+             deckSymbolUI.Contains("Click=\"OnLandDiscoveryAddClicked\"") &&
+             deckSymbolUI.Contains("x:Name=\"EdhLandAvailabilityBox\"") &&
+             deckSymbolUI.Contains("x:Name=\"EdhLandIncludeBasics\"") &&
+             landDiscoveryCode.Contains("EdhLabLandAdvisor.Recommend(") &&
+             landDiscoveryCode.Contains("edhCatalog.AllEligibleCards") &&
+             landDiscoveryCode.Contains("proxies = arena ? null : proxyCounts") &&
+             landDiscoveryCode.Contains("e.ClickCount != 2") &&
+             landDiscoveryCode.Contains("row.DataContext is not EdhLabLandAdvisor.Land selected") &&
+             landDiscoveryCode.Contains("AddEligibleCardToMainboard(selected.Name,") &&
+             draftEditorCode.Contains("RefreshLandDiscovery();") &&
+             !landDiscoveryCode.Contains("NativeWorkspaceSafety.SaveDeck(") &&
+             !landDiscoveryCode.Contains("NativeWorkspaceSafety.SetPhysicalQuantity("),
+             "Commander lands must be offline, locally legal, separate real/proxy, only explicitly added, and use official produced-color pips.");
+
         var symbolStripCode = File.ReadAllText(
             Path.Combine(dir, "NativeManaStrip.cs"));
         var symbolSequenceCode = File.ReadAllText(

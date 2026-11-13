@@ -11,7 +11,7 @@ namespace ArcaneVault.Next.Desktop;
 /// </summary>
 public sealed class NativeManaStrip : WrapPanel
 {
-    public enum Presentation { Identity, Cost }
+    public enum Presentation { Identity, Cost, Production }
 
     public static readonly DependencyProperty ValueProperty =
         DependencyProperty.Register(nameof(Value), typeof(string),
@@ -52,8 +52,13 @@ public sealed class NativeManaStrip : WrapPanel
 
     public static IReadOnlyList<NativeManaSequences.Piece> Pieces(
         string? value, Presentation kind) =>
-        NativeManaSequences.Pieces(value, kind == Presentation.Identity
-            ? NativeManaSequences.Mode.Identity : NativeManaSequences.Mode.Cost);
+        NativeManaSequences.Pieces(value, kind switch
+        {
+            Presentation.Identity => NativeManaSequences.Mode.Identity,
+            Presentation.Cost => NativeManaSequences.Mode.Cost,
+            Presentation.Production => NativeManaSequences.Mode.Production,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind))
+        });
 
     private void Refresh()
     {
@@ -86,9 +91,18 @@ public sealed class NativeManaStrip : WrapPanel
             }
         }
         System.Windows.Automation.AutomationProperties.SetName(this,
-            Kind == Presentation.Cost
-                ? "Exact mana cost: " + (Value ?? "")
-                : "Color identity: " + string.Join(", ",
-                    NativeManaIdentity.ParseColorIdentity(Value).Select(x => x.Name)));
+            Kind switch
+            {
+                Presentation.Cost => "Exact mana cost: " + (Value ?? ""),
+                Presentation.Production => "Mana access detected in Oracle text: " +
+                    (string.IsNullOrWhiteSpace(Value)
+                        ? "conditional or unclassified"
+                        : string.Join(", ", Pieces(Value, Presentation.Production)
+                            .Where(x => x.IsSymbol).Select(x =>
+                                NativeManaIdentity.NameFor(x.Text)))),
+                _ => "Color identity: " + string.Join(", ",
+                    NativeManaIdentity.ParseColorIdentity(Value)
+                        .Select(x => x.Name))
+            });
     }
 }

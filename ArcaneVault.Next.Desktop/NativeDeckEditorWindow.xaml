@@ -535,6 +535,113 @@
                                            Text="Loading land advice…"/>
                             </StackPanel>
                         </Expander>
+                        <Expander x:Name="EdhLandDiscoveryExpander"
+                                  Header="Lands I own / Proxy — commander identity"
+                                  IsExpanded="False" Margin="0,8,0,4"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  BorderBrush="{DynamicResource VaultLine}"
+                                  BorderThickness="1" Padding="7">
+                            <StackPanel Margin="0,5,0,4">
+                                <TextBlock Text="Suggests locally eligible lands from your recorded physical/Arena collection. Paper proxies are marked separately and never valued. Mana-production icons reflect printed abilities or basic types, not color identity; fetchlands depend on their targets."
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,7"/>
+                                <TextBlock Text="COMMANDER COLOR IDENTITY"
+                                           Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <local:NativeManaStrip x:Name="EdhLandCommanderColors"
+                                                       Kind="Identity" SymbolSize="22"
+                                                       Margin="0,0,0,7"/>
+                                <WrapPanel Margin="0,0,0,8">
+                                    <StackPanel Margin="0,0,9,5">
+                                        <TextBlock Text="FIND LAND" Style="{StaticResource VaultEyebrow}"
+                                                   Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdhLandSearchBox" Width="188"
+                                                 MaxLength="255" Padding="7,5"
+                                                 Background="{DynamicResource VaultPanel}"
+                                                 Foreground="{DynamicResource VaultText}"
+                                                 TextChanged="OnLandDiscoveryFilterChanged"
+                                                 ToolTip="Search eligible land names, type and mana access. No collection changes."/>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,9,5">
+                                        <TextBlock Text="AVAILABILITY" Style="{StaticResource VaultEyebrow}"
+                                                   Margin="0,0,0,3"/>
+                                        <ComboBox x:Name="EdhLandAvailabilityBox"
+                                                  SelectedIndex="0" Width="172"
+                                                  SelectionChanged="OnLandDiscoveryFilterChanged"
+                                                  Background="{DynamicResource VaultPanel}"
+                                                  Foreground="{DynamicResource VaultText}">
+                                            <ComboBoxItem Content="Owned + Proxy"/>
+                                            <ComboBoxItem Content="Real owned only"/>
+                                            <ComboBoxItem Content="Proxy only (paper)"/>
+                                            <ComboBoxItem Content="All locally eligible"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <CheckBox x:Name="EdhLandIncludeBasics"
+                                              Content="Show basics"
+                                              Margin="0,18,0,4"
+                                              VerticalAlignment="Center"
+                                              Checked="OnLandDiscoveryFilterChanged"
+                                              Unchecked="OnLandDiscoveryFilterChanged"/>
+                                </WrapPanel>
+                                <TextBlock x:Name="EdhLandDiscoveryStatus"
+                                           Text="Waiting for local legal land candidates…"
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultAccent}"
+                                           Margin="0,0,0,6"/>
+                                <ListBox x:Name="EdhLandDiscoveryList"
+                                         Height="212" Margin="0,0,0,8"
+                                         SelectionChanged="OnLandDiscoverySelected"
+                                         PreviewMouseLeftButtonDown="OnLandDiscoveryPreviewMouseDown"
+                                         VirtualizingStackPanel.IsVirtualizing="True"
+                                         VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                         ScrollViewer.CanContentScroll="True"
+                                         Background="{DynamicResource VaultPanel}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultLine}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="5,5,5,6">
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource VaultText}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding AvailabilityLabel}"
+                                                           FontSize="10.5" Margin="0,3,0,3"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource VaultMuted}"/>
+                                                <WrapPanel>
+                                                    <local:NativeManaStrip Kind="Production"
+                                                                           Value="{Binding ProductionSymbols}"
+                                                                           SymbolSize="17"
+                                                                           VerticalAlignment="Center"
+                                                                           Margin="0,0,5,0"/>
+                                                    <TextBlock Text="{Binding AccessNote}"
+                                                               FontSize="10.5"
+                                                               Foreground="{DynamicResource VaultText}"
+                                                               TextWrapping="Wrap"
+                                                               VerticalAlignment="Center"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock x:Name="EdhLandSelectedNotes"
+                                           Text="Single-click a land to inspect its exact card text; double-click to add one eligible copy to the unsaved deck."
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,6"/>
+                                <Button x:Name="EdhLandAddButton"
+                                        Content="Add selected land once"
+                                        Click="OnLandDiscoveryAddClicked"
+                                        IsEnabled="False"
+                                        HorizontalAlignment="Left" Padding="9,6"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Explicitly add the selected locally legal land once. Existing land copies and ownership stay unchanged."/>
+                            </StackPanel>
+                        </Expander>
                         <TextBlock x:Name="EdhCurveHeadline" Margin="0,10,0,3"
                                    TextWrapping="Wrap" FontSize="11"
                                    Foreground="{DynamicResource VaultAccent}"
