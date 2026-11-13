@@ -950,6 +950,59 @@ internal static class NativeVisualShellChecks
              (printing with { IsShortlisted = true }).Name == printing.Name,
              "Bookmark UI state must never modify catalog printing identity.");
 
+        // v0.9.63: the default navigation is a persistent catalog inspector,
+        // not opening a new OS window every time a card is selected.
+        var dockedCode = File.ReadAllText(
+            Path.Combine(dir, "MainWindow.InspectorAndNotices.cs"));
+        var noticeAdapter = File.ReadAllText(
+            Path.Combine(dir, "NativeInAppDialog.cs"));
+        Must(main.Contains("x:Name=\\"CardInspectorPanel\\"") &&
+             main.Contains("x:Name=\\"InspectorArt\\"") &&
+             main.Contains("x:Name=\\"InspectorOracle\\"") &&
+             main.Contains("x:Name=\\"InspectorIdentityIcons\\"") &&
+             main.Contains("SelectionChanged=\\"OnCatalogRowSelectionChanged\\"") &&
+             main.Contains("Click=\\"OnInspectorCloseClicked\\"") &&
+             main.Contains("Click=\\"OnInspectorFullDetailsClicked\\"") &&
+             main.Contains("Click=\\"OnInspectorExpandClicked\\"") &&
+             mainCode.Contains("_ = ShowCardInInspectorAsync(card);") &&
+             mainCode.Contains("SetInspectorExpanded(true);") &&
+             dockedCode.Contains("inspectorRequestVersion") &&
+             dockedCode.Contains("version != inspectorRequestVersion") &&
+             dockedCode.Contains("NativeOracleSymbolTokenizer.Split(line)") &&
+             dockedCode.Contains("new NativeManaSymbol") &&
+             dockedCode.Contains("CatalogSnapshot.PrintingRow") &&
+             main.Contains("VirtualizingStackPanel.IsVirtualizing=\\"True\\"") &&
+             mainCode.Contains("CatalogTileLayout.BuildRows("),
+             "Card details must update inside a persistent inspector without sacrificing virtualization.");
+
+        Must(main.Contains("x:Name=\\"ActivityHistoryButton\\"") &&
+             main.Contains("x:Name=\\"ActivityHistoryPanel\\"") &&
+             main.Contains("x:Name=\\"ActivityHistoryItems\\"") &&
+             main.Contains("x:Name=\\"ActiveNoticeItems\\"") &&
+             main.Contains("OnDismissNoticeClicked") &&
+             main.Contains("OnClearActivityClicked") &&
+             dockedCode.Contains("NativeNoticeHub.Published += PostAppNotice") &&
+             dockedCode.Contains("NativeNoticeHub.Published -= PostAppNotice") &&
+             dockedCode.Contains("visibleNotices.Count > 3") &&
+             noticeAdapter.Contains("buttons == MessageBoxButton.OK") &&
+             noticeAdapter.Contains("NativeNoticeHub.Publish(") &&
+             noticeAdapter.Contains("MessageBox.Show(owner, message, caption, buttons, icon)") &&
+             mainCode.Contains("NativeInAppDialog.Show(this,"),
+             "Routine notices must stay in-app while important Yes/No confirmations remain blocking.");
+
+        var noticeJournal = new NativeNoticeJournal();
+        for (int i = 0; i < 75; i++)
+            noticeJournal.Post("Test", "Test message " + i, i % 2 == 0);
+        Must(noticeJournal.Entries.Count == NativeNoticeJournal.MaximumHistory &&
+             noticeJournal.Entries[0].Message == "Test message 74" &&
+             noticeJournal.Entries[^1].Message == "Test message 15" &&
+             noticeJournal.Entries[0].IsWarning &&
+             noticeJournal.Entries[0].TimestampLabel.Length > 0,
+             "In-app activity history must cap entries, stay newest-first, and retain warning flags.");
+        noticeJournal.Clear();
+        Must(noticeJournal.Entries.Count == 0,
+             "Clearing activity history must not touch collections or card data.");
+
         // v0.9.61: resizing must change ONLY the column count, not the
         // intrinsic size of a card. No hard five-column limit on wide screens.
         Must(CatalogTileLayout.TileWidth == 218 &&
