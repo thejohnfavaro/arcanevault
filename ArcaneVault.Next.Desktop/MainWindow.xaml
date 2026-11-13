@@ -522,25 +522,55 @@
                         <WrapPanel VerticalAlignment="Center">
                             <TextBlock Text="COLOR IDENTITY" Style="{StaticResource VaultEyebrow}"
                                        VerticalAlignment="Center" Margin="0,0,11,6"/>
-                            <CheckBox x:Name="ColorWBox" Content="W" Margin="0,0,10,6"
+                            <CheckBox x:Name="ColorWBox" Margin="0,0,10,6"
                                       Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged"/>
-                            <CheckBox x:Name="ColorUBox" Content="U" Margin="0,0,10,6"
+                                      Unchecked="OnCatalogFilterChanged">
+                                <StackPanel Orientation="Horizontal">
+                                    <local:NativeManaSymbol Symbol="W" Width="20" Height="20" Margin="0,0,4,0"/>
+                                    <TextBlock Text="White" FontSize="11" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="ColorUBox" Margin="0,0,10,6"
                                       Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged"/>
-                            <CheckBox x:Name="ColorBBox" Content="B" Margin="0,0,10,6"
+                                      Unchecked="OnCatalogFilterChanged">
+                                <StackPanel Orientation="Horizontal">
+                                    <local:NativeManaSymbol Symbol="U" Width="20" Height="20" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Blue" FontSize="11" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="ColorBBox" Margin="0,0,10,6"
                                       Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged"/>
-                            <CheckBox x:Name="ColorRBox" Content="R" Margin="0,0,10,6"
+                                      Unchecked="OnCatalogFilterChanged">
+                                <StackPanel Orientation="Horizontal">
+                                    <local:NativeManaSymbol Symbol="B" Width="20" Height="20" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Black" FontSize="11" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="ColorRBox" Margin="0,0,10,6"
                                       Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged"/>
-                            <CheckBox x:Name="ColorGBox" Content="G" Margin="0,0,10,6"
+                                      Unchecked="OnCatalogFilterChanged">
+                                <StackPanel Orientation="Horizontal">
+                                    <local:NativeManaSymbol Symbol="R" Width="20" Height="20" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Red" FontSize="11" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="ColorGBox" Margin="0,0,10,6"
                                       Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged"/>
-                            <CheckBox x:Name="ColorlessOnlyBox" Content="Colorless"
+                                      Unchecked="OnCatalogFilterChanged">
+                                <StackPanel Orientation="Horizontal">
+                                    <local:NativeManaSymbol Symbol="G" Width="20" Height="20" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Green" FontSize="11" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="ColorlessOnlyBox"
                                       Margin="0,0,13,6"
                                       Checked="OnCatalogFilterChanged"
-                                      Unchecked="OnCatalogFilterChanged"/>
+                                      Unchecked="OnCatalogFilterChanged">
+                                <StackPanel Orientation="Horizontal">
+                                    <local:NativeManaSymbol Symbol="C" Width="20" Height="20" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Colorless" FontSize="11" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </CheckBox>
                             <ComboBox x:Name="ColorMatchBox" SelectedIndex="0"
                                       SelectionChanged="OnCatalogFilterChanged"
                                       Width="127" Height="28" Margin="0,0,0,6"
