@@ -509,6 +509,10 @@ internal static class NativeVisualShellChecks
              deckEditorXaml.Contains("x:Name=\"MainboardManagerList\"") &&
              deckEditorXaml.Contains("x:Name=\"MainboardFilterBox\"") &&
              deckEditorXaml.Contains("x:Name=\"MainboardSortBox\"") &&
+             deckEditorXaml.Contains("x:Name=\"MainboardManagerSearchBox\"") &&
+             deckEditorXaml.Contains("TextChanged=\"OnMainboardManagerSearchChanged\"") &&
+             visualMainboardCode.Contains("MainboardManagerSearchBox?.Text") &&
+             visualMainboardCode.Contains("private void OnMainboardManagerSearchChanged(") &&
              deckEditorXaml.Contains("Click=\"OnMainboardManagerMinusClicked\"") &&
              deckEditorXaml.Contains("Click=\"OnMainboardManagerPlusClicked\"") &&
              deckEditorXaml.Contains("Click=\"OnMainboardManagerRemoveClicked\"") &&
@@ -1114,7 +1118,7 @@ internal static class NativeVisualShellChecks
         // v0.9.71: EDH Lab double-click must target a real card row,
         // add at most one copy of the selected card, and leave the normal
         // Add (+1) action available for basics and special copy limits.
-        Must(deckEditor.Contains("MouseDoubleClick=\"OnOwnedCardDoubleClicked\"",
+        Must(deckEditor.Contains("PreviewMouseLeftButtonDown=\"OnOwnedCardPreviewMouseDown\"",
                  StringComparison.Ordinal) &&
              deckEditor.Contains("Click=\"OnAddOwnedClicked\"",
                  StringComparison.Ordinal) &&
@@ -1122,6 +1126,10 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) &&
              deckEditorCode.Contains("row.DataContext is not OwnedDisplay clicked",
                  StringComparison.Ordinal) &&
+             deckEditorCode.Contains("e.ClickCount != 2", StringComparison.Ordinal) &&
+             deckEditorCode.Contains("e.ChangedButton != System.Windows.Input.MouseButton.Left",
+                 StringComparison.Ordinal) &&
+             deckEditorCode.Contains("OwnedCardsList.SelectedItem = clicked;", StringComparison.Ordinal) &&
              deckEditorCode.Contains("singletonDoubleClick: edhLabCommander is not null",
                  StringComparison.Ordinal) &&
              deckEditorCode.Contains("if (singletonDoubleClick && inDraft > 0)",
@@ -1133,6 +1141,24 @@ internal static class NativeVisualShellChecks
              deckEditorCode.Contains("edhLabCommander is not null && edhCatalog is null",
                  StringComparison.Ordinal),
             "EDH double-click must be idempotent, row-scoped and catalog-validated; manual add stays distinct.");
+
+        // v0.9.75: Click-to-preview is physically distinct from quick-add.
+        // Selection events may never mutate the deck; only a second real-row
+        // click (or a deliberate Add button click) reaches AddSelectedOwnedCard.
+        int selectionStart = deckEditorCode.IndexOf(
+            "private async void OnOwnedCardSelectionChanged(", StringComparison.Ordinal);
+        int selectionEnd = deckEditorCode.IndexOf(
+            "private void OnMainboardSelectionChanged(", StringComparison.Ordinal);
+        Must(selectionStart >= 0 && selectionEnd > selectionStart &&
+             deckEditorCode[selectionStart..selectionEnd].Contains(
+                 "await ShowCardPreviewAsync(card);", StringComparison.Ordinal) &&
+             !deckEditorCode[selectionStart..selectionEnd].Contains(
+                 "AddSelectedOwnedCard(", StringComparison.Ordinal) &&
+             deckEditor.Contains("x:Name=\"EdhClickInstructions\"") &&
+             deckEditor.Contains("Single-click to preview · Double-click to add one copy") &&
+             deckEditorCode.Contains("EdhClickInstructions.Visibility = Visibility.Visible;") &&
+             !deckEditor.Contains("MouseDoubleClick=\"OnOwnedCardDoubleClicked\""),
+             "Single-click must preview without adding; only a second click on an actual card adds.");
 
         // v0.9.72: EDH card browser must label unsaved draft membership,
         // filter available/in-deck/all without losing selected previews,
