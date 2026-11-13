@@ -1,5 +1,10 @@
 # Arcane Vault Native Windows v0.9.61 — Fixed-size responsive Card Catalog tiles
 
+## Added
+
+- Viewport-fit column calculation that adds more fixed-size card widgets as available window width increases, with a bounded 16-column ceiling.
+- Resize regression coverage for narrow, standard, ultrawide and 4K catalog widths and card-order preservation.
+
 ## Changed
 
 - **Card-art widgets no longer stretch when resizing the app.** Every catalog tile is exactly **218 DIPs wide**, including the existing large 200 × 278 artwork, with three DIPs of horizontal margin on either side.
@@ -7,6 +12,16 @@
 - **Same size when the window shrinks.** The grid drops a column when necessary rather than reducing or enlarging the card widget. Individual card artwork, name footer and overlaid shortlist/rarity controls retain their layout.
 - **Same catalog behavior and data.** All 200 matching entries on the current page are re-grouped into virtualized rows in their original order. Pagination, filters, shortlist actions, card details, native collection quantities, printing metadata and cached artwork are unchanged.
 - **Performance remains bounded.** The outer ListView still virtualizes rows and the per-row card count has an explicit cap. Artwork continues to use the existing Scryfall image cache.
+
+## Fixed
+
+- Card containers previously stretched to fill an oversized `UniformGrid` column even though the artwork remained unchanged in size, leaving large empty borders.
+- The five-column ceiling prevented wider windows from displaying additional cards per row.
+
+## Removed
+
+- The five-column hard cap in Card Catalog art layout.
+- No ownership, printings, deck, shortlist, catalog, or recovery data was removed.
 
 ## Regression and on-device acceptance
 
