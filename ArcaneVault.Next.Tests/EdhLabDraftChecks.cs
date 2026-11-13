@@ -136,6 +136,57 @@ internal static class EdhLabDraftChecks
         var arena = EdhLabDraftCatalog.OpenReadOnly(catalog, ownership,
             "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
 
+        // v0.9.73: Visual mainboard grouping uses the plain-text entries,
+        // preserves every original name/count, and never hides unknown cards.
+        var managedEntries = NativeDeckEditing.ParseMainboard(
+            "4 Island\n1 Sol Ring\n1 Tiny Insight\n1 Lightning Bolt\n1 Thopter Foundry");
+        var managedGroups = EdhLabMainboardView.Build(paper, managedEntries);
+        Must(managedGroups.Count(x => x.IsHeader) >= 3 &&
+             managedGroups.Count(x => !x.IsHeader) == 5 &&
+             managedGroups.First().IsHeader &&
+             managedGroups.First().Category == "Lands" &&
+             managedGroups.Any(x => !x.IsHeader && x.Name == "Island" &&
+                 x.Quantity == 4 && x.Category == "Lands" && x.IsVerified) &&
+             managedGroups.Any(x => !x.IsHeader && x.Name == "Sol Ring" &&
+                 x.Category == "Artifacts") &&
+             managedGroups.Any(x => !x.IsHeader && x.Name == "Tiny Insight" &&
+                 x.Category == "Instants") &&
+             managedGroups.Any(x => !x.IsHeader && x.Name == "Lightning Bolt" &&
+                 x.Category == "Unverified" && !x.IsVerified),
+             "Manager grouping must report real quantities, type and locally unverified draft names.");
+        var onlySpells = EdhLabMainboardView.Build(paper, managedEntries,
+            EdhLabMainboardView.Section.Spells);
+        Must(onlySpells.Where(x => !x.IsHeader).Select(x => x.Name)
+                .SequenceEqual(new[] { "Tiny Insight" }),
+             "Spell filter must exclude artifacts, lands and unverified entries.");
+        var managerByQuantity = EdhLabMainboardView.Build(paper, managedEntries,
+            order: EdhLabMainboardView.Order.Quantity);
+        Must(managerByQuantity.Count == 5 && managerByQuantity.All(x => !x.IsHeader) &&
+             managerByQuantity[0].Name == "Island" &&
+             managerByQuantity[0].Quantity == 4,
+             "Quantity sorting must not rewrite the underlying plain-text mainboard.");
+        var managerByName = EdhLabMainboardView.Build(paper, managedEntries,
+            order: EdhLabMainboardView.Order.Name);
+        Must(managerByName.Select(x => x.Name)
+                .SequenceEqual(managedEntries.Select(x => x.Name)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)),
+             "Alphabetical manager sort must be a presentation-only view.");
+        Must(EdhLabMainboardView.Build(paper, managedEntries,
+                EdhLabMainboardView.Section.Other)
+                .Any(x => !x.IsHeader && x.Name == "Lightning Bolt") &&
+             EdhLabMainboardView.Build(paper, managedEntries,
+                EdhLabMainboardView.Section.Lands)
+                .Where(x => !x.IsHeader).Single().Quantity == 4,
+             "Unverified cards and basic-land counts must remain accessible for removal.");
+        var managerUnknownCatalog = EdhLabMainboardView.Build(null, managedEntries);
+        Must(managerUnknownCatalog.Where(x => !x.IsHeader)
+                .All(x => !x.IsVerified && x.Category == "Unverified"),
+             "Unavailable catalog metadata must never forge manager legality.");
+        Must(NativeDeckEditing.ParseMainboard(
+            "4 Island\n1 Sol Ring\n1 Tiny Insight\n1 Lightning Bolt\n1 Thopter Foundry")
+            .SequenceEqual(managedEntries),
+            "Manager grouping and sorting may not edit source mainboard text.");
+
         // v0.9.72: Card-browser status must be evaluated BEFORE its 200-row
         // UI cap, and reflect the current unsaved mainboard rather than an
         // ownership mutation. In-deck includes eligible unowned names.
