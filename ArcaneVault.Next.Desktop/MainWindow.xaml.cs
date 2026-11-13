@@ -1675,7 +1675,7 @@ public partial class MainWindow : Window
         {
             var loaded = await Task.Run(() =>
             {
-                var index = CommanderCatalog.OpenReadOnly(active.ReadOnlySnapshotPath);
+                var index = EdhLabReadOnlyCache.GetCommanderIndex(active.ReadOnlySnapshotPath);
                 // The authoritative native workspace is optional: EDH Lab
                 // remains useful as a read-only commander browser without it.
                 // Never mutate catalog or user collection during discovery.
