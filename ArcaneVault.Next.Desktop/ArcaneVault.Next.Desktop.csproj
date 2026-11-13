@@ -9,7 +9,7 @@
     <AssemblyName>ArcaneVault.Next.Desktop</AssemblyName>
     <RootNamespace>ArcaneVault.Next.Desktop</RootNamespace>
     <ApplicationTitle>Arcane Vault — Native Windows</ApplicationTitle>
-    <Version>0.9.61</Version>
+    <Version>0.9.62</Version>
     <ApplicationIcon>..\ArcaneVault.Desktop\Assets\ArcaneVault.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
@@ -19,6 +19,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+    <!-- Render official Scryfall SVG symbol paths natively (no WebView or facsimile glyphs). -->
+    <PackageReference Include="SharpVectors.Wpf" Version="1.8.6" />
     <ProjectReference Include="..\ArcaneVault.Next.Domain\ArcaneVault.Next.Domain.csproj" />
     <ProjectReference Include="..\ArcaneVault.Next.Collection\ArcaneVault.Next.Collection.csproj" />
     <ProjectReference Include="..\ArcaneVault.Next.EDHLab\ArcaneVault.Next.EDHLab.csproj" />
