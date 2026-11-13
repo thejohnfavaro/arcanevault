@@ -21,14 +21,23 @@
             <TextBlock Text="Choose an exported schema-2 full backup. Inspection is read-only and never restores, imports, overwrites or changes the active collection. Keep a private backup before upgrading."
                        TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}"/>
         </StackPanel>
-        <Button Grid.Row="1" x:Name="ChooseBackupButton"
-                Content="Choose full backup to check…"
-                Click="OnChooseBackupClicked"
-                HorizontalAlignment="Left" Padding="12,7"
-                Margin="0,0,0,12"
-                Background="{DynamicResource VaultAccentMuted}"
-                Foreground="{DynamicResource VaultText}"
-                BorderBrush="{DynamicResource VaultAccentBorder}"/>
+        <WrapPanel Grid.Row="1" Margin="0,0,0,12">
+            <Button x:Name="ChooseBackupButton"
+                    Content="Choose full backup to check…"
+                    Click="OnChooseBackupClicked"
+                    Padding="12,7" Margin="0,0,8,6"
+                    Background="{DynamicResource VaultAccentMuted}"
+                    Foreground="{DynamicResource VaultText}"
+                    BorderBrush="{DynamicResource VaultAccentBorder}"/>
+            <Button x:Name="CompareBackupButton"
+                    Content="Compare backup to active collection"
+                    Click="OnCompareBackupClicked"
+                    Padding="12,7" Margin="0,0,0,6"
+                    Background="{DynamicResource VaultPanelRaised}"
+                    Foreground="{DynamicResource VaultText}"
+                    BorderBrush="{DynamicResource VaultAccentBorder}"
+                    ToolTip="Compare a selected exported JSON file with the active read-only native workspace. No changes."/>
+        </WrapPanel>
         <Border Grid.Row="2" Background="{DynamicResource VaultPanel}"
                 BorderBrush="{DynamicResource VaultLine}" BorderThickness="1"
                 CornerRadius="9" Padding="12">

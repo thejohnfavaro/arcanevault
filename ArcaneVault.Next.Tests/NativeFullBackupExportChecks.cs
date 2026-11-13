@@ -96,6 +96,27 @@ internal static class NativeFullBackupExportChecks
         var fileHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(exported)));
         Must(fileHash == state.BackupSha256,
              "Export must exactly match current native preserved JSON SHA.");
+        var identical = NativeCollectionIntegrity.Compare(exported, native);
+        Must(identical.ByteIdentical && identical.InventoryMatch &&
+             identical.AggregateMatch && identical.TotalDifferingEntries == 0 &&
+             identical.Differences.Count == 0 &&
+             identical.BackupSha256 == state.BackupSha256 &&
+             identical.ActiveSha256 == state.BackupSha256,
+             "Same native workspace export must compare byte-identical without showing false deltas.");
+        var older = NativeCollectionIntegrity.Compare(source, native);
+        Must(!older.ByteIdentical && !older.InventoryMatch &&
+             older.BackupArena == 2 && older.ActiveArena == 5 &&
+             older.BackupRevisions == 1 && older.ActiveRevisions == 2 &&
+             older.TotalDifferingEntries == 1 &&
+             older.Differences.Any(x => x.Scope == "Arena" &&
+                 x.Item == "Arena Card" &&
+                 x.BackupCopies == 2 && x.ActiveCopies == 5) &&
+             older.Differences.Any(x => x.Scope == "Physical") == false,
+             "Original historical export should show the intended Arena/deck changes, without false printing differences.");
+        var fakeBad = Path.Combine(work, "integrity-invalid.json");
+        File.WriteAllText(fakeBad, "{\"schema\":99}");
+        Reject(() => NativeCollectionIntegrity.Compare(fakeBad, native));
+        Reject(() => NativeCollectionIntegrity.Compare(native, native));
         var importedView = NativeBackupReader.Read(exported);
         Must(importedView.PhysicalCards.Count == 2 &&
              importedView.ArenaCards.Single().Quantity == 5 &&
