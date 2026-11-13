@@ -131,7 +131,7 @@
                 </Grid.RowDefinitions>
                 <Border Grid.Row="0" Style="{StaticResource VaultElevatedPanel}"
                         Margin="0,0,0,10" Padding="12"
-                        MaxHeight="280">
+                        MaxHeight="230">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
