@@ -47,7 +47,7 @@ public partial class NativeCardDetailsWindow : Window
         Ownership.Text = ownership;
         CardRarityBadge.Text = "RARITY UNKNOWN";
         CardRarityBadge.Tag = "";
-        ColorIdentitySymbols.ItemsSource = Array.Empty<NativeManaSymbol.ManaIdentity>();
+        ColorIdentitySymbols.ItemsSource = Array.Empty<NativeManaIdentity.Color>();
         ColorIdentityLabel.Text = "Identity metadata unavailable";
         if (info is null)
         {
@@ -68,7 +68,7 @@ public partial class NativeCardDetailsWindow : Window
             CardMetadata.Text =
                 $"{info.TypeLine}\n" +
                 $"Mana value {info.ManaValue:G}";
-            var colors = NativeManaSymbol.ParseColorIdentity(info.ColorIdentity);
+            var colors = NativeManaIdentity.ParseColorIdentity(info.ColorIdentity);
             ColorIdentitySymbols.ItemsSource = colors;
             ColorIdentityLabel.Text = colors.Count == 0
                 ? "Unknown identity"
