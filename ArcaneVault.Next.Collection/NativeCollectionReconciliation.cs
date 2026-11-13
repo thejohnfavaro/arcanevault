@@ -19,8 +19,41 @@ public static class NativeCollectionReconciliation
         public string ChangeLabel => Delta > 0 ? "+" + Delta : Delta.ToString();
     }
 
+    /// <summary>
+    /// Audit of the source snapshot and the proposed resulting inventory.
+    /// A quantity match is not proof of catalog verification: unresolved rows
+    /// are explicitly reported separately. All numbers derive from the exact
+    /// normalized snapshot used to create the candidate bytes.
+    /// </summary>
+    public sealed record ImportAudit(
+        int SourceRows, int DistinctIdentities, int CollapsedDuplicateRows,
+        long SourceCopies, int UnresolvedRows, long UnresolvedCopies,
+        int AmbiguousRows, int ZeroQuantityRows,
+        int LocalOnlyRows, long LocalOnlyCopies,
+        long ProposedScopeCopies, bool TargetQuantitiesMatch)
+    {
+        public bool EntireScopeMatchesSnapshot =>
+            TargetQuantitiesMatch && LocalOnlyRows == 0 &&
+            ProposedScopeCopies == SourceCopies;
+
+        public string Display =>
+            $"SOURCE AUDIT: {SourceRows:N0} rows / {SourceCopies:N0} copies; " +
+            $"{DistinctIdentities:N0} distinct identities " +
+            $"({CollapsedDuplicateRows:N0} repeat rows consolidated).\n" +
+            $"PRINTING VERIFICATION: {UnresolvedRows:N0} unresolved source rows / " +
+            $"{UnresolvedCopies:N0} copies; {AmbiguousRows:N0} ambiguous rows; " +
+            $"{ZeroQuantityRows:N0} explicit zero rows.\n" +
+            $"PROJECTED INVENTORY: {ProposedScopeCopies:N0} copies after apply; " +
+            $"{LocalOnlyRows:N0} local-only rows / {LocalOnlyCopies:N0} copies preserved.\n" +
+            (EntireScopeMatchesSnapshot
+                ? "SNAPSHOT COVERAGE: all scope quantities will match the imported source."
+                : TargetQuantitiesMatch
+                    ? "SNAPSHOT COVERAGE: imported targets will match, but local-only holdings remain."
+                    : "SNAPSHOT COVERAGE: target quantities could not be verified.");
+    }
+
     public sealed record Result(byte[] Candidate, IReadOnlyList<Line> Lines,
-        int LocalOnlyRows, string CollectionKind)
+        int LocalOnlyRows, string CollectionKind, ImportAudit Audit)
     {
         public bool HasChanges => Lines.Any(x => x.Delta != 0);
         public int AddedRows => Lines.Count(x => x.Action == "New");
@@ -43,7 +76,8 @@ public static class NativeCollectionReconciliation
     }
 
     private sealed record Desired(string Key, string Name, string Set,
-        string Collector, string Finish, string Id, bool Verified, int Quantity);
+        string Collector, string Finish, string Id, bool Verified, int Quantity,
+        string Verification);
 
     private static string Part(string text) => text.Length + ":" + text;
 
@@ -125,13 +159,15 @@ public static class NativeCollectionReconciliation
                     throw new InvalidDataException("Repeated import printing exceeds 99,999 copies.");
                 imported[key] = prior with
                 {
-                    Quantity = newQuantity, Verified = prior.Verified && item.Verified
+                    Quantity = newQuantity,
+                    Verified = prior.Verified && item.Verified,
+                    Verification = prior.Verified ? item.Status : prior.Verification
                 };
             }
             else
                 imported.Add(key, new Desired(key, item.Name, item.SetCode,
                     item.CollectorNumber, item.Finish, item.ScryfallId,
-                    item.Verified, item.Source.Quantity));
+                    item.Verified, item.Source.Quantity, item.Status));
         }
 
         var changes = new List<Line>(imported.Count);
@@ -190,7 +226,7 @@ public static class NativeCollectionReconciliation
                 print + " · " + desired.Finish, current,
                 desired.Quantity, delta, status,
                 desired.Verified ? "Catalog-verified printing" :
-                    "Unresolved printing (not counted for verified set progress)"));
+                    desired.Verification + " (not counted for verified set progress)"));
         }
         foreach (int i in removed.OrderByDescending(x => x))
             target.RemoveAt(i);
@@ -199,8 +235,41 @@ public static class NativeCollectionReconciliation
         if (changed)
             ValidateConservation(updated, before, "Physical",
                 changes.Sum(x => (long)x.Delta));
+        // Validate each target against the actual candidate representation,
+        // not merely the net-copy delta. This also catches accidental
+        // cross-printing merges and duplicate candidate identities.
+        var after = NativeBackupReader.Read(updated);
+        var candidateRows = new Dictionary<string, (int Count, long Copies)>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var row in after.PhysicalCards)
+        {
+            string key = PhysicalKey(row.Name, row.SetCode,
+                row.CollectorNumber, row.Finish, row.ScryfallId);
+            candidateRows.TryGetValue(key, out var previous);
+            candidateRows[key] = (previous.Count + 1,
+                checked(previous.Copies + row.Quantity));
+        }
+        foreach (var entry in imported.Values)
+        {
+            candidateRows.TryGetValue(entry.Key, out var result);
+            if (result.Count > 1 || result.Copies != entry.Quantity)
+                throw new InvalidDataException(
+                    "Proposed physical collection does not match imported printing targets.");
+        }
+        int localOnlyRows = before.PhysicalCards.Count - matchedExisting;
+        long localOnlyCopies = before.PhysicalCards
+            .Where(x => !imported.ContainsKey(PhysicalKey(x.Name, x.SetCode,
+                x.CollectorNumber, x.Finish, x.ScryfallId)))
+            .Sum(x => (long)x.Quantity);
+        var audit = new ImportAudit(prepared.Items.Count, imported.Count,
+            prepared.Items.Count - imported.Count, prepared.Copies,
+            prepared.UnresolvedRows, prepared.UnresolvedCopies,
+            prepared.Items.Count(x => x.Status.Contains("ambiguous",
+                StringComparison.OrdinalIgnoreCase)),
+            prepared.Items.Count(x => x.Source.Quantity == 0),
+            localOnlyRows, localOnlyCopies, after.PhysicalCopies, true);
         return new Result(updated, changes.AsReadOnly(),
-            before.PhysicalCards.Count - matchedExisting, "Physical");
+            localOnlyRows, "Physical", audit);
     }
 
     public static Result Arena(byte[] source,
@@ -277,7 +346,33 @@ public static class NativeCollectionReconciliation
         if (changed)
             ValidateConservation(updated, before, "Arena",
                 changes.Sum(x => (long)x.Delta));
+        // Audit the normalized name targets against the proposed native
+        // collection; never mistake extra local-only names for imported rows.
+        var after = NativeBackupReader.Read(updated);
+        var candidateRows = new Dictionary<string, (int Count, long Copies)>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var row in after.ArenaCards)
+        {
+            candidateRows.TryGetValue(row.Name, out var previous);
+            candidateRows[row.Name] = (previous.Count + 1,
+                checked(previous.Copies + row.Quantity));
+        }
+        foreach (var entry in desired)
+        {
+            candidateRows.TryGetValue(entry.Key, out var result);
+            if (result.Count > 1 || result.Copies != entry.Value.Quantity)
+                throw new InvalidDataException(
+                    "Proposed Arena collection does not match imported name targets.");
+        }
+        int localOnlyRows = before.ArenaCards.Count - matchedExisting;
+        long localOnlyCopies = before.ArenaCards
+            .Where(x => !desired.ContainsKey(x.Name))
+            .Sum(x => (long)x.Quantity);
+        var audit = new ImportAudit(rows.Count, desired.Count,
+            rows.Count - desired.Count, rows.Sum(x => (long)x.Quantity),
+            0, 0, 0, rows.Count(x => x.Quantity == 0),
+            localOnlyRows, localOnlyCopies, after.ArenaCopies, true);
         return new Result(updated, changes.AsReadOnly(),
-            before.ArenaCards.Count - matchedExisting, "Arena");
+            localOnlyRows, "Arena", audit);
     }
 }

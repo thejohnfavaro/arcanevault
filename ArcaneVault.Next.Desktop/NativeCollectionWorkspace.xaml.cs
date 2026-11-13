@@ -309,6 +309,19 @@ public partial class NativeCollectionWorkspace : UserControl
         }
     }
 
+    private static string ImportFileSha256(string path)
+    {
+        // CSV/XLSX parsers both cap source files at 35 MB. Fingerprint the
+        // selected bytes before parsing, after parsing, and after review so
+        // a changed export cannot be applied under an old diff.
+        using var file = new FileStream(path, FileMode.Open,
+            FileAccess.Read, FileShare.Read);
+        if (file.Length is < 1 or > 35_000_000)
+            throw new InvalidDataException("Import source must be under 35 MB.");
+        return Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(file));
+    }
+
     private async void OnImportExcelClicked(object sender, RoutedEventArgs e)
     {
         if (excelBusy || closing || string.IsNullOrWhiteSpace(nativePath) ||
@@ -328,19 +341,22 @@ public partial class NativeCollectionWorkspace : UserControl
         StatusText.Text = "Reading CSV/Excel and comparing existing physical printing quantities…";
         try
         {
-            var (rows, diff) = await Task.Run(() =>
+            var (rows, diff, fileSha256) = await Task.Run(() =>
             {
+                string sourceSha = ImportFileSha256(picker.FileName);
                 var source = Path.GetExtension(picker.FileName).Equals(
                     ".csv", StringComparison.OrdinalIgnoreCase)
                     ? NativeCsvCollectionImport.Read(picker.FileName)
                     : NativeExcelCollectionImport.Read(picker.FileName);
                 var comparison = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
                     nativePath, catalogPath, source, expectedBackupSha);
-                return (source, comparison);
+                if (ImportFileSha256(picker.FileName) != sourceSha)
+                    throw new InvalidDataException("The source file changed during parsing. Start the import again.");
+                return (source, comparison, sourceSha);
             });
             if (closing) return;
             var review = new NativeImportDiffWindow(
-                Path.GetFileName(picker.FileName), diff)
+                Path.GetFileName(picker.FileName), diff, fileSha256)
             { Owner = Window.GetWindow(this) };
             if (review.ShowDialog() != true || !diff.HasChanges)
             {
@@ -352,12 +368,17 @@ public partial class NativeCollectionWorkspace : UserControl
 
             StatusText.Text = "Applying reviewed physical differences with rollback verification…";
             var outcome = await Task.Run(() =>
-                NativeWorkspaceSafety.ReconcilePhysicalImport(
+            {
+                if (ImportFileSha256(picker.FileName) != fileSha256)
+                    throw new InvalidDataException("The source file changed since audit review. Start the import again.");
+                return NativeWorkspaceSafety.ReconcilePhysicalImport(
                     nativePath, catalogPath, rows, expectedBackupSha,
-                    diff.CandidateSha256));
+                    diff.CandidateSha256);
+            });
             if (closing) return;
             MessageBox.Show(Window.GetWindow(this),
-                "Physical reconciliation completed.\n" + diff.Summary + "\n\n" +
+                "Physical reconciliation completed.\n" + diff.Summary +
+                "\n\n" + diff.Audit.Display + "\n\n" +
                 "Complete prior collection recovery: " + outcome.RecoveryPath,
                 "Physical collection reconciled", MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -912,19 +933,22 @@ public partial class NativeCollectionWorkspace : UserControl
         StatusText.Text = "Comparing imported Arena card names and quantities with local collection…";
         try
         {
-            var (rows, diff) = await Task.Run(() =>
+            var (rows, diff, fileSha256) = await Task.Run(() =>
             {
+                string sourceSha = ImportFileSha256(picker.FileName);
                 var imported = Path.GetExtension(picker.FileName)
                     .Equals(".csv", StringComparison.OrdinalIgnoreCase)
                     ? NativeCsvCollectionImport.Read(picker.FileName)
                     : NativeExcelCollectionImport.Read(picker.FileName);
+                if (ImportFileSha256(picker.FileName) != sourceSha)
+                    throw new InvalidDataException("The source file changed during parsing. Start the import again.");
                 var comparison = NativeWorkspaceSafety.PreviewArenaReconciliation(
                     nativePath, imported, expectedBackupSha);
-                return (imported, comparison);
+                return (imported, comparison, sourceSha);
             });
             if (closing) return;
             var review = new NativeImportDiffWindow(
-                Path.GetFileName(picker.FileName), diff)
+                Path.GetFileName(picker.FileName), diff, fileSha256)
             { Owner = Window.GetWindow(this) };
             if (review.ShowDialog() != true || !diff.HasChanges)
             {
@@ -935,11 +959,16 @@ public partial class NativeCollectionWorkspace : UserControl
             }
             StatusText.Text = "Applying reviewed Arena quantity differences with rollback…";
             var outcome = await Task.Run(() =>
-                NativeWorkspaceSafety.ReconcileArenaImport(
-                    nativePath, rows, expectedBackupSha, diff.CandidateSha256));
+            {
+                if (ImportFileSha256(picker.FileName) != fileSha256)
+                    throw new InvalidDataException("The source file changed since audit review. Start the import again.");
+                return NativeWorkspaceSafety.ReconcileArenaImport(
+                    nativePath, rows, expectedBackupSha, diff.CandidateSha256);
+            });
             if (closing) return;
             MessageBox.Show(Window.GetWindow(this),
                 "Arena reconciliation completed.\n" + diff.Summary +
+                "\n\n" + diff.Audit.Display +
                 "\n\nComplete prior collection recovery: " + outcome.RecoveryPath,
                 "Arena collection reconciled", MessageBoxButton.OK,
                 MessageBoxImage.Information);
