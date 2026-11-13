@@ -116,21 +116,21 @@ internal static class NativeVisualShellChecks
         {
             Must(app.Descendants().Any(x =>
                  x.Attribute(XName.Get("Key", XamlNs))?.Value == token) &&
-                 themeManagerCode.Contains("resources[\\\"" + token + "\\\"" + "] = ",
+                 themeManagerCode.Contains("resources[\"" + token + "\"" + "] = ",
                      StringComparison.Ordinal),
                 "Visual depth theme token must be declared and updated: " + token);
         }
-        Must(appXaml.Contains("x:Key=\\\"VaultElevatedPanel\\\"") &&
-             appXaml.Contains("x:Key=\\\"VaultNavButtonDepth\\\"") &&
-             appXaml.Contains("x:Key=\\\"VaultPanelShadow\\\"") &&
-             mainXaml.Contains("Style=\\\"{StaticResource VaultCatalogTileStyle}\\\"") &&
-             mainXaml.Contains("Background=\\\"{DynamicResource VaultHeroWash}\\\"") &&
-             mainXaml.Contains("Background=\\\"{DynamicResource VaultSidebarWash}\\\"") &&
-             mainXaml.Contains("Style=\\\"{StaticResource VaultElevatedPanel}\\\"") &&
+        Must(appXaml.Contains("x:Key=\"VaultElevatedPanel\"") &&
+             appXaml.Contains("x:Key=\"VaultNavButtonDepth\"") &&
+             appXaml.Contains("x:Key=\"VaultPanelShadow\"") &&
+             mainXaml.Contains("Style=\"{StaticResource VaultCatalogTileStyle}\"") &&
+             mainXaml.Contains("Background=\"{DynamicResource VaultHeroWash}\"") &&
+             mainXaml.Contains("Background=\"{DynamicResource VaultSidebarWash}\"") &&
+             mainXaml.Contains("Style=\"{StaticResource VaultElevatedPanel}\"") &&
              mainXaml.Contains("VaultCatalogTileStyle") &&
-             mainShellCode.Contains("FindResource(\\\"VaultNavButtonDepth\\\")") &&
-             !appXaml.Contains("Foreground\\\" Value=\\\"#E5DBFF") &&
-             !appXaml.Contains("Foreground\\\" Value=\\\"#E5D9FF"),
+             mainShellCode.Contains("FindResource(\"VaultNavButtonDepth\")") &&
+             !appXaml.Contains("Foreground\" Value=\"#E5DBFF") &&
+             !appXaml.Contains("Foreground\" Value=\"#E5D9FF"),
              "Catalog depth, active navigation and selected text must follow the chosen theme.");
         var visualTile = XDocument.Parse(mainXaml).Descendants()
             .FirstOrDefault(x => x.Name.LocalName == "Style" &&
@@ -140,7 +140,7 @@ internal static class NativeVisualShellChecks
                  x.Attribute("Property")?.Value == "IsMouseOver") == true &&
              visualTile.Elements().Where(x => x.Name.LocalName == "Setter")
                  .All(x => x.Attribute("Property")?.Value != "Effect") &&
-             mainXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\\\"True\\\""),
+             mainXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\""),
              "Card shadows must be hover-only; catalog rows must retain virtualization.");
 
         var collectionVisual = File.ReadAllText(
@@ -149,12 +149,12 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "CommanderBrowserWindow.xaml"));
         var deckVisual = File.ReadAllText(
             Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
-        Must(collectionVisual.Contains("Style=\\\"{StaticResource VaultElevatedPanel}\\\"") &&
+        Must(collectionVisual.Contains("Style=\"{StaticResource VaultElevatedPanel}\"") &&
              collectionVisual.Contains("VaultNavHoverWash") &&
-             labVisual.Contains("Background=\\\"{DynamicResource VaultHeroWash}\\\"") &&
-             deckVisual.Contains("Background=\\\"{DynamicResource VaultBackground}\\\"") &&
+             labVisual.Contains("Background=\"{DynamicResource VaultHeroWash}\"") &&
+             deckVisual.Contains("Background=\"{DynamicResource VaultBackground}\"") &&
              deckVisual.Contains("VaultAccentSurface") &&
-             optionsXaml.Contains("Background=\\\"{DynamicResource VaultHeroWash}\\\""),
+             optionsXaml.Contains("Background=\"{DynamicResource VaultHeroWash}\""),
              "Collection, EDH Lab, Deck Studio and Appearance previews must share depth tokens.");
 
         var commanderXaml = File.ReadAllText(
