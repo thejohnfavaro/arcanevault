@@ -51,7 +51,6 @@ internal static class NativeVisualShellChecks
         Must(v65DeckUi.Contains("x:Name=\"DeckInspectorPanel\"") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorCardsList\"") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorArt\"") &&
-             v65DeckUi.Contains("x:Name=\"DeckInspectorColorIdentity\"") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorOracle\"") &&
              v65DeckUi.Contains("OnDeckInspectorCardSelected") &&
              v65DeckUi.Contains("OnDeckInspectorCardDoubleClick") &&
@@ -1706,6 +1705,7 @@ internal static class NativeVisualShellChecks
              detailsCode.Contains("CardManaCost.Value = info.ManaCost;") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorManaCost\"") &&
              v65DeckCode.Contains("DeckInspectorManaCost.Value = details.ManaCost;") &&
+             !v65DeckUi.Contains("x:Name=\"DeckInspectorColorIdentity\"") &&
              symbolStripCode.Contains("new NativeManaSymbol") &&
              symbolSequenceCode.Contains("NativeOracleSymbolTokenizer.Split(value)") &&
              catalogReviewCode.Contains("SELECT mana_cost FROM cards") &&
