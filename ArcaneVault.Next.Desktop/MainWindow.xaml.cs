@@ -1796,7 +1796,8 @@ public partial class MainWindow : Window
                      new[] { ColorWBox, ColorUBox, ColorBBox, ColorRBox, ColorGBox })
                 box.IsChecked = false;
         }
-        else if (sender is CheckBox box && box.IsChecked == true &&
+        else if (sender is System.Windows.Controls.Primitives.ToggleButton box &&
+                 box.IsChecked == true &&
                  (sender == ColorWBox || sender == ColorUBox || sender == ColorBBox ||
                   sender == ColorRBox || sender == ColorGBox) && ColorlessOnlyBox is not null)
             ColorlessOnlyBox.IsChecked = false;
