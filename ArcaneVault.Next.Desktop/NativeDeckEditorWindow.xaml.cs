@@ -1640,21 +1640,25 @@ public partial class NativeDeckEditorWindow : Window
         }
     }
 
-    private void OnOwnedCardDoubleClicked(object sender,
+    private void OnOwnedCardPreviewMouseDown(object sender,
         System.Windows.Input.MouseButtonEventArgs e)
     {
-        // A ListBox raises MouseDoubleClick for blank space and scrollbars,
-        // too. Only act when the user double-clicked an actual visible card.
-        if (OwnedCardsList is null ||
+        // First click is deliberately selection/preview ONLY. A valid second
+        // left click on an actual card row is the sole quick-add gesture.
+        // PreviewMouseLeftButtonDown also avoids bubbling MouseDoubleClick
+        // from unrelated child controls, empty space and the scrollbar.
+        if (e.ChangedButton != System.Windows.Input.MouseButton.Left ||
+            e.ClickCount != 2 || OwnedCardsList is null ||
             e.OriginalSource is not DependencyObject source ||
             System.Windows.Controls.ItemsControl.ContainerFromElement(
                 OwnedCardsList, source) is not System.Windows.Controls.ListBoxItem row ||
-            row.DataContext is not OwnedDisplay clicked ||
-            !ReferenceEquals(clicked, OwnedCardsList.SelectedItem))
+            row.DataContext is not OwnedDisplay clicked)
             return;
 
-        // EDH Lab uses an idempotent quick-add; the manual (+1) button
-        // continues to support basics and recognized multi-copy exceptions.
+        // SelectionChanged remains preview-only. Resolve exactly the row
+        // the second click hit, even if a fast filter changed selection.
+        if (!ReferenceEquals(clicked, OwnedCardsList.SelectedItem))
+            OwnedCardsList.SelectedItem = clicked;
         AddSelectedOwnedCard(singletonDoubleClick: edhLabCommander is not null);
         e.Handled = true;
     }
@@ -1818,8 +1822,10 @@ public partial class NativeDeckEditorWindow : Window
             MainboardModes.SelectedItem = MainboardManageTab;
             HeaderText.Text = selected is null
                 ? "EDH Lab — Construct a deck" : "EDH Lab — Edit saved deck";
-            OwnedCardsHeading.Text = "Eligible cards (double-click to add one)";
-            OwnedCardsList.ToolTip = "Double-click an eligible card to add it once. " +
+            OwnedCardsHeading.Text = "Eligible cards · click to inspect, double-click to add";
+            EdhClickInstructions.Visibility = Visibility.Visible;
+            OwnedCardsList.ToolTip = "Single-click a card to preview its official details. " +
+                "Only a double-click adds one copy to the unsaved mainboard. " +
                 "Use Add (+1) for additional basic lands or allowed multi-copy cards.";
             Title = "EDH Lab — " + edhLabCommander;
             if (selected is null)
