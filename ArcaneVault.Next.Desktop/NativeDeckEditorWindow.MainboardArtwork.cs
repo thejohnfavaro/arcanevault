@@ -25,7 +25,7 @@ public partial class NativeDeckEditorWindow
     private readonly ConditionalWeakTable<Image, MainboardArtRequest>
         mainboardArtRequests = new();
     private readonly CancellationTokenSource mainboardArtLifetime = new();
-    private readonly SemaphoreSlim mainboardArtGate = new(3, 3);
+    private readonly SemaphoreSlim mainboardArtGate = new SemaphoreSlim(3, 3);
     private readonly Dictionary<string, BitmapSource?> mainboardArtCache =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Queue<string> mainboardArtCacheOrder = new();
