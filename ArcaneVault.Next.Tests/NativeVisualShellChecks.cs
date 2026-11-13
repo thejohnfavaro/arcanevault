@@ -63,14 +63,14 @@ internal static class NativeVisualShellChecks
 
         string mainXaml = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
         string optionsXaml = File.ReadAllText(Path.Combine(dir, "NativeOptionsWindow.xaml"));
-        var optionsCode = File.ReadAllText(
+        var readinessOptionsCode = File.ReadAllText(
             Path.Combine(dir, "NativeOptionsWindow.xaml.cs"));
         var readinessXaml = File.ReadAllText(
             Path.Combine(dir, "NativeReadinessWindow.xaml"));
         var readinessCode = File.ReadAllText(
             Path.Combine(dir, "NativeReadinessWindow.xaml.cs"));
         Must(optionsXaml.Contains("Click=\"OnBackupReadinessClicked\"") &&
-             optionsCode.Contains("new NativeReadinessWindow { Owner = this }") &&
+             readinessOptionsCode.Contains("new NativeReadinessWindow { Owner = this }") &&
              readinessXaml.Contains("Click=\"OnChooseBackupClicked\"") &&
              readinessXaml.Contains("Click=\"OnCopyReportClicked\"") &&
              readinessCode.Contains("NativeReleaseReadiness.Inspect(") &&
