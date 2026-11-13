@@ -971,14 +971,14 @@ internal static class NativeVisualShellChecks
              mainCode.Contains("ArenaOnlyBox?.IsChecked == true"),
              "Catalog must remove promotional hero and clarify that Arena availability differs from Arena ownership.");
         var detailsXaml = File.ReadAllText(Path.Combine(dir, "NativeCardDetailsWindow.xaml"));
-        var detailsCode = File.ReadAllText(Path.Combine(dir, "NativeCardDetailsWindow.xaml.cs"));
+        // Reuse the earlier card-details code snapshot.
         var manaCode = File.ReadAllText(Path.Combine(dir, "NativeManaSymbol.cs"));
         Must(detailsXaml.Contains("ColorIdentitySymbols") &&
              detailsXaml.Contains("ColorIdentityLabel") &&
              detailsXaml.Contains("local:NativeManaSymbol") &&
              detailsXaml.Contains("Height=\"445\"") &&
              detailsXaml.Contains("CardRarityBadge") &&
-             detailsCode.Contains("NativeManaSymbol.ParseColorIdentity(info.ColorIdentity)") &&
+             detailsCode.Contains("NativeManaIdentity.ParseColorIdentity(info.ColorIdentity)") &&
              detailsCode.Contains("ColorIdentitySymbols.ItemsSource = colors") &&
              manaCode.Contains("new DrawingImage(group)") &&
              !manaCode.Contains("HttpClient") &&
