@@ -602,21 +602,6 @@
                                         <local:NativeManaStrip x:Name="DeckInspectorManaCost"
                                                                Kind="Cost" SymbolSize="20"
                                                                AutomationProperties.Name="Exact saved deck card mana cost"/>
-                                        <ItemsControl x:Name="DeckInspectorColorIdentity">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Horizontal"/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <local:NativeManaSymbol Symbol="{Binding Symbol}"
-                                                                            Width="24" Height="24"
-                                                                            Margin="0,0,4,0"
-                                                                            ToolTip="{Binding Name}"/>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
                                         <TextBlock Text="ORACLE TEXT"
                                                    Style="{StaticResource VaultEyebrow}"
                                                    Margin="0,12,0,5"/>
