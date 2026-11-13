@@ -165,6 +165,49 @@ public partial class NativeDeckEditorWindow : Window
                 _ => true
             };
             OwnedDisplay[] results;
+            if (EdhShowLandRecommendations?.IsChecked == true)
+            {
+                // The land picker uses the identical verified EDH catalog and
+                // existing preview / double-click / manual +1 edit pipeline.
+                // These labels describe offline Oracle hints, NOT a promise
+                // that the land enters untapped or makes unconditional mana.
+                var filter = EdhLandAvailabilityBox?.SelectedIndex switch
+                {
+                    1 => EdhLabLandRecommendations.AvailabilityFilter.Owned,
+                    2 => EdhLabLandRecommendations.AvailabilityFilter.Proxy,
+                    3 => EdhLabLandRecommendations.AvailabilityFilter.Unowned,
+                    _ => EdhLabLandRecommendations.AvailabilityFilter.All
+                };
+                var lands = EdhLabLandRecommendations.Suggest(edhCatalog,
+                    counts, OwnedPoolBox.SelectedIndex == 1 ? null : proxyCounts,
+                    filter, limit: 500);
+                string search = (OwnedSearchBox.Text ?? "").Trim();
+                results = lands
+                    .Where(x => (search.Length == 0 ||
+                        x.Card.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
+                        (presence != EdhLabCardPresenceFilter.Available ||
+                            (x.RealOwned || x.HasProxy) && x.DraftCopies == 0) &&
+                        (presence != EdhLabCardPresenceFilter.InDeck ||
+                            x.DraftCopies > 0) &&
+                        (EdhRecordedOnly.IsChecked != true ||
+                            x.RealOwned || x.HasProxy ||
+                            presence == EdhLabCardPresenceFilter.InDeck))
+                    .Take(200)
+                    .Select(x => new OwnedDisplay(x.Card.Name, x.Card.RecordedCopies,
+                        "Mana hints: " + (x.AnyColorText ? "any color (check conditions)" :
+                            x.ProducedColors.Length > 0 ? x.ProducedColors : "unknown") +
+                        (x.ConditionalOrUnknown ? " · conditions/entry: check Oracle" : "") +
+                        " · " + x.Availability,
+                        LabSuggestion: true, InDraftCopies: x.DraftCopies,
+                        Proxied: x.ProxyCopies))
+                    .ToArray();
+                SetOwnedBrowserRows(results,
+                    $"Commander-legal lands · {results.Length:N0} shown" +
+                    (results.Length == 200 ? " (first 200 matching lands)" : "") +
+                    " · colors are Oracle-text hints; inspect conditions before adding. " +
+                    "Single-click previews; double-click adds one; +1 supports basics.");
+                return;
+            }
             if (browsingOptimizationCandidates && lastOptimization is { CanBrowse: true })
             {
                 results = lastOptimization.OwnedCandidates
@@ -1553,6 +1596,13 @@ public partial class NativeDeckEditorWindow : Window
         {
             StatusText.Text = "Correct the decklist before browsing a role gap: " + ex.Message;
         }
+    }
+
+    private void OnEdhLandAvailabilityChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (edhLabCommander is null || OwnedCardsList is null) return;
+        RefreshOwnedCards();
     }
 
     private void OnEdhSuggestionsChanged(object sender, RoutedEventArgs e)
