@@ -657,6 +657,9 @@ internal static class NativeVisualShellChecks
             if (name == "NativeCollectionWorkspace")
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeCollectionWorkspace.DeckInspector.cs"));
+            if (name == "NativeDeckEditorWindow")
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeDeckEditorWindow.MissingSwap.cs"));
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
