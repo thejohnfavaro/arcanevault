@@ -160,7 +160,7 @@ public partial class NativeDeckEditorWindow : Window
             bool MatchesPresence(string name, long owned) => presence switch
             {
                 EdhLabCardPresenceFilter.Available =>
-                    InDeck(name) == 0 && owned > 0,
+                    InDeck(name) == 0 && (owned > 0 || CountProxy(name) > 0),
                 EdhLabCardPresenceFilter.InDeck => InDeck(name) > 0,
                 _ => true
             };
@@ -195,7 +195,8 @@ public partial class NativeDeckEditorWindow : Window
                         ? role.Tag?.ToString() : "", limit: 200,
                     synergyOnly: EdhSynergyOnly?.IsChecked == true,
                     prioritizeSynergy: EdhPrioritizeSynergy?.IsChecked == true,
-                    mainboardCounts: counts, presence: presence)
+                    mainboardCounts: counts, presence: presence,
+                    proxyCounts: OwnedPoolBox.SelectedIndex == 1 ? null : proxyCounts)
                     .Select(x =>
                     {
                         var fit = edhCatalog.SynergyFor(x.Name);
@@ -210,7 +211,8 @@ public partial class NativeDeckEditorWindow : Window
 
             string viewLabel = presence switch
             {
-                EdhLabCardPresenceFilter.Available => "Available (recorded, not in deck)",
+                EdhLabCardPresenceFilter.Available =>
+                    "Available (owned or Proxy, not in deck)",
                 EdhLabCardPresenceFilter.InDeck => "In deck",
                 _ => "All eligible"
             };
@@ -1673,7 +1675,8 @@ public partial class NativeDeckEditorWindow : Window
                 : NativeDeckOwnedPicker.Pool.Physical;
             var updated = previous with
             {
-                Owned = NativeDeckOwnedPicker.CountOwned(ownership, pool, previous.Name)
+                Owned = NativeDeckOwnedPicker.CountOwned(ownership, pool, previous.Name),
+                Proxied = CountProxy(previous.Name)
             };
             _ = ShowCardPreviewAsync(updated);
         }
