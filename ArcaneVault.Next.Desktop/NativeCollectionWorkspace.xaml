@@ -376,36 +376,26 @@
                               ScrollViewer.CanContentScroll="True">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="{DynamicResource VaultAccentBorder}"
+                                <Border BorderBrush="{DynamicResource VaultEdgeLift}"
                                         BorderThickness="1" CornerRadius="12"
-                                        Margin="7,6" Padding="14">
-                                    <Border.Background>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#253343" Offset="0"/>
-                                            <GradientStop Color="#192431" Offset="0.65"/>
-                                            <GradientStop Color="#121C29" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Border.Background>
+                                        Background="{DynamicResource VaultTileWash}"
+                                        Margin="5,5" Padding="10">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="91"/>
-                                            <ColumnDefinition Width="17"/>
+                                            <ColumnDefinition Width="114"/>
+                                            <ColumnDefinition Width="13"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="156"/>
                                         </Grid.ColumnDefinitions>
                                         <!-- Fallback deck-box cover remains visible without local
                                              artwork. Virtualized on-screen covers reuse the bounded
                                              Scryfall image cache; no prefetch for off-screen decks. -->
-                                        <Border Grid.Column="0" Width="85" Height="109"
+                                        <Border Grid.Column="0" Width="108" Height="145"
                                                 CornerRadius="9" ClipToBounds="True"
                                                 BorderBrush="{DynamicResource VaultAccentBorder}"
                                                 BorderThickness="1">
                                             <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#4A3362" Offset="0"/>
-                                                    <GradientStop Color="#24203C" Offset="0.58"/>
-                                                    <GradientStop Color="#141A28" Offset="1"/>
-                                                </LinearGradientBrush>
+                                                <StaticResource ResourceKey="VaultHeroWash"/>
                                             </Border.Background>
                                             <Grid ClipToBounds="True">
                                                 <Grid.Background>
@@ -426,7 +416,7 @@
                                                            Foreground="#F5E8F5" HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"/>
                                                 <local:NativeCardArtImage
-                                                    ArtUrl="{Binding CoverArtworkUrl}" DecodeWidth="220"
+                                                    ArtUrl="{Binding CoverArtworkUrl}" DecodeWidth="260"
                                                     Stretch="UniformToFill"
                                                     ToolTip="Illustrative commander artwork from the local Scryfall catalog; not proof of an owned printing"/>
                                                 <Border Height="27" VerticalAlignment="Bottom" Background="#D80C1623">
@@ -443,7 +433,7 @@
                                                            Foreground="{DynamicResource VaultWarning}"
                                                            FontSize="12" Margin="0,1,8,0"
                                                            VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding Name}" FontSize="17"
+                                                <TextBlock Text="{Binding Name}" FontSize="18"
                                                            FontWeight="SemiBold"
                                                            Foreground="{DynamicResource VaultText}"
                                                            TextTrimming="CharacterEllipsis"/>
@@ -461,7 +451,7 @@
                                                                Foreground="{DynamicResource VaultAccent}"
                                                                FontSize="11"/>
                                                 </Border>
-                                                <Border Background="#272E3D" CornerRadius="11"
+                                                <Border Background="{DynamicResource VaultPanelRaised}" CornerRadius="11"
                                                         Padding="9,4">
                                                     <TextBlock Text="{Binding Folder}" FontSize="11"
                                                                Foreground="{DynamicResource VaultMuted}"/>
