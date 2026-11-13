@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Domain;
+using ArcaneVault.Next.Collection;
 using Microsoft.Win32;
 using System.IO;
 using System.Windows;
@@ -29,6 +30,7 @@ public partial class NativeReadinessWindow : Window
 
         checking = true;
         ChooseBackupButton.IsEnabled = false;
+        CompareBackupButton.IsEnabled = false;
         CopyReadinessButton.IsEnabled = false;
         lastSuccessfulReport = null;
         ReadinessReport.Text = "Checking selected full backup locally (read-only)…";
@@ -53,7 +55,65 @@ public partial class NativeReadinessWindow : Window
         finally
         {
             checking = false;
-            if (IsLoaded) ChooseBackupButton.IsEnabled = true;
+            if (IsLoaded)
+            {
+                ChooseBackupButton.IsEnabled = true;
+                CompareBackupButton.IsEnabled = true;
+            }
+        }
+    }
+
+    private async void OnCompareBackupClicked(object sender, RoutedEventArgs e)
+    {
+        if (checking) return;
+        if (!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            ReadinessReport.Text = "No active native collection workspace was found. " +
+                "Create or open one first. No data was changed.";
+            lastSuccessfulReport = null;
+            CopyReadinessButton.IsEnabled = false;
+            return;
+        }
+        var picker = new OpenFileDialog
+        {
+            Title = "Select an exported full backup to compare with the active collection",
+            Filter = "Full backups (*.json)|*.json|All files (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (picker.ShowDialog(this) != true) return;
+
+        checking = true;
+        ChooseBackupButton.IsEnabled = false;
+        CompareBackupButton.IsEnabled = false;
+        CopyReadinessButton.IsEnabled = false;
+        lastSuccessfulReport = null;
+        ReadinessReport.Text = "Comparing the selected backup with the active native workspace (read-only)…";
+        try
+        {
+            var report = await Task.Run(() => NativeCollectionIntegrity.Compare(
+                picker.FileName, NativeWorkspace.DefaultPath));
+            if (!IsLoaded) return;
+            lastSuccessfulReport = report.Display;
+            ReadinessReport.Text = lastSuccessfulReport;
+            CopyReadinessButton.IsEnabled = true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
+            InvalidDataException or ArgumentException or OverflowException or
+            Microsoft.Data.Sqlite.SqliteException or System.Text.Json.JsonException)
+        {
+            if (!IsLoaded) return;
+            ReadinessReport.Text = "Comparison could not be completed. Neither source was changed.\n\n" +
+                ex.Message + "\n\nChoose a valid exported schema-2 full backup.";
+        }
+        finally
+        {
+            checking = false;
+            if (IsLoaded)
+            {
+                ChooseBackupButton.IsEnabled = true;
+                CompareBackupButton.IsEnabled = true;
+            }
         }
     }
 
