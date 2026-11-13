@@ -1790,6 +1790,8 @@ public partial class NativeDeckEditorWindow : Window
             previewVersion++;
             previewRequest?.Cancel();
             chainArtworkRequest?.Cancel();
+            // Cancel all pending/visible EDH thumbnail fetches on editor close.
+            mainboardArtLifetime.Cancel();
         };
         OwnedPoolBox.SelectedIndex = edhLabFormat == EdhLabFormat.ArenaBrawl ||
             selected?.Format.Equals("Arena Brawl",
