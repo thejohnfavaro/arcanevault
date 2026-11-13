@@ -1905,6 +1905,7 @@ public partial class NativeDeckEditorWindow : Window
             selected is null ? draftFormat : savedLabFormat;
         edhLabColors = selected is null ? draftColors : savedLabColors;
         InitializeComponent();
+        InitializeDeckPrintingChoices();
         // Load independent proxy coverage asynchronously. It does not
         // rewrite the deck, own an official printing or fetch any price.
         Loaded += async (_, _) => await LoadProxyCoverageAsync();
@@ -2179,10 +2180,16 @@ public partial class NativeDeckEditorWindow : Window
             }
 
             StatusText.Text = "Verifying and saving the native deck with automatic recovery…";
+            var savedPrintingChoices = deckPrintingChoices
+                .Where(x => entries.Any(e => e.Name.Equals(x.Key,
+                    StringComparison.OrdinalIgnoreCase)))
+                .ToDictionary(x => x.Key, x => x.Value,
+                    StringComparer.OrdinalIgnoreCase);
             var saved = await Task.Run(() =>
                 NativeWorkspaceSafety.SaveDeck(nativePath, name, commander,
                     mainboard, original, expectedSha, format: format,
-                    folder: folder, favorite: favorite));
+                    folder: folder, favorite: favorite,
+                    displayPrintIds: savedPrintingChoices));
             NativeInAppDialog.Show(this,
                 $"Deck saved. Library now contains {saved.Current.Collection.Decks:N0} decks " +
                 $"and {saved.Current.Collection.DeckRevisions:N0} revisions.\n\n" +
