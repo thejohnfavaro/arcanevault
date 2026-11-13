@@ -114,6 +114,9 @@ public static class NativeWorkspace
             "Full backup exceeds the 100 MiB supported limit.");
         cancellation.ThrowIfCancellationRequested();
         var expected = NativeBackupReader.Read(bytes);
+        // Validate the separate non-valued proxy ledger in the same signed
+        // complete backup. It is never projected as a physical printing.
+        _ = NativeProxyEditing.Read(bytes);
         var digest = Convert.ToHexString(SHA256.HashData(bytes));
         var sourceName = Path.GetFileName(sourceDescription);
         var importedAt = DateTimeOffset.UtcNow.ToString("O");
@@ -333,6 +336,9 @@ public static class NativeWorkspace
             digest, StringComparison.Ordinal),
             "Native workspace's preserved backup checksum failed.");
         var expected = NativeBackupReader.Read(bytes);
+        // Validate the separate non-valued proxy ledger in the same signed
+        // complete backup. It is never projected as a physical printing.
+        _ = NativeProxyEditing.Read(bytes);
         Need(expected.ArenaCopies == arenaCopies &&
              expected.PhysicalCopies == physicalCopies &&
              expected.Decks == decks &&
