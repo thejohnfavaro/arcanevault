@@ -25,7 +25,14 @@ public static class EdhLabLandArchetypes
         string type = typeLine ?? "";
         string oracle = oracleText ?? "";
         bool tapped = Rx(oracle, @"\benters (?:the battlefield )?tapped\b");
-        bool conditionalEntry = tapped && Rx(oracle, @"\bunless\b|\bif\b[^.\r\n]{0,100}\buntapped\b");
+        // Recent Scryfall Oracle uses "As [name] enters, you may pay 2 life.
+        // If you don't, it enters tapped" for shock lands. Older text
+        // commonly used "enters tapped unless you pay 2 life".
+        bool shockPayment = Rx(oracle, @"\bunless you pay (?:\{2\}|2) life\b") ||
+            (Rx(oracle, @"\bmay pay (?:\{2\}|2) life\b") &&
+             Rx(oracle, @"\bif you (?:don't|do not)[^.\r\n]{0,100}\benters (?:the battlefield )?tapped\b"));
+        bool conditionalEntry = tapped &&
+            (shockPayment || Rx(oracle, @"\bunless\b|\bif\b[^.\r\n]{0,100}\buntapped\b"));
         string entry = !tapped ? "No tapped-entry clause found" :
             conditionalEntry ? "May enter tapped" : "Enters tapped";
 
@@ -41,8 +48,7 @@ public static class EdhLabLandArchetypes
             return new("Fetch land", entry,
                 "Fetch targets determine the actual mana access", tapped, conditionalEntry);
 
-        if (tapped && Rx(oracle,
-            @"\bunless you pay (?:\{2\}|2) life\b") &&
+        if (tapped && shockPayment &&
             Rx(type, @"\bLand\s*[—-]\s*[^\r\n]*(?:Plains|Island|Swamp|Mountain|Forest)\b"))
             return new("Shock land", "Pay 2 life or enter tapped",
                 "Shock-style dual land with basic land types", true, true);
