@@ -104,6 +104,29 @@ internal static class NativeVisualShellChecks
              v65OracleHelper.Contains("BaselineAlignment.Center"),
              "Deck Studio must share official mana symbols and unboxed Oracle reading with other card inspectors.");
 
+        // v0.9.67: A saved-deck shortage opens the existing verified
+        // EDH Lab saved-deck editor, not a second editor or an automatic edit.
+        var missingSwapUi = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.MissingSwap.cs"));
+        Must(v65DeckUi.Contains("x:Name=\"ReviewDeckShortagesButton\"") &&
+             v65DeckUi.Contains("OnReviewDeckShortagesClicked") &&
+             v65DeckCode.Contains("ReviewDeckShortagesButton.IsEnabled =") &&
+             v65DeckShell.Contains("OpenSelectedDeckInEdhLabAsync(focusShortages: true)") &&
+             v65DeckShell.Contains("EdhLabSavedDeckAccess.FindEligibleCommander(") &&
+             v65DeckShell.Contains("preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null") &&
+             v65StudioUi.Contains("x:Name=\"EdhMissingShortagesList\"") &&
+             v65StudioUi.Contains("x:Name=\"EdhMissingAlternativesList\"") &&
+             v65StudioUi.Contains("OnEdhApplyMissingSwapClicked") &&
+             v65StudioCode.Contains("RefreshMissingCardReview(summary)") &&
+             v65StudioCode.Contains("EdhWorkspaceTabs.SelectedItem = EdhImproveTab") &&
+             missingSwapUi.Contains("EdhLabMissingCardAdvisor.Analyze(") &&
+             missingSwapUi.Contains("NativeDeckOwnedPicker.Review(") &&
+             missingSwapUi.Contains("NativeDeckOwnedPicker.RemoveOne(") &&
+             missingSwapUi.Contains("NativeDeckOwnedPicker.AddOne(") &&
+             missingSwapUi.Contains("NativeInAppDialog.Show(this,") &&
+             !missingSwapUi.Contains("NativeDeckEditing.Save("),
+             "Saved deck shortage handoff must be read-only until an explicit, revalidated unsaved swap.");
+
         var app = XDocument.Load(Path.Combine(dir, "App.xaml"));
         // v0.9.26 startup crash: WPF can freeze application resource
         // SolidColorBrush instances. Theme updates must REPLACE resources,
