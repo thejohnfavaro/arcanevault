@@ -1235,7 +1235,7 @@ public partial class MainWindow : Window
             ? Visibility.Visible : Visibility.Collapsed;
 
         var active = (Style)FindResource("VaultNavPrimary");
-        var inactive = (Style)FindResource("VaultNavButton");
+        var inactive = (Style)FindResource("VaultNavButtonDepth");
         CatalogNavigationButton.Style = nativeWorkspaceRequested ? inactive : active;
         OpenNativeButton.Style = nativeWorkspaceRequested &&
             nativeWorkspaceSelectedTab is not (2 or 3) ? active : inactive;

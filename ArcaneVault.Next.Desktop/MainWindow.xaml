@@ -33,6 +33,25 @@
                            Margin="5,5" Foreground="{DynamicResource VaultMuted}"/>
             </Grid>
         </DataTemplate>
+        <!-- Card art tiles read as physical objects, but use a shadow ONLY
+             while hovered (off-screen tiles never instantiate image controls). -->
+        <Style x:Key="VaultCatalogTileStyle" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="{DynamicResource VaultTileWash}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultEdgeLift}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
+                    <Setter Property="Effect" Value="{StaticResource VaultPanelShadow}"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <!-- Tile art is displayed in rows of 1–4 cards. The outer ListView
              virtualizes ROWS so off-screen card image controls never load.
              Grouped rows reflow when the available width crosses a breakpoint. -->
@@ -47,10 +66,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border Margin="3,4" Padding="7"
-                                Height="302" CornerRadius="11"
-                                Background="{DynamicResource VaultPanelRaised}"
-                                BorderBrush="{DynamicResource VaultAccentBorder}"
-                                BorderThickness="1"
+                                Height="302" Style="{StaticResource VaultCatalogTileStyle}"
                                 Tag="{Binding}"
                                 PreviewMouseLeftButtonDown="OnCatalogTileMouseDown"
                                 ToolTip="Click to select; double-click for card details">
@@ -129,13 +145,13 @@
 
         <!-- The original WebView application's compact, grouped left navigation.
              All commands keep their existing event handlers and confirmation flow. -->
-        <Border Grid.Column="0" Background="{DynamicResource VaultSidebar}"
+        <Border Grid.Column="0" Background="{DynamicResource VaultSidebarWash}"
                 BorderBrush="{DynamicResource VaultLine}" BorderThickness="0,0,1,0">
             <DockPanel Margin="15,22,15,18">
                 <Border DockPanel.Dock="Bottom"
-                        Background="{DynamicResource VaultPanel}"
-                        BorderBrush="{DynamicResource VaultLine}" BorderThickness="1"
-                        CornerRadius="12" Padding="13" Margin="2,18,2,0">
+                        Background="{DynamicResource VaultTileWash}"
+                        BorderBrush="{DynamicResource VaultEdgeLift}" BorderThickness="1"
+                        CornerRadius="14" Padding="13" Margin="2,18,2,0">
                     <StackPanel>
                         <TextBlock Style="{StaticResource VaultEyebrow}"
                                    Text="PRIVATE BY DESIGN"/>
@@ -155,9 +171,10 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="3,0,0,28">
                             <Border Width="43" Height="43" CornerRadius="11"
-                                    Background="{DynamicResource VaultAccentSurface}"
-                                    BorderBrush="{DynamicResource VaultAccentBorder}"
-                                    BorderThickness="1" Margin="0,0,10,0">
+                                    Background="{DynamicResource VaultHeroWash}"
+                                    BorderBrush="{DynamicResource VaultEdgeLift}"
+                                    BorderThickness="1" Margin="0,0,10,0"
+                                    Effect="{StaticResource VaultPanelShadow}">
                                 <Image Source="/ArcaneVault.Next.Desktop;component/Assets/ArcaneVaultIcon.png"
                                        Width="36" Height="36"
                                        Stretch="Uniform"
@@ -195,25 +212,25 @@
                         <Button x:Name="DeckLibraryNavigationButton"
                                 Content="▧   Deck Library"
                                 Click="OnOpenDeckLibraryClicked" IsEnabled="False"
-                                Style="{StaticResource VaultNavButton}"
+                                Style="{StaticResource VaultNavButtonDepth}"
                                 ToolTip="Browse and edit saved decks in the main workspace"
                                 Margin="0,0,0,5"/>
                         <Button x:Name="EdhLabButton"
                                 Content="♜   EDH Lab"
                                 Click="OnEdhLabClicked" IsEnabled="False"
-                                Style="{StaticResource VaultNavButton}"
+                                Style="{StaticResource VaultNavButtonDepth}"
                                 ToolTip="Browse Commanders or Arena Brawl leaders and build with your collection. Requires a synced Scryfall catalog."
                                 Margin="0,0,0,5"/>
                         <Button x:Name="SetProgressNavigationButton"
                                 Content="▦   Set Progress"
                                 Click="OnOpenSetProgressClicked" IsEnabled="False"
-                                Style="{StaticResource VaultNavButton}"
+                                Style="{StaticResource VaultNavButtonDepth}"
                                 ToolTip="Browse verified owned set progress in the main workspace"
                                 Margin="0,0,0,5"/>
                         <Button x:Name="MyShortlistButton"
                                 Content="☆   My Shortlist"
                                 Click="OnOpenShortlistClicked"
-                                Style="{StaticResource VaultNavButton}"
+                                Style="{StaticResource VaultNavButtonDepth}"
                                 ToolTip="Browse saved card bookmarks from the legacy-compatible native collection"
                                 Margin="0,0,0,5"/>
                         <Border BorderBrush="{DynamicResource VaultLine}" BorderThickness="0,1,0,0"
@@ -238,18 +255,18 @@
                                 <Button x:Name="OpenCatalogButton"
                                     Content="◫   Open Local Catalog"
                                     Click="OnOpenCatalogClicked"
-                                    Style="{StaticResource VaultNavButton}"
+                                    Style="{StaticResource VaultNavButtonDepth}"
                                     ToolTip="Open an existing catalog using a private SQLite snapshot"
                                     Margin="0,0,0,5"/>
                                 <Button x:Name="SaveNativeCatalogButton"
                                     Content="↓   Keep Catalog Natively"
                                     Click="OnSaveNativeCatalogClicked" IsEnabled="False"
-                                    Style="{StaticResource VaultNavButton}"
+                                    Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"/>
                                 <Button x:Name="SyntheticButton" Visibility="Collapsed"
                                     Content="Use synthetic cards"
                                     Click="OnSyntheticClicked"
-                                    Style="{StaticResource VaultNavButton}"/>
+                                    Style="{StaticResource VaultNavButtonDepth}"/>
                             </StackPanel>
                         </Expander>
                         <Expander x:Name="DataSyncSettings" Header="Data &amp; Sync" IsExpanded="False"
@@ -260,28 +277,28 @@
                                 <Button x:Name="MigrateLegacyButton"
                                     Content="⇄   Inspect / Refresh Old Data"
                                     Click="OnMigrateLegacyClicked"
-                                    Style="{StaticResource VaultNavButton}"
+                                    Style="{StaticResource VaultNavButtonDepth}"
                                     ToolTip="Import or compare against the installed legacy app without altering its data"
                                     Margin="0,0,0,5"/>
                                 <Button x:Name="ImportNativeButton"
                                     Content="↓   Import Full Backup"
                                     Click="OnImportNativeClicked"
-                                    Style="{StaticResource VaultNavButton}"
+                                    Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"/>
                                 <Button x:Name="ExportFullBackupButton"
                                     Content="↑   Export Full Backup"
                                     Click="OnExportFullBackupClicked" IsEnabled="False"
-                                    Style="{StaticResource VaultNavButton}"
+                                    Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"/>
                                 <Button x:Name="RestoreRecoveryButton"
                                     Content="↶   Restore Recovery Point"
                                     Click="OnRestoreRecoveryClicked" IsEnabled="False"
-                                    Style="{StaticResource VaultNavButton}"
+                                    Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"/>
                                 <Button x:Name="CollectionBackupButton"
                                     Content="◷   Preview External Backup"
                                     Click="OnCollectionBackupClicked"
-                                    Style="{StaticResource VaultNavButton}"
+                                    Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"/>
                             </StackPanel>
                         </Expander>
@@ -315,7 +332,7 @@
                                 <Button x:Name="StartFreshButton"
                                     Content="＋   Start Fresh Collection"
                                     Click="OnStartFreshClicked"
-                                    Style="{StaticResource VaultNavButton}"
+                                    Style="{StaticResource VaultNavButtonDepth}"
                                     ToolTip="Start with zero ownership; keep a recovery point if a collection exists"
                                     Margin="0,0,0,5"/>
                             </StackPanel>
@@ -361,10 +378,11 @@
                 </Border>
             </Grid>
 
-            <Border Grid.Row="1" CornerRadius="15" Padding="24,20"
-                    BorderBrush="{DynamicResource VaultAccentBorder}"
-                    BorderThickness="1" Margin="0,0,0,20"
-                    Background="{DynamicResource VaultPanel}">
+            <Border Grid.Row="1" CornerRadius="18" Padding="26,22"
+                    BorderBrush="{DynamicResource VaultEdgeLift}"
+                    BorderThickness="1" Margin="0,0,0,22"
+                    Background="{DynamicResource VaultHeroWash}"
+                    Effect="{StaticResource VaultHeroShadow}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -375,21 +393,21 @@
                                    Foreground="{DynamicResource VaultAccent}" FontSize="11"
                                    FontWeight="Bold" Margin="0,0,0,8"/>
                         <TextBlock Text="Every printing tells a story."
-                                   FontSize="21" FontWeight="SemiBold"
+                                   FontSize="24" FontWeight="SemiBold"
                                    Foreground="{DynamicResource VaultText}"/>
                         <TextBlock Text="A complete local collection, with exact editions and recoverable edits."
                                    Style="{StaticResource VaultMutedText}"
                                    Margin="0,7,0,0"/>
                     </StackPanel>
                     <TextBlock Grid.Column="1" Text="✦"
-                               FontSize="72" Margin="24,-12,0,-10"
-                               Foreground="{DynamicResource VaultAccent}" Opacity="0.65"
+                               FontSize="78" Margin="24,-12,0,-10"
+                               Foreground="{DynamicResource VaultAccent}" Opacity="0.38"
                                VerticalAlignment="Center"/>
                 </Grid>
             </Border>
 
-            <Border Grid.Row="2" Style="{StaticResource VaultPanelCard}"
-                    Margin="0,0,0,15" Padding="17,13">
+            <Border Grid.Row="2" Style="{StaticResource VaultElevatedPanel}"
+                    Margin="0,0,0,17" Padding="18,15">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -400,7 +418,7 @@
                                    Style="{StaticResource VaultEyebrow}"
                                    Margin="0,0,0,7"/>
                         <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged"
-                                 ToolTip="Search catalog names by prefix, with up to 200 printings per query"
+                                 ToolTip="Search catalog card names by prefix; use Next to browse all matching pages"
                                  FontSize="15" Height="44"
                                  Padding="14,7"
                                  Background="{DynamicResource VaultPanelRaised}"
@@ -548,8 +566,9 @@
 
             <Border Grid.Row="3"
                     Background="{DynamicResource VaultPanel}"
-                    BorderBrush="{DynamicResource VaultLine}"
-                    BorderThickness="1" CornerRadius="14"
+                    BorderBrush="{DynamicResource VaultEdgeLift}"
+                    BorderThickness="1" CornerRadius="16"
+                    Effect="{StaticResource VaultPanelShadow}"
                     ClipToBounds="True">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -669,7 +688,7 @@
             </Border>
 
             <Border Grid.Row="4" Margin="0,14,0,0"
-                    BorderBrush="{DynamicResource VaultLine}"
+                    BorderBrush="{DynamicResource VaultEdgeLift}"
                     BorderThickness="0,1,0,0" Padding="4,11,4,0">
                 <Grid>
                     <Grid.ColumnDefinitions>

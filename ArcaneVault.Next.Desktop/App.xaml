@@ -28,6 +28,34 @@
             <GradientStop Color="#7FCAE1" Offset="1"/>
         </LinearGradientBrush>
 
+        <!-- v0.9.59: layered, theme-aware surfaces. VaultThemeManager replaces
+             these gradients as immutable NEW brushes whenever a theme changes.
+             Expensive shadows are reserved for static panels, never list rows. -->
+        <LinearGradientBrush x:Key="VaultHeroWash" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#332C48" Offset="0"/>
+            <GradientStop Color="#211F30" Offset="0.55"/>
+            <GradientStop Color="#171C28" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="VaultSidebarWash" StartPoint="0,0" EndPoint="0.85,1">
+            <GradientStop Color="#222232" Offset="0"/>
+            <GradientStop Color="#121722" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="VaultTileWash" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#2A2A43" Offset="0"/>
+            <GradientStop Color="#202737" Offset="1"/>
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="VaultNavHoverWash" Color="#2E304A"/>
+        <SolidColorBrush x:Key="VaultEdgeLift" Color="#665A8D"/>
+
+        <!-- Only on large decorative surfaces, not repeated card templates.
+             Keeping all catalog ListViews fully virtualized is essential. -->
+        <DropShadowEffect x:Key="VaultPanelShadow" BlurRadius="20"
+                          ShadowDepth="6" Direction="270" Opacity="0.30"
+                          Color="#05080F"/>
+        <DropShadowEffect x:Key="VaultHeroShadow" BlurRadius="34"
+                          ShadowDepth="10" Direction="270" Opacity="0.34"
+                          Color="#05080F"/>
+
         <Style TargetType="{x:Type Window}">
             <Setter Property="Background" Value="{DynamicResource VaultBackground}"/>
             <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
@@ -101,12 +129,34 @@
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="MinHeight" Value="43"/>
         </Style>
+        <!-- Rich hover / focus feedback without animations or extra UI trees. -->
+        <Style x:Key="VaultNavButtonDepth" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource VaultNavButton}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource VaultNavHoverWash}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource VaultEdgeLift}"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource VaultNavHoverWash}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="VaultNavPrimary" TargetType="{x:Type Button}"
                BasedOn="{StaticResource VaultNavButton}">
             <Setter Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource VaultAccentBorder}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
             <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource VaultNavHoverWash}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="VaultDangerButton" TargetType="{x:Type Button}"
                BasedOn="{StaticResource {x:Type Button}}">
@@ -298,7 +348,7 @@
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
-                    <Setter Property="Foreground" Value="#E5DBFF"/>
+                    <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -354,7 +404,7 @@
                                         Value="{DynamicResource VaultAccentSurface}"/>
                                 <Setter TargetName="TabSurface" Property="BorderBrush"
                                         Value="{DynamicResource VaultAccentBorder}"/>
-                                <Setter Property="Foreground" Value="#E5D9FF"/>
+                                <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="TabSurface" Property="BorderBrush"
@@ -379,6 +429,16 @@
             <Setter Property="Foreground" Value="{DynamicResource VaultMuted}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <!-- Lifted dashboard tiles: restrained shadow only on a few large
+             panels. Theme-specific fills/borders update in place. -->
+        <Style x:Key="VaultElevatedPanel" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="{DynamicResource VaultTileWash}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultEdgeLift}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="17"/>
+            <Setter Property="Effect" Value="{StaticResource VaultPanelShadow}"/>
         </Style>
         <Style x:Key="VaultPanelCard" TargetType="{x:Type Border}">
             <Setter Property="Background" Value="{DynamicResource VaultPanel}"/>

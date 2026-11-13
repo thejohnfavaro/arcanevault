@@ -30,8 +30,8 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Margin="12,0,0,0"
                         HorizontalAlignment="Right">
-                <Border Background="{DynamicResource VaultAccentSurface}"
-                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                <Border Background="{DynamicResource VaultHeroWash}"
+                        BorderBrush="{DynamicResource VaultEdgeLift}"
                         BorderThickness="1" CornerRadius="18"
                         HorizontalAlignment="Right"
                         Padding="12,7" Margin="0,5,0,7">
@@ -57,7 +57,7 @@
                 <ColumnDefinition Width="13"/>
                 <ColumnDefinition Width="9*"/>
             </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Style="{StaticResource VaultPanelCard}">
+            <Border Grid.Column="0" Style="{StaticResource VaultElevatedPanel}">
                 <StackPanel>
                     <TextBlock Text="OWNED INVENTORY"
                                Style="{StaticResource VaultEyebrow}"
@@ -68,7 +68,7 @@
                                TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
-            <Border Grid.Column="2" Style="{StaticResource VaultPanelCard}">
+            <Border Grid.Column="2" Style="{StaticResource VaultElevatedPanel}">
                 <StackPanel>
                     <TextBlock Text="PRINTING VERIFICATION"
                                Style="{StaticResource VaultEyebrow}"
@@ -80,8 +80,8 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="2" Style="{StaticResource VaultPanelCard}"
-                Padding="12,10" Margin="0,0,0,13">
+        <Border Grid.Row="2" Style="{StaticResource VaultElevatedPanel}"
+                Padding="13,11" Margin="0,0,0,14">
             <DockPanel LastChildFill="True">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right"
                             Margin="14,0,0,0" VerticalAlignment="Center">
@@ -104,7 +104,7 @@
         </Border>
 
         <TabControl Grid.Row="3" x:Name="CollectionTabs"
-                    Background="{DynamicResource VaultPanel}" Foreground="{DynamicResource VaultText}" BorderBrush="{DynamicResource VaultLine}">
+                    Background="{DynamicResource VaultPanel}" Foreground="{DynamicResource VaultText}" BorderBrush="{DynamicResource VaultEdgeLift}">
             <TabItem Header="Physical Collection">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
@@ -185,16 +185,20 @@
                         <Style TargetType="ListViewItem">
                             <Setter Property="Padding" Value="8,5"/>
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                            <Setter Property="Background" Value="#111923"/>
-                            <Setter Property="BorderBrush" Value="#28394B"/>
+                            <Setter Property="Background" Value="{DynamicResource VaultPanel}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
                             <Setter Property="BorderThickness" Value="0,0,0,1"/>
                             <Style.Triggers>
                                 <Trigger Property="ItemsControl.AlternationIndex" Value="1">
-                                    <Setter Property="Background" Value="#1B2532"/>
+                                    <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource VaultNavHoverWash}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource VaultEdgeLift}"/>
                                 </Trigger>
                                 <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="#35485A"/>
-                                    <Setter Property="BorderBrush" Value="{DynamicResource VaultAccentBorder}"/>
+                                    <Setter Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
