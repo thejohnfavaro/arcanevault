@@ -134,5 +134,56 @@ internal static class NativeProxyEditingChecks
              cleared.RecoveryPath is not null &&
              File.Exists(cleared.RecoveryPath),
              "Fresh start must clear proxies only with an explicit whole-workspace reset and recovery.");
+
+        // Batch paste is additive, duplicate names are combined, and the
+        // complete transaction creates just one recovery point and one SHA.
+        var parsedBatch = NativeProxyEditing.ParseAdditions(
+            "2 Sol Ring\n3x Counterspell\nSol Ring\nThird-party custom card\n2× Counterspell");
+        Must(parsedBatch.Count == 3 &&
+             parsedBatch["Sol Ring"] == 3 &&
+             parsedBatch["Counterspell"] == 5 &&
+             parsedBatch["Third-party custom card"] == 1,
+             "Quantity-first, x, multiplication sign and implicit 1 must parse.");
+        Reject(() => NativeProxyEditing.ParseAdditions("2 Sol Ring\n0 Counterspell"));
+        Reject(() => NativeProxyEditing.ParseAdditions("100000 Bad Count"));
+        Reject(() => NativeProxyEditing.ParseAdditions("2 Sol Ring\n2\nAnother"));
+        Reject(() => NativeProxyEditing.ParseAdditions("1 Good\n" +
+            new string('Z', 256)));
+        Reject(() => NativeProxyEditing.ParseAdditions("99999 Ring\n2 ring"));
+        var beforeBatchSha = cleared.Current.BackupSha256;
+        int beforeBatchRecovery = NativeWorkspaceSafety.RecoveryPaths(path).Count;
+        var batch = NativeWorkspaceSafety.AddProxyBatch(path,
+            "2 Sol Ring\n3x Counterspell\nSol Ring\nThird-party custom card",
+            beforeBatchSha);
+        var batchRows = NativeWorkspaceSafety.ListProxies(path);
+        Must(batchRows.Count == 3 &&
+             batchRows.Single(x => x.Name == "Sol Ring").Quantity == 3 &&
+             batchRows.Single(x => x.Name == "Counterspell").Quantity == 3 &&
+             batchRows.Single(x => x.Name == "Third-party custom card").Quantity == 1 &&
+             NativeWorkspaceSafety.RecoveryPaths(path).Count == beforeBatchRecovery + 1 &&
+             batch.Current.Collection.PhysicalCopies == 0 &&
+             batch.Current.Collection.ArenaCopies == 0,
+             "A multi-row batch must save exactly once and never create verified ownership.");
+        var incremented = NativeWorkspaceSafety.AddProxyBatch(path,
+            "2 sol ring\nCounterspell", batch.Current.BackupSha256);
+        var incrementedRows = NativeWorkspaceSafety.ListProxies(path);
+        Must(incrementedRows.Count == 3 &&
+             incrementedRows.Single(x => x.Name == "Sol Ring").Quantity == 5 &&
+             incrementedRows.Single(x => x.Name == "Counterspell").Quantity == 4 &&
+             NativeWorkspaceSafety.RecoveryPaths(path).Count == beforeBatchRecovery + 2,
+             "Batch additions must increment existing proxy totals once per batch.");
+        string stableSha = incremented.Current.BackupSha256;
+        int stableRecoveries = NativeWorkspaceSafety.RecoveryPaths(path).Count;
+        Reject(() => NativeWorkspaceSafety.AddProxyBatch(path,
+            "1 Sol Ring", beforeBatchSha));
+        Reject(() => NativeWorkspaceSafety.AddProxyBatch(path,
+            "99999 Sol Ring", stableSha));
+        Reject(() => NativeWorkspaceSafety.AddProxyBatch(path,
+            "2 Good Card\n0 Bad Card", stableSha));
+        Must(NativeWorkspace.Open(path).BackupSha256 == stableSha &&
+             NativeWorkspaceSafety.RecoveryPaths(path).Count == stableRecoveries &&
+             NativeWorkspaceSafety.ListProxies(path).Count == 3,
+             "Failed or stale batches must not partially mutate collection/recovery.");
+
     }
 }
