@@ -13,6 +13,9 @@ public partial class NativeDeckEditorWindow : Window
 {
     private readonly string nativePath;
     private readonly string expectedSha;
+    // On a confirmed save, carry the already fully verified replacement
+    // back to the embedded library; do not reopen the whole collection.
+    public NativeWorkspaceSafety.Replacement? SavedReplacement { get; private set; }
     private readonly NativeDeckEditing.DeckRow? original;
     private readonly NativeBackupView ownership;
     private readonly string? catalogPath;
@@ -1900,6 +1903,7 @@ public partial class NativeDeckEditorWindow : Window
                 "The complete prior native collection is preserved at:\n" +
                 saved.RecoveryPath,
                 "Saved deck verified", MessageBoxButton.OK, MessageBoxImage.Information);
+            SavedReplacement = saved;
             DialogResult = true;
         }
         catch (Exception ex)
