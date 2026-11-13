@@ -51,7 +51,6 @@ internal static class NativeVisualShellChecks
         Must(v65DeckUi.Contains("x:Name=\"DeckInspectorPanel\"") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorCardsList\"") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorArt\"") &&
-             v65DeckUi.Contains("x:Name=\"DeckInspectorColorIdentity\"") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorOracle\"") &&
              v65DeckUi.Contains("OnDeckInspectorCardSelected") &&
              v65DeckUi.Contains("OnDeckInspectorCardDoubleClick") &&
@@ -66,6 +65,19 @@ internal static class NativeVisualShellChecks
              v65DeckShell.Contains("ShowDeckInspector(selectedDeck)") &&
              v65DeckShell.Contains("deckInspectVersion++;"),
              "Deck Library must show a persistent, read-only card inspector with stale-load protection.");
+
+        // A Commander or Arena Brawl leader is saved separately from mainboard
+        // entries. The inspector must display the command-zone card without
+        // manufacturing ownership or changing the authoritative deck text.
+        Must(v65DeckUi.Contains("COMMAND ZONE &amp; MAINBOARD") &&
+             v65DeckUi.Contains("Text=\"{Binding DisplayName}\"") &&
+             v65DeckCode.Contains("new InspectorCardRow(deck.Commander.Trim(), 1, true)") &&
+             v65DeckCode.Contains("displayRows.AddRange(cards.Select") &&
+             v65DeckCode.Contains("DeckInspectorCardsList.ItemsSource = displayRows;") &&
+             v65DeckCode.Contains("card.IsCommander") &&
+             v65DeckCode.Contains("NativeDeckOwnedPicker.CountOwned(backup, InspectorPool, card.Name)") &&
+             !v65DeckCode.Contains("MainboardText ="),
+             "Deck inspector must display a separate, selectable commander and maintain accurate ownership accounting.");
 
         // v0.9.66: saved-deck name-level shortages are shown in-place,
         // with explicit physical/Arena scope and no inferred legality or edits.
@@ -1693,6 +1705,7 @@ internal static class NativeVisualShellChecks
              detailsCode.Contains("CardManaCost.Value = info.ManaCost;") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorManaCost\"") &&
              v65DeckCode.Contains("DeckInspectorManaCost.Value = details.ManaCost;") &&
+             !v65DeckUi.Contains("x:Name=\"DeckInspectorColorIdentity\"") &&
              symbolStripCode.Contains("new NativeManaSymbol") &&
              symbolSequenceCode.Contains("NativeOracleSymbolTokenizer.Split(value)") &&
              catalogReviewCode.Contains("SELECT mana_cost FROM cards") &&

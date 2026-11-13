@@ -35,6 +35,8 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="TabHeaderChrome" Property="Background" Value="#314F69"/>
+                                <Setter TargetName="TabHeaderChrome" Property="BorderBrush"
+                                        Value="{DynamicResource VaultAccentSurface}"/>
                                 <Setter Property="Foreground" Value="#FFFFFF"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                             </Trigger>
