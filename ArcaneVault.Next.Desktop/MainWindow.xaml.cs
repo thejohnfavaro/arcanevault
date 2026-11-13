@@ -26,7 +26,8 @@ public partial class MainWindow : Window
     private readonly IReadOnlyList<SampleCard> sampleCards;
     private CatalogSnapshot? catalogSnapshot;
     private NativeCatalogOwnership? catalogOwnership;
-    private CommanderBrowserWindow? edhLabWindow;
+    private CommanderBrowserView? edhLabWindow;
+    private bool edhLabRequested;
     private NativeCollectionWindow? collectionWindow; // explicit read-only backup preview only
     private NativeCollectionWorkspace? nativeWorkspaceView;
     private bool nativeWorkspaceRequested;
@@ -184,7 +185,7 @@ public partial class MainWindow : Window
             inspectorRequestVersion++;
             DisconnectInAppNotices();
             catalogSyncCancellation?.Cancel();
-            edhLabWindow?.Close();
+            ClearEmbeddedEdhLab();
             collectionWindow?.Close();
             InvalidateNativeWorkspace();
             shortlistWindow?.Close();
@@ -451,7 +452,7 @@ public partial class MainWindow : Window
             if (closing) { fresh.Dispose(); return; }
 
             CancelPendingSearch();
-            edhLabWindow?.Close();
+            ClearEmbeddedEdhLab();
             collectionWindow?.Close();
             collectionWindow = null;
             InvalidateNativeWorkspace();
@@ -1239,14 +1240,18 @@ public partial class MainWindow : Window
 
     private void UpdateWorkspaceNavigation()
     {
-        CatalogWorkspace.Visibility = nativeWorkspaceRequested
+        CatalogWorkspace.Visibility = nativeWorkspaceRequested || edhLabRequested
             ? Visibility.Collapsed : Visibility.Visible;
-        NativeWorkspaceHost.Visibility = nativeWorkspaceRequested
+        NativeWorkspaceHost.Visibility = nativeWorkspaceRequested && !edhLabRequested
+            ? Visibility.Visible : Visibility.Collapsed;
+        EdhLabHost.Visibility = edhLabRequested
             ? Visibility.Visible : Visibility.Collapsed;
 
         var active = (Style)FindResource("VaultNavPrimary");
         var inactive = (Style)FindResource("VaultNavButtonDepth");
-        CatalogNavigationButton.Style = nativeWorkspaceRequested ? inactive : active;
+        CatalogNavigationButton.Style = nativeWorkspaceRequested || edhLabRequested
+            ? inactive : active;
+        EdhLabButton.Style = edhLabRequested ? active : inactive;
         OpenNativeButton.Style = nativeWorkspaceRequested &&
             nativeWorkspaceSelectedTab is not (2 or 3) ? active : inactive;
         DeckLibraryNavigationButton.Style = nativeWorkspaceRequested &&
@@ -1258,6 +1263,7 @@ public partial class MainWindow : Window
     private void OnShowCatalogClicked(object sender, RoutedEventArgs e)
     {
         nativeWorkspaceRequested = false;
+        edhLabRequested = false;
         UpdateWorkspaceNavigation();
     }
 
@@ -1301,6 +1307,8 @@ public partial class MainWindow : Window
 
     private async Task NavigateToNativeWorkspaceAsync(int section)
     {
+        edhLabRequested = false;
+        UpdateWorkspaceNavigation();
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
         {
             FilterStatus.Text = "Create or import a native collection before opening this section.";
@@ -1558,7 +1566,7 @@ public partial class MainWindow : Window
             var loaded = await Task.Run(() => CatalogSnapshot.Open(picker.FileName));
             if (closing) { loaded.Dispose(); return; }
             CancelPendingSearch();
-            edhLabWindow?.Close();
+            ClearEmbeddedEdhLab();
             collectionWindow?.Close();
             collectionWindow = null;
             InvalidateNativeWorkspace();
@@ -1663,13 +1671,25 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ClearEmbeddedEdhLab()
+    {
+        edhLabRequested = false;
+        edhLabWindow = null;
+        if (EdhLabHost is not null)
+            EdhLabHost.Content = null;
+        if (EdhLabHost is not null && CatalogWorkspace is not null)
+            UpdateWorkspaceNavigation();
+    }
+
     private async void OnEdhLabClicked(object sender, RoutedEventArgs e)
     {
         var active = catalogSnapshot;
         if (active is null) return;
         if (edhLabWindow is not null)
         {
-            edhLabWindow.Activate();
+            nativeWorkspaceRequested = false;
+            edhLabRequested = true;
+            UpdateWorkspaceNavigation();
             return;
         }
 
@@ -1704,7 +1724,7 @@ public partial class MainWindow : Window
             });
             if (closing || currentVersion != modeVersion ||
                 !ReferenceEquals(active, catalogSnapshot)) return;
-            var window = new CommanderBrowserWindow(loaded.Index,
+            var view = new CommanderBrowserView(loaded.Index,
                 loaded.Inventory, loaded.HasCollection,
                 async (commander, format) =>
                 {
@@ -1732,14 +1752,13 @@ public partial class MainWindow : Window
                         nativeWorkspaceRequested = true;
                         await RefreshNativeWorkspaceAsync();
                     }
-                }, catalogPath: active.ReadOnlySnapshotPath) { Owner = this };
-            edhLabWindow = window;
-            window.Closed += (_, _) =>
-            {
-                if (ReferenceEquals(edhLabWindow, window)) edhLabWindow = null;
-                if (!closing && catalogSnapshot is not null) EdhLabButton.IsEnabled = true;
-            };
-            window.Show();
+                }, catalogPath: active.ReadOnlySnapshotPath);
+            edhLabWindow = view;
+            EdhLabHost.Content = view;
+            nativeWorkspaceRequested = false;
+            edhLabRequested = true;
+            UpdateWorkspaceNavigation();
+            EdhLabButton.IsEnabled = true;
             FilterStatus.Text = $"{loaded.Index.LoadedCardIdentities:N0} read-only commander candidates loaded" +
                 (loaded.HasCollection ? " · inventory name counts available" :
                     " · no native inventory loaded");
@@ -1751,7 +1770,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            if (!closing && edhLabWindow is null)
+            if (!closing)
                 EdhLabButton.IsEnabled = catalogSnapshot is not null;
         }
     }
@@ -1759,7 +1778,7 @@ public partial class MainWindow : Window
     private void OnSyntheticClicked(object sender, RoutedEventArgs e)
     {
         CancelPendingSearch();
-        edhLabWindow?.Close();
+        ClearEmbeddedEdhLab();
         collectionWindow?.Close();
         collectionWindow = null;
             InvalidateNativeWorkspace();
