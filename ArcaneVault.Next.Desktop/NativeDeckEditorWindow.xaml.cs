@@ -207,7 +207,7 @@ public partial class NativeDeckEditorWindow : Window
         PreviewArtwork.Source = null;
         PreviewArtwork.Visibility = Visibility.Collapsed;
         PreviewArtFallback.Visibility = Visibility.Visible;
-        PreviewOracleText.Text = "";
+        PreviewOracleText.Document = NativeOracleReading.Build("");
         PreviewMetadata.Text = "";
         PreviewSynergyText.Text = "";
         PreviewCardName.Text = card.Name;
@@ -268,7 +268,7 @@ public partial class NativeDeckEditorWindow : Window
                 $"  ·  Mana value {preview.Info.ManaValue:G}" +
                 (string.IsNullOrWhiteSpace(preview.Info.ColorIdentity)
                     ? "  ·  Colorless" : "  ·  Identity: " + preview.Info.ColorIdentity);
-            PreviewOracleText.Text = preview.Info.OracleText;
+            PreviewOracleText.Document = NativeOracleReading.Build(preview.Info.OracleText);
             if (!NativeCardArtwork.IsTrustedArtworkUrl(preview.ImageUrl))
             {
                 PreviewStatus.Text = "No suitable official artwork in the current catalog. " +
