@@ -145,12 +145,13 @@ public partial class MainWindow : Window
             if (ReferenceEquals(node, sender)) break;
         }
         selectedTilePrinting = card;
-        // ListView selection belongs to a virtualized row; this remembers the
-        // exact printing selected inside the row for details and shortlist.
+        // Selection updates the persistent in-app inspector; no windows are
+        // spawned during browsing. Double click widens it for reading.
+        _ = ShowCardInInspectorAsync(card);
         if (e.ClickCount >= 2)
         {
             e.Handled = true;
-            OnCatalogCardDetailsClicked(sender, new RoutedEventArgs());
+            SetInspectorExpanded(true);
         }
     }
 
@@ -158,6 +159,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        InitializeInAppNotices();
         UpdateWorkspaceNavigation();
         catalogDetailedTemplate = CardsList.ItemTemplate;
         catalogDetailedPanel = CardsList.ItemsPanel;
@@ -178,6 +180,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             closing = true;
+            inspectorRequestVersion++;
             catalogSyncCancellation?.Cancel();
             edhLabWindow?.Close();
             collectionWindow?.Close();
@@ -1426,25 +1429,25 @@ public partial class MainWindow : Window
 
 
     /// <summary>
-    /// Catalog browsing does not imply ownership. Opening a printing shows
-    /// the cached card identity, never assigns the selected printing to the
-    /// native physical collection, and loads art only in the detail window.
+    /// Catalog browsing does not imply ownership. Selecting a printing
+    /// inspects it in-place; the larger independent window is opt-in only.
     /// </summary>
     private void OnCatalogCardRowDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (CatalogViewMode.SelectedIndex == 2 ||
             sender is not ListView list ||
             NativeCardRowActivation.SelectClickedRow(list, e.OriginalSource) is not
-                CatalogSnapshot.PrintingRow) return;
+                CatalogSnapshot.PrintingRow card) return;
         e.Handled = true;
-        OnCatalogCardDetailsClicked(sender, e);
+        _ = ShowCardInInspectorAsync(card);
+        SetInspectorExpanded(true);
     }
 
     private async void OnCatalogCardDetailsClicked(object sender, RoutedEventArgs e)
     {
         var snapshot = catalogSnapshot;
         if (closing || snapshot is null ||
-            SelectedCatalogPrinting() is not CatalogSnapshot.PrintingRow selected)
+            (inspectorSelection ?? SelectedCatalogPrinting()) is not CatalogSnapshot.PrintingRow selected)
         {
             FilterStatus.Text = "Select a catalog printing to view its card details.";
             return;
