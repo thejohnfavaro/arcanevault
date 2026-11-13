@@ -69,6 +69,20 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "NativeReadinessWindow.xaml"));
         var readinessCode = File.ReadAllText(
             Path.Combine(dir, "NativeReadinessWindow.xaml.cs"));
+        Must(readinessXaml.Contains("Click=\"OnCompareBackupClicked\"") &&
+             readinessCode.Contains("NativeCollectionIntegrity.Compare(") &&
+             readinessCode.Contains("NativeWorkspace.DefaultPath") &&
+             readinessCode.Contains("CompareBackupButton.IsEnabled = false;"),
+             "Collection comparison must remain an explicit, read-only Options workflow.");
+        var starStart = mainXaml.IndexOf("x:Name=\"CardShortlistStar\"",
+            StringComparison.Ordinal);
+        Must(starStart >= 0 &&
+             mainXaml[starStart..Math.Min(starStart + 1050, mainXaml.Length)]
+                .Contains("HorizontalContentAlignment=\"Center\"") &&
+             mainXaml[starStart..Math.Min(starStart + 1050, mainXaml.Length)]
+                .Contains("VerticalContentAlignment=\"Center\""),
+             "Catalog favorite-star glyph must be centered within its clickable tile.");
+
         Must(optionsXaml.Contains("Click=\"OnBackupReadinessClicked\"") &&
              readinessOptionsCode.Contains("new NativeReadinessWindow { Owner = this }") &&
              readinessXaml.Contains("Click=\"OnChooseBackupClicked\"") &&
