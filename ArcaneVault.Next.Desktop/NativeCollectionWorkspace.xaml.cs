@@ -769,7 +769,7 @@ public partial class NativeCollectionWorkspace : UserControl
             // from the current read-only catalog before offering role guidance.
             var commander = await Task.Run(() =>
             {
-                var index = CommanderCatalog.OpenReadOnly(catalogPath!);
+                var index = EdhLabReadOnlyCache.GetCommanderIndex(catalogPath!);
                 return EdhLabSavedDeckAccess.FindEligibleCommander(
                     index, selected.Commander, format);
             });
