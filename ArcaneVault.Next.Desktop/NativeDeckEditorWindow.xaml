@@ -148,6 +148,7 @@
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <StackPanel Grid.Row="0" Margin="0,0,0,8">
                             <Grid>
@@ -303,6 +304,20 @@
                                         BorderBrush="#514276"
                                         ToolTip="Remove every copy of the selected mainboard card (unsaved; does not remove owned copies)"/>
                             </WrapPanel>
+                            <StackPanel Grid.Row="5" Margin="0,7,0,0">
+                                <TextBlock Text="Deck-specific artwork printing"
+                                           Foreground="{DynamicResource VaultAccent}"/>
+                                <ComboBox x:Name="MainboardPrintingBox" IsEnabled="False"
+                                          DisplayMemberPath="Display" Background="#D7E4EB"
+                                          Foreground="#0D1017" Margin="0,4,0,4"/>
+                                <Button x:Name="MainboardPrintingApply" Content="Use selected printing"
+                                        Click="OnMainboardPrintingApplyClicked" IsEnabled="False"
+                                        Padding="9,5" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="MainboardPrintingStatus"
+                                           Text="Select a mainboard card to browse available printings."
+                                           TextWrapping="Wrap" FontSize="10.5" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource VaultMuted}"/>
+                            </StackPanel>
                         </Grid>
                     </TabItem>
                     <TabItem x:Name="MainboardTextTab" Header="Text"
