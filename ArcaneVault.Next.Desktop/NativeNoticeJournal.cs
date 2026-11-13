@@ -29,3 +29,17 @@ public sealed class NativeNoticeJournal
 
     public void Clear() => entries.Clear();
 }
+
+
+/// <summary>
+/// Shared in-process routing for nonblocking informational and warning notices.
+/// Safety confirmations still require a real yes/no interaction and do NOT go
+/// through this broadcast channel.
+/// </summary>
+public static class NativeNoticeHub
+{
+    public static event Action<string, string, bool>? Published;
+
+    public static void Publish(string title, string message, bool warning = false) =>
+        Published?.Invoke(title, message, warning);
+}
