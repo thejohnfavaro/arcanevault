@@ -609,6 +609,7 @@
                                    VerticalAlignment="Center"/>
                     </Grid>
                     <ListView Grid.Row="1" x:Name="CardsList"
+                              SelectionChanged="OnCatalogRowSelectionChanged"
                               SizeChanged="OnCatalogListSizeChanged"
                               HorizontalContentAlignment="Stretch"
                               MouseDoubleClick="OnCatalogCardRowDoubleClick"
