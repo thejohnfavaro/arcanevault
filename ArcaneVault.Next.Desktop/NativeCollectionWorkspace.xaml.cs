@@ -104,6 +104,9 @@ public partial class NativeCollectionWorkspace : UserControl
         };
         Loaded += async (_, _) =>
         {
+            // Proxy ledger is a separate, non-valued backup section.
+            // Never fold it into the physical price calculation.
+            _ = LoadProxyRowsAsync();
             _ = LoadDeckCoversAsync();
             await CalculateValuationAsync();
         };
