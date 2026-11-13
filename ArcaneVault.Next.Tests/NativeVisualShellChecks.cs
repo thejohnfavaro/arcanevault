@@ -956,11 +956,53 @@ internal static class NativeVisualShellChecks
              CatalogTileLayout.ColumnsForWidth(1600) == 5 &&
              CatalogTileLayout.ColumnsForWidth(double.NaN) == 2,
              "Compact Catalog tile grid width breakpoints regressed.");
-        Must(main.Contains("Height=\"302\"", StringComparison.Ordinal) &&
-             main.Contains("Width=\"132\" Height=\"184\"", StringComparison.Ordinal) &&
+        Must(main.Contains("Height=\"366\"", StringComparison.Ordinal) &&
+             main.Contains("Width=\"200\" Height=\"278\"", StringComparison.Ordinal) &&
              main.Contains("ArtUrl=\"{Binding ImageUrl}\"", StringComparison.Ordinal) &&
+             main.Contains("DecodeWidth=\"320\"", StringComparison.Ordinal) &&
+             main.Contains("Text=\"{Binding RarityLabel}\"", StringComparison.Ordinal) &&
              main.Contains("PreviewMouseLeftButtonDown=\"OnCatalogTileMouseDown\"", StringComparison.Ordinal),
-             "Compact tile design must retain art, metadata and card-click handling.");
+             "Card-first tile must devote most available space to art, keep rarity and preserve card selection.");
+        Must(!main.Contains("YOUR COLLECTION. YOUR RULES.", StringComparison.Ordinal) &&
+             !main.Contains("Every printing tells a story.", StringComparison.Ordinal) &&
+             main.Contains("Grid x:Name=\"CatalogWorkspace\"") &&
+             main.Contains("Arena catalog (one per card)") &&
+             main.Contains("This is NOT your owned Arena inventory") &&
+             mainCode.Contains("ArenaOnlyBox?.IsChecked == true"),
+             "Catalog must remove promotional hero and clarify that Arena availability differs from Arena ownership.");
+        var detailsXaml = File.ReadAllText(Path.Combine(dir, "NativeCardDetailsWindow.xaml"));
+        var detailsCode = File.ReadAllText(Path.Combine(dir, "NativeCardDetailsWindow.xaml.cs"));
+        var manaCode = File.ReadAllText(Path.Combine(dir, "NativeManaSymbol.cs"));
+        Must(detailsXaml.Contains("ColorIdentitySymbols") &&
+             detailsXaml.Contains("ColorIdentityLabel") &&
+             detailsXaml.Contains("local:NativeManaSymbol") &&
+             detailsXaml.Contains("Height=\"445\"") &&
+             detailsXaml.Contains("CardRarityBadge") &&
+             detailsCode.Contains("NativeManaSymbol.ParseColorIdentity(info.ColorIdentity)") &&
+             detailsCode.Contains("ColorIdentitySymbols.ItemsSource = colors") &&
+             manaCode.Contains("new DrawingImage(group)") &&
+             !manaCode.Contains("HttpClient") &&
+             !manaCode.Contains("Process.Start"),
+             "Card details must use larger art, an accessible rarity ribbon and offline mana symbols.");
+        Must(NativeManaSymbol.ParseColorIdentity("WU").Select(x => x.Name)
+                 .SequenceEqual(new[] { "White", "Blue" }) &&
+             NativeManaSymbol.ParseColorIdentity("U,W").Select(x => x.Symbol)
+                 .SequenceEqual(new[] { "W", "U" }) &&
+             NativeManaSymbol.ParseColorIdentity("UBRG").Count == 4 &&
+             NativeManaSymbol.ParseColorIdentity("Colorless").Single().Symbol == "C" &&
+             NativeManaSymbol.ParseColorIdentity("").Single().Symbol == "C" &&
+             NativeManaSymbol.ParseColorIdentity("unknown").Count == 0,
+             "Mana identity icons must preserve WUBRG order, colorless fallback and unknown-data safety.");
+        var deckCardsXaml = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
+        Must(deckCardsXaml.Contains("Width=\"108\" Height=\"145\"") &&
+             deckCardsXaml.Contains("ArtUrl=\"{Binding CoverArtworkUrl}\" DecodeWidth=\"260\"") &&
+             deckCardsXaml.Contains("Background=\"{DynamicResource VaultTileWash}\"") &&
+             deckCardsXaml.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\""),
+             "Saved-deck boxes should give artwork more space without losing list virtualization.");
+        Must(new CatalogSnapshot.PrintingRow("Test", "tst", "1", Rarity: "mythic").RarityLabel ==
+             "MYTHIC", "Catalog rarity indicator must use the printing's actual rarity.");
+
         var markerCards = Enumerable.Range(1, 8).Cast<object>().ToArray();
         var tileRows = CatalogTileLayout.BuildRows(markerCards, 3);
         Must(tileRows.Count == 3 &&
