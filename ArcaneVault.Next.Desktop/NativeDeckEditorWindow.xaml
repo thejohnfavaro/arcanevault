@@ -841,7 +841,7 @@
                                         ToolTip="Filter the existing EDH Lab card browser to owned, format-eligible early-play options; does not swap, remove, add, craft or save anything"/>
                             </StackPanel>
                         </Expander>
-                        <Expander Header="Commander synergy packages — preview only"
+                        <Expander Header="Commander synergy packages — inspect or add"
                                   IsExpanded="False" Margin="0,3,0,9"
                                   Background="{DynamicResource VaultPanelRaised}"
                                   BorderBrush="{DynamicResource VaultLine}"
@@ -860,16 +860,31 @@
                                            Text="Reading cached commander mechanics…"/>
                                 <ListBox x:Name="EdhPackagesList" Height="166"
                                          SelectionChanged="OnEdhPackageSelectionChanged"
+                                         PreviewMouseLeftButtonDown="OnEdhPackagePreviewMouseDown"
                                          Background="{DynamicResource VaultPanel}"
                                          Foreground="{DynamicResource VaultText}"
                                          BorderBrush="{DynamicResource VaultAccentBorder}"
                                          DisplayMemberPath="Display"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                <TextBlock Text="Single-click to preview · Double-click an eligible card to add"
+                                           FontSize="11" Margin="0,7,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource VaultAccent}"/>
+                                <Button x:Name="EdhPackageAddButton"
+                                        Content="Add selected package card"
+                                        Click="OnEdhPackageAddClicked"
+                                        IsEnabled="False"
+                                        Padding="9,6" Margin="0,6,0,0"
+                                        HorizontalAlignment="Left"
+                                        Background="{DynamicResource VaultAccentMuted}"
+                                        Foreground="{DynamicResource VaultText}"
+                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                        ToolTip="Add one locally eligible card to the UNSAVED mainboard. In-deck and invalid candidates are disabled; ownership is never changed."/>
                                 <TextBlock x:Name="EdhPackagePreviewText"
                                            TextWrapping="Wrap" FontSize="11"
                                            Margin="0,7,0,0"
                                            Foreground="{DynamicResource VaultMuted}"
-                                           Text="Select a package card to preview its exact text and artwork. Nothing is added, crafted, removed or saved."/>
+                                           Text="Select a package card to inspect exact text and artwork. Only a deliberate double-click or Add action changes the unsaved deck."/>
                             </StackPanel>
                         </Expander>
                         <Expander Header="Synergy chains — possible two-card links"
