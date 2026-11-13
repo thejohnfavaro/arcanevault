@@ -56,11 +56,12 @@ public partial class NativeDeckEditorWindow : Window
     private int previewedPool = -1;
     private sealed record OwnedDisplay(string Name, long Owned, string RoleHints = "",
         bool LabSuggestion = false, string SynergyExplanation = "", bool MechanicMatch = false,
-        int InDraftCopies = 0)
+        int InDraftCopies = 0, long Proxied = 0)
     {
         public string Display => LabSuggestion
             ? Name + (InDraftCopies > 0 ? $"  ·  In deck ×{InDraftCopies}" : "  ·  Not in deck") +
-              (Owned > 0 ? $"  ·  {Owned:N0} recorded" : "  ·  missing") +
+              (Owned > 0 ? $"  ·  {Owned:N0} recorded" : "  ·  not owned") +
+              (Proxied > 0 ? $"  ·  Proxy ×{Proxied} (not valued)" : "") +
               (MechanicMatch ? "  ·  Mechanic match" : "") +
               (RoleHints.Length > 0 ? "  ·  " + RoleHints : "")
             : $"{Name}  ·  {Owned:N0} owned";
@@ -182,7 +183,8 @@ public partial class NativeDeckEditorWindow : Window
                             candidate.RoleHints, LabSuggestion: true,
                             SynergyExplanation: fit?.Why ?? "",
                             MechanicMatch: fit?.Matches == true,
-                            InDraftCopies: InDeck(candidate.Name));
+                            InDraftCopies: InDeck(candidate.Name),
+                            Proxied: CountProxy(candidate.Name));
                     }).ToArray();
             }
             else
@@ -201,7 +203,8 @@ public partial class NativeDeckEditorWindow : Window
                             x.RoleHints, LabSuggestion: true,
                             SynergyExplanation: fit?.Why ?? "",
                             MechanicMatch: fit?.Matches == true,
-                            InDraftCopies: InDeck(x.Name));
+                            InDraftCopies: InDeck(x.Name),
+                            Proxied: CountProxy(x.Name));
                     }).ToArray();
             }
 
@@ -222,7 +225,8 @@ public partial class NativeDeckEditorWindow : Window
             ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
         SetOwnedBrowserRows(NativeDeckOwnedPicker.Search(
             ownership, pool, OwnedSearchBox.Text)
-            .Select(x => new OwnedDisplay(x.Name, x.Owned)).ToArray());
+            .Select(x => new OwnedDisplay(x.Name, x.Owned,
+                Proxied: CountProxy(x.Name))).ToArray());
     }
 
     private async void OnOwnedCardSelectionChanged(object sender,
@@ -279,7 +283,8 @@ public partial class NativeDeckEditorWindow : Window
             catalogCard?.RoleHints ?? "",
             LabSuggestion: edhLabCommander is not null && catalogCard is not null,
             SynergyExplanation: fit?.Why ?? "No verified commander mechanic match.",
-            MechanicMatch: fit?.Matches == true);
+            MechanicMatch: fit?.Matches == true,
+            Proxied: CountProxy(name));
         _ = ShowCardPreviewAsync(selected);
     }
 
@@ -416,12 +421,16 @@ public partial class NativeDeckEditorWindow : Window
             var inDeck = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
                 .FirstOrDefault(x => x.Name.Equals(card.Name,
                     StringComparison.OrdinalIgnoreCase))?.Quantity ?? 0;
-            PreviewOwnership.Text = $"{card.Owned:N0} owned · {inDeck:N0} in mainboard";
+            PreviewOwnership.Text = $"{card.Owned:N0} real owned" +
+                (card.Proxied > 0 ? $" · {card.Proxied:N0} Proxy (not valued)" : "") +
+                $" · {inDeck:N0} in mainboard";
         }
         catch (Exception ex) when (ex is InvalidDataException or
             ArgumentException or OverflowException)
         {
-            PreviewOwnership.Text = $"{card.Owned:N0} owned · draft needs review";
+            PreviewOwnership.Text = $"{card.Owned:N0} real owned" +
+                (card.Proxied > 0 ? $" · {card.Proxied:N0} Proxy (not valued)" : "") +
+                " · draft needs review";
         }
     }
 
@@ -961,7 +970,7 @@ public partial class NativeDeckEditorWindow : Window
         await ShowCardPreviewAsync(new OwnedDisplay(selected.Name,
             selected.Recorded, selected.Roles, LabSuggestion: true,
             SynergyExplanation: selected.Explanation,
-            MechanicMatch: true));
+            MechanicMatch: true, Proxied: CountProxy(selected.Name)));
     }
 
     private void RefreshSynergyChains(
@@ -1118,7 +1127,8 @@ public partial class NativeDeckEditorWindow : Window
         var record = edhCatalog.Find(name);
         return ShowCardPreviewAsync(new OwnedDisplay(name,
             record?.RecordedCopies ?? 0, record?.RoleHints ?? "",
-            LabSuggestion: true, SynergyExplanation: why, MechanicMatch: true));
+            LabSuggestion: true, SynergyExplanation: why,
+            MechanicMatch: true, Proxied: CountProxy(name)));
     }
 
     private async void OnEdhInspectEnablerClicked(object sender, RoutedEventArgs e)
@@ -1399,13 +1409,19 @@ public partial class NativeDeckEditorWindow : Window
         try
         {
             var summary = NativeDeckOwnedPicker.Review(ownership, pool,
-                MainboardBox.Text, CommanderBox.Text, FormatBox.Text);
+                MainboardBox.Text, CommanderBox.Text, FormatBox.Text, proxyLedger);
             DeckSummaryText.Text = summary.Header;
             string poolName = pool == NativeDeckOwnedPicker.Pool.Arena ? "Arena" : "Physical";
             var lines = summary.Shortages.Take(6).Select(x =>
-                $"{x.Name}: need {x.Required}, owned {x.Owned} (missing {x.Missing})");
+                $"{x.Name}: need {x.Required}, owned {x.Owned}" +
+                (pool == NativeDeckOwnedPicker.Pool.Physical && x.Proxy > 0
+                    ? $", Proxy {x.Proxy}" : "") +
+                $" (still missing {x.Missing})");
             DeckShortageText.Text = summary.Shortages.Count == 0
-                ? $"All draft copies covered by {poolName} inventory."
+                ? $"All draft copies covered by {poolName} inventory" +
+                  (summary.ProxyCoveredCopies > 0
+                      ? $" + {summary.ProxyCoveredCopies:N0} Proxy copies (not owned or valued)."
+                      : ".")
                 : $"{poolName} shortages ({summary.Shortages.Count} cards):\n" +
                   string.Join("\n", lines) +
                   (summary.Shortages.Count > 6
@@ -1882,6 +1898,9 @@ public partial class NativeDeckEditorWindow : Window
             selected is null ? draftFormat : savedLabFormat;
         edhLabColors = selected is null ? draftColors : savedLabColors;
         InitializeComponent();
+        // Load independent proxy coverage asynchronously. It does not
+        // rewrite the deck, own an official printing or fetch any price.
+        Loaded += async (_, _) => await LoadProxyCoverageAsync();
         MainboardModes.SelectedItem = MainboardTextTab;
         Closed += (_, _) =>
         {
@@ -1889,6 +1908,7 @@ public partial class NativeDeckEditorWindow : Window
             previewVersion++;
             previewRequest?.Cancel();
             chainArtworkRequest?.Cancel();
+            proxyCoverageClosed = true;
             // Cancel all pending/visible EDH thumbnail fetches on editor close.
             mainboardArtLifetime.Cancel();
         };
@@ -2117,7 +2137,7 @@ public partial class NativeDeckEditorWindow : Window
             // Runs without changing the native database. Reads local catalog in
             // read-only mode and treats unavailable metadata as unverified.
             var report = await Task.Run(() => NativeDeckPreflight.Check(
-                ownership, entries, commander, format, catalogPath));
+                ownership, entries, commander, format, catalogPath, proxyLedger));
 
             int copies = entries.Sum(entry => entry.Quantity);
             string action = original is null ? "CREATE" : "UPDATE";
