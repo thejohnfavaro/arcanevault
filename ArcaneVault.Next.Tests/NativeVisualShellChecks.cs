@@ -856,7 +856,7 @@ internal static class NativeVisualShellChecks
              collection.Contains("AlternationCount=\"2\"", StringComparison.Ordinal) &&
              collection.Contains("ItemsControl.AlternationIndex", StringComparison.Ordinal) &&
              collection.Contains("x:Name=\"DeckLibraryList\"", StringComparison.Ordinal) &&
-             collection.Contains("<RadialGradientBrush Center=", StringComparison.Ordinal) &&
+             collection.Contains("Background=\"{DynamicResource VaultHeroWash}\"", StringComparison.Ordinal) &&
              collection.Contains("Text=\"{Binding Format}\"", StringComparison.Ordinal),
              "Collection and deck-library visual parity must preserve virtualized owned rows and themed deck covers.");
         string deckEditor = File.ReadAllText(Path.Combine(
