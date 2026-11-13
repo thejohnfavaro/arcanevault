@@ -100,6 +100,14 @@ internal static class NativeWorkspaceSafetyChecks
              live.Collection.ArenaCopies == 5 &&
              live.Collection.DeckRevisions == 2,
              "Refreshed native workspace did not preserve the new source.");
+        // Deck-only UI refresh accepts only the exact new verified backup
+        // SHA, and never requires rechecking the full SQLite row projection.
+        var quicklyListed = NativeWorkspaceSafety.ListDecksFromVerified(result.Current);
+        Must(quicklyListed.Count == 1 &&
+             quicklyListed[0].Name == "Commander Deck" &&
+             quicklyListed[0].MainboardText.Contains("Split // Back"),
+             "Fast verified deck refresh must show the authoritative new deck rows.");
+
         Must(rollback.BackupSha256 == imported.BackupSha256 &&
              rollback.Collection.PhysicalCopies == 5 &&
              rollback.Collection.ArenaCopies == 4 &&
@@ -136,6 +144,9 @@ internal static class NativeWorkspaceSafetyChecks
         File.Delete(damaged);
         var restored = NativeWorkspaceSafety.Restore(original,
             result.RecoveryPath, live.BackupSha256);
+        Reject(() => NativeWorkspaceSafety.ListDecksFromVerified(result.Current));
+        Must(NativeWorkspaceSafety.ListDecksFromVerified(restored.Current).Count == 1,
+             "Restored source must still provide a verified current deck listing.");
         Must(restored.Current.BackupSha256 == imported.BackupSha256 &&
              restored.Current.Collection.PhysicalCopies == 5 &&
              NativeWorkspace.Open(original).Collection.ArenaCopies == 4,
