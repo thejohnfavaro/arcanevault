@@ -383,6 +383,23 @@ public partial class NativeDeckEditorWindow : Window
                 token.ThrowIfCancellationRequested();
                 var info = CollectionCatalogReview.ReadDetails(catalogPath!, card.Name);
                 string imageUrl = arena ? "" : info?.ArtworkUrl ?? "";
+                if (!arena && deckPrintingChoices.TryGetValue(card.Name, out var chosenId) &&
+                    Guid.TryParse(chosenId, out var exactPrintId))
+                {
+                    // Per-deck artwork is presentation only. Invalid or
+                    // unavailable printings fall back safely to catalog art.
+                    try
+                    {
+                        var choice = NativePrintingArtwork.Require(catalogPath!,
+                            card.Name, exactPrintId);
+                        imageUrl = choice.ImageUrl;
+                    }
+                    catch (Exception ex) when (ex is InvalidDataException or
+                        Microsoft.Data.Sqlite.SqliteException)
+                    {
+                        // The user's selection remains saved for later sync.
+                    }
+                }
                 if (arena && info is not null)
                 {
                     // Never use a potentially paper-only card image for Arena.
@@ -1959,6 +1976,7 @@ public partial class NativeDeckEditorWindow : Window
             selected is null ? draftFormat : savedLabFormat;
         edhLabColors = selected is null ? draftColors : savedLabColors;
         InitializeComponent();
+        InitializeDeckPrintingChoices();
         // Load independent proxy coverage asynchronously. It does not
         // rewrite the deck, own an official printing or fetch any price.
         Loaded += async (_, _) => await LoadProxyCoverageAsync();
@@ -2233,10 +2251,16 @@ public partial class NativeDeckEditorWindow : Window
             }
 
             StatusText.Text = "Verifying and saving the native deck with automatic recovery…";
+            var savedPrintingChoices = deckPrintingChoices
+                .Where(x => entries.Any(e => e.Name.Equals(x.Key,
+                    StringComparison.OrdinalIgnoreCase)))
+                .ToDictionary(x => x.Key, x => x.Value,
+                    StringComparer.OrdinalIgnoreCase);
             var saved = await Task.Run(() =>
                 NativeWorkspaceSafety.SaveDeck(nativePath, name, commander,
                     mainboard, original, expectedSha, format: format,
-                    folder: folder, favorite: favorite));
+                    folder: folder, favorite: favorite,
+                    displayPrintIds: savedPrintingChoices));
             NativeInAppDialog.Show(this,
                 $"Deck saved. Library now contains {saved.Current.Collection.Decks:N0} decks " +
                 $"and {saved.Current.Collection.DeckRevisions:N0} revisions.\n\n" +
