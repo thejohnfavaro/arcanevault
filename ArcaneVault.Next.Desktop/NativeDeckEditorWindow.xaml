@@ -1107,6 +1107,11 @@
                                        TextWrapping="Wrap" FontSize="11"
                                        Foreground="#D8DEEB"
                                        Text="Select a card to see local catalog information."/>
+                            <TextBlock Text="MANA COST" Style="{StaticResource VaultEyebrow}"
+                                       Margin="0,8,0,5"/>
+                            <local:NativeManaStrip x:Name="PreviewManaCost"
+                                                   Kind="Cost" SymbolSize="21"
+                                                   AutomationProperties.Name="Exact casting mana cost for previewed card"/>
                             <TextBlock Text="ORACLE TEXT" Margin="0,10,0,6"
                                        Style="{StaticResource VaultEyebrow}"/>
                             <FlowDocumentScrollViewer x:Name="PreviewOracleText"
