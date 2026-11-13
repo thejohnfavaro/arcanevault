@@ -53,7 +53,7 @@ public partial class NativeAdjustPhysicalWindow : Window
         string change = quantity == 0
             ? "REMOVE this exact ownership row"
             : $"change this row from {original.Quantity:N0} to {quantity:N0} copies";
-        if (MessageBox.Show(this,
+        if (NativeInAppDialog.Show(this,
             $"Confirm: {change}?\n\n" +
             $"{original.Name}\n{original.SetAndNumber} · {original.Finish}\n" +
             $"Printing ID: {(original.ScryfallId.Length == 0 ? "unresolved" : original.ScryfallId)}\n\n" +
@@ -72,7 +72,7 @@ public partial class NativeAdjustPhysicalWindow : Window
             var result = await Task.Run(() =>
                 NativeWorkspaceSafety.SetPhysicalQuantity(nativePath, ordinal,
                     original, quantity, expectedSha));
-            MessageBox.Show(this,
+            NativeInAppDialog.Show(this,
                 $"Native paper collection now has {result.Current.Collection.PhysicalCopies:N0} copies.\n\n" +
                 "Previous full native collection preserved at:\n" + result.RecoveryPath +
                 "\n\nUse Restore native recovery on the main window to reverse this edit.",
@@ -83,7 +83,7 @@ public partial class NativeAdjustPhysicalWindow : Window
         catch (Exception ex)
         {
             StatusText.Text = "Edit not confirmed; inspect the workspace and recovery files before retrying. " + ex.Message;
-            MessageBox.Show(this, StatusText.Text,
+            NativeInAppDialog.Show(this, StatusText.Text,
                 "Native quantity edit not confirmed", MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
