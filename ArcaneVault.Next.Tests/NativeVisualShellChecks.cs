@@ -777,8 +777,12 @@ internal static class NativeVisualShellChecks
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "MainWindow.InspectorAndNotices.cs"));
             if (name == "NativeCollectionWorkspace")
+            {
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeCollectionWorkspace.DeckInspector.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeCollectionWorkspace.Proxies.cs"));
+            }
             if (name == "NativeDeckEditorWindow")
             {
                 code += "\n" + File.ReadAllText(
@@ -787,6 +791,8 @@ internal static class NativeVisualShellChecks
                     Path.Combine(dir, "NativeDeckEditorWindow.MainboardManager.cs"));
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeDeckEditorWindow.MainboardArtwork.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeDeckEditorWindow.ProxyCoverage.cs"));
             }
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
@@ -1053,6 +1059,41 @@ internal static class NativeVisualShellChecks
              collection.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"",
                  StringComparison.Ordinal),
              "Set Progress must use a OneWay binding for the computed, read-only Percent property and preserve virtualization.");
+        // v0.9.77: Proxy is a separate non-valued collection scope, not a
+        // faux physical printing or an Arena card. Native proxy controls must
+        // use the same SHA-gated recoverable update and keep valuation pure.
+        string proxyCollectionUi = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.Proxies.cs"));
+        string proxyDraftUi = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorWindow.ProxyCoverage.cs"));
+        string proxyCollectionModel = File.ReadAllText(Path.Combine(
+            dir, "..", "ArcaneVault.Next.Collection", "NativeProxyEditing.cs"));
+        Must(collection.Contains("Header=\"Proxies · no value\"") &&
+             collection.Contains("x:Name=\"ProxyList\"") &&
+             collection.Contains("x:Name=\"ProxyNameBox\"") &&
+             collection.Contains("x:Name=\"ProxyQuantityBox\"") &&
+             collection.Contains("Click=\"OnProxySaveClicked\"") &&
+             collection.Contains("Click=\"OnProxyRemoveClicked\"") &&
+             collection.Contains("SelectionChanged=\"OnProxySelected\"") &&
+             collection.Contains("Excluded entirely from collection value",
+                 StringComparison.OrdinalIgnoreCase) &&
+             proxyCollectionUi.Contains("NativeWorkspaceSafety.SetProxyQuantity(") &&
+             proxyCollectionUi.Contains("NativeWorkspaceSafety.ListProxies(") &&
+             proxyCollectionUi.Contains("await reopenNative();") &&
+             proxyCollectionUi.Contains("UpdateDeckInspectorCoverage();") &&
+             collectionCode.Contains("LoadProxyRowsAsync();") &&
+             proxyDraftUi.Contains("NativeWorkspaceSafety.ListProxies(") &&
+             proxyDraftUi.Contains("proxyCounts.Clear();") &&
+             draftEditorCode.Contains("NativeDeckPreflight.Check(") &&
+             draftEditorCode.Contains("format, catalogPath, proxyLedger)") &&
+             draftEditorCode.Contains("MainboardBox.Text, CommanderBox.Text, FormatBox.Text, proxyLedger") &&
+             draftEditorCode.Contains("Proxy (not valued)") &&
+             proxyCollectionModel.Contains("root[\"proxyCards\"] = updated;") &&
+             proxyCollectionModel.Contains("CarryForwardIfUnspecified(") &&
+             !proxyCollectionUi.Contains("NativePhysicalValuation.Calculate(") &&
+             !proxyCollectionUi.Contains("NativePhysicalEditing.AddVerified"),
+             "Proxy ledger must stay independent of owned printings and card prices, and deck coverage must distinguish it.");
+
         // Collection and Deck Library must be opened only from sidebar navigation.
         string startup = mainCode.Split("private async Task InitializeNativeAsync()", 2)[1]
             .Split("private async Task LoadNativeOwnershipForCatalogAsync()", 2)[0];

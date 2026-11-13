@@ -69,18 +69,22 @@ public static class NativeDeckOwnedPicker
         return copies;
     }
 
-    public sealed record Shortage(string Name, int Required, long Owned)
+    public sealed record Shortage(string Name, int Required, long Owned,
+        long Proxy = 0)
     {
-        public long Missing => Math.Max(0, Required - Owned);
+        public long Missing => Math.Max(0, Required - Owned - Proxy);
+        public long ProxyCovered => Math.Min(Proxy, Math.Max(0, Required - Owned));
     }
 
     public sealed record DraftSummary(int DistinctCards, int MainboardCopies,
         int TotalWithCommander, int CoveredCopies, long MissingCopies,
-        IReadOnlyList<Shortage> Shortages)
+        IReadOnlyList<Shortage> Shortages, long ProxyCoveredCopies = 0)
     {
         public string Header => $"{MainboardCopies:N0} mainboard copies · " +
             $"{DistinctCards:N0} names · {TotalWithCommander:N0} incl. commander · " +
-            $"{MissingCopies:N0} missing copies";
+            $"{MissingCopies:N0} missing copies" +
+            (ProxyCoveredCopies > 0
+                ? $" · {ProxyCoveredCopies:N0} covered by Proxy (not owned)" : "");
     }
 
     /// <summary>
@@ -89,7 +93,8 @@ public static class NativeDeckOwnedPicker
     /// Coverage is per card and cannot be transferred between names or pools.
     /// </summary>
     public static DraftSummary Review(NativeBackupView ownership, Pool pool,
-        string mainboard, string? commander, string? format)
+        string mainboard, string? commander, string? format,
+        IReadOnlyList<NativeProxyEditing.ProxyRow>? proxies = null)
     {
         ArgumentNullException.ThrowIfNull(ownership);
         var entries = NativeDeckEditing.ParseMainboard(mainboard);
@@ -113,8 +118,18 @@ public static class NativeDeckOwnedPicker
             foreach (var card in ownership.ArenaCards)
                 if (card.Quantity > 0)
                     owned[card.Name] = checked(owned.GetValueOrDefault(card.Name) + card.Quantity);
-        var shortages = required.Select(x => new Shortage(
-                x.Key, x.Value, owned.GetValueOrDefault(x.Key)))
+        // Proxy copies support paper deck coverage but NEVER become owned
+        // printings, or Arena cards. Missing is computed from both pools
+        // without merging their identities or their valuation.
+        var proxied = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        if (pool == Pool.Physical && proxies is not null)
+            foreach (var proxy in proxies)
+                proxied[proxy.Name] = checked(proxied.GetValueOrDefault(proxy.Name)
+                    + proxy.Quantity);
+        var coverage = required.Select(x => new Shortage(
+                x.Key, x.Value, owned.GetValueOrDefault(x.Key),
+                proxied.GetValueOrDefault(x.Key))).ToArray();
+        var shortages = coverage
             .Where(x => x.Missing > 0)
             .OrderByDescending(x => x.Missing)
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
@@ -123,7 +138,8 @@ public static class NativeDeckOwnedPicker
         long missing = shortages.Sum(x => x.Missing);
         int total = checked(mainboardCopies + (leader.Length > 0 ? 1 : 0));
         return new DraftSummary(entries.Count, mainboardCopies, total,
-            checked((int)(total - missing)), missing, shortages);
+            checked((int)(total - missing)), missing, shortages,
+            coverage.Sum(x => x.ProxyCovered));
     }
 
     /// <summary>

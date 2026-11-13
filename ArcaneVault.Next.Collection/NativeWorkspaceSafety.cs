@@ -177,6 +177,12 @@ public static class NativeWorkspaceSafety
         {
             string path = Path.GetFullPath(nativePath);
             CheckCurrent(path, expectedCurrentBackupSha);
+            // A legacy full export does not know proxyCards exists.
+            // Preserve the independent non-valued proxy ledger unless this
+            // is an explicit user-approved whole-workspace fresh start.
+            if (sourceDescription != "fresh-native-collection")
+                incoming = NativeProxyEditing.CarryForwardIfUnspecified(
+                    ReadPreservedBackup(path), incoming);
             var comparison = Compare(path, incoming);
             if (!comparison.HasChanges)
                 throw new InvalidDataException("The native collection is already up to date.");
@@ -556,6 +562,41 @@ public static class NativeWorkspaceSafety
     /// Add or update the exact native deck with optimistic SHA + selected
     /// deck fingerprint validation and a complete automatic rollback copy.
     /// </summary>
+    /// <summary>
+    /// Read distinctly labeled third-party/proxy copies from the fully verified
+    /// preserved backup. Proxies never enter real ownership or Scryfall prices.
+    /// </summary>
+    public static IReadOnlyList<NativeProxyEditing.ProxyRow> ListProxies(
+        string nativePath)
+    {
+        var verified = NativeWorkspace.Open(nativePath);
+        return NativeProxyEditing.Read(ReadPreservedBackup(verified.DatabasePath));
+    }
+
+    /// <summary>
+    /// Set one non-valued proxy count. Uses the exact same complete verified,
+    /// SHA-gated staged swap and preserved recovery point as physical edits.
+    /// </summary>
+    public static Replacement SetProxyQuantity(
+        string nativePath, string cardName, int quantity,
+        string expectedCurrentBackupSha,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] updated = NativeProxyEditing.SetQuantity(
+                ReadPreservedBackup(path), cardName, quantity);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "native-proxy-quantity",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     /// <summary>Read the legacy-compatible preference without writing a backup.</summary>
     public static NativePrintingArtwork.Preferred? GetPreferredArtwork(
         string nativePath, string cardName)
