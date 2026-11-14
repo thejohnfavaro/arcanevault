@@ -384,6 +384,29 @@ public static class NativePeerSync
             "peer-sync-v2-approved-three-way",actual.BackupSha256);
     }
 
+    /// <summary>First pairing only: replace the recognized groups from an
+    /// explicitly approved Android snapshot. Retain Windows workspace metadata
+    /// and the native rollback file; no baseline is fabricated.</summary>
+    public static NativeWorkspaceSafety.Replacement ApplyFirstPairFromAndroid(
+        string nativePath,byte[] incoming,string expectedCurrentSha)
+    {
+        var remote=ParsePeer(incoming);
+        if(remote.Device==DeviceId())
+            throw new InvalidDataException("Cannot pair a device with itself.");
+        var current=NativeWorkspace.Open(nativePath);
+        if(!string.Equals(current.BackupSha256,expectedCurrentSha,
+            StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Windows workspace changed during first-sync review.");
+        byte[] source=ReadCurrent(nativePath);
+        var candidate=RequireData(JsonNode.Parse(source));
+        foreach(string group in new[]{"cards","physicalCards","deckLibrary","preferredArtwork"})
+            candidate[group]=remote.Data[group]!.DeepClone();
+        byte[] backup=JsonSerializer.SerializeToUtf8Bytes(candidate);
+        NativeBackupReader.Read(backup);
+        return NativeWorkspaceSafety.Refresh(nativePath,backup,
+            "peer-first-pair-approved-android-source",expectedCurrentSha);
+    }
+
     public static Preview Compare(string nativePath, byte[] incoming)
     {
         var peer = ParsePeer(incoming);
