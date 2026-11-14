@@ -90,6 +90,12 @@ internal static class NativeCatalogFilterChecks
             "Type filter must join authoritative card metadata.");
         Must(catalog.SearchFiltered("", new(TypeContains: "Wizard")).Rows.Count == 1,
             "Subtype filter must be able to match an individual creature subtype.");
+        Must(catalog.SearchFiltered("Banding", empty).Rows.Single().Name ==
+                "Esper Sentinel" &&
+             catalog.SearchFiltered("Connive", empty).Rows.Single().Name ==
+                "Clever Impersonator" &&
+             catalog.SearchFiltered("replicate", empty).Rows.Count == 2,
+             "Primary search must discover Oracle keyword abilities without a special mode.");
         Must(catalog.HasRoleMetadata &&
              catalog.SearchFiltered("", new(OracleContains: "Banding")).Rows.Single().Name ==
                 "Esper Sentinel" &&
