@@ -82,6 +82,46 @@ internal static class NativePeerSyncChecks
             duplicate["data"]!["deckLibrary"]!.AsArray()[0]!.DeepClone());
         Reject(()=>NativePeerSync.Compare(path,
             JsonSerializer.SerializeToUtf8Bytes(duplicate)));
+        // Work in a separate workspace because apply must actually replace the
+        // collection while preserving a recoverable copy of the original.
+        string writablePath=Path.Combine(work,"peer-apply-fixture.sqlite");
+        NativeWorkspace.ImportNewBytes(raw,"peer-sync-apply-fixture",writablePath);
+        byte[] baseBytes=NativePeerSync.Export(writablePath,
+            "00000000-0000-4000-8000-000000000365");
+        var received=JsonNode.Parse(baseBytes)!.AsObject();
+        received["deviceId"]="00000000-0000-4000-8000-000000000999";
+        received["data"]!["cards"]!.AsArray()[0]!["qty"]=6;
+        received["data"]!["physicalCards"]!.AsArray().Add(JsonNode.Parse("""
+            {"name":"Counterspell","qty":1,"set":"2XM","number":"47",
+             "scryfallId":"22222222-2222-4222-8222-222222222222"}
+            """));
+        byte[] incomingBytes=JsonSerializer.SerializeToUtf8Bytes(received);
+        var prepared=NativePeerSync.PrepareMerge(writablePath,incomingBytes,baseBytes);
+        Check(prepared.IncomingChanges==2 && prepared.LocalChanges==0 &&
+            prepared.HasChanges,"Clean peer additions should prepare two changes.");
+        string previousSha=NativeWorkspace.Open(writablePath).BackupSha256;
+        Reject(()=>NativePeerSync.ApplyApprovedMerge(writablePath,prepared,"wrong-sha"));
+        var replacement=NativePeerSync.ApplyApprovedMerge(writablePath,prepared,previousSha);
+        Check(File.Exists(replacement.RecoveryPath),
+            "Approved merge must retain the original workspace as a recovery file.");
+        Check(NativeWorkspace.Open(replacement.RecoveryPath).BackupSha256==previousSha,
+            "Recovery file must preserve the original verified SHA.");
+        var now=NativePeerSync.Compare(writablePath,incomingBytes);
+        Check(!now.HasChanges,"Applied local data must match incoming peer record groups.");
+        Reject(()=>NativePeerSync.ApplyApprovedMerge(writablePath,prepared,previousSha));
+        var damaged=JsonNode.Parse(baseBytes)!.AsObject();
+        damaged["deviceId"]="00000000-0000-4000-8000-000000000999";
+        damaged["data"]!["cards"]!.AsArray().Clear();
+        Reject(()=>NativePeerSync.PrepareMerge(path,
+            JsonSerializer.SerializeToUtf8Bytes(damaged),baseBytes));
+        var competing=JsonNode.Parse(baseBytes)!.AsObject();
+        competing["deviceId"]="00000000-0000-4000-8000-000000000999";
+        competing["data"]!["cards"]!.AsArray()[0]!["qty"]=7;
+        var wrongAncestor=JsonNode.Parse(baseBytes)!.AsObject();
+        wrongAncestor["data"]!["cards"]!.AsArray()[0]!["qty"]=2;
+        Reject(()=>NativePeerSync.PrepareMerge(path,
+            JsonSerializer.SerializeToUtf8Bytes(competing),
+            JsonSerializer.SerializeToUtf8Bytes(wrongAncestor)));
         Check(before.SequenceEqual(SHA256.HashData(File.ReadAllBytes(path))),
             "Dry-run preview altered the source native workspace.");
     }
