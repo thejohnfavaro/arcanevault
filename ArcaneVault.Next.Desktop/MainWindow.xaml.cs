@@ -954,6 +954,102 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// The one-use LAN endpoint only receives and validates bytes. All merge
+    /// decisions and disk mutations happen later on the Windows UI thread after
+    /// selecting the previous common snapshot and confirming the candidate.
+    /// </summary>
+    private void OnReceiveAndApplyPeerLanClicked(object sender,RoutedEventArgs e)
+    {
+        if(!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text="Open the native collection before receiving a peer update.";
+            return;
+        }
+        try
+        {
+            var offer=wirelessPeer.Request(async bytes=>
+            {
+                // Fail closed before acknowledging the LAN sender. This call is
+                // read-only and checks the envelope/record identities.
+                var preview=await Task.Run(()=>
+                    NativePeerSync.Compare(NativeWorkspace.DefaultPath,bytes));
+                byte[] snapshot=bytes.ToArray();
+                _=Dispatcher.BeginInvoke(new Action(async ()=>
+                {
+                    if(closing)return;
+                    try { await ApplyReceivedPeerSnapshotAsync(snapshot,preview.Device); }
+                    catch(Exception error)
+                    {
+                        if(!closing)FilterStatus.Text=
+                            "Wireless peer apply rejected: "+error.Message;
+                    }
+                }));
+            });
+            Clipboard.SetText(offer.Url);
+            FilterStatus.Text="Waiting for one-time Android peer sync (expires in 5 minutes).";
+            WirelessPeerQrDialog.Show(this,
+                "Receive & review Android changes",offer.Url,
+                "Android → Windows: scan and send your latest phone snapshot. "+
+                "You will select a saved common baseline and approve any Windows changes afterward.");
+        }
+        catch(Exception error)
+        {
+            FilterStatus.Text="Could not start wireless peer apply: "+error.Message;
+        }
+    }
+
+    private async Task ApplyReceivedPeerSnapshotAsync(byte[] received,string device)
+    {
+        // Do not assume a random old export is a valid common checkpoint.
+        // The user must explicitly supply the previously shared snapshot.
+        var baselinePicker=new OpenFileDialog {
+            Title="Choose the last common PC/Android peer snapshot (before either device edited)",
+            Filter="Arcane Vault peer sync (*.json)|*.json",
+            CheckFileExists=true
+        };
+        if(NativeInAppDialog.Show(this,
+            "Received an Android snapshot from device "+device+
+            ".\n\nThe transfer did not update Windows. To prepare a three-way merge, "+
+            "select an earlier snapshot both devices last agreed on. "+
+            "Do not select a random historical export.\n\nContinue?",
+            "Review received Wi-Fi sync",MessageBoxButton.YesNo,
+            MessageBoxImage.Information)!=MessageBoxResult.Yes)return;
+        if(baselinePicker.ShowDialog(this)!=true)return;
+        var proposed=await Task.Run(()=>
+        {
+            var file=new FileInfo(baselinePicker.FileName);
+            if(file.Length is <=20 or > NativePeerSync.MaxBytes)
+                throw new InvalidDataException("Baseline must be 21 bytes to 30 MiB.");
+            return NativePeerSync.PrepareMerge(NativeWorkspace.DefaultPath,
+                received,File.ReadAllBytes(baselinePicker.FileName));
+        });
+        if(closing)return;
+        if(!proposed.HasChanges)
+        {
+            FilterStatus.Text="Received phone snapshot has no new changes to apply.";
+            return;
+        }
+        if(NativeInAppDialog.Show(this,
+            "Incoming updates: "+proposed.IncomingChanges+
+            "\nWindows-only edits retained: "+proposed.LocalChanges+
+            "\nPeer device: "+proposed.RemoteDevice+
+            "\n\nSimultaneously changed records, unmatched deletions, and "+
+            "unsupported metadata differences are refused. A rollback file "+
+            "will be retained. This does NOT update the Android device. "+
+            "Your selected baseline has not been authenticated as a paired checkpoint.\n\n"+
+            "Apply these changes to Windows?",
+            "Approve wireless peer merge",MessageBoxButton.YesNo,
+            MessageBoxImage.Warning)!=MessageBoxResult.Yes)return;
+        var result=await Task.Run(()=>
+            NativePeerSync.ApplyApprovedMerge(NativeWorkspace.DefaultPath,
+                proposed,proposed.ExpectedCurrentSha));
+        if(closing)return;
+        FilterStatus.Text="Applied "+proposed.IncomingChanges+
+            " wireless peer changes. Recovery: "+result.RecoveryPath;
+        await RefreshNativeWorkspaceAsync();
+    }
+
     private void OnCancelPeerLanClicked(object sender,RoutedEventArgs e)
     {
         wirelessPeer.Cancel();
