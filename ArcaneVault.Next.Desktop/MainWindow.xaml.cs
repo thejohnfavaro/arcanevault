@@ -1778,11 +1778,37 @@ public partial class MainWindow : Window
         UpdateWorkspaceNavigation();
     }
 
+    private void OnDataSyncSectionClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string section }) return;
+        ShowDataSyncSection(section);
+    }
+
+    private void ShowDataSyncSection(string section)
+    {
+        bool devices = section == "devices";
+        bool snapshots = section == "snapshots";
+        bool imports = section == "imports";
+        bool updates = section == "updates";
+        if (!(devices || snapshots || imports || updates)) return;
+        DataSyncDevicesPanel.Visibility = devices ? Visibility.Visible : Visibility.Collapsed;
+        DataSyncSnapshotsPanel.Visibility = snapshots ? Visibility.Visible : Visibility.Collapsed;
+        DataSyncImportsPanel.Visibility = imports ? Visibility.Visible : Visibility.Collapsed;
+        DataSyncUpdatesPanel.Visibility = updates ? Visibility.Visible : Visibility.Collapsed;
+        var active = (Style)FindResource("VaultNavPrimary");
+        var inactive = (Style)FindResource("VaultNavButtonDepth");
+        DataSyncDevicesTab.Style = devices ? active : inactive;
+        DataSyncSnapshotsTab.Style = snapshots ? active : inactive;
+        DataSyncImportsTab.Style = imports ? active : inactive;
+        DataSyncUpdatesTab.Style = updates ? active : inactive;
+    }
+
     private void OnShowDataSyncClicked(object sender, RoutedEventArgs e)
     {
         nativeWorkspaceRequested = false;
         edhLabRequested = false;
         dataSyncRequested = true;
+        ShowDataSyncSection("devices");
         UpdateWorkspaceNavigation();
     }
 
