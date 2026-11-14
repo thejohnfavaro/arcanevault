@@ -372,10 +372,15 @@ public static class NativePeerSync
         string nativePath,MergeProposal proposal,string expectedCurrentSha)
     {
         if(!proposal.HasChanges)throw new InvalidDataException("Nothing to apply.");
-        if(!string.Equals(proposal.ExpectedCurrentSha,expectedCurrentSha,StringComparison.Ordinal))
+        if(!string.Equals(proposal.ExpectedCurrentSha,expectedCurrentSha,
+                StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Merge candidate changed since approval.");
+        var actual=NativeWorkspace.Open(nativePath);
+        if(!string.Equals(actual.BackupSha256,proposal.ExpectedCurrentSha,
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Native collection changed since peer review.");
         return NativeWorkspaceSafety.Refresh(nativePath,proposal.CandidateBackup,
-            "peer-sync-v2-approved-three-way",expectedCurrentSha);
+            "peer-sync-v2-approved-three-way",actual.BackupSha256);
     }
 
     public static Preview Compare(string nativePath, byte[] incoming)
