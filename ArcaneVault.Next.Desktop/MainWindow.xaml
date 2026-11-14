@@ -401,6 +401,12 @@
                                     Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"
                                     ToolTip="Review individual physical, Arena, deck and artwork differences without changing any data"/>
+                                <Button x:Name="ComparePeerBaselineButton"
+                                    Content="≋   Three-Way Peer Comparison"
+                                    Click="OnComparePeerBaselineClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    Margin="0,0,0,5"
+                                    ToolTip="Select the incoming peer file and a verified previously shared baseline. Preview independent edits versus real conflicts; no data is written."/>
                                 <Button x:Name="RestoreRecoveryButton"
                                     Content="↶   Restore Recovery Point"
                                     Click="OnRestoreRecoveryClicked" IsEnabled="False"
