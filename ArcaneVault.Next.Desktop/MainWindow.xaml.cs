@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private NativeCollectionWindow? collectionWindow; // explicit read-only backup preview only
     private NativeCollectionWorkspace? nativeWorkspaceView;
     private bool nativeWorkspaceRequested;
+    private bool dataSyncRequested;
     private bool nativeWorkspaceLoading;
     private int nativeWorkspaceSelectedTab;
     private int nativeWorkspaceGeneration;
@@ -1744,8 +1745,11 @@ public partial class MainWindow : Window
 
     private void UpdateWorkspaceNavigation()
     {
-        CatalogWorkspace.Visibility = nativeWorkspaceRequested || edhLabRequested
-            ? Visibility.Collapsed : Visibility.Visible;
+        CatalogWorkspace.Visibility = nativeWorkspaceRequested || edhLabRequested ||
+            dataSyncRequested ? Visibility.Collapsed : Visibility.Visible;
+        DataSyncWorkspace.Visibility = dataSyncRequested &&
+            !nativeWorkspaceRequested && !edhLabRequested
+            ? Visibility.Visible : Visibility.Collapsed;
         NativeWorkspaceHost.Visibility = nativeWorkspaceRequested && !edhLabRequested
             ? Visibility.Visible : Visibility.Collapsed;
         EdhLabHost.Visibility = edhLabRequested
@@ -1753,8 +1757,10 @@ public partial class MainWindow : Window
 
         var active = (Style)FindResource("VaultNavPrimary");
         var inactive = (Style)FindResource("VaultNavButtonDepth");
-        CatalogNavigationButton.Style = nativeWorkspaceRequested || edhLabRequested
-            ? inactive : active;
+        CatalogNavigationButton.Style = nativeWorkspaceRequested || edhLabRequested ||
+            dataSyncRequested ? inactive : active;
+        DataSyncNavigationButton.Style = dataSyncRequested &&
+            !nativeWorkspaceRequested && !edhLabRequested ? active : inactive;
         EdhLabButton.Style = edhLabRequested ? active : inactive;
         OpenNativeButton.Style = nativeWorkspaceRequested &&
             nativeWorkspaceSelectedTab is not (2 or 3) ? active : inactive;
@@ -1768,6 +1774,41 @@ public partial class MainWindow : Window
     {
         nativeWorkspaceRequested = false;
         edhLabRequested = false;
+        dataSyncRequested = false;
+        UpdateWorkspaceNavigation();
+    }
+
+    private void OnDataSyncSectionClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string section }) return;
+        ShowDataSyncSection(section);
+    }
+
+    private void ShowDataSyncSection(string section)
+    {
+        bool devices = section == "devices";
+        bool snapshots = section == "snapshots";
+        bool imports = section == "imports";
+        bool updates = section == "updates";
+        if (!(devices || snapshots || imports || updates)) return;
+        DataSyncDevicesPanel.Visibility = devices ? Visibility.Visible : Visibility.Collapsed;
+        DataSyncSnapshotsPanel.Visibility = snapshots ? Visibility.Visible : Visibility.Collapsed;
+        DataSyncImportsPanel.Visibility = imports ? Visibility.Visible : Visibility.Collapsed;
+        DataSyncUpdatesPanel.Visibility = updates ? Visibility.Visible : Visibility.Collapsed;
+        var active = (Style)FindResource("VaultNavPrimary");
+        var inactive = (Style)FindResource("VaultNavButtonDepth");
+        DataSyncDevicesTab.Style = devices ? active : inactive;
+        DataSyncSnapshotsTab.Style = snapshots ? active : inactive;
+        DataSyncImportsTab.Style = imports ? active : inactive;
+        DataSyncUpdatesTab.Style = updates ? active : inactive;
+    }
+
+    private void OnShowDataSyncClicked(object sender, RoutedEventArgs e)
+    {
+        nativeWorkspaceRequested = false;
+        edhLabRequested = false;
+        dataSyncRequested = true;
+        ShowDataSyncSection("devices");
         UpdateWorkspaceNavigation();
     }
 
@@ -1821,6 +1862,7 @@ public partial class MainWindow : Window
 
     private async Task NavigateToNativeWorkspaceAsync(int section)
     {
+        dataSyncRequested = false;
         edhLabRequested = false;
         UpdateWorkspaceNavigation();
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
@@ -2219,6 +2261,7 @@ public partial class MainWindow : Window
         EdhReturnToDraftButton.IsEnabled = true;
         nativeWorkspaceRequested = false;
         edhLabRequested = true;
+        dataSyncRequested = false;
         UpdateWorkspaceNavigation();
     }
 
@@ -2328,6 +2371,7 @@ public partial class MainWindow : Window
         {
             nativeWorkspaceRequested = false;
             edhLabRequested = true;
+        dataSyncRequested = false;
             if (preferDraft && embeddedEdhDraft is not null)
                 EdhLabSurface.Content = embeddedEdhDraft;
             else EdhLabSurface.Content = edhLabWindow;
@@ -2406,6 +2450,7 @@ public partial class MainWindow : Window
             EdhLabSurface.Content = view;
             nativeWorkspaceRequested = false;
             edhLabRequested = true;
+        dataSyncRequested = false;
             UpdateWorkspaceNavigation();
             EdhLabButton.IsEnabled = true;
             FilterStatus.Text = $"{loaded.Index.LoadedCardIdentities:N0} read-only commander candidates loaded" +

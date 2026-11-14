@@ -902,39 +902,59 @@ internal static class NativeVisualShellChecks
 
 
 
-        // Administrative functions remain reachable but do not occupy the
-        // main workspace navigation. Keep handlers and IDs in their groups.
+        // Data & Sync is now a dedicated workspace rather than three
+        // nested sidebar expanders. All commands retain their stable IDs.
         var shell = XDocument.Parse(main);
         var groups = shell.Descendants()
             .Where(e => e.Name.LocalName == "Expander").ToArray();
-        foreach (var category in new[] {
-            (Name: "CardDatabaseSettings", Header: "Card Database",
-                Buttons: new[] { "SyncCatalogButton", "CancelCatalogButton",
-                    "OpenCatalogButton", "SaveNativeCatalogButton" }),
-            (Name: "DataSyncSettings", Header: "Data & Sync",
-                Buttons: new[] { "MigrateLegacyButton", "ImportNativeButton",
-                    "ExportFullBackupButton", "RestoreRecoveryButton",
-                    "CollectionBackupButton" }),
-            (Name: "NativeUpdatesSettings", Header: "Native Updates",
-                Buttons: new[] { "CheckNativeUpdatesButton" }),
-            (Name: "GeneralOptionsSettings", Header: "Options",
-                Buttons: new[] { "StartFreshButton" })
+        var options = groups.SingleOrDefault(e =>
+            e.Attribute(XName.Get("Name", XamlNs))?.Value == "GeneralOptionsSettings");
+        Must(options is not null &&
+            options.Attribute("Header")?.Value == "Options" &&
+            options.Attribute("IsExpanded")?.Value == "False" &&
+            options.Descendants().Any(e =>
+                e.Attribute(XName.Get("Name", XamlNs))?.Value == "StartFreshButton"),
+            "Options should remain a compact sidebar category.");
+
+        var syncPage = shell.Descendants().SingleOrDefault(e =>
+            e.Attribute(XName.Get("Name", XamlNs))?.Value == "DataSyncWorkspace");
+        Must(syncPage is not null &&
+            syncPage.Attribute("Visibility")?.Value == "Collapsed" &&
+            main.Contains("Click=\"OnShowDataSyncClicked\"", StringComparison.Ordinal) &&
+            main.Contains("x:Name=\"DataSyncNavigationButton\"", StringComparison.Ordinal),
+            "Data & Sync must be a navigable, initially hidden full-page workspace.");
+        foreach (var section in new[] {
+            (Tab: "DataSyncDevicesTab", Panel: "DataSyncDevicesPanel"),
+            (Tab: "DataSyncSnapshotsTab", Panel: "DataSyncSnapshotsPanel"),
+            (Tab: "DataSyncImportsTab", Panel: "DataSyncImportsPanel"),
+            (Tab: "DataSyncUpdatesTab", Panel: "DataSyncUpdatesPanel")
         })
         {
-            var group = groups.SingleOrDefault(e =>
-                e.Attribute(XName.Get("Name", XamlNs))?.Value == category.Name);
-            Must(group is not null &&
-                 group.Attribute("Header")?.Value == category.Header &&
-                 group.Attribute("IsExpanded")?.Value == "False",
-                "Collapsible sidebar category missing: " + category.Name);
-            foreach (string name in category.Buttons)
-                Must(group!.Descendants().Count(e =>
-                    e.Attribute(XName.Get("Name", XamlNs))?.Value == name) == 1,
-                    "Existing command missing from settings category: " + name);
+            Must(syncPage!.Descendants().Count(e =>
+                e.Attribute(XName.Get("Name", XamlNs))?.Value == section.Tab) == 1 &&
+                syncPage.Descendants().Count(e =>
+                    e.Attribute(XName.Get("Name", XamlNs))?.Value == section.Panel) == 1,
+                "Data & Sync must expose each section as a selectable full-page tab.");
         }
+        Must(main.Contains("Click=\"OnDataSyncSectionClicked\"", StringComparison.Ordinal) &&
+             File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs")).Contains("ShowDataSyncSection", StringComparison.Ordinal),
+             "Data & Sync tabs must switch visible content without modifying collections.");
+        foreach (string name in new[] {
+            "SyncCatalogButton", "CancelCatalogButton", "OpenCatalogButton",
+            "SaveNativeCatalogButton", "CheckNativeUpdatesButton", "NativeVersionLabel",
+            "MigrateLegacyButton", "ImportNativeButton", "ExportFullBackupButton",
+            "CreateSyncSnapshotButton", "RestoreRecoveryButton", "CollectionBackupButton",
+            "ExportPeerSyncButton", "PreviewPeerSyncButton", "ComparePeerBaselineButton",
+            "ApplyPeerMergeButton", "SharePeerLanButton", "ReceivePeerLanButton",
+            "ReceiveAndApplyPeerLanButton", "CancelPeerLanButton"
+        })
+            Must(syncPage!.Descendants().Count(e =>
+                e.Attribute(XName.Get("Name", XamlNs))?.Value == name) == 1,
+                "Data & Sync page lost action: " + name);
+
         foreach (var navigation in new[] {
-            "CatalogNavigationButton", "OpenNativeButton",
-            "DeckLibraryNavigationButton", "SetProgressNavigationButton"
+            "CatalogNavigationButton", "OpenNativeButton", "DeckLibraryNavigationButton",
+            "SetProgressNavigationButton", "DataSyncNavigationButton"
         })
             Must(!groups.Any(e => e.Descendants().Any(d =>
                 d.Attribute(XName.Get("Name", XamlNs))?.Value == navigation)),
