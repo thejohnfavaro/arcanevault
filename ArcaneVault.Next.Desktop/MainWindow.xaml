@@ -674,6 +674,24 @@
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Margin="0,0,12,7">
+                                <TextBlock Text="MANA VALUE (MIN–MAX)" Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox x:Name="ManaValueMinBox" Width="66" Height="36"
+                                             ToolTip="Minimum mana value (CMC), inclusive. Set both fields to the same value for exact."
+                                             TextChanged="OnCatalogFilterChanged"
+                                             Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                             Foreground="{DynamicResource VaultText}"/>
+                                    <TextBlock Text="–" VerticalAlignment="Center" Margin="6,0"
+                                               Foreground="{DynamicResource VaultMuted}"/>
+                                    <TextBox x:Name="ManaValueMaxBox" Width="66" Height="36"
+                                             ToolTip="Maximum mana value (CMC), inclusive; works with rarity and role filters"
+                                             TextChanged="OnCatalogFilterChanged"
+                                             Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                             Foreground="{DynamicResource VaultText}"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="TYPE CONTAINS" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
                                 <TextBox x:Name="TypeFilterBox" Width="163" Height="36"
