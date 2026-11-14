@@ -30,6 +30,29 @@ public static class NativePeerSync
         public bool SafeToAutoApply => false; // no common-base proof in v1
     }
 
+    public static string DeviceId()
+    {
+        string location=Path.Combine(NativeWorkspace.RootDirectory,"peer-device-id.txt");
+        Directory.CreateDirectory(NativeWorkspace.RootDirectory);
+        if(File.Exists(location))
+        {
+            string existing=File.ReadAllText(location).Trim();
+            if(Guid.TryParse(existing,out Guid valid) && valid!=Guid.Empty)
+                return valid.ToString("D");
+            throw new InvalidDataException("Saved peer identity is invalid; do not silently replace it.");
+        }
+        string created=Guid.NewGuid().ToString("D");
+        try { File.WriteAllText(location,created); }
+        catch(IOException) when(File.Exists(location))
+        {
+            string saved=File.ReadAllText(location).Trim();
+            if(Guid.TryParse(saved,out Guid parsed)&&parsed!=Guid.Empty)
+                return parsed.ToString("D");
+            throw;
+        }
+        return created;
+    }
+
     private static string Digest(byte[] bytes) =>
         Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
@@ -103,11 +126,8 @@ public static class NativePeerSync
         string revision = root["revision"]?.GetValue<string>() ?? "";
         if (revision.Length != 64 || !revision.All(Uri.IsHexDigit))
             throw new InvalidDataException("Missing peer snapshot fingerprint.");
-        string actual = Digest(JsonSerializer.SerializeToUtf8Bytes(data));
-        // JSON parse/re-serialization is deterministic for our own exported
-        // documents but cross-platform serializers may alter whitespace.
-        // Validate semantic content; the peer revision is opaque metadata
-        // until canonical JSON is shared by both platforms.
+        // Fingerprints are metadata until a shared canonical serialization is
+        // adopted. Never treat them alone as authority to replace records.
         return (id.ToString("D"), revision, data);
     }
 
