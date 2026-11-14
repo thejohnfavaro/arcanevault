@@ -77,7 +77,8 @@
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
-    <Grid Margin="10" MinWidth="0" MinHeight="0">
+    <Grid x:Name="EdhEditorRoot" Margin="10" MinWidth="0" MinHeight="0"
+          SizeChanged="OnEdhEditorRootSizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
