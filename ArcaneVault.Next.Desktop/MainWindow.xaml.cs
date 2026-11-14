@@ -1119,6 +1119,79 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnApplyPeerMergeClicked(object sender,RoutedEventArgs e)
+    {
+        if(!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text="Open the verified native collection before applying peer changes.";
+            return;
+        }
+        var remotePicker=new OpenFileDialog {
+            Title="Select the latest Android peer snapshot",
+            Filter="Arcane Vault peer sync (*.json)|*.json",CheckFileExists=true
+        };
+        if(remotePicker.ShowDialog(this)!=true)return;
+        var baselinePicker=new OpenFileDialog {
+            Title="Select the earlier common baseline (last identical state on BOTH devices)",
+            Filter="Arcane Vault peer sync (*.json)|*.json",CheckFileExists=true
+        };
+        if(baselinePicker.ShowDialog(this)!=true)return;
+        if(Path.GetFullPath(remotePicker.FileName).Equals(
+            Path.GetFullPath(baselinePicker.FileName),StringComparison.OrdinalIgnoreCase))
+        {
+            FilterStatus.Text="The incoming snapshot and earlier baseline cannot be the same file.";
+            return;
+        }
+        ApplyPeerMergeButton.IsEnabled=false;
+        try
+        {
+            var proposal=await Task.Run(() =>
+            {
+                byte[] Read(string path)
+                {
+                    var file=new FileInfo(path);
+                    if(file.Length is <=20 or > NativePeerSync.MaxBytes)
+                        throw new InvalidDataException("Sync file exceeds 30 MiB or is empty.");
+                    return File.ReadAllBytes(path);
+                }
+                return NativePeerSync.PrepareMerge(NativeWorkspace.DefaultPath,
+                    Read(remotePicker.FileName),Read(baselinePicker.FileName));
+            });
+            if(closing)return;
+            if(!proposal.HasChanges)
+            {
+                FilterStatus.Text="All incoming changes are already present. Nothing was applied.";
+                return;
+            }
+            if(NativeInAppDialog.Show(this,
+                "Apply "+proposal.IncomingChanges+" independently changed peer records?\n\n"+
+                "Locally modified records kept: "+proposal.LocalChanges+"\n"+
+                "Peer device: "+proposal.RemoteDevice+"\n\n"+
+                "Records edited on both devices, ambiguous deletions, and opaque "+
+                "metadata changes are refused. This version requires you to "+
+                "select the actual last shared baseline, which is not yet authenticated.\n\n"+
+                "Windows will verify the original workspace SHA, stage and verify "+
+                "the complete merged workspace, and retain a rollback database. "+
+                "The Android device will NOT be changed by this operation.\n\n"+
+                "Apply this reviewed Windows-only merge?",
+                "Confirm peer sync application",MessageBoxButton.YesNo,
+                MessageBoxImage.Warning)!=MessageBoxResult.Yes)return;
+
+            var applied=await Task.Run(()=>
+                NativePeerSync.ApplyApprovedMerge(NativeWorkspace.DefaultPath,
+                    proposal,proposal.ExpectedCurrentSha));
+            if(closing)return;
+            FilterStatus.Text="Applied "+proposal.IncomingChanges+
+                " incoming peer records. Recovery saved at "+applied.RecoveryPath;
+            await RefreshNativeWorkspaceAsync();
+        }
+        catch(Exception ex)
+        {
+            if(!closing)FilterStatus.Text="Peer sync was not applied: "+ex.Message;
+        }
+        finally{ApplyPeerMergeButton.IsEnabled=true;}
+    }
+
     private async void OnExportFullBackupClicked(object sender, RoutedEventArgs e)
     {
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
