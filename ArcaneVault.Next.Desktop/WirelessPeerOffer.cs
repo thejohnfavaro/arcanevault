@@ -18,7 +18,8 @@ internal sealed class WirelessPeerOffer : IDisposable
     private CancellationTokenSource? stop;
     private byte[]? payload;
     private Func<byte[],Task>? receive;
-    private Func<byte[],Task<byte[]>>? replyToUsbBaseline;
+    private Func<byte[],int,Task<byte[]>>? replyToUsbBaseline;
+    private int baselinePhase;
     private string? token;
     private DateTimeOffset expires;
     private bool busy;
@@ -29,11 +30,11 @@ internal sealed class WirelessPeerOffer : IDisposable
     // ADB reverse exposes loopback on the phone, with no Wi-Fi listener.
     public Offer ShareUsb(byte[] snapshot)=>Start(snapshot,null,true);
     public Offer RequestUsb(Func<byte[],Task> handler)=>Start(null,handler,true);
-    public Offer RequestUsbBaseline(Func<byte[],Task<byte[]>> handler)=>
+    public Offer RequestUsbBaseline(Func<byte[],int,Task<byte[]>> handler)=>
         Start(null,null,true,handler);
 
     private Offer Start(byte[]? bytes,Func<byte[],Task>? handler,bool usb=false,
-        Func<byte[],Task<byte[]>>? baselineReply=null)
+        Func<byte[],int,Task<byte[]>>? baselineReply=null)
     {
         if(bytes is {Length: < 20 or > MaxBytes})
             throw new InvalidDataException("Peer snapshot exceeds 30 MiB or is empty.");
@@ -48,6 +49,7 @@ internal sealed class WirelessPeerOffer : IDisposable
             payload=bytes?.ToArray();
             receive=handler;
             replyToUsbBaseline=baselineReply;
+            baselinePhase=0;
             token=Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
             expires=DateTimeOffset.UtcNow.AddMinutes(5);
             int port=((IPEndPoint)listener.LocalEndpoint).Port;
@@ -128,13 +130,15 @@ internal sealed class WirelessPeerOffer : IDisposable
                 }
                 byte[]? outgoing;
                 Func<byte[],Task>? callback;
-                Func<byte[],Task<byte[]>>? baselineCallback;
+                Func<byte[],int,Task<byte[]>>? baselineCallback;
+                int phase=0;
                 lock(gate)
                 {
                     if(busy||token==null||DateTimeOffset.UtcNow>=expires||
                         request!=$"{(receive is null && replyToUsbBaseline is null?"GET":"POST")} /arcane-peer/{token} HTTP/1.1")return;
                     claimed=true;busy=true;
                     outgoing=payload;callback=receive;baselineCallback=replyToUsbBaseline;
+                    phase=baselinePhase;
                 }
                 if(callback is null && outgoing!=null)
                 {
@@ -148,10 +152,13 @@ internal sealed class WirelessPeerOffer : IDisposable
                     if(baselineCallback!=null) {
                         // This separate consented setup path may persist only
                         // a validated matching checkpoint, never live data.
-                        byte[] response=await baselineCallback(bytes);
+                        byte[] response=await baselineCallback(bytes,phase);
                         if(response.Length<20||response.Length>MaxBytes)
                             throw new InvalidDataException("Invalid baseline response size.");
                         await Reply(stream,200,response,ct);
+                        if(phase==0) {
+                            lock(gate){baselinePhase=1;}
+                        }
                     } else {
                         // Standard peer upload remains preview-only.
                         await callback!(bytes);
@@ -163,7 +170,8 @@ internal sealed class WirelessPeerOffer : IDisposable
                     await Reply(stream,413,Encoding.UTF8.GetBytes("{\"error\":\"invalid size\"}"),ct);
                     return;
                 }
-                lock(gate)StopLocked();
+                if(baselineCallback==null || phase==1)
+                    lock(gate)StopLocked();
             }
             catch(Exception e) when(e is IOException or SocketException or OperationCanceledException or InvalidDataException or ObjectDisposedException){}
             finally{if(claimed){lock(gate)busy=false;}}
@@ -192,7 +200,7 @@ internal sealed class WirelessPeerOffer : IDisposable
     {
         try{stop?.Cancel();listener?.Stop();}catch{}
         stop?.Dispose();stop=null;listener=null;
-        token=null;payload=null;receive=null;replyToUsbBaseline=null;busy=false;
+        token=null;payload=null;receive=null;replyToUsbBaseline=null;baselinePhase=0;busy=false;
     }
     public void Cancel(){lock(gate)StopLocked();}
     public void Dispose()=>Cancel();
