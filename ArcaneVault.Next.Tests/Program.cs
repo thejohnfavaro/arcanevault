@@ -167,6 +167,7 @@ try
     NativeFormatLegalityChecks.Run(work);
     NativeUpdateChecks.Run(work);
     NativeFullBackupExportChecks.Run(work);
+    NativePeerSyncChecks.Run(work);
     NativeVisualShellChecks.Run();
     NativeReleaseNotesChecks.Run();
     LegacyStorageImportChecks.Run(work);
