@@ -31,6 +31,7 @@ public partial class NativeDeckEditorView
         var catalog = edhCatalog.AllEligibleCards;
         string colors = edhLabColors ?? "";
         bool arena = OwnedPoolBox?.SelectedIndex == 1;
+        bool optimizeBasics = EdhOptimizeBasicLands?.IsChecked == true;
         var proxySnapshot = arena ? null :
             new Dictionary<string, long>(proxyCounts, StringComparer.OrdinalIgnoreCase);
         lastManaBaseProposal = null;
@@ -45,13 +46,14 @@ public partial class NativeDeckEditorView
                 .Select(x => (x.Name, x.Quantity)).ToArray();
             var proposal = await Task.Run(() =>
                 EdhLabManaBaseBuilder.Build(catalog, colors, entries,
-                    target, proxySnapshot, arena));
+                    target, proxySnapshot, arena, optimizeBasics));
             if (request != manaBaseRequestVersion || !IsLoaded ||
                 !string.Equals(source, MainboardBox.Text, StringComparison.Ordinal) ||
                 edhCatalog is null ||
                 !ReferenceEquals(catalog, edhCatalog.AllEligibleCards) ||
                 (edhLabColors ?? "") != colors ||
                 (OwnedPoolBox?.SelectedIndex == 1) != arena ||
+                (EdhOptimizeBasicLands?.IsChecked == true) != optimizeBasics ||
                 !TryLandTarget(out int currentTarget) || currentTarget != target)
             {
                 EdhManaBasePlanStatus.Text =
@@ -92,6 +94,7 @@ public partial class NativeDeckEditorView
                 !string.Equals(edhLabColors ?? "", proposal.CommanderColors,
                     StringComparison.Ordinal) ||
                 (OwnedPoolBox?.SelectedIndex == 1) != proposal.IsArena ||
+                (EdhOptimizeBasicLands?.IsChecked == true) != proposal.OptimizedBasics ||
                 !TryLandTarget(out int target) || target != proposal.Target)
                 throw new InvalidDataException(
                     "The draft, commander, availability pool, or land target changed. Rebuild the proposal.");
