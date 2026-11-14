@@ -73,7 +73,7 @@ public sealed class CatalogSnapshot : IDisposable
         OwnershipMode Ownership = OwnershipMode.All,
         string Role = "", bool IncludeProxies = false,
         double? ManaValueMin = null, double? ManaValueMax = null,
-        string OracleContains = "")
+        string OracleContains = "", bool OracleMatchAny = false)
     {
         public bool IsDefault =>
             SetCode.Length == 0 && Rarity.Length == 0 && TypeContains.Length == 0 &&
@@ -416,6 +416,14 @@ public sealed class CatalogSnapshot : IDisposable
         string oracle = filters.OracleContains.Trim();
         if (set.Length > 20 || type.Length > 80 || oracle.Length > 120)
             throw new ArgumentException("Catalog filter exceeds its supported length.");
+        // Commas separate literal ability phrases, not words. Keep the
+        // parameter count bounded and reject blank comma-separated terms.
+        var oracleTerms = oracle.Length == 0
+            ? Array.Empty<string>()
+            : oracle.Split(',', StringSplitOptions.TrimEntries);
+        if (oracleTerms.Length > 8 || oracleTerms.Any(term => term.Length == 0))
+            throw new ArgumentException(
+                "Enter 1–8 nonempty comma-separated keyword phrases.");
         bool needsCard = filters.ManaValueMin.HasValue || filters.ManaValueMax.HasValue ||
             filters.ColorlessOnly || color.Length > 0 || type.Length > 0 ||
             HasRoleMetadata || filters.Role.Length > 0 || oracle.Length > 0;
@@ -488,13 +496,22 @@ public sealed class CatalogSnapshot : IDisposable
                 where.Add(@"c.type LIKE $type ESCAPE '\' COLLATE NOCASE");
                 cmd.Parameters.AddWithValue("$type", "%" + EscapeLike(type) + "%");
             }
-            if (oracle.Length > 0)
+            if (oracleTerms.Length > 0)
             {
-                // Scryfall Oracle text contains keyword ability names as well as
-                // full rules text, including multi-face text indexed at sync time.
-                // Parameterized literal substring search; never interpret % or _.
-                where.Add(@"c.oracle LIKE $oracle ESCAPE '\' COLLATE NOCASE");
-                cmd.Parameters.AddWithValue("$oracle", "%" + EscapeLike(oracle) + "%");
+                // Each comma-delimited mechanic is an independent literal
+                // Oracle substring. A normal query requires every phrase;
+                // Match Any switches only this group to OR.
+                var predicates = new List<string>(oracleTerms.Length);
+                for (int i = 0; i < oracleTerms.Length; i++)
+                {
+                    string parameter = "$oracle" + i;
+                    predicates.Add(@"c.oracle LIKE " + parameter +
+                        @" ESCAPE '\' COLLATE NOCASE");
+                    cmd.Parameters.AddWithValue(parameter,
+                        "%" + EscapeLike(oracleTerms[i]) + "%");
+                }
+                where.Add("(" + string.Join(filters.OracleMatchAny ? " OR " : " AND ",
+                    predicates) + ")");
             }
             if (filters.ColorlessOnly)
                 where.Add("c.colors = ''");
