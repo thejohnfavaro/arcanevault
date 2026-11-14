@@ -979,6 +979,71 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnComparePeerBaselineClicked(object sender, RoutedEventArgs e)
+    {
+        if (!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Open your native collection before comparing peer edits.";
+            return;
+        }
+        var incomingPicker = new OpenFileDialog
+        {
+            Title = "Step 1: Choose the latest Android / Windows peer snapshot",
+            Filter = "Arcane Vault peer sync (*.json)|*.json",
+            CheckFileExists = true
+        };
+        if (incomingPicker.ShowDialog(this) != true) return;
+        var basePicker = new OpenFileDialog
+        {
+            Title = "Step 2: Choose the previously shared sync baseline",
+            Filter = "Arcane Vault peer sync (*.json)|*.json",
+            CheckFileExists = true
+        };
+        if (basePicker.ShowDialog(this) != true) return;
+        if (Path.GetFullPath(incomingPicker.FileName).Equals(
+                Path.GetFullPath(basePicker.FileName), StringComparison.OrdinalIgnoreCase))
+        {
+            FilterStatus.Text = "Peer and baseline must be different verified snapshots.";
+            return;
+        }
+        try
+        {
+            var planned = await Task.Run(() =>
+            {
+                byte[] Read(string path)
+                {
+                    var info = new FileInfo(path);
+                    if (info.Length is <= 20 or > NativePeerSync.MaxBytes)
+                        throw new InvalidDataException("Peer file must be 21 bytes to 30 MiB.");
+                    return File.ReadAllBytes(path);
+                }
+                return NativePeerSync.CompareWithBaseline(NativeWorkspace.DefaultPath,
+                    Read(incomingPicker.FileName), Read(basePicker.FileName));
+            });
+            string details = string.Join("\n", planned.Records.Take(16).Select(c =>
+                c.Decision + (c.IncomingDeletion ? " (peer lacks record)" : "") +
+                " · " + c.Group + " · " + c.Key[..Math.Min(100,c.Key.Length)]));
+            if (planned.Records.Count > 16)
+                details += "\n… and " + (planned.Records.Count - 16) + " more";
+            NativeInAppDialog.Show(this,
+                "Compared your native workspace, the latest peer snapshot and " +
+                "a user-selected previous common snapshot.\n\n" +
+                "Incoming-only changes: " + planned.IncomingOnly.ToString("N0") + "\n" +
+                "Windows-only changes: " + planned.LocalOnly.ToString("N0") + "\n" +
+                "Concurrent conflicts: " + planned.Conflicts.ToString("N0") +
+                "\n\n" + details +
+                "\n\nNo changes were applied. The supplied baseline has not yet been " +
+                "authenticated as a paired-device checkpoint.",
+                "Windows / Android three-way sync review", MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            FilterStatus.Text = "Three-way peer comparison completed without changing data.";
+        }
+        catch (Exception ex)
+        {
+            FilterStatus.Text = "Three-way peer comparison failed: " + ex.Message;
+        }
+    }
+
     private async void OnExportFullBackupClicked(object sender, RoutedEventArgs e)
     {
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
