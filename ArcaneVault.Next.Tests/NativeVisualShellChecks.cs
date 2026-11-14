@@ -794,7 +794,7 @@ internal static class NativeVisualShellChecks
             "NativeDeckEditorWindow", "NativeImportDiffWindow", "NativeAddPrintingWindow",
             "NativeAdjustPhysicalWindow", "NativeArenaEditorWindow",
             "NativeFreshStartWindow", "CommanderBrowserWindow",
-            "CommanderBrowserView", "NativeDeckEditorView"
+            "CommanderBrowserView", "NativeDeckEditorView", "NativeShortlistWorkspace"
         };
         foreach (var name in sourceWindows)
         {
@@ -804,8 +804,12 @@ internal static class NativeVisualShellChecks
             var doc = XDocument.Parse(xml);
             string code = File.ReadAllText(csPath);
             if (name == "MainWindow")
+            {
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "MainWindow.InspectorAndNotices.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "MainWindow.NativeUpdatePrompt.cs"));
+            }
             if (name == "NativeCollectionWorkspace")
             {
                 code += "\n" + File.ReadAllText(

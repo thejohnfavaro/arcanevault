@@ -72,6 +72,7 @@ public partial class CommanderBrowserView : UserControl
         {
             CommanderInspectorPanel.Visibility = Visibility.Collapsed;
             CommanderInspectorArt.ArtUrl = "";
+            CommanderInspectorArtworkPanel.Visibility = Visibility.Collapsed;
             return;
         }
         var card = selected.Card;
@@ -80,6 +81,8 @@ public partial class CommanderBrowserView : UserControl
         frontCommanderArt = NativeCardArtwork.IsTrustedArtworkUrl(card.ImageUrl)
             ? card.ImageUrl : "";
         CommanderInspectorArt.ArtUrl = frontCommanderArt;
+        CommanderInspectorArtworkPanel.Visibility = string.IsNullOrEmpty(frontCommanderArt)
+            ? Visibility.Collapsed : Visibility.Visible;
         _ = FindCommanderAlternateFaceAsync(card.Name,frontCommanderArt,++commanderFaceVersion);
         CommanderInspectorType.Text = card.TypeLine;
         CommanderInspectorOwnership.Text = selected.InventoryText +

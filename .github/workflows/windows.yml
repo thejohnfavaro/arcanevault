@@ -35,6 +35,7 @@ jobs:
           node tests/phase0-audit.mjs
           node tests/native-first-usb-sync.mjs
           node tests/native-cross-platform-parity.mjs
+          node tests/native-update-ui-and-card-threading.mjs
       - name: Restore packages
         run: dotnet restore ArcaneVault.sln
       - name: Build solution
