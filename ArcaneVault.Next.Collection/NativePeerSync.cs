@@ -239,6 +239,144 @@ public static class NativePeerSync
         return new ThreeWayPlan(Digest(bytes),remote.Revision,baseSnapshot.Revision,output);
     }
 
+    public sealed record MergeProposal(
+        string ExpectedCurrentSha,
+        string RemoteDevice,
+        int IncomingChanges,
+        int LocalChanges,
+        byte[] CandidateBackup,
+        bool HasChanges);
+
+    /// <summary>
+    /// Prepare a three-way, non-destructive merge. A missing incoming record
+    /// is NOT a tombstone and never deletes an existing local record. Reject
+    /// simultaneous edits, duplicate record IDs, invalid baselines, and opaque
+    /// changes that cannot be reconciled reliably.
+    /// </summary>
+    public static MergeProposal PrepareMerge(
+        string nativePath,byte[] incoming,byte[] commonBaseline)
+    {
+        var remote=ParsePeer(incoming);
+        var ancestor=ParsePeer(commonBaseline);
+        if(remote.Device == DeviceId())
+            throw new InvalidDataException("Cannot merge a snapshot from this same device.");
+        byte[] localBytes=ReadCurrent(nativePath);
+        var local=RequireData(JsonNode.Parse(localBytes));
+        var baseData=ancestor.Data;
+        var remoteData=remote.Data;
+
+        var candidate=(JsonObject)local.DeepClone();
+        int incomingCount=0,localCount=0;
+        foreach(string group in new[]{"cards","physicalCards","deckLibrary"})
+        {
+            var a=Index(group,(JsonArray)local[group]!);
+            var b=Index(group,(JsonArray)baseData[group]!);
+            var c=Index(group,(JsonArray)remoteData[group]!);
+            var localNodes=((JsonArray)local[group]!).ToDictionary(
+                row=>Key(group,row),row=>row!,StringComparer.OrdinalIgnoreCase);
+            var remoteNodes=((JsonArray)remoteData[group]!).ToDictionary(
+                row=>Key(group,row),row=>row!,StringComparer.OrdinalIgnoreCase);
+            var merged=new Dictionary<string,JsonNode>(StringComparer.OrdinalIgnoreCase);
+            foreach(string key in a.Keys.Union(b.Keys,StringComparer.OrdinalIgnoreCase)
+                .Union(c.Keys,StringComparer.OrdinalIgnoreCase))
+            {
+                a.TryGetValue(key,out string? own);
+                b.TryGetValue(key,out string? old);
+                c.TryGetValue(key,out string? other);
+                if(other is null && old is not null && own is not null)
+                    throw new InvalidDataException("Peer record absence is not a deletion tombstone: "+group+"/"+key);
+                if(own is null && old is not null && other is not null)
+                    throw new InvalidDataException("Local record absence is not a deletion tombstone: "+group+"/"+key);
+                if(own!=other && own!=old && other!=old)
+                    throw new InvalidDataException("Conflicting edits need manual resolution: "+group+"/"+key);
+                JsonNode? selected;
+                if(own==old && other!=old)
+                {
+                    incomingCount++;
+                    selected=other is null?null:remoteNodes[key];
+                }
+                else
+                {
+                    if(own!=old && own!=other)localCount++;
+                    selected=own is null?null:localNodes[key];
+                }
+                if(selected is not null)merged.Add(key,selected.DeepClone());
+            }
+            // Keep local order for existing deck library and append new peer IDs.
+            var output=new JsonArray();
+            foreach(var row in (JsonArray)local[group]!)
+            {
+                string key=Key(group,row);
+                if(merged.Remove(key,out JsonNode? value))output.Add(value);
+            }
+            foreach(var row in (JsonArray)remoteData[group]!)
+            {
+                string key=Key(group,row);
+                if(merged.Remove(key,out JsonNode? value))output.Add(value);
+            }
+            if(merged.Count!=0)throw new InvalidDataException("Merge left unmatched records.");
+            candidate[group]=output;
+        }
+        var localArt=(JsonObject)local["preferredArtwork"]!;
+        var baseArt=(JsonObject)baseData["preferredArtwork"]!;
+        var remoteArt=(JsonObject)remoteData["preferredArtwork"]!;
+        var mergedArt=(JsonObject)localArt.DeepClone();
+        foreach(string key in localArt.Select(x=>x.Key)
+            .Union(baseArt.Select(x=>x.Key),StringComparer.OrdinalIgnoreCase)
+            .Union(remoteArt.Select(x=>x.Key),StringComparer.OrdinalIgnoreCase))
+        {
+            bool hasLocal=localArt.TryGetPropertyValue(key,out var localValue);
+            bool hasBase=baseArt.TryGetPropertyValue(key,out var baseValue);
+            bool hasRemote=remoteArt.TryGetPropertyValue(key,out var remoteValue);
+            if(hasBase && (!hasRemote || !hasLocal))
+                throw new InvalidDataException("Artwork deletion requires an explicit tombstone: "+key);
+            var own=hasLocal?Canonical(localValue):null;
+            var old=hasBase?Canonical(baseValue):null;
+            var other=hasRemote?Canonical(remoteValue):null;
+            if(own!=other && own!=old && other!=old)
+                throw new InvalidDataException("Conflicting artwork edits: "+key);
+            if(own==old && other!=old)
+            {
+                if(!hasRemote)throw new InvalidDataException("Artwork deletion missing tombstone: "+key);
+                mergedArt[key]=remoteValue?.DeepClone();incomingCount++;
+            }
+            else if(own!=old && own!=other)localCount++;
+        }
+        candidate["preferredArtwork"]=mergedArt;
+
+        // Unknown or opaque workspace metadata must never silently be
+        // overwritten. Keep the native local value and reject remote edits.
+        foreach(var field in remoteData)
+        {
+            if(field.Key is "cards" or "physicalCards" or "deckLibrary" or "preferredArtwork")continue;
+            string? old=baseData[field.Key] is null?null:Canonical(baseData[field.Key]);
+            string? proposed=field.Value is null?null:Canonical(field.Value);
+            if(old!=proposed && local[field.Key] is not null &&
+                Canonical(local[field.Key])!=proposed)
+                throw new InvalidDataException("Unknown workspace field changed on peer: "+field.Key);
+        }
+        byte[] proposedBytes=JsonSerializer.SerializeToUtf8Bytes(candidate);
+        if(proposedBytes.Length>MaxBytes)
+            throw new InvalidDataException("Merged snapshot exceeds 30 MiB.");
+        // Validate every candidate field with the same reader as native import.
+        NativeBackupReader.Read(proposedBytes);
+        return new MergeProposal(Digest(localBytes),remote.Device,incomingCount,localCount,
+            proposedBytes,incomingCount>0);
+    }
+
+    /// <summary>Call only after explicit user approval of PrepareMerge.
+    /// A changed local SHA aborts. NativeWorkspaceSafety stages, verifies and
+    /// retains the previous SQLite file as a rollback.</summary>
+    public static NativeWorkspaceSafety.Replacement ApplyApprovedMerge(
+        string nativePath,MergeProposal proposal,string expectedCurrentSha)
+    {
+        if(!proposal.HasChanges)throw new InvalidDataException("Nothing to apply.");
+        if(!string.Equals(proposal.ExpectedCurrentSha,expectedCurrentSha,StringComparison.Ordinal))
+            throw new InvalidDataException("Merge candidate changed since approval.");
+        return NativeWorkspaceSafety.Refresh(nativePath,proposal.CandidateBackup,
+            "peer-sync-v2-approved-three-way",expectedCurrentSha);
+    }
+
     public static Preview Compare(string nativePath, byte[] incoming)
     {
         var peer = ParsePeer(incoming);
