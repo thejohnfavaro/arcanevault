@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
-        Title="Arcane Vault — Native Windows" Width="1330" Height="850"
+        Title="Arcane Vault" Width="1330" Height="850"
         MinWidth="965" MinHeight="655"
         Background="{DynamicResource VaultBackground}"
         Foreground="{DynamicResource VaultText}">
@@ -280,7 +280,7 @@
                                    Text="PRIVATE BY DESIGN"/>
                         <TextBlock Style="{StaticResource VaultMutedText}"
                                    Margin="0,7,0,0"
-                                   Text="Your inventory, deck library and recovery points stay in the native Windows workspace."/>
+                                   Text="Your inventory, decks, and recovery points are saved locally."/>
                         <Border Margin="0,12,0,0" BorderBrush="{DynamicResource VaultLine}"
                                 BorderThickness="0,1,0,0" Padding="0,10,0,0">
                             <TextBlock Foreground="{DynamicResource VaultGood}"
@@ -309,16 +309,7 @@
                                     <Run Text="ARCANE "/><Run Text="VAULT"
                                             Foreground="{DynamicResource VaultAccent}"/>
                                 </TextBlock>
-                                <Button x:Name="ActivityHistoryButton"
-                                        Content="◉  Activity (0)"
-                                        Click="OnActivityHistoryClicked"
-                                        FontSize="11" Padding="7,3"
-                                        Margin="0,3,0,0"
-                                        HorizontalAlignment="Left"
-                                        Background="{DynamicResource VaultPanelRaised}"
-                                        Foreground="{DynamicResource VaultText}"
-                                        BorderBrush="{DynamicResource VaultAccentBorder}"
-                                        ToolTip="Open in-app notification history"/>
+
                             </StackPanel>
                         </StackPanel>
 
@@ -584,14 +575,14 @@
                         Click="OnSyntheticClicked"
                         Style="{StaticResource VaultNavButtonDepth}"/>
                         <Button x:Name="CheckNativeUpdatesButton"
-                        Content="⬆   Check Native Updates"
+                        Content="⬆   Check for Updates"
                         Click="OnCheckNativeUpdatesClicked"
                         Style="{StaticResource VaultNavPrimary}"
-                        ToolTip="Find a newer native preview release, verify its checksum, and install side-by-side"
+                        ToolTip="Check verified Arcane Vault releases and safely install the latest version"
                         Margin="0,12,0,5"/>
                         <TextBlock x:Name="NativeVersionLabel"
                         Style="{StaticResource VaultMutedText}"
-                        Text="Native preview version" Margin="10,2,0,5"/>
+                        Text="Installed version" Margin="10,2,0,5"/>
                     </StackPanel>
                 </Border>
                     </StackPanel>
@@ -624,14 +615,16 @@
                     <TextBlock Text="Find cards, explore printings, and manage your own vault."
                                Style="{StaticResource VaultMutedText}" Margin="0,5,0,0"/>
                 </StackPanel>
-                <Border Grid.Column="1" Background="{DynamicResource VaultAccentSurface}"
-                        BorderBrush="{DynamicResource VaultAccentBorder}" BorderThickness="1"
-                        CornerRadius="18" Padding="13,7"
-                        VerticalAlignment="Top" Margin="10,6,0,0">
-                    <TextBlock Text="●  NATIVE WINDOWS PREVIEW"
-                               FontSize="10.5" FontWeight="SemiBold"
-                               Foreground="{DynamicResource VaultAccent}"/>
-                </Border>
+                <Button x:Name="ActivityHistoryButton" Grid.Column="1"
+                        Content="◉  Activity (0)" Click="OnActivityHistoryClicked"
+                        FontSize="11" FontWeight="SemiBold"
+                        Padding="13,7" Margin="10,6,0,0"
+                        VerticalAlignment="Top"
+                        HorizontalAlignment="Right"
+                        Background="{DynamicResource VaultAccentSurface}"
+                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                        Foreground="{DynamicResource VaultAccent}"
+                        ToolTip="View Arcane Vault in-app notification history"/>
             </Grid>
 
             <Border Grid.Row="1" Style="{StaticResource VaultElevatedPanel}"
