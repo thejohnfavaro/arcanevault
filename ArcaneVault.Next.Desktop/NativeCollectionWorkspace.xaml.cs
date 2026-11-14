@@ -670,7 +670,13 @@ public partial class NativeCollectionWorkspace : UserControl
                 arenaProgressLoading = false;
             }
         }
-        if (!closing) RefreshSetList();
+        if (!closing)
+        {
+            RefreshSetList();
+            // Resume the user's selected set after restoring an Arena scope.
+            // This runs only after its cached catalog/name coverage is ready.
+            await RestorePendingSetAsync();
+        }
     }
 
     private async Task LoadSetDetailsAsync(NativeSetProgress.SetRow selected)
