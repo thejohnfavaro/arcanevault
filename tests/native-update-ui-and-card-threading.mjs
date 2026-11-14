@@ -11,7 +11,7 @@ const retention=read('ArcaneVault.Next.Collection/NativeVersionRetention.cs');
 for(const operation of [
   'GetPreferredArtwork(nativePath, cardName)',
   'NativeCardFaceLookup.Alternate(catalogPath,cardName,activeFrontArt)',
-  'NativeWorkspaceSafety.SetShortlistCard(\n                    nativePath, cardName',
+  'nativePath, cardName, !isSaved',
 ])assert.ok(details.includes(operation),'Captured UI value missing: '+operation);
 assert.doesNotMatch(details,/Task\.Run\(\(\)\s*=>\s*NativeWorkspaceSafety\.GetPreferredArtwork\(nativePath,\s*CardName\.Text/);
 assert.doesNotMatch(details,/Task\.Run\(\(\)\s*=>\s*NativeCardFaceLookup\.Alternate\(catalogPath,\s*CardName\.Text/);
