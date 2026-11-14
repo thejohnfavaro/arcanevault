@@ -14,7 +14,7 @@ public sealed class CatalogSnapshot : IDisposable
     public sealed record PrintingRow(string Name, string SetCode, string CollectorNumber,
         int PhysicalOwned = 0, int ArenaOwned = 0, int UnresolvedName = 0,
         string ImageUrl = "", string RolesLabel = "", bool ArenaPresentation = false,
-        string Rarity = "", int ProxyCopies = 0)
+        string Rarity = "", int ProxyCopies = 0, string BackImageUrl = "")
     {
         public string RarityLabel => Rarity.Length == 0
             ? "" : Rarity.ToUpperInvariant();
@@ -56,6 +56,7 @@ public sealed class CatalogSnapshot : IDisposable
     public bool HasRoleMetadata { get; }
     public bool HasPrintingArtwork { get; }
     public bool HasPrintingRarity { get; }
+    public bool HasPrintingBackArtwork { get; }
 
     public enum ColorMatching { ContainsAll, Exact, ContainsAny }
     public enum OwnershipMode
@@ -83,7 +84,7 @@ public sealed class CatalogSnapshot : IDisposable
     private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true,
         bool hasFullMetadata = false, bool hasPaperPrintingMetadata = false,
         bool hasRoleMetadata = false, bool hasPrintingArtwork = false,
-        bool hasPrintingRarity = false)
+        bool hasPrintingRarity = false, bool hasPrintingBackArtwork = false)
     {
         snapshotPath = path;
         TotalPrintings = total;
@@ -93,6 +94,7 @@ public sealed class CatalogSnapshot : IDisposable
         HasRoleMetadata = hasRoleMetadata;
         HasPrintingArtwork = hasPrintingArtwork;
         HasPrintingRarity = hasPrintingRarity;
+        HasPrintingBackArtwork = hasPrintingBackArtwork;
     }
 
     public long TotalPrintings { get; }
@@ -154,7 +156,8 @@ public sealed class CatalogSnapshot : IDisposable
         return new PrintingRow(name, set, collector,
             counts?.VerifiedPhysical ?? 0, counts?.Arena ?? 0,
             counts?.UnresolvedName ?? 0, image, roles, arenaPresentation, rarity,
-            counts?.Proxy ?? 0);
+            counts?.Proxy ?? 0,
+            HasPrintingBackArtwork && !reader.IsDBNull(10) ? reader.GetString(10) : "");
     }
 
     private static bool IsPaper(SqliteDataReader reader)
@@ -205,7 +208,8 @@ public sealed class CatalogSnapshot : IDisposable
                 hasRoleMetadata: hasFullMetadata &&
                     HasFields(snapshot, "cards", "type", "oracle"),
                 hasPrintingArtwork: HasFields(snapshot, "variants", "image"),
-                hasPrintingRarity: HasFields(snapshot, "variants", "rarity"));
+                hasPrintingRarity: HasFields(snapshot, "variants", "rarity"),
+                hasPrintingBackArtwork: HasFields(snapshot, "variants", "image_back"));
         }
         catch
         {
@@ -239,7 +243,8 @@ public sealed class CatalogSnapshot : IDisposable
             hasPaperPrintingMetadata: HasPaperFields(db),
             hasRoleMetadata: HasFields(db, "cards", "type", "oracle"),
             hasPrintingArtwork: HasFields(db, "variants", "image"),
-            hasPrintingRarity: HasFields(db, "variants", "rarity"));
+            hasPrintingRarity: HasFields(db, "variants", "rarity"),
+            hasPrintingBackArtwork: HasFields(db, "variants", "image_back"));
     }
 
     /// <summary>
@@ -312,13 +317,14 @@ public sealed class CatalogSnapshot : IDisposable
                 ? "v.games,v.digital" : "'missing',1";
             string art = HasPrintingArtwork ? "v.image" : "''";
             string rarityField = HasPrintingRarity ? "v.rarity" : "''";
+            string backField = HasPrintingBackArtwork ? "v.image_back" : "''";
             string roles = HasRoleMetadata
                 ? "c.type,c.oracle" : "'',''";
             string join = HasRoleMetadata
                 ? " LEFT JOIN cards c ON c.name = v.name COLLATE NOCASE" : "";
             cmd.CommandText =
                 "SELECT v.print_id,v.name,v.setcode,v.collector," +
-                paper + "," + art + "," + roles + "," + rarityField +
+                paper + "," + art + "," + roles + "," + rarityField + "," + backField +
                 " FROM variants v" + join +
                 @" WHERE v.name LIKE $prefix ESCAPE '\' " +
                 " ORDER BY v.name COLLATE NOCASE,v.setcode,v.collector,v.print_id LIMIT $limit OFFSET $offset";
@@ -426,10 +432,11 @@ public sealed class CatalogSnapshot : IDisposable
                 ? "v.games,v.digital" : "'missing' AS games, 1 AS digital";
             string artColumn = HasPrintingArtwork ? "v.image" : "''";
             string rarityColumn = HasPrintingRarity ? "v.rarity" : "''";
+            string backColumn = HasPrintingBackArtwork ? "v.image_back" : "''";
             string roleColumns = HasRoleMetadata ? "c.type,c.oracle" : "'',''";
             cmd.CommandText = "SELECT v.print_id,v.name,v.setcode,v.collector," +
                 paperColumns + "," + artColumn + "," + roleColumns +
-                "," + rarityColumn +
+                "," + rarityColumn + "," + backColumn +
                 "\nFROM variants v\n" +
                 (needsCard
                     ? "INNER JOIN cards c ON c.name = v.name COLLATE NOCASE\n"
