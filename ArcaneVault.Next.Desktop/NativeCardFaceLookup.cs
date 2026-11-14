@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.Data.Sqlite;
 
 namespace ArcaneVault.Next.Desktop;
@@ -30,7 +31,7 @@ internal static class NativeCardFaceLookup
             cmd.Parameters.AddWithValue("$name",name);
             cmd.Parameters.AddWithValue("$front",frontUrl);
             var alternate=cmd.ExecuteScalar() as string;
-            return NativeCardArtwork.IsTrustedArtworkUrl(alternate) ? alternate : "";
+            return NativeCardArtwork.IsTrustedArtworkUrl(alternate) ? alternate! : "";
         }
         catch (SqliteException) { return ""; }
         catch (IOException) { return ""; }
