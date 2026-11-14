@@ -34,7 +34,7 @@ Record match keys:
 1. Choose **Export PC / Android Sync** in Windows Data & Sync, or **Export peer sync file** in Android Data & Sync.
 2. Copy the resulting JSON file through a user-selected transport (USB file, Files app, LAN transfer, etc.). The file is not encrypted.
 3. On the other device, choose **Preview Incoming Peer Sync** and open it.
-4. Review additions, differences, and records absent from the incoming file. Existing data remains unchanged.
+4. Review additions, differences, and records absent from the incoming file. Existing data remains unchanged.\n5. If you possess a verified **previously shared common snapshot**, choose **Three-Way Peer Comparison** and select both the latest incoming file and that older baseline. The planner classifies incoming-only changes, local-only changes, and concurrent conflicts without applying anything. This is not yet an authenticated pairing checkpoint.
 
 The viewer does not infer that records absent from a peer were deleted, nor does it choose a winner from timestamps. A safe two-way merge requires proof of a common last-synced baseline, fine-grained tombstones for deliberate deletions, conflict selection and recovery checks. **No automatic apply is enabled in this milestone.**
 
