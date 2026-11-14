@@ -154,6 +154,19 @@ public static class NativePeerSync
         return result;
     }
 
+    // Canonical comparison ignores serializer-specific JSON object key order.
+    // Arrays keep their order: deck mainboards and history are not sortable.
+    private static string Canonical(JsonNode? node)
+    {
+        if (node is null) return "null";
+        if (node is JsonObject obj)
+            return "{" + string.Join(",",obj.OrderBy(p=>p.Key,StringComparer.Ordinal)
+                .Select(p=>JsonSerializer.Serialize(p.Key)+":"+Canonical(p.Value))) + "}";
+        if (node is JsonArray list)
+            return "["+string.Join(",",list.Select(Canonical))+"]";
+        return node.ToJsonString();
+    }
+
     private static Dictionary<string, string> Index(string group, JsonArray rows)
     {
         var indexed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -162,7 +175,7 @@ public static class NativePeerSync
             string key = Key(group, record);
             // Duplicate identities cannot be reconciled safely by index.
             // Prevent overwriting any such rows until they are normalized.
-            if (!indexed.TryAdd(key, record!.ToJsonString()))
+            if (!indexed.TryAdd(key, Canonical(record)))
                 throw new InvalidDataException("Duplicate " + group +
                     " record identity: " + key);
         }
@@ -196,11 +209,13 @@ public static class NativePeerSync
         foreach (string key in localArt.Select(k=>k.Key).Union(peerArt.Select(k=>k.Key),
             StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase))
         {
-            var before = localArt[key]?.ToJsonString();
-            var after = peerArt[key]?.ToJsonString();
+            bool hasBefore=localArt.TryGetPropertyValue(key,out var beforeNode);
+            bool hasAfter=peerArt.TryGetPropertyValue(key,out var afterNode);
+            var before=hasBefore?Canonical(beforeNode):null;
+            var after=hasAfter?Canonical(afterNode):null;
             if (before == after) { equal++; continue; }
             changes.Add(new Change("preferredArtwork", key,
-                before is null ? "Add" : after is null ? "Absent in peer" : "Different",
+                !hasBefore ? "Add" : !hasAfter ? "Absent in peer" : "Different",
                 before,after));
         }
         return new Preview(peer.Device,peer.Revision,Digest(current),changes,equal,
