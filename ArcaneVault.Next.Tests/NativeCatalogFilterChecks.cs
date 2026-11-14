@@ -33,7 +33,7 @@ internal static class NativeCatalogFilterChecks
                     print_id TEXT PRIMARY KEY,name TEXT NOT NULL COLLATE NOCASE,
                     setcode TEXT NOT NULL,collector TEXT NOT NULL,
                     rarity TEXT NOT NULL,arena INTEGER NOT NULL);
-                INSERT INTO cards VALUES
+                INSERT INTO cards(name,type,colors) VALUES
                     ('Sol Ring','Artifact',''),
                     ('Azorius Guildmage','Creature — Vedalken Wizard','WU'),
                     ('Supreme Verdict','Sorcery','WU'),
