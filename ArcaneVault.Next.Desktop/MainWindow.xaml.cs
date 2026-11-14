@@ -1415,7 +1415,15 @@ public partial class MainWindow : Window
             pendingNativeUiState = null;
             if (stateToRestore is not null)
             {
-                try { await view.RestoreNavigationStateAsync(stateToRestore); }
+                try
+                {
+                    // A sidebar click made during the refresh wins over the
+                    // section active when the old snapshot was captured.
+                    await view.RestoreNavigationStateAsync(stateToRestore with
+                    {
+                        Section = nativeWorkspaceSelectedTab
+                    });
+                }
                 catch (Exception ex)
                 {
                     FilterStatus.Text = "Collection verified; previous filters could not be restored: " +
