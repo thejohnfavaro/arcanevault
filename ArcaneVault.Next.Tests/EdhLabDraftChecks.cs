@@ -146,7 +146,7 @@ internal static class EdhLabDraftChecks
         Must(managedGroups.Count(x => x.IsHeader) >= 3 &&
              managedGroups.Count(x => !x.IsHeader) == 5 &&
              managedGroups.First().IsHeader &&
-             managedGroups.First().Category == "Lands" &&
+             managedGroups.First().Category == "Instants" &&
              managedGroups.Any(x => !x.IsHeader && x.Name == "Island" &&
                  x.Quantity == 4 && x.Category == "Lands" && x.IsVerified) &&
              managedGroups.Any(x => !x.IsHeader && x.Name == "Sol Ring" &&
@@ -156,6 +156,24 @@ internal static class EdhLabDraftChecks
              managedGroups.Any(x => !x.IsHeader && x.Name == "Lightning Bolt" &&
                  x.Category == "Unverified" && !x.IsVerified),
              "Manager grouping must report real quantities, type and locally unverified draft names.");
+        var withCommander = EdhLabMainboardView.Build(paper, managedTuples,
+            commander: "Selected Leader");
+        Must(withCommander[0].IsHeader &&
+             withCommander[0].Category == "Commander" &&
+             withCommander[1].Name == "Selected Leader" &&
+             withCommander[1].IsCommander &&
+             withCommander[2].Category == "Instants" &&
+             withCommander.Where(x => !x.IsHeader && !x.IsCommander)
+                 .Sum(x => x.Quantity) == managedEntries.Sum(x => x.Quantity),
+             "Commander must display first without altering mainboard quantities.");
+        var groupedOrder = withCommander.Where(x => x.IsHeader).Select(x => x.Category).ToArray();
+        Must(groupedOrder.SequenceEqual(new[]
+                { "Commander", "Instants", "Artifacts", "Unverified", "Lands" }),
+             "Mainboard sections must follow requested priority with lands last.");
+        Must(EdhLabMainboardView.Build(paper, managedTuples,
+                EdhLabMainboardView.Section.Lands, commander: "Selected Leader")
+                .All(x => x.Category == "Lands"),
+             "Filtering lands must not inject the implicit commander.");
         var onlySpells = EdhLabMainboardView.Build(paper, managedTuples,
             EdhLabMainboardView.Section.Spells);
         Must(onlySpells.Where(x => !x.IsHeader).Select(x => x.Name)

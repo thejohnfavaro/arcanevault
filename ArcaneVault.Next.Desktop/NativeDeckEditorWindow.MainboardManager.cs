@@ -63,7 +63,8 @@ public partial class NativeDeckEditorWindow
             var rows = EdhLabMainboardView.Build(edhCatalog,
                 entries.Select(x => (x.Name, x.Quantity)).ToArray(),
                 MainboardManagerSection, MainboardManagerOrder,
-                MainboardManagerSearchBox?.Text);
+                MainboardManagerSearchBox?.Text,
+                commander: edhLabCommander);
             updatingMainboardManager = true;
             try
             {
@@ -75,7 +76,7 @@ public partial class NativeDeckEditorWindow
             }
             finally { updatingMainboardManager = false; }
 
-            int visible = rows.Count(x => !x.IsHeader);
+            int visible = rows.Count(x => !x.IsHeader && !x.IsCommander);
             int all = entries.Count;
             int unverified = entries.Count(x => edhCatalog?.Find(x.Name) is null);
             MainboardManagerStatus.Text =
@@ -106,7 +107,7 @@ public partial class NativeDeckEditorWindow
             MainboardManagerMinus is null || MainboardManagerPlus is null ||
             MainboardManagerRemove is null) return;
         var selected = MainboardManagerList.SelectedItem as EdhLabMainboardView.Row;
-        bool usable = !busy && selected is { IsHeader: false };
+        bool usable = !busy && selected is { IsHeader: false, IsCommander: false };
         MainboardManagerMinus.IsEnabled = usable;
         MainboardManagerRemove.IsEnabled = usable;
         var verified = selected is null ? null : edhCatalog?.Find(selected.Name);
@@ -116,7 +117,9 @@ public partial class NativeDeckEditorWindow
             ? $"{selected!.Name} · {selected.Quantity:N0} in mainboard" +
               (verified is null ? " · catalog eligibility unverified" :
                 $" · locally supported maximum {verified.SuggestedCopyLimit:N0}")
-            : "Select a card to view its details and adjust its unsaved quantity.";
+            : selected is { IsCommander: true }
+                ? "Commander is shown for reference. Change it using the Commander field."
+                : "Select a card to view its details and adjust its unsaved quantity.";
     }
 
     private void OnMainboardManagerSelected(object sender,
@@ -124,7 +127,14 @@ public partial class NativeDeckEditorWindow
     {
         if (updatingMainboardManager) return;
         UpdateMainboardManagerSelection();
-        RefreshSelectedMainboardPrintings();
+        if (MainboardManagerList.SelectedItem is EdhLabMainboardView.Row { IsCommander: true })
+        {
+            if (MainboardPrintingBox is not null) MainboardPrintingBox.IsEnabled = false;
+            if (MainboardPrintingApply is not null) MainboardPrintingApply.IsEnabled = false;
+            if (MainboardPrintingStatus is not null)
+                MainboardPrintingStatus.Text = "Commander is edited in the Commander field.";
+        }
+        else RefreshSelectedMainboardPrintings();
         if (busy || edhLabCommander is null ||
             MainboardManagerList.SelectedItem is not
                 EdhLabMainboardView.Row { IsHeader: false } selected ||
@@ -157,7 +167,7 @@ public partial class NativeDeckEditorWindow
     {
         if (busy || edhLabCommander is null ||
             MainboardManagerList.SelectedItem is not
-                EdhLabMainboardView.Row { IsHeader: false } selected)
+                EdhLabMainboardView.Row { IsHeader: false, IsCommander: false } selected)
             return;
         try
         {

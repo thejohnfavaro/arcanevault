@@ -11,7 +11,8 @@ public static class EdhLabMainboardView
     public enum Order { Type, Name, Quantity }
 
     public sealed record Row(string Name, int Quantity, string Category,
-        string Details, bool IsHeader = false, bool IsVerified = true)
+        string Details, bool IsHeader = false, bool IsVerified = true,
+        bool IsCommander = false)
     {
         public string NameLabel => IsHeader ? Name : Name;
         public string QuantityLabel => IsHeader ? "" : "×" + Quantity;
@@ -20,8 +21,8 @@ public static class EdhLabMainboardView
 
     private static readonly string[] SectionOrder =
     [
-        "Lands", "Creatures", "Artifacts", "Enchantments",
-        "Instants", "Sorceries", "Planeswalkers", "Other", "Unverified"
+        "Creatures", "Instants", "Sorceries", "Artifacts",
+        "Enchantments", "Planeswalkers", "Other", "Unverified", "Lands"
     ];
 
     private static string CategoryFor(EdhLabDraftCatalog.Card? card)
@@ -60,7 +61,7 @@ public static class EdhLabMainboardView
     public static IReadOnlyList<Row> Build(EdhLabDraftCatalog? catalog,
         IReadOnlyList<(string Name, int Quantity)> entries,
         Section section = Section.All, Order order = Order.Type,
-        string? search = null)
+        string? search = null, string? commander = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
         if (!Enum.IsDefined(section)) throw new ArgumentOutOfRangeException(nameof(section));
@@ -92,7 +93,21 @@ public static class EdhLabMainboardView
             return cards.OrderByDescending(x => x.Quantity)
                 .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
 
-        var rows = new List<Row>(cards.Length + SectionOrder.Length);
+        var rows = new List<Row>(cards.Length + SectionOrder.Length + 2);
+        // The commander lives in its own zone and is not a mainboard quantity.
+        // This is a read-only visual reference, never an inserted draft entry.
+        string leader = (commander ?? "").Trim();
+        if (section == Section.All && leader.Length > 0 &&
+            (search.Length == 0 || leader.Contains(search,
+                StringComparison.OrdinalIgnoreCase) ||
+                "Commander".Contains(search, StringComparison.OrdinalIgnoreCase)))
+        {
+            rows.Add(new Row("Commander · 1 card", 0, "Commander", "",
+                IsHeader: true));
+            rows.Add(new Row(leader, 1, "Commander",
+                "Implicit commander · managed through the Commander field",
+                IsCommander: true));
+        }
         foreach (var category in SectionOrder)
         {
             var group = cards.Where(x => x.Category == category)
