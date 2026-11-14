@@ -2876,7 +2876,8 @@ public partial class MainWindow : Window
             CatalogIncludeProxiesBox?.IsChecked == true &&
                 OwnershipFilterBox?.SelectedIndex == 1,
             CatalogManaValue(ManaValueMinBox?.Text),
-            CatalogManaValue(ManaValueMaxBox?.Text));
+            CatalogManaValue(ManaValueMaxBox?.Text),
+            OracleFilterBox?.Text ?? "");
     }
 
     private async Task FilterAsync(bool debounce = true, bool resetPage = true)
