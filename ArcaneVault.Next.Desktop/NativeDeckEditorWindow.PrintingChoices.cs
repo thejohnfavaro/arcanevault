@@ -119,7 +119,7 @@ public partial class NativeDeckEditorWindow
     {
         if (busy ||
             MainboardManagerList?.SelectedItem is not
-                ArcaneVault.Next.EDHLab.EdhLabMainboardView.Row { IsHeader: false } row ||
+                ArcaneVault.Next.EDHLab.EdhLabMainboardView.Row { IsHeader: false, IsCommander: false } row ||
             MainboardPrintingBox?.SelectedItem is not MainboardPrintingOption selected)
             return;
         if (selected.Id.Length == 0)
