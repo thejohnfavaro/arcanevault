@@ -1,3 +1,4 @@
+using ArcaneVault.Next.Domain;
 using Microsoft.Data.Sqlite;
 using System.Security.Cryptography;
 using System.Text;
