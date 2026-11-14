@@ -658,9 +658,21 @@
                                            Margin="0,0,0,4"/>
                                 <TextBox x:Name="OracleFilterBox" Width="205" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
-                                         ToolTip="Search Scryfall Oracle text for abilities and synergies: Banding, Connive, Replicate, etc. Can combine with color, type, rarity and ownership."
+                                         ToolTip="Separate mechanics with commas (e.g. Connive, Discard). Match All requires both; Match Any finds either. Combines with color, ownership and other filters."
                                          Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
                                          Foreground="{DynamicResource VaultText}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,7">
+                                <TextBlock Text="MECHANIC MATCH" Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <ComboBox x:Name="OracleMatchBox" Width="130" Height="36"
+                                          SelectedIndex="0" SelectionChanged="OnCatalogFilterChanged"
+                                          ToolTip="Match every comma-separated Oracle phrase, or any one of them."
+                                          Background="{DynamicResource VaultPanelRaised}"
+                                          Foreground="{DynamicResource VaultText}">
+                                    <ComboBoxItem Content="Match All" Tag="all"/>
+                                    <ComboBoxItem Content="Match Any" Tag="any"/>
+                                </ComboBox>
                             </StackPanel>
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="RARITY" Style="{StaticResource VaultEyebrow}"
