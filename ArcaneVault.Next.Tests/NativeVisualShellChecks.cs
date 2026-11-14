@@ -1019,7 +1019,7 @@ internal static class NativeVisualShellChecks
              mainCode.Contains("nativeWorkspaceView?.InvalidateForVerifiedWorkspaceRefresh();") &&
              mainCode.Contains("return; // no native backup reopen on ordinary sidebar navigation") &&
              mainCode.Contains("pendingNativeUiState = nativeWorkspaceView?.CaptureNavigationState()") &&
-             mainCode.Contains("await view.RestoreNavigationStateAsync(stateToRestore)") &&
+             mainCode.Contains("await view.RestoreNavigationStateAsync(stateToRestore with") &&
              navigationStateCode.Contains("CaptureNavigationState()") &&
              navigationStateCode.Contains("RestoreNavigationStateAsync(") &&
              navigationStateCode.Contains("selectedSetRow?.SetCode") &&
