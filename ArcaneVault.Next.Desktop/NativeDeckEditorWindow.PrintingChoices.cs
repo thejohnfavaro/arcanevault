@@ -12,6 +12,7 @@ public partial class NativeDeckEditorWindow
     private readonly Dictionary<string, string> deckPrintingChoices =
         new(StringComparer.OrdinalIgnoreCase);
     private int printingSelectionVersion;
+    private bool populatingPrintingChoices;
 
     private void InitializeDeckPrintingChoices()
     {
@@ -79,10 +80,16 @@ public partial class NativeDeckEditorWindow
                 !options.Any(x => x.Id.Equals(savedId, StringComparison.OrdinalIgnoreCase)))
                 options.Add(new(savedId,
                     "Previously selected printing unavailable in current catalog (not editable)"));
-            MainboardPrintingBox.ItemsSource = options;
-            MainboardPrintingBox.SelectedItem = options.FirstOrDefault(x =>
-                deckPrintingChoices.TryGetValue(cardName, out var id) &&
-                x.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) ?? options[0];
+            // Programmatic selection must not be mistaken for a user edit.
+            populatingPrintingChoices = true;
+            try
+            {
+                MainboardPrintingBox.ItemsSource = options;
+                MainboardPrintingBox.SelectedItem = options.FirstOrDefault(x =>
+                    deckPrintingChoices.TryGetValue(cardName, out var id) &&
+                    x.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) ?? options[0];
+            }
+            finally { populatingPrintingChoices = false; }
             MainboardPrintingBox.IsEnabled = options.Count > 1;
             MainboardPrintingApply.IsEnabled = options.Count > 0;
             MainboardPrintingStatus.Text = arena
@@ -96,6 +103,16 @@ public partial class NativeDeckEditorWindow
             if (version == printingSelectionVersion)
                 MainboardPrintingStatus.Text = "Printings unavailable: " + ex.Message;
         }
+    }
+
+    private void OnMainboardPrintingSelectionChanged(object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (populatingPrintingChoices || MainboardPrintingBox?.SelectedItem is not
+            MainboardPrintingOption) return;
+        // A dropdown selection is itself the unsaved edit. Requiring a second
+        // Apply click made Save report "no changes" despite a visible choice.
+        OnMainboardPrintingApplyClicked(sender, new RoutedEventArgs());
     }
 
     private void OnMainboardPrintingApplyClicked(object sender, RoutedEventArgs e)
