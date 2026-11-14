@@ -348,7 +348,8 @@ public static class NativePeerSync
         // overwritten. Keep the native local value and reject remote edits.
         foreach(var field in remoteData)
         {
-            if(field.Key is "cards" or "physicalCards" or "deckLibrary" or "preferredArtwork")continue;
+            if(field.Key is "cards" or "physicalCards" or "deckLibrary" or "preferredArtwork" or
+                "schema" or "source" or "exported")continue;
             string? old=baseData[field.Key] is null?null:Canonical(baseData[field.Key]);
             string? proposed=field.Value is null?null:Canonical(field.Value);
             if(old!=proposed && local[field.Key] is not null &&
