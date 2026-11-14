@@ -14,6 +14,19 @@ public partial class NativeDeckEditorView
     private bool previewDockedInTab;
     private bool movingPreview;
 
+    private void OnEdhEditorRootSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (EdhEditorRoot is null || AnalyticsPanel is null) return;
+        double height = EdhEditorRoot.ActualHeight;
+        if (!double.IsFinite(height) || height <= 0) return;
+
+        // Expanded analytics must not consume most of a short embedded
+        // editor, making the authoritative mainboard and preview unusable.
+        // Its existing internal chart ScrollViewer remains scrollable.
+        AnalyticsPanel.MaxHeight = Math.Clamp(height * 0.23, 92, 280);
+        ConstrainEdhWorkspaceScrollers();
+    }
+
     private void OnEdhEditorColumnsSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (movingPreview || EdhEditorColumns is null ||
