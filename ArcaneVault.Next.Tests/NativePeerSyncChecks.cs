@@ -50,6 +50,13 @@ internal static class NativePeerSyncChecks
         Check(changed.Additions==1 && changed.Updates==2 &&
             changed.Conflicts==2 && !changed.SafeToAutoApply,
             "Expected one new printing and two unresolved conflicts.");
+        var ordered=JsonNode.Parse(exported)!.AsObject();
+        ordered["data"]!["cards"]!.AsArray()[0]=JsonNode.Parse(
+            """{"qty":4,"name":"Lightning Bolt"}""");
+        var orderSafe=NativePeerSync.Compare(path,
+            JsonSerializer.SerializeToUtf8Bytes(ordered));
+        Check(!orderSafe.HasChanges && orderSafe.EqualRecords==4,
+            "Android JSON field order must not trigger false Windows conflicts.");
         var invalid=JsonNode.Parse(exported)!.AsObject();
         invalid["format"]="untrusted-peer";
         Reject(()=>NativePeerSync.Compare(path,
