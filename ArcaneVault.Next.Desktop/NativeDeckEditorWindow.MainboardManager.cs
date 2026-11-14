@@ -64,7 +64,7 @@ public partial class NativeDeckEditorWindow
                 entries.Select(x => (x.Name, x.Quantity)).ToArray(),
                 MainboardManagerSection, MainboardManagerOrder,
                 MainboardManagerSearchBox?.Text,
-                commander: edhLabCommander?.Name);
+                commander: edhLabCommander);
             updatingMainboardManager = true;
             try
             {
