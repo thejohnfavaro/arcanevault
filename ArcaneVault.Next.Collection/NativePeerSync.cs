@@ -143,7 +143,7 @@ public static class NativePeerSync
                 Value("scryfallId"),Value("name"),Value("set"),Value("number"),
                 Value("finish"),Value("language"),Value("condition"),
                 Value("location"),Value("purchasePrice")
-            }),
+            }.Select(v => v.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)+":"+v)),
             "deckLibrary" => Value("id"),
             _ => throw new InvalidDataException("Unexpected record collection.")
         };
