@@ -86,6 +86,7 @@ public partial class MainWindow
         inspectorSelection = null;
         CardInspectorPanel.Visibility = Visibility.Collapsed;
         InspectorArt.ArtUrl = "";
+        InspectorArtworkPanel.Visibility = Visibility.Collapsed;
         InspectorFlipButton.Visibility = Visibility.Collapsed;
         InspectorManaCost.Value = "";
         InspectorOracle.Document = new FlowDocument();
@@ -168,6 +169,9 @@ public partial class MainWindow
         InspectorName.ToolTip = selected.Name;
         inspectorShowingBack = false;
         InspectorArt.ArtUrl = selected.ImageUrl;
+        InspectorArtworkPanel.Visibility =
+            NativeCardArtwork.IsTrustedArtworkUrl(selected.ImageUrl)
+                ? Visibility.Visible : Visibility.Collapsed;
         InspectorFlipButton.Visibility =
             NativeCardArtwork.IsTrustedArtworkUrl(selected.BackImageUrl) &&
             NativeCardArtwork.IsTrustedArtworkUrl(selected.ImageUrl)
