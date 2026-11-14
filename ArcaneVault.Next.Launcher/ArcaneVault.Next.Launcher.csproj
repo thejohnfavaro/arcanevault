@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>ArcaneVault</AssemblyName>
+    <RootNamespace>ArcaneVault.Next.Launcher</RootNamespace>
+    <ApplicationTitle>Arcane Vault</ApplicationTitle>
+    <ApplicationIcon>..\ArcaneVault.Desktop\Assets\ArcaneVault.ico</ApplicationIcon>
+  </PropertyGroup>
+</Project>
