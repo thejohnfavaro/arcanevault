@@ -2877,7 +2877,8 @@ public partial class MainWindow : Window
                 OwnershipFilterBox?.SelectedIndex == 1,
             CatalogManaValue(ManaValueMinBox?.Text),
             CatalogManaValue(ManaValueMaxBox?.Text),
-            OracleFilterBox?.Text ?? "");
+            OracleFilterBox?.Text ?? "",
+            OracleMatchBox?.SelectedIndex == 1);
     }
 
     private async Task FilterAsync(bool debounce = true, bool resetPage = true)

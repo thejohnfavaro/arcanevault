@@ -113,6 +113,22 @@ internal static class NativeCatalogFilterChecks
              "Oracle % and _ inputs must remain literal rather than wildcard matching.");
         Must(catalog.SearchFiltered("", new(OracleContains: "nonexistent")).Rows.Count == 0,
              "Unknown ability names must not match unrelated cards.");
+        Must(catalog.SearchFiltered("", new(OracleContains: "Replicate, Copy")).Rows.Single().Name ==
+                "Azorius Guildmage" &&
+             catalog.SearchFiltered("", new(OracleContains: "Replicate, Copy",
+                 OracleMatchAny: true)).Rows.Count == 2,
+             "Match All must require both mechanic phrases while Match Any allows either.");
+        Must(catalog.SearchFiltered("", new(OracleContains: "Banding, Connive",
+                 OracleMatchAny: true)).Rows.Count == 2 &&
+             catalog.SearchFiltered("", new(OracleContains: "Banding, Connive")).Rows.Count == 0,
+             "Multi-mechanic AND/OR must compare each keyword independently.");
+        Must(catalog.SearchFiltered("", new(OracleContains: "Replicate%, sigil_")).Rows.Single().Name ==
+                "Special%Literal",
+             "Literal percent and underscore must remain escaped in multi-term queries.");
+        Reject(() => catalog.SearchFiltered("", new(OracleContains: "Banding,")));
+        Reject(() => catalog.SearchFiltered("", new(OracleContains: ",Connive")));
+        Reject(() => catalog.SearchFiltered("", new(OracleContains: "a,b,c,d,e,f,g,h,i")));
+
 
         Must(catalog.SearchFiltered("", new(ColorlessOnly: true)).Rows.Count == 2,
             "Colorless identity must ignore the land's mana production.");
