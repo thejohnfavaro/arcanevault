@@ -84,6 +84,16 @@
                             <Image x:Name="CardArtwork"
                                    Visibility="Collapsed" Stretch="Uniform"
                                    SnapsToDevicePixels="True"/>
+                            <Button x:Name="ArtworkFaceFlip" Content="⟳" FontSize="21"
+                                    Width="42" Height="42" Padding="0" Cursor="Hand"
+                                    Visibility="Collapsed" VerticalAlignment="Bottom"
+                                    HorizontalAlignment="Right" Margin="0,0,9,9"
+                                    Background="{DynamicResource VaultAccentSurface}"
+                                    Foreground="{DynamicResource VaultText}"
+                                    BorderBrush="{DynamicResource VaultAccentBorder}"
+                                    BorderThickness="1"
+                                    Click="OnArtworkFaceFlipClicked"
+                                    ToolTip="Tap to flip double-faced card artwork"/>
                         </Grid>
                     </Border>
                     <TextBlock x:Name="ArtworkStatus" TextWrapping="Wrap"
