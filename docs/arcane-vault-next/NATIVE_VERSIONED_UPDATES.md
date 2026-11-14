@@ -4,6 +4,16 @@
 
 **Separate application binaries from private collection data.** Native WPF versions live under `%LOCALAPPDATA%\ArcaneVaultNativeApps\versions\vX.Y.Z\`. The complete native workspace, original imports, decks/revisions, artwork preferences, owned printings, independent Scryfall catalog, exports and rollback files stay in `%LOCALAPPDATA%\ArcaneVaultNext\`. The old shipping WebView app and its updater are independent and never written by native updates.
 
+## One-time installed app (v0.9.107 and later)
+
+Use the **ArcaneVaultSetup-win-x64.exe** asset on the versioned `native-vX.Y.Z` GitHub release for the first installation. The unsigned preview installer installs per-user, without administrator privileges, to `%LOCALAPPDATA%\ArcaneVaultNativeApps`. It registers **Arcane Vault** in Installed Apps and the Start Menu, with an optional desktop shortcut. Pin the Start Menu **Arcane Vault** entry to the taskbar, not a versioned `ArcaneVault.Next.Desktop.exe`.
+
+The permanent `ArcaneVault.exe` launcher remains at the install root. It resolves `active-version.txt` to a versioned binary only after validating the folder name, non-reparse filesystem objects, and native-version manifest. On startup the application sets the installed shortcut's fixed `RNGesus.ArcaneVault` application identity. After a new native window has successfully loaded, it atomically advances the launch pointer; a failed startup never promotes the new version. If the pointer is missing or invalid the launcher searches for a verified installed version. Portable mode never writes this pointer.
+
+The current **in-app** upgrade still verifies the official ZIP SHA-256, stages in `versions\vX.Y.Z`, asks before restart, and retains the previous version for recovery. This is intentionally not an in-place overwrite of a running EXE: the *visible installed app and pin are stable* while only the underlying version changes. The installer/uninstaller acts only on its dedicated binaries root; it must not delete or move `%LOCALAPPDATA%\ArcaneVaultNext` user data. Legacy WebView installation remains independent.
+
+**Windows acceptance still required:** install the signed-or-unsigned preview explicitly; pin from Start; run app; update through the in-app prompt; confirm the same pin opens the new version; cancel an update; confirm old version remains; uninstall and verify that all collection/deck/proxy/catalog/backup data is unchanged. The unsigned preview may trigger Windows security reputation warnings.
+
 ## How native updates work
 
 1. Open **Check Native Updates** in the native Windows left sidebar. The current version comes from the built assembly's version property; releases are fetched from `https://api.github.com/repos/thejohnfavaro/arcanevault/releases`.
@@ -31,6 +41,6 @@ The native Windows Actions pipeline now embeds a `native-version.json` file cont
 ## Limitations
 
 - Preview releases are unsigned and checksums come from the same GitHub release; this verifies downloaded bytes against publisher metadata, **not a code-signing certificate**.
-- This initial step is a side-by-side executable upgrade, not an MSIX installer, system-wide app replacement, downgrade data-schema migration, or automatic background updater.
+- The native preview now has a per-user installer and permanent launcher, but the updater still stages side-by-side binaries rather than overwriting a running EXE. It is not an MSIX installer, system-wide deployment, downgrade data-schema migration, or automatic background updater.
 - No old version folders are deleted automatically. Older executables remain available, but running an older binary after a **future incompatible data-schema upgrade** may not be safe; future data-schema migrations require explicit versioned backup and rollback support.
 - No 1.0 certification without real-device two-version tests and exact no-loss checks. Android expansion and EDH Lab remain backlogged.
