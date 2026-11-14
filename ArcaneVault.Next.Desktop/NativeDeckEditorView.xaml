@@ -77,7 +77,7 @@
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
-    <Grid Margin="16">
+    <Grid Margin="10" MinWidth="0" MinHeight="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -91,7 +91,7 @@
         <TextBlock x:Name="HeaderText" Grid.Row="0" Text="Create saved deck"
                    Foreground="{DynamicResource VaultText}"
                    FontWeight="Bold" FontSize="25" Margin="0,0,0,7"/>
-        <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}"
+        <TextBlock x:Name="DeckEditorIntro" Grid.Row="1" TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}"
                    Margin="0,0,0,8" Text="Edit a local deck with card browsing, mana and strategy tools. Review color identity, format legality and owned-card warnings before saving."/>
         <Grid Grid.Row="2" Margin="0,0,0,14">
             <Grid.ColumnDefinitions>
@@ -142,13 +142,14 @@
                       Foreground="#E5BF79"
                       ToolTip="Show this deck first in the saved library"/>
         </StackPanel>
-        <Grid Grid.Row="4">
+        <Grid x:Name="EdhEditorColumns" Grid.Row="4" MinWidth="0" MinHeight="0"
+              SizeChanged="OnEdhEditorColumnsSizeChanged">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2.6*" MinWidth="275"/>
-                <ColumnDefinition Width="10"/>
-                <ColumnDefinition Width="2.9*" MinWidth="340"/>
-                <ColumnDefinition Width="10"/>
-                <ColumnDefinition Width="1.8*" MinWidth="220"/>
+                <ColumnDefinition x:Name="MainboardColumn" Width="2.6*" MinWidth="240"/>
+                <ColumnDefinition x:Name="MainboardSplitterColumn" Width="10"/>
+                <ColumnDefinition x:Name="ToolsColumn" Width="2.9*" MinWidth="295"/>
+                <ColumnDefinition x:Name="PreviewSplitterColumn" Width="10"/>
+                <ColumnDefinition x:Name="PreviewColumn" Width="1.8*" MinWidth="220"/>
             </Grid.ColumnDefinitions>
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
@@ -1299,11 +1300,16 @@
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
+                <!-- At compact widths the exact same live card preview
+                     docks here rather than being clipped offscreen. -->
+                <TabItem x:Name="EdhPreviewTab" Header="Preview"
+                         Style="{StaticResource VaultDeckTabStyle}"
+                         Visibility="Collapsed"/>
             </TabControl>
-            <GridSplitter Grid.Column="3" Width="8" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+            <GridSplitter x:Name="PreviewGridSplitter" Grid.Column="3" Width="8" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                           Background="#343A4D"/>
-            <Border Grid.Column="4" CornerRadius="9" Padding="12"
+            <Border x:Name="CardPreviewPanel" Grid.Column="4" CornerRadius="9" Padding="12"
                     Background="#171C28" BorderBrush="#514276" BorderThickness="1">
                 <Grid>
                     <Grid.RowDefinitions>
