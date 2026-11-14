@@ -256,6 +256,47 @@ internal static class NativeUpdateChecks
             Path.Combine(work,"unknown","ArcaneVault.Next.Desktop.exe")).Deleted==0,
              "Retention may not delete anything from unmanaged startup paths.");
 
+        // A permanent installed shortcut switches targets ONLY after a
+        // verified new window has loaded. Never write into private user data.
+        string appRoot = Path.Combine(work, "installed-app");
+        string stableVersions = Path.Combine(appRoot, "versions");
+        Directory.CreateDirectory(stableVersions);
+        string launcher = Path.Combine(appRoot,
+            NativeInstalledLauncherActivation.LauncherName);
+        File.WriteAllText(launcher, "test permanent launcher");
+        var firstPackage = Zip(upgrade, "pin-version-1.zip", "0.9.30");
+        var secondPackage = Zip(upgrade, "pin-version-2.zip", "0.9.31");
+        var first = NativeUpdateService.InstallVerifiedArchive(
+            firstPackage, Sha(firstPackage), new Version(0, 9, 30), stableVersions);
+        var second = NativeUpdateService.InstallVerifiedArchive(
+            secondPackage, Sha(secondPackage), new Version(0, 9, 31), stableVersions);
+        string active = Path.Combine(appRoot,
+            NativeInstalledLauncherActivation.PointerName);
+        Must(NativeInstalledLauncherActivation.TryActivate(
+                stableVersions, first.ExecutablePath) &&
+             File.ReadAllText(active) == "v0.9.30",
+            "A verified installed version must become the pinned launch target.");
+        Must(NativeInstalledLauncherActivation.TryActivate(
+                stableVersions, second.ExecutablePath) &&
+             File.ReadAllText(active) == "v0.9.31",
+            "A verified upgrade must advance the pinned launch target.");
+        Must(!NativeInstalledLauncherActivation.TryActivate(
+                stableVersions, first.ExecutablePath) &&
+             File.ReadAllText(active) == "v0.9.31",
+            "Starting an older version cannot silently downgrade a pin.");
+        File.Delete(launcher);
+        Must(!NativeInstalledLauncherActivation.TryActivate(
+                stableVersions, second.ExecutablePath) &&
+             File.ReadAllText(active) == "v0.9.31",
+            "Portable builds must never create or change an installed launcher.");
+        File.WriteAllText(launcher, "test permanent launcher");
+        Must(!NativeInstalledLauncherActivation.TryActivate(
+                stableVersions, Path.Combine(work, "unmanaged.exe")) &&
+             File.ReadAllText(active) == "v0.9.31",
+            "Unmanaged executable must never modify the installed launcher.");
+        Must(File.ReadAllText(userDataMarker) == "never delete this collection",
+            "Installed launcher must not touch collection data.");
+
         Must(before.SequenceEqual(new[] { nativeWorkspace, catalog, recovery }.Select(Sha)) &&
              Sha(installed.ExecutablePath) == oldExeHash,
             "All failure paths must preserve old executable and user data.");
