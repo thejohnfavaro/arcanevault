@@ -134,6 +134,26 @@
                                         <local:NativeCardArtImage ArtUrl="{Binding ImageUrl}"
                                                                   Width="196" Height="274"
                                                                   DecodeWidth="320"/>
+                                        <Button x:Name="CardFaceFlip" Content="⟳"
+                                                Tag="{Binding}" Width="34" Height="34"
+                                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                Margin="0,0,5,31" Padding="0" FontSize="20" Cursor="Hand"
+                                                Click="OnCatalogTileFaceFlipClicked"
+                                                Background="#E017202E"
+                                                Foreground="{DynamicResource VaultText}"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                                ToolTip="Tap to show alternate card face">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding BackImageUrl}" Value="">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                         <Border VerticalAlignment="Bottom" Height="25"
                                                 Background="#DA10151F">
                                             <DockPanel Margin="7,0" LastChildFill="True">
