@@ -385,7 +385,10 @@ public sealed class CatalogSnapshot : IDisposable
             throw new InvalidDataException(
                 "This catalog lacks Scryfall Oracle text for utilization tags. " +
                 "Run Full Scryfall Sync to enable role filtering.");
-        if (filters.IsDefault)
+        // Keep the indexed prefix path for blank searches and catalogs
+        // without rules text. Otherwise the primary search box can also find
+        // cards whose Oracle text names a mechanic (Banding, Connive, etc.).
+        if (filters.IsDefault && (string.IsNullOrWhiteSpace(input) || !HasRoleMetadata))
             return SearchPrefix(input, limit, cancellationToken, ownership, offset);
         input = (input ?? "").Trim();
         if (input.Length > 160) input = input[..160];
@@ -432,8 +435,15 @@ public sealed class CatalogSnapshot : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
             using var db = Connect(snapshotPath, SqliteOpenMode.ReadOnly);
             using var cmd = db.CreateCommand();
-            var where = new List<string> { @"v.name LIKE $prefix ESCAPE '\'" };
+            var where = new List<string>();
             cmd.Parameters.AddWithValue("$prefix", EscapeLike(input) + "%");
+            if (input.Length > 0 && HasRoleMetadata)
+            {
+                where.Add(@"(v.name LIKE $prefix ESCAPE '\' OR c.oracle LIKE $searchOracle ESCAPE '\' COLLATE NOCASE)");
+                cmd.Parameters.AddWithValue("$searchOracle", "%" + EscapeLike(input) + "%");
+            }
+            else
+                where.Add(@"v.name LIKE $prefix ESCAPE '\'");
             string paperColumns = HasPaperPrintingMetadata
                 ? "v.games,v.digital" : "'missing' AS games, 1 AS digital";
             string artColumn = HasPrintingArtwork ? "v.image" : "''";
