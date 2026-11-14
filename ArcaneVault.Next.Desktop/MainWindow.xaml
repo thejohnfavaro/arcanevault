@@ -389,6 +389,18 @@
                                     Click="OnExportFullBackupClicked" IsEnabled="False"
                                     Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"/>
+                                <Button x:Name="ExportPeerSyncButton"
+                                    Content="⇄   Export PC / Android Sync"
+                                    Click="OnExportPeerSyncClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    Margin="0,0,0,5"
+                                    ToolTip="Export a lossless schema-2 peer snapshot from the verified native workspace; no cloud or overwrite"/>
+                                <Button x:Name="PreviewPeerSyncButton"
+                                    Content="◷   Preview Incoming Peer Sync"
+                                    Click="OnPreviewPeerSyncClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    Margin="0,0,0,5"
+                                    ToolTip="Review individual physical, Arena, deck and artwork differences without changing any data"/>
                                 <Button x:Name="RestoreRecoveryButton"
                                     Content="↶   Restore Recovery Point"
                                     Click="OnRestoreRecoveryClicked" IsEnabled="False"
