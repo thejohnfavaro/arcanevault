@@ -10,30 +10,30 @@ namespace ArcaneVault.Next.Collection;
 public static class NativePeerCheckpoint
 {
     private static string DirectoryPath => Path.Combine(NativeWorkspace.RootDirectory,"peer-checkpoints");
-    private static string PathFor(string device)
+    private static string PathFor(string device,string? directory=null)
     {
         if(!Guid.TryParse(device,out var id)||id==Guid.Empty)
             throw new InvalidDataException("Peer checkpoint requires a valid device ID.");
-        return Path.Combine(DirectoryPath,id.ToString("D")+".json");
+        return Path.Combine(directory??DirectoryPath,id.ToString("D")+".json");
     }
-    public static bool Exists(string device)=>File.Exists(PathFor(device));
-    public static byte[] Load(string device)
+    public static bool Exists(string device,string? directory=null)=>File.Exists(PathFor(device,directory));
+    public static byte[] Load(string device,string? directory=null)
     {
-        var path=PathFor(device);
+        var path=PathFor(device,directory);
         var length=new FileInfo(path).Length;
         if(length is <=20 or > NativePeerSync.MaxBytes)
             throw new InvalidDataException("Stored peer baseline is invalid or exceeds 30 MiB.");
         return File.ReadAllBytes(path);
     }
-    public static string SaveIdentical(string nativePath,byte[] remote)
+    public static string SaveIdentical(string nativePath,byte[] remote,string? directory=null)
     {
         var preview=NativePeerSync.Compare(nativePath,remote);
         if(preview.Device==NativePeerSync.DeviceId())
             throw new InvalidDataException("A device cannot checkpoint itself.");
         if(preview.HasChanges)
             throw new InvalidDataException("Peer records differ; cannot establish a common baseline.");
-        Directory.CreateDirectory(DirectoryPath);
-        string path=PathFor(preview.Device);
+        Directory.CreateDirectory(directory??DirectoryPath);
+        string path=PathFor(preview.Device,directory);
         string temp=path+".stage-"+Guid.NewGuid().ToString("N");
         try
         {
