@@ -152,6 +152,25 @@ public partial class App : Application
                 return;
             }
         }
+        window.Loaded += (_, _) =>
+        {
+            // Cleanup occurs only after the upgraded UI loaded successfully
+            // and the previous process exited. Never block the UI thread.
+            string? runningExe=Environment.ProcessPath;
+            if(!string.IsNullOrWhiteSpace(runningExe))
+                _=Task.Run(() =>
+                {
+                    try
+                    {
+                        NativeVersionRetention.CleanupAfterVerifiedLaunch(
+                            NativeUpdateService.DefaultVersionsRoot,runningExe);
+                    }
+                    catch(Exception cleanupError)
+                    {
+                        RecordFailure("Native binary retention cleanup",cleanupError);
+                    }
+                });
+        };
         window.Show();
     }
 
