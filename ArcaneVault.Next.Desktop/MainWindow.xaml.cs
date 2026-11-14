@@ -1269,8 +1269,14 @@ public partial class MainWindow : Window
         UpdateWorkspaceNavigation();
     }
 
+    private NativeCollectionWorkspace.NavigationState? pendingNativeUiState;
+
     private void InvalidateNativeWorkspace()
     {
+        // A true source-data change must be reverified, but filter/search
+        // choices and stable selection IDs can safely cross that refresh.
+        pendingNativeUiState = nativeWorkspaceView?.CaptureNavigationState() ??
+            pendingNativeUiState;
         nativeWorkspaceGeneration++;
         // Explicit data changes invalidate the view; normal sidebar switches
         // do not. Cancel work against the old verified SHA before detaching it.
@@ -1295,6 +1301,7 @@ public partial class MainWindow : Window
     {
         if (nativeWorkspaceView?.SelectedSection != 3) return false;
         InvalidateNativeWorkspace();
+        pendingNativeUiState = null; // don't restore the view that just faulted
         nativeWorkspaceRequested = false;
         UpdateWorkspaceNavigation();
         FilterStatus.Text = "Set Progress could not render. The view was closed; your collection is unchanged. See Diagnostics/native-crash.log.";
@@ -1402,6 +1409,19 @@ public partial class MainWindow : Window
             };
             NativeWorkspaceHost.Content = view;
             UpdateWorkspaceNavigation();
+            // The reverified model is authoritative. Restore only view state
+            // and stable identities; never resurrect removed owned cards.
+            var stateToRestore = pendingNativeUiState;
+            pendingNativeUiState = null;
+            if (stateToRestore is not null)
+            {
+                try { await view.RestoreNavigationStateAsync(stateToRestore); }
+                catch (Exception ex)
+                {
+                    FilterStatus.Text = "Collection verified; previous filters could not be restored: " +
+                        ex.Message;
+                }
+            }
             FilterStatus.Text =
                 $"Native collection: {bundle.workspace.Collection.PhysicalCopies:N0} physical + " +
                 $"{bundle.workspace.Collection.ArenaCopies:N0} Arena copies · restored from local SQLite";
