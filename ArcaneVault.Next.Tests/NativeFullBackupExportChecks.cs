@@ -2,6 +2,7 @@ using ArcaneVault.Next.Collection;
 using ArcaneVault.Next.Domain;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 internal static class NativeFullBackupExportChecks
 {
@@ -113,6 +114,43 @@ internal static class NativeFullBackupExportChecks
                  x.BackupCopies == 2 && x.ActiveCopies == 5) &&
              older.Differences.Any(x => x.Scope == "Physical") == false,
              "Original historical export should show the intended Arena/deck changes, without false printing differences.");
+        // Swapping quantities between distinct printings must not be hidden
+        // merely because the total number of physical copies is unchanged.
+        string redistributed = Path.Combine(work, "integrity-printing-swap.json");
+        var swappedJson = JsonNode.Parse(File.ReadAllBytes(exported))!.AsObject();
+        var printings = swappedJson["physicalCards"]!.AsArray();
+        printings[0]!["qty"] = 2;
+        printings[1]!["qty"] = 2;
+        File.WriteAllText(redistributed, swappedJson.ToJsonString());
+        byte[] sourceBeforeComparison = File.ReadAllBytes(native);
+        int recoveriesBeforeComparison = NativeWorkspaceSafety.RecoveryPaths(native).Count;
+        var swapped = NativeCollectionIntegrity.Compare(redistributed, native);
+        Must(!swapped.ByteIdentical && !swapped.InventoryMatch &&
+             !swapped.AggregateMatch && swapped.TotalDifferingEntries == 2 &&
+             swapped.BackupMissingIds == 2 && swapped.ActiveMissingIds == 1 &&
+             swapped.BackupPhysical == swapped.ActivePhysical &&
+             swapped.Differences.Count == 2 &&
+             swapped.Differences.All(x => x.Scope == "Physical") &&
+             swapped.Differences.Any(x => x.BackupCopies == 2 && x.ActiveCopies == 3) &&
+             swapped.Differences.Any(x => x.BackupCopies == 2 && x.ActiveCopies == 1),
+             "Equal total copies must not mask changes between individual printings. " + swapped.Display);
+
+        // Metadata-only changes must not be mislabeled as byte-identical,
+        // and an inventory match must never imply opaque fields are equal.
+        string metadataOnly = Path.Combine(work, "integrity-metadata-only.json");
+        var metadataJson = JsonNode.Parse(File.ReadAllBytes(exported))!.AsObject();
+        metadataJson["releaseAuditOnly"] = "metadata differs";
+        File.WriteAllText(metadataOnly, metadataJson.ToJsonString());
+        var metadata = NativeCollectionIntegrity.Compare(metadataOnly, native);
+        Must(!metadata.ByteIdentical && metadata.InventoryMatch &&
+             metadata.AggregateMatch && metadata.TotalDifferingEntries == 0 &&
+             metadata.Status.Contains("backup content differs", StringComparison.Ordinal) &&
+             metadata.Display.Contains("does not prove equality", StringComparison.Ordinal),
+             "Metadata-only changes must be reported separately from inventory parity.");
+        Must(sourceBeforeComparison.SequenceEqual(File.ReadAllBytes(native)) &&
+             NativeWorkspaceSafety.RecoveryPaths(native).Count == recoveriesBeforeComparison,
+             "Read-only comparison changed the native workspace or recovery history.");
+
         var fakeBad = Path.Combine(work, "integrity-invalid.json");
         File.WriteAllText(fakeBad, "{\"schema\":99}");
         Reject(() => NativeCollectionIntegrity.Compare(fakeBad, native));
