@@ -343,6 +343,7 @@
                                 <TextBlock Text="Deck-specific artwork printing"
                                            Foreground="{DynamicResource VaultAccent}"/>
                                 <ComboBox x:Name="MainboardPrintingBox" IsEnabled="False"
+                                          SelectionChanged="OnMainboardPrintingSelectionChanged"
                                           DisplayMemberPath="Display" Background="#D7E4EB"
                                           Foreground="#0D1017" Margin="0,4,0,4"/>
                                 <Button x:Name="MainboardPrintingApply" Content="Use selected printing"
