@@ -125,12 +125,20 @@
                                         Background="{DynamicResource VaultBackground}"
                                         BorderBrush="{DynamicResource VaultLine}"
                                         BorderThickness="1" ClipToBounds="True">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ImageUrl}" Value="">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ImageUrl}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
                                     <Grid>
-                                        <TextBlock Text="Image not cached"
-                                                   Foreground="{DynamicResource VaultMuted}"
-                                                   TextWrapping="Wrap" TextAlignment="Center"
-                                                   Margin="14" FontSize="11"
-                                                   VerticalAlignment="Center"/>
                                         <local:NativeCardArtImage ArtUrl="{Binding ImageUrl}"
                                                                   Width="196" Height="274"
                                                                   DecodeWidth="320"/>
@@ -1012,15 +1020,11 @@
                                       HorizontalScrollBarVisibility="Disabled"
                                       Focusable="False">
                             <StackPanel>
-                                <Border Width="182" Height="255" CornerRadius="9"
+                                <Border x:Name="InspectorArtworkPanel" Width="182" Height="255" CornerRadius="9"
                                         HorizontalAlignment="Center" ClipToBounds="True"
                                         BorderThickness="1" BorderBrush="{DynamicResource VaultEdgeLift}"
                                         Background="{DynamicResource VaultPanel}">
                                     <Grid>
-                                        <TextBlock Text="No artwork cached"
-                                                   Style="{StaticResource VaultMutedText}"
-                                                   TextAlignment="Center" TextWrapping="Wrap"
-                                                   Margin="10" VerticalAlignment="Center"/>
                                         <local:NativeCardArtImage x:Name="InspectorArt" DecodeWidth="350"
                                                                   Width="180" Height="253"/>
                                         <Button x:Name="InspectorFlipButton" Content="⟳"
