@@ -19,7 +19,7 @@ public static class EdhLabManaBaseBuilder
         int OriginalCopies, int ResultingCopies,
         IReadOnlyList<Change> Changes, string Warning,
         IReadOnlyList<EdhLabDraftCatalog.Card> CatalogSnapshot,
-        bool IsArena)
+        bool IsArena, bool OptimizedBasics)
     {
         public bool CanApply => Changes.Count > 0 &&
             ResultingLands == Target && ResultingCopies <= 99 &&
@@ -214,6 +214,6 @@ public static class EdhLabManaBaseBuilder
             entries.Sum(x => catalog.TryGetValue(x.Name, out var c) &&
                 IsLand(c) ? x.Quantity : 0),
             lands, entries.Sum(x => x.Quantity), total,
-            changes, warning, eligibleCards, arena);
+            changes, warning, eligibleCards, arena, optimizeBasics);
     }
 }
