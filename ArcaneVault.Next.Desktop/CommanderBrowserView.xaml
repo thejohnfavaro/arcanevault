@@ -198,17 +198,12 @@
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
-                            <Border Width="188" Height="263"
+                            <Border x:Name="CommanderInspectorArtworkPanel" Width="188" Height="263"
                                     BorderBrush="{DynamicResource VaultEdgeLift}"
                                     BorderThickness="1" CornerRadius="9"
                                     HorizontalAlignment="Center" ClipToBounds="True"
                                     Background="{DynamicResource VaultPanel}">
                                 <Grid>
-                                    <TextBlock Text="Artwork not cached"
-                                               VerticalAlignment="Center"
-                                               TextAlignment="Center" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource VaultMuted}"
-                                               Margin="12"/>
                                     <local:NativeCardArtImage x:Name="CommanderInspectorArt"
                                                               DecodeWidth="350"
                                                               Width="186" Height="261"/>
