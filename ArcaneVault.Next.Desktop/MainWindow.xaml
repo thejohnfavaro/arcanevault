@@ -412,6 +412,25 @@
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"
                         ToolTip="Scan QR with Android Send to PC. Then choose your previous common baseline, review and approve a verified Windows-only merge with rollback."/>
+                        <TextBlock Text="USB CABLE SYNC (ADB)" Style="{StaticResource VaultEyebrow}"
+                            Foreground="{DynamicResource VaultAccent}" Margin="0,12,0,7"/>
+                        <TextBlock Text="Connect one authorized Android phone by USB with debugging enabled. No Wi-Fi or QR code required. The same reviewed peer merge and recovery rules apply."
+                            TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,9"/>
+                        <Button x:Name="SharePeerUsbButton"
+                            Content="⇄   Share Sync to Phone (USB)"
+                            Click="OnSharePeerUsbClicked"
+                            Style="{StaticResource VaultNavButtonDepth}" Margin="0,0,0,5"
+                            ToolTip="ADB reverse on USB only; launches Arcane Vault on the phone for reviewed Windows-to-Android sync"/>
+                        <Button x:Name="ReceiveAndApplyPeerUsbButton"
+                            Content="⇄   Receive &amp; Review Phone Sync (USB)"
+                            Click="OnReceiveAndApplyPeerUsbClicked"
+                            Style="{StaticResource VaultNavButtonDepth}" Margin="0,0,0,5"
+                            ToolTip="Receive Android peer snapshot by USB, then review a three-way merge before applying on Windows"/>
+                        <Button x:Name="CancelPeerUsbButton"
+                            Content="×   Cancel USB Sync Offer"
+                            Click="OnCancelPeerUsbClicked"
+                            Style="{StaticResource VaultNavButtonDepth}" Margin="0,0,0,8"
+                            ToolTip="Close the pending cable offer and remove its ADB reverse mapping"/>
                         <Button x:Name="CancelPeerLanButton"
                         Content="×   Cancel Wi-Fi Sync Offer"
                         Click="OnCancelPeerLanClicked"
