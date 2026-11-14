@@ -132,7 +132,7 @@ internal static class NativeFullBackupExportChecks
              swapped.Differences.All(x => x.Scope == "Physical") &&
              swapped.Differences.Any(x => x.BackupCopies == 2 && x.ActiveCopies == 3) &&
              swapped.Differences.Any(x => x.BackupCopies == 2 && x.ActiveCopies == 1),
-             "Equal total copies must not mask changes between individual printings.");
+             "Equal total copies must not mask changes between individual printings. " + swapped.Display);
 
         // Metadata-only changes must not be mislabeled as byte-identical,
         // and an inventory match must never imply opaque fields are equal.
