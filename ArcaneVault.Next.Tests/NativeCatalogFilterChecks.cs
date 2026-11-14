@@ -61,7 +61,7 @@ internal static class NativeCatalogFilterChecks
                     WHERE name='Clever Impersonator';
                 UPDATE cards SET oracle='Replicate {1}{U} (Copy this spell for each payment.)'
                     WHERE name='Azorius Guildmage';
-                UPDATE cards SET oracle='Replicate% and special_literal ability'
+                UPDATE cards SET oracle='Replicate% and sigil_ability'
                     WHERE name='Special%Literal';
                 """;
             cmd.ExecuteNonQuery();
@@ -108,7 +108,7 @@ internal static class NativeCatalogFilterChecks
             "Oracle mechanic search must compose with color identity and rarity.");
         Must(catalog.SearchFiltered("", new(OracleContains: "Replicate%")).Rows.Single().Name ==
                 "Special%Literal" &&
-             catalog.SearchFiltered("", new(OracleContains: "special_")).Rows.Single().Name ==
+             catalog.SearchFiltered("", new(OracleContains: "sigil_")).Rows.Single().Name ==
                 "Special%Literal",
              "Oracle % and _ inputs must remain literal rather than wildcard matching.");
         Must(catalog.SearchFiltered("", new(OracleContains: "nonexistent")).Rows.Count == 0,
