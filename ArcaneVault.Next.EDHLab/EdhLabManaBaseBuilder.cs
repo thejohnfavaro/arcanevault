@@ -186,7 +186,8 @@ public static class EdhLabManaBaseBuilder
                         x.InDeckCopies == 0 &&
                         x.CoveredCommanderColors >= 2 &&
                         !x.FetchesLand &&
-                        x.Tempo != "Enters tapped" &&
+                        (x.Tempo != "Enters tapped" ||
+                            x.LandCategory == "Shock land") &&
                         (x.Tempo != "May enter tapped" ||
                             x.LandCategory == "Shock land" ||
                             x.LandCategory == "Bond land" ||
