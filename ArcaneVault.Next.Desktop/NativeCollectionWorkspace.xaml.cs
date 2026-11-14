@@ -27,6 +27,7 @@ public partial class NativeCollectionWorkspace : UserControl
     private int setColumns;
     private int setQueryVersion;
     private bool closing;
+    private bool initialWorkspaceLoadCompleted;
     private readonly string? nativePath;
     private string? expectedBackupSha;
     private readonly Func<Task>? reopenNative;
@@ -110,17 +111,16 @@ public partial class NativeCollectionWorkspace : UserControl
             DataSourceLabel.Text =
                 "Native SQLite — physical, Arena and saved-deck edits each preserve a complete rollback";
         }
-        Unloaded += (_, _) =>
-        {
-            closing = true;
-            deckInspectVersion++;
-            setQueryVersion++;
-            valuationVersion++;
-        };
+        // Unloaded can fire during ordinary main-window navigation. The
+        // parent retains this view: closing it here silently disables future
+        // selection, previews and set checks on return. True invalidation is
+        // performed explicitly by the host after a verified SHA change.
         Loaded += async (_, _) =>
         {
-            // Proxy ledger is a separate, non-valued backup section.
-            // Never fold it into the physical price calculation.
+            if (closing || initialWorkspaceLoadCompleted) return;
+            initialWorkspaceLoadCompleted = true;
+            // Avoid a full proxy/deck-art/valuation pass every time this
+            // visual is reattached after navigating to EDH Lab or Catalog.
             _ = LoadProxyRowsAsync();
             _ = LoadDeckCoversAsync();
             await CalculateValuationAsync();
@@ -165,7 +165,10 @@ public partial class NativeCollectionWorkspace : UserControl
     {
         if (tabIndex is < 0 or > 3)
             throw new ArgumentOutOfRangeException(nameof(tabIndex));
-        CollectionTabs.SelectedIndex = tabIndex;
+        // Re-selecting the active section should not cause redundant
+        // SelectionChanged work or rebuild the active set checklist.
+        if (CollectionTabs.SelectedIndex != tabIndex)
+            CollectionTabs.SelectedIndex = tabIndex;
         UpdateSectionPresentation();
     }
 
@@ -174,10 +177,15 @@ public partial class NativeCollectionWorkspace : UserControl
     /// In an embedded workspace, mark this view inactive; the host replaces
     /// it when the native workspace is reverified.
     /// </summary>
+    internal void InvalidateForVerifiedWorkspaceRefresh() => Close();
+
     private void Close()
     {
+        if (closing) return;
         closing = true;
         IsEnabled = false; // never allow stale collection edits during a SHA refresh
+        deckInspectVersion++;
+        deckCoversVersion++;
         setQueryVersion++;
         valuationVersion++;
     }
@@ -662,7 +670,13 @@ public partial class NativeCollectionWorkspace : UserControl
                 arenaProgressLoading = false;
             }
         }
-        if (!closing) RefreshSetList();
+        if (!closing)
+        {
+            RefreshSetList();
+            // Resume the user's selected set after restoring an Arena scope.
+            // This runs only after its cached catalog/name coverage is ready.
+            await RestorePendingSetAsync();
+        }
     }
 
     private async Task LoadSetDetailsAsync(NativeSetProgress.SetRow selected)

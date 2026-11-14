@@ -1269,9 +1269,18 @@ public partial class MainWindow : Window
         UpdateWorkspaceNavigation();
     }
 
+    private NativeCollectionWorkspace.NavigationState? pendingNativeUiState;
+
     private void InvalidateNativeWorkspace()
     {
+        // A true source-data change must be reverified, but filter/search
+        // choices and stable selection IDs can safely cross that refresh.
+        pendingNativeUiState = nativeWorkspaceView?.CaptureNavigationState() ??
+            pendingNativeUiState;
         nativeWorkspaceGeneration++;
+        // Explicit data changes invalidate the view; normal sidebar switches
+        // do not. Cancel work against the old verified SHA before detaching it.
+        nativeWorkspaceView?.InvalidateForVerifiedWorkspaceRefresh();
         nativeWorkspaceView = null;
         NativeWorkspaceHost.Content = null;
         if (nativeWorkspaceRequested && !closing)
@@ -1292,6 +1301,7 @@ public partial class MainWindow : Window
     {
         if (nativeWorkspaceView?.SelectedSection != 3) return false;
         InvalidateNativeWorkspace();
+        pendingNativeUiState = null; // don't restore the view that just faulted
         nativeWorkspaceRequested = false;
         UpdateWorkspaceNavigation();
         FilterStatus.Text = "Set Progress could not render. The view was closed; your collection is unchanged. See Diagnostics/native-crash.log.";
@@ -1321,9 +1331,12 @@ public partial class MainWindow : Window
         nativeWorkspaceRequested = true;
         nativeWorkspaceSelectedTab = section;
         if (nativeWorkspaceView is not null)
+        {
             nativeWorkspaceView.NavigateTo(section);
-        else
-            NativeWorkspaceHost.Content = new TextBlock
+            UpdateWorkspaceNavigation();
+            return; // no native backup reopen on ordinary sidebar navigation
+        }
+        NativeWorkspaceHost.Content = new TextBlock
             {
                 Text = "Opening and verifying your local workspace…",
                 Foreground = (System.Windows.Media.Brush)FindResource("VaultMuted"),
@@ -1396,6 +1409,27 @@ public partial class MainWindow : Window
             };
             NativeWorkspaceHost.Content = view;
             UpdateWorkspaceNavigation();
+            // The reverified model is authoritative. Restore only view state
+            // and stable identities; never resurrect removed owned cards.
+            var stateToRestore = pendingNativeUiState;
+            pendingNativeUiState = null;
+            if (stateToRestore is not null)
+            {
+                try
+                {
+                    // A sidebar click made during the refresh wins over the
+                    // section active when the old snapshot was captured.
+                    await view.RestoreNavigationStateAsync(stateToRestore with
+                    {
+                        Section = nativeWorkspaceSelectedTab
+                    });
+                }
+                catch (Exception ex)
+                {
+                    FilterStatus.Text = "Collection verified; previous filters could not be restored: " +
+                        ex.Message;
+                }
+            }
             FilterStatus.Text =
                 $"Native collection: {bundle.workspace.Collection.PhysicalCopies:N0} physical + " +
                 $"{bundle.workspace.Collection.ArenaCopies:N0} Arena copies · restored from local SQLite";

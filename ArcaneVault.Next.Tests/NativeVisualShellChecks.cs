@@ -1007,6 +1007,26 @@ internal static class NativeVisualShellChecks
              "Set Progress must be an independent visible workspace, sharing the verified collection model.");
 
 
+        // WPF may detach/re-attach a hidden workspace while switching tabs.
+        // Its state must not be destroyed by Unloaded, and repeated Loaded
+        // notifications must not recalculate the entire collection.
+        var navigationStateCode = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.NavigationState.cs"));
+        Must(!v65DeckShell.Contains("Unloaded += (_, _) =>") &&
+             v65DeckShell.Contains("if (closing || initialWorkspaceLoadCompleted) return;") &&
+             v65DeckShell.Contains("internal void InvalidateForVerifiedWorkspaceRefresh()") &&
+             v65DeckShell.Contains("if (CollectionTabs.SelectedIndex != tabIndex)") &&
+             mainCode.Contains("nativeWorkspaceView?.InvalidateForVerifiedWorkspaceRefresh();") &&
+             mainCode.Contains("return; // no native backup reopen on ordinary sidebar navigation") &&
+             mainCode.Contains("pendingNativeUiState = nativeWorkspaceView?.CaptureNavigationState()") &&
+             mainCode.Contains("await view.RestoreNavigationStateAsync(stateToRestore with") &&
+             navigationStateCode.Contains("CaptureNavigationState()") &&
+             navigationStateCode.Contains("RestoreNavigationStateAsync(") &&
+             navigationStateCode.Contains("selectedSetRow?.SetCode") &&
+             navigationStateCode.Contains("DeckLibraryList.SelectedItem = item") &&
+             v65DeckShell.Contains("await RestorePendingSetAsync();"),
+             "Workspace switches must retain live views and verified refreshes must restore stable UI selection without replaying costly initialization.");
+
         Must(main.Contains("OnOpenDeckLibraryClicked", StringComparison.Ordinal) &&
              main.Contains("OnShowCatalogClicked", StringComparison.Ordinal) &&
              mainCode.Contains("nativeWorkspaceView.NavigateTo(section)", StringComparison.Ordinal),
