@@ -88,13 +88,15 @@ public partial class MainWindow : Window
     private void InvalidateCatalogPageCache()
     {
         catalogPageCache.Clear();
-        catalogArtworkPrefetch?.Cancel();
+        try { catalogArtworkPrefetch?.Cancel(); }
+        catch (ObjectDisposedException) { }
         catalogArtworkPrefetch = null;
     }
 
     private void PrefetchCatalogPageArtwork(IReadOnlyList<CatalogSnapshot.PrintingRow> rows)
     {
-        catalogArtworkPrefetch?.Cancel();
+        try { catalogArtworkPrefetch?.Cancel(); }
+        catch (ObjectDisposedException) { }
         var cancel = new CancellationTokenSource();
         catalogArtworkPrefetch = cancel;
         var urls = rows.Select(x => x.ImageUrl)
@@ -2131,6 +2133,7 @@ public partial class MainWindow : Window
 
     private void InvalidateNativeWorkspace()
     {
+        InvalidateCatalogPageCache();
         // A true source-data change must be reverified, but filter/search
         // choices and stable selection IDs can safely cross that refresh.
         pendingNativeUiState = nativeWorkspaceView?.CaptureNavigationState() ??
