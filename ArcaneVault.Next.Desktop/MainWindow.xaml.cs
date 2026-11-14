@@ -891,8 +891,128 @@ public partial class MainWindow : Window
     /// </summary>
     private (string Adb,string Serial,int Port)? activeUsbBridge;
 
+    /** First sync: compare before choosing authority, and checkpoint only
+     * after Android confirms a matching final snapshot. */
+    private async void OnCreateSharedBaselineUsbClicked(object sender,RoutedEventArgs e)
+    {
+        if(!File.Exists(NativeWorkspace.DefaultPath)){
+            FilterStatus.Text="Open a native workspace before pairing.";
+            return;
+        }
+        try {
+            await StopPeerUsbAsync();
+            string? expectedPhone=null;
+            string? selectedAuthority=null;
+            string? expectedWindowsSha=null;
+            string? expectedPhoneRevision=null;
+            NativePeerSync.FirstPairUnion? unionPlan=null;
+            var offer=wirelessPeer.RequestUsbBaseline(async (phoneBytes,phase)=>
+            {
+                if(phase==0) {
+                    var comparison=await Task.Run(()=>
+                        NativePeerSync.Compare(NativeWorkspace.DefaultPath,phoneBytes));
+                    expectedPhone=comparison.Device;
+                    expectedWindowsSha=comparison.CurrentSha;
+                    using(var phoneDoc=System.Text.Json.JsonDocument.Parse(phoneBytes))
+                        expectedPhoneRevision=phoneDoc.RootElement.GetProperty("revision").GetString();
+                    selectedAuthority="matched";
+                    byte[] latest=NativePeerSync.Export(
+                        NativeWorkspace.DefaultPath,NativePeerSync.DeviceId());
+                    if(comparison.HasChanges) {
+                        try {
+                            unionPlan=await Task.Run(()=>
+                                NativePeerSync.PrepareFirstPairUnion(
+                                    NativeWorkspace.DefaultPath,phoneBytes));
+                            latest=unionPlan.CandidatePeer;
+                            selectedAuthority="merge";
+                        } catch(InvalidDataException) {
+                        var decision=await Dispatcher.InvokeAsync(()=>
+                            NativeInAppDialog.Show(this,
+                                "First USB sync found "+comparison.Changes.Count+
+                                " different records across inventories, decks or artwork.\n\n"+
+                                string.Join("\n",comparison.Changes.Take(8)
+                                    .Select(c=>c.Action+" · "+c.Group+" · "+c.Key))+
+                                "\n\nYES: Keep WINDOWS data and update Android.\n"+
+                                "NO: Keep ANDROID data and update Windows.\n"+
+                                "CANCEL: Leave both devices unchanged.\n\n"+
+                                "Both choices create a rollback first. Differences "+
+                                "alone cannot identify which device is newer.",
+                                "Choose source for first sync",
+                                MessageBoxButton.YesNoCancel,MessageBoxImage.Warning));
+                        if(decision is MessageBoxResult.Cancel or MessageBoxResult.None)
+                            throw new InvalidOperationException(
+                                "Initial sync canceled; no device changed.");
+                        selectedAuthority=decision==MessageBoxResult.Yes?
+                            "windows":"android";
+                        }
+                    }
+                    var reply=new System.Text.Json.Nodes.JsonObject {
+                        ["status"]="review",
+                        ["authority"]=selectedAuthority,
+                        ["changes"]=comparison.Changes.Count,
+                        ["windows"]=System.Text.Json.Nodes.JsonNode.Parse(latest)
+                    };
+                    return System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(reply);
+                }
+                if(phase!=1||string.IsNullOrEmpty(expectedPhone)||
+                    string.IsNullOrEmpty(selectedAuthority))
+                    throw new InvalidDataException("USB pairing phase is invalid.");
+                using(var finalDoc=System.Text.Json.JsonDocument.Parse(phoneBytes)){
+                    if(finalDoc.RootElement.GetProperty("deviceId").GetString()!=expectedPhone)
+                        throw new InvalidDataException("Android device changed during pairing.");
+                    if(selectedAuthority=="android" &&
+                        finalDoc.RootElement.GetProperty("revision").GetString()!=
+                            expectedPhoneRevision)
+                        throw new InvalidDataException("Android source changed during pairing.");
+                }
+                if(selectedAuthority=="android")
+                    await Task.Run(()=>NativePeerSync.ApplyFirstPairFromAndroid(
+                        NativeWorkspace.DefaultPath,phoneBytes,expectedWindowsSha!));
+                if(selectedAuthority=="merge" && unionPlan!=null &&
+                    unionPlan.AdditionsFromPhone>0)
+                    await Task.Run(()=>NativePeerSync.ApplyFirstPairUnion(
+                        NativeWorkspace.DefaultPath,unionPlan));
+                var verified=await Task.Run(()=>
+                    NativePeerSync.Compare(NativeWorkspace.DefaultPath,phoneBytes));
+                if(verified.HasChanges)
+                    throw new InvalidDataException("Devices remain different; baseline not saved.");
+                string checkpoint=await Task.Run(()=>NativePeerCheckpoint.SaveIdentical(
+                    NativeWorkspace.DefaultPath,phoneBytes));
+                byte[] authoritative=NativePeerSync.Export(NativeWorkspace.DefaultPath,
+                    NativePeerSync.DeviceId());
+                _=Dispatcher.BeginInvoke(new Action(async ()=>{
+                    if(closing)return;
+                    FilterStatus.Text="USB baseline established. Checkpoint: "+checkpoint;
+                    if(selectedAuthority=="android"||
+                        (selectedAuthority=="merge"&&unionPlan?.AdditionsFromPhone>0))
+                        await RefreshNativeWorkspaceAsync();
+                }));
+                return System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
+                    new System.Text.Json.Nodes.JsonObject {
+                        ["status"]="paired",
+                        ["windows"]=System.Text.Json.Nodes.JsonNode.Parse(authoritative)
+                    });
+            });
+            activeUsbBridge=await UsbPeerBridge.OpenBaselineAsync(offer.Url);
+            FilterStatus.Text="First USB sync started. Approve baseline setup on Android.";
+        }catch(Exception error){
+            await StopPeerUsbAsync();
+            FilterStatus.Text="USB baseline setup failed: "+error.Message;
+        }
+    }
+
+    private bool HasAnyPeerCheckpoint()
+    {
+        string folder=Path.Combine(NativeWorkspace.RootDirectory,"peer-checkpoints");
+        return Directory.Exists(folder) && Directory.EnumerateFiles(folder,"*.json").Any();
+    }
+
     private async void OnSharePeerUsbClicked(object sender,RoutedEventArgs e)
     {
+        if(!HasAnyPeerCheckpoint()){
+            OnCreateSharedBaselineUsbClicked(sender,e);
+            return;
+        }
         if(!File.Exists(NativeWorkspace.DefaultPath)) {
             FilterStatus.Text="Open the native collection before USB sharing.";
             return;
@@ -919,6 +1039,10 @@ public partial class MainWindow : Window
 
     private async void OnReceiveAndApplyPeerUsbClicked(object sender,RoutedEventArgs e)
     {
+        if(!HasAnyPeerCheckpoint()){
+            OnCreateSharedBaselineUsbClicked(sender,e);
+            return;
+        }
         if(!File.Exists(NativeWorkspace.DefaultPath)) {
             FilterStatus.Text="Open the native collection before USB receiving.";
             return;

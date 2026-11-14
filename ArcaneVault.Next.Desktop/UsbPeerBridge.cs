@@ -69,8 +69,15 @@ internal static class UsbPeerBridge
         return (adb,serials[0]);
     }
 
-    public static async Task<(string Adb,string Serial,int Port)> OpenAsync(
-        string loopbackUrl,bool sendFromAndroid)
+    public static Task<(string Adb,string Serial,int Port)> OpenAsync(
+        string loopbackUrl,bool sendFromAndroid)=>
+        OpenModeAsync(loopbackUrl,sendFromAndroid?"send":"receive");
+
+    public static Task<(string Adb,string Serial,int Port)> OpenBaselineAsync(
+        string loopbackUrl)=>OpenModeAsync(loopbackUrl,"baseline");
+
+    private static async Task<(string Adb,string Serial,int Port)> OpenModeAsync(
+        string loopbackUrl,string mode)
     {
         Uri url=new(loopbackUrl,UriKind.Absolute);
         if(url.Scheme!="http" || url.Host!="127.0.0.1" ||
@@ -89,7 +96,7 @@ internal static class UsbPeerBridge
                 "-n","com.arcanevault.mobile/.MainActivity",
                 "--activity-single-top",
                 "--es","arcane_usb_url",loopbackUrl,
-                "--es","arcane_usb_mode",sendFromAndroid?"send":"receive");
+                "--es","arcane_usb_mode",mode);
             return (adb,serial,port);
         } catch {
             await CloseAsync((adb,serial,port));

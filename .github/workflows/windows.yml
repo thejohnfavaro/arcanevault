@@ -33,6 +33,7 @@ jobs:
           node tests/regression.mjs
           node tests/new-features.mjs
           node tests/phase0-audit.mjs
+          node tests/native-first-usb-sync.mjs
       - name: Restore packages
         run: dotnet restore ArcaneVault.sln
       - name: Build solution
