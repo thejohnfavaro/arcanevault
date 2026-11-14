@@ -22,6 +22,7 @@ public partial class MainWindow
     private CatalogSnapshot.PrintingRow? inspectorSelection;
     private int inspectorRequestVersion;
     private bool inspectorExpanded;
+    private bool inspectorShowingBack;
 
     private void InitializeInAppNotices()
     {
@@ -85,8 +86,21 @@ public partial class MainWindow
         inspectorSelection = null;
         CardInspectorPanel.Visibility = Visibility.Collapsed;
         InspectorArt.ArtUrl = "";
+        InspectorFlipButton.Visibility = Visibility.Collapsed;
         InspectorManaCost.Value = "";
         InspectorOracle.Document = new FlowDocument();
+    }
+
+    private void OnInspectorFlipClicked(object sender, RoutedEventArgs e)
+    {
+        if (inspectorSelection is not { } selected ||
+            !NativeCardArtwork.IsTrustedArtworkUrl(selected.BackImageUrl) ||
+            !NativeCardArtwork.IsTrustedArtworkUrl(selected.ImageUrl)) return;
+        inspectorShowingBack = !inspectorShowingBack;
+        InspectorArt.ArtUrl = inspectorShowingBack
+            ? selected.BackImageUrl : selected.ImageUrl;
+        InspectorFlipButton.ToolTip = inspectorShowingBack
+            ? "Tap to show front card face" : "Tap to show alternate card face";
     }
 
     private void SetInspectorExpanded(bool expanded)
@@ -152,7 +166,13 @@ public partial class MainWindow
         CardInspectorPanel.Visibility = Visibility.Visible;
         InspectorName.Text = selected.Name;
         InspectorName.ToolTip = selected.Name;
+        inspectorShowingBack = false;
         InspectorArt.ArtUrl = selected.ImageUrl;
+        InspectorFlipButton.Visibility =
+            NativeCardArtwork.IsTrustedArtworkUrl(selected.BackImageUrl) &&
+            NativeCardArtwork.IsTrustedArtworkUrl(selected.ImageUrl)
+                ? Visibility.Visible : Visibility.Collapsed;
+        InspectorFlipButton.ToolTip = "Tap to show alternate card face";
         InspectorPrinting.Text = selected.ArenaPresentation
             ? "Arena available · one per card name"
             : $"{selected.SetCode.ToUpperInvariant()}  #{selected.CollectorNumber}  ·  {selected.RarityLabel}";
