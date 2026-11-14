@@ -70,13 +70,14 @@ public sealed class CatalogSnapshot : IDisposable
         string ColorMask = "", ColorMatching ColorMatch = ColorMatching.ContainsAll,
         bool ColorlessOnly = false, bool ArenaOnly = false,
         OwnershipMode Ownership = OwnershipMode.All,
-        string Role = "", bool IncludeProxies = false)
+        string Role = "", bool IncludeProxies = false,
+        double? ManaValueMin = null, double? ManaValueMax = null)
     {
         public bool IsDefault =>
             SetCode.Length == 0 && Rarity.Length == 0 && TypeContains.Length == 0 &&
             ColorMask.Length == 0 && !ColorlessOnly && !ArenaOnly &&
             Ownership == OwnershipMode.All && Role.Length == 0 &&
-            !IncludeProxies;
+            !IncludeProxies && ManaValueMin is null && ManaValueMax is null;
     }
 
     private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true,
@@ -389,11 +390,19 @@ public sealed class CatalogSnapshot : IDisposable
         if (rarity.Length > 0 && rarity is not (
             "common" or "uncommon" or "rare" or "mythic" or "special" or "bonus"))
             throw new ArgumentException("Unknown catalog rarity filter.");
+        if ((filters.ManaValueMin is < 0 or > 1000) ||
+            (filters.ManaValueMax is < 0 or > 1000) ||
+            (filters.ManaValueMin.HasValue && !double.IsFinite(filters.ManaValueMin.Value)) ||
+            (filters.ManaValueMax.HasValue && !double.IsFinite(filters.ManaValueMax.Value)) ||
+            (filters.ManaValueMin.HasValue && filters.ManaValueMax.HasValue &&
+             filters.ManaValueMin > filters.ManaValueMax))
+            throw new ArgumentException("Mana value range must be finite, nonnegative, and ordered.");
         string set = filters.SetCode.Trim();
         string type = filters.TypeContains.Trim();
         if (set.Length > 20 || type.Length > 80)
             throw new ArgumentException("Catalog filter exceeds its supported length.");
-        bool needsCard = filters.ColorlessOnly || color.Length > 0 || type.Length > 0 ||
+        bool needsCard = filters.ManaValueMin.HasValue || filters.ManaValueMax.HasValue ||
+            filters.ColorlessOnly || color.Length > 0 || type.Length > 0 ||
             HasRoleMetadata || filters.Role.Length > 0;
         if ((needsCard || filters.ArenaOnly ||
              filters.Ownership is OwnershipMode.ArenaOwned or OwnershipMode.ArenaNotOwned ||
@@ -430,6 +439,16 @@ public sealed class CatalogSnapshot : IDisposable
             {
                 where.Add("v.setcode = $set COLLATE NOCASE");
                 cmd.Parameters.AddWithValue("$set", set);
+            }
+            if (filters.ManaValueMin is double minValue)
+            {
+                where.Add("c.mv >= $mvMin");
+                cmd.Parameters.AddWithValue("$mvMin", minValue);
+            }
+            if (filters.ManaValueMax is double maxValue)
+            {
+                where.Add("c.mv <= $mvMax");
+                cmd.Parameters.AddWithValue("$mvMax", maxValue);
             }
             if (rarity.Length > 0)
             {
