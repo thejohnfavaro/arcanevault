@@ -415,10 +415,10 @@ public partial class MainWindow : Window
             }
             string version = release.Version.ToString(3);
             if (!await ConfirmNativeUpdateAsync("Arcane Vault update available",
-                $"Arcane Vault v{version} is available.\\n\\n" +
+                $"Arcane Vault v{version} is available.\n\n" +
                 "Download and verify the official release checksum, then install " +
                 "the update into a new managed version folder. Your collection, " +
-                "decks, artwork, snapshots and recovery files remain unchanged.\\n\\n" +
+                "decks, artwork, snapshots and recovery files remain unchanged.\n\n" +
                 "After the new app starts successfully, only the current app " +
                 "version and the most recent prior version are retained.",
                 "Install update"))
@@ -437,10 +437,10 @@ public partial class MainWindow : Window
             PostAppNotice("Update installed",
                 $"Arcane Vault v{version} has been verified and staged.");
             if (await ConfirmNativeUpdateAsync("Update ready to launch",
-                $"Arcane Vault v{version} is installed at:\\n" +
+                $"Arcane Vault v{version} is installed at:\n" +
                 installed.Directory +
-                "\\n\\nThe prior version remains available for rollback. " +
-                "Your existing collection will open after this instance exits.\\n\\n" +
+                "\n\nThe prior version remains available for rollback. " +
+                "Your existing collection will open after this instance exits.\n\n" +
                 "Launch the new version now?", "Restart into update"))
             {
                 string token = NativeUpgradeHandoff.NewId();
@@ -469,7 +469,7 @@ public partial class MainWindow : Window
                             : "The new process did not confirm startup in 20 seconds.";
                         FilterStatus.Text = "New version installed but automatic relaunch failed.";
                         PostAppNotice("Update launch failed",
-                            reason + "\\nYour current app remains open. " +
+                            reason + "\nYour current app remains open. " +
                             "The collection and version folders are unchanged. " +
                             "See Diagnostics/native-crash.log.",true);
                         return;
