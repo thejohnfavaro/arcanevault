@@ -126,7 +126,8 @@ internal static class NativeFullBackupExportChecks
         int recoveriesBeforeComparison = NativeWorkspaceSafety.RecoveryPaths(native).Count;
         var swapped = NativeCollectionIntegrity.Compare(redistributed, native);
         Must(!swapped.ByteIdentical && !swapped.InventoryMatch &&
-             swapped.AggregateMatch && swapped.TotalDifferingEntries == 2 &&
+             !swapped.AggregateMatch && swapped.TotalDifferingEntries == 2 &&
+             swapped.BackupMissingIds == 2 && swapped.ActiveMissingIds == 1 &&
              swapped.BackupPhysical == swapped.ActivePhysical &&
              swapped.Differences.Count == 2 &&
              swapped.Differences.All(x => x.Scope == "Physical") &&
