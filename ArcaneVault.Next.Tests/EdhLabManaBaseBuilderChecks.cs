@@ -96,6 +96,40 @@ internal static class EdhLabManaBaseBuilderChecks
              unsupported.Warning.Contains("Not enough recorded"),
              "Never claim a complete plan when recorded legal land inventory is insufficient.");
 
+        var optimizeCandidates = candidates.Concat(new[]
+        {
+            Card("Watery Example", "Land — Island Swamp",
+                "As Watery Example enters, you may pay 2 life. If you don't, it enters tapped. {T}: Add {U} or {B}.", 1),
+            Card("Untapped Example", "Land",
+                "{T}: Add {U} or {B}.", 1)
+        }).ToArray();
+        var optimizeDraft = new (string Name, int Quantity)[]
+        {
+            ("Island", 12), ("Plains", 8)
+        };
+        var optimizeSnapshot = optimizeDraft.ToArray();
+        var optOut = EdhLabManaBaseBuilder.Build(optimizeCandidates, "WUB",
+            optimizeDraft, 20);
+        Must(!optOut.CanApply && optOut.Changes.Count == 0,
+            "Existing mana base must remain untouched by default.");
+        var optimized = EdhLabManaBaseBuilder.Build(optimizeCandidates, "WUB",
+            optimizeDraft, 20, optimizeBasics: true);
+        Must(optimized.CanApply && optimized.OptimizedBasics &&
+             optimized.ResultingLands == 20 &&
+             optimized.ResultingCopies == 20 &&
+             optimized.Changes.Sum(x => x.Delta) == 0 &&
+             optimized.Changes.Any(x => x.Name == "Untapped Example" && x.Delta == 1) &&
+             optimized.Changes.Any(x => x.Name == "Watery Example" && x.Delta == 1) &&
+             optimized.Changes.Where(x => x.Delta < 0).All(x =>
+                 x.Name == "Island" || x.Name == "Plains") &&
+             optimizeDraft.SequenceEqual(optimizeSnapshot),
+            "Opt-in optimization must swap only surplus basics for owned reliable multicolor lands.");
+        var unownedOptimizer = EdhLabManaBaseBuilder.Build(
+            optimizeCandidates.Where(x => x.Name != "Untapped Example").ToArray(),
+            "WUB", optimizeDraft, 20, arena: true, optimizeBasics: true);
+        Must(!unownedOptimizer.Changes.Any(x => x.Name == "Untapped Example"),
+            "Optimizer never invents ownership or leaks paper proxies into Arena.");
+
         Console.WriteLine("PASS: reviewed mana-base diff, target, real/Proxy limits, Arena isolation, conservative basic cuts and no unverified edits");
     }
 }
