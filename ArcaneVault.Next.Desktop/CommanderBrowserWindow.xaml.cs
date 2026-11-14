@@ -1,3 +1,4 @@
+using System.Windows.Controls.Primitives;
 using ArcaneVault.Next.Collection;
 using ArcaneVault.Next.Domain;
 using ArcaneVault.Next.EDHLab;
@@ -167,7 +168,7 @@ public partial class CommanderBrowserWindow : Window
         }
     }
 
-    private IEnumerable<CheckBox> ManaBoxes()
+    private IEnumerable<ToggleButton> ManaBoxes()
     {
         return new[] { WhiteColor, BlueColor, BlackColor, RedColor, GreenColor };
     }
@@ -241,7 +242,7 @@ public partial class CommanderBrowserWindow : Window
             {
                 foreach (var box in ManaBoxes()) box.IsChecked = false;
             }
-            else if (sender is CheckBox checkedColor && checkedColor.IsChecked == true &&
+            else if (sender is ToggleButton checkedColor && checkedColor.IsChecked == true &&
                      !ReferenceEquals(checkedColor, Colorless))
                 Colorless.IsChecked = false;
         }

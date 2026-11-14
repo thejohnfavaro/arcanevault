@@ -3,6 +3,40 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
         Background="{DynamicResource VaultBackground}" Foreground="{DynamicResource VaultText}">
+    <UserControl.Resources>
+        <Style x:Key="EdhManaFilterToggle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Width" Value="42"/>
+            <Setter Property="Height" Value="39"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Shell" Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
+                                <Setter TargetName="Shell" Property="Background" Value="{DynamicResource VaultAccentMuted}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="BorderBrush" Value="{DynamicResource VaultAccentBorder}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Shell" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -51,48 +85,48 @@
         </StackPanel>
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
             <TextBlock Text="Identity" VerticalAlignment="Center" Margin="0,0,12,0"/>
-            <CheckBox x:Name="WhiteColor" Tag="W" Margin="0,0,16,0"
-                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
-                <StackPanel Orientation="Horizontal">
-                    <local:NativeManaSymbol Symbol="W" Width="20" Height="20" Margin="0,0,4,0"/>
-                    <TextBlock Text="White" VerticalAlignment="Center" FontSize="11"/>
-                </StackPanel>
-            </CheckBox>
-            <CheckBox x:Name="BlueColor" Tag="U" Margin="0,0,16,0"
-                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
-                <StackPanel Orientation="Horizontal">
-                    <local:NativeManaSymbol Symbol="U" Width="20" Height="20" Margin="0,0,4,0"/>
-                    <TextBlock Text="Blue" VerticalAlignment="Center" FontSize="11"/>
-                </StackPanel>
-            </CheckBox>
-            <CheckBox x:Name="BlackColor" Tag="B" Margin="0,0,16,0"
-                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
-                <StackPanel Orientation="Horizontal">
-                    <local:NativeManaSymbol Symbol="B" Width="20" Height="20" Margin="0,0,4,0"/>
-                    <TextBlock Text="Black" VerticalAlignment="Center" FontSize="11"/>
-                </StackPanel>
-            </CheckBox>
-            <CheckBox x:Name="RedColor" Tag="R" Margin="0,0,16,0"
-                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
-                <StackPanel Orientation="Horizontal">
-                    <local:NativeManaSymbol Symbol="R" Width="20" Height="20" Margin="0,0,4,0"/>
-                    <TextBlock Text="Red" VerticalAlignment="Center" FontSize="11"/>
-                </StackPanel>
-            </CheckBox>
-            <CheckBox x:Name="GreenColor" Tag="G" Margin="0,0,16,0"
-                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
-                <StackPanel Orientation="Horizontal">
-                    <local:NativeManaSymbol Symbol="G" Width="20" Height="20" Margin="0,0,4,0"/>
-                    <TextBlock Text="Green" VerticalAlignment="Center" FontSize="11"/>
-                </StackPanel>
-            </CheckBox>
-            <CheckBox x:Name="Colorless" Tag="C" Margin="0,0,16,0"
-                      Checked="OnColorsChanged" Unchecked="OnColorsChanged">
-                <StackPanel Orientation="Horizontal">
-                    <local:NativeManaSymbol Symbol="C" Width="20" Height="20" Margin="0,0,4,0"/>
-                    <TextBlock Text="Colorless" VerticalAlignment="Center" FontSize="11"/>
-                </StackPanel>
-            </CheckBox>
+            <ToggleButton x:Name="WhiteColor" Tag="W"
+                          Style="{StaticResource EdhManaFilterToggle}" Margin="0,0,8,0"
+                          Checked="OnColorsChanged" Unchecked="OnColorsChanged"
+                          ToolTip="White — click to include or exclude"
+                          AutomationProperties.Name="White identity filter">
+                <local:NativeManaSymbol Symbol="W" Width="25" Height="25"/>
+            </ToggleButton>
+            <ToggleButton x:Name="BlueColor" Tag="U"
+                          Style="{StaticResource EdhManaFilterToggle}" Margin="0,0,8,0"
+                          Checked="OnColorsChanged" Unchecked="OnColorsChanged"
+                          ToolTip="Blue — click to include or exclude"
+                          AutomationProperties.Name="Blue identity filter">
+                <local:NativeManaSymbol Symbol="U" Width="25" Height="25"/>
+            </ToggleButton>
+            <ToggleButton x:Name="BlackColor" Tag="B"
+                          Style="{StaticResource EdhManaFilterToggle}" Margin="0,0,8,0"
+                          Checked="OnColorsChanged" Unchecked="OnColorsChanged"
+                          ToolTip="Black — click to include or exclude"
+                          AutomationProperties.Name="Black identity filter">
+                <local:NativeManaSymbol Symbol="B" Width="25" Height="25"/>
+            </ToggleButton>
+            <ToggleButton x:Name="RedColor" Tag="R"
+                          Style="{StaticResource EdhManaFilterToggle}" Margin="0,0,8,0"
+                          Checked="OnColorsChanged" Unchecked="OnColorsChanged"
+                          ToolTip="Red — click to include or exclude"
+                          AutomationProperties.Name="Red identity filter">
+                <local:NativeManaSymbol Symbol="R" Width="25" Height="25"/>
+            </ToggleButton>
+            <ToggleButton x:Name="GreenColor" Tag="G"
+                          Style="{StaticResource EdhManaFilterToggle}" Margin="0,0,8,0"
+                          Checked="OnColorsChanged" Unchecked="OnColorsChanged"
+                          ToolTip="Green — click to include or exclude"
+                          AutomationProperties.Name="Green identity filter">
+                <local:NativeManaSymbol Symbol="G" Width="25" Height="25"/>
+            </ToggleButton>
+            <ToggleButton x:Name="Colorless" Tag="C"
+                          Style="{StaticResource EdhManaFilterToggle}" Margin="0,0,8,0"
+                          Checked="OnColorsChanged" Unchecked="OnColorsChanged"
+                          ToolTip="Colorless — click to include or exclude"
+                          AutomationProperties.Name="Colorless identity filter">
+                <local:NativeManaSymbol Symbol="C" Width="25" Height="25"/>
+            </ToggleButton>
             <Button Content="Clear colors" Padding="10,5" Click="OnClearColors"/>
         </StackPanel>
         <DockPanel Grid.Row="3" Margin="0,0,0,12">
