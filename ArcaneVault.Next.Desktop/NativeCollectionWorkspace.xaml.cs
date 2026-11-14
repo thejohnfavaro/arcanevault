@@ -63,11 +63,21 @@ public partial class NativeCollectionWorkspace : UserControl
         this.editInEmbeddedEdhLab = editInEmbeddedEdhLab;
         deckRows = nativeDecks ?? Array.Empty<NativeDeckEditing.DeckRow>();
         InitializeComponent();
+        // Keep Set Progress's existing named controls and handlers, but
+        // present the section as a standalone sidebar workspace instead of
+        // a Collection tab. No second progress model or collection reload.
+        var setProgressBody = SetProgressTab.Content;
+        SetProgressTab.Content = null;
+        SetProgressContentHost.Content = setProgressBody;
         CollectionTabs.SelectionChanged += (_, e) =>
         {
             if (ReferenceEquals(e.OriginalSource, CollectionTabs))
+            {
+                UpdateSectionPresentation();
                 SectionChanged?.Invoke(CollectionTabs.SelectedIndex);
+            }
         };
+        UpdateSectionPresentation();
         physicalDetailedView = PhysicalList.View as GridView;
         RefreshDeckRows();
         AddDeckButton.IsEnabled = nativeWorkspace &&
@@ -133,6 +143,22 @@ public partial class NativeCollectionWorkspace : UserControl
 
     /// <summary>Host-controlled sidebar selection; the data and edit actions
     /// are unchanged from the standalone collection view.</summary>
+    private void UpdateSectionPresentation()
+    {
+        if (CollectionTabs is null || SetProgressStandalone is null) return;
+        bool setProgress = CollectionTabs.SelectedIndex == 3;
+        CollectionWorkspaceHeader.Visibility =
+            setProgress ? Visibility.Collapsed : Visibility.Visible;
+        CollectionWorkspaceSummary.Visibility =
+            setProgress ? Visibility.Collapsed : Visibility.Visible;
+        CollectionWorkspaceFilter.Visibility =
+            setProgress ? Visibility.Collapsed : Visibility.Visible;
+        CollectionTabs.Visibility =
+            setProgress ? Visibility.Collapsed : Visibility.Visible;
+        SetProgressStandalone.Visibility =
+            setProgress ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public event Action<int>? SectionChanged;
     public int SelectedSection => CollectionTabs.SelectedIndex;
     public void NavigateTo(int tabIndex)
@@ -140,6 +166,7 @@ public partial class NativeCollectionWorkspace : UserControl
         if (tabIndex is < 0 or > 3)
             throw new ArgumentOutOfRangeException(nameof(tabIndex));
         CollectionTabs.SelectedIndex = tabIndex;
+        UpdateSectionPresentation();
     }
 
     /// <summary>

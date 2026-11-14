@@ -13,7 +13,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="0,0,0,18">
+        <Grid x:Name="CollectionWorkspaceHeader" Grid.Row="0" Margin="0,0,0,18">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -51,7 +51,7 @@
 
         <!-- Summary tiles mirror the original dashboard stats, but only
              show verified live/native data instead of guessed ownership. -->
-        <Grid Grid.Row="1" Margin="0,0,0,15">
+        <Grid x:Name="CollectionWorkspaceSummary" Grid.Row="1" Margin="0,0,0,15">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="11*"/>
                 <ColumnDefinition Width="13"/>
@@ -80,7 +80,7 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="2" Style="{StaticResource VaultElevatedPanel}"
+        <Border x:Name="CollectionWorkspaceFilter" Grid.Row="2" Style="{StaticResource VaultElevatedPanel}"
                 Padding="13,11" Margin="0,0,0,14">
             <DockPanel LastChildFill="True">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right"
@@ -102,6 +102,26 @@
                          BorderBrush="{DynamicResource VaultLine}"/>
             </DockPanel>
         </Border>
+
+        <!-- Set Progress is independently routed from the sidebar, not
+             a fourth visible Collection tab. Its original controls are
+             rehosted without recreating data or duplicating event handlers. -->
+        <Grid Grid.Row="3" x:Name="SetProgressStandalone" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <StackPanel Margin="0,0,0,12">
+                <TextBlock Text="SET PROGRESS" Style="{StaticResource VaultEyebrow}"
+                           Margin="0,0,0,5"/>
+                <TextBlock Text="Set Progress" FontSize="27" FontWeight="Bold"
+                           Foreground="{DynamicResource VaultText}"/>
+                <TextBlock Text="Verified physical printings and Arena card-name coverage by set"
+                           Style="{StaticResource VaultMutedText}"
+                           Margin="0,5,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+            <ContentControl x:Name="SetProgressContentHost" Grid.Row="1"/>
+        </Grid>
 
         <TabControl Grid.Row="3" x:Name="CollectionTabs"
                     Background="{DynamicResource VaultPanel}" Foreground="{DynamicResource VaultText}" BorderBrush="{DynamicResource VaultEdgeLift}">
@@ -650,7 +670,8 @@
                                Text="Saved decks are distinct from ownership. Format legality is not yet validated."/>
                 </Grid>
             </TabItem>
-            <TabItem Header="Set Progress">
+            <TabItem x:Name="SetProgressTab" Header="Set Progress"
+                     Visibility="Collapsed">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

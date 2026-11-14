@@ -968,6 +968,45 @@ internal static class NativeVisualShellChecks
         Must(main.Contains("OnOpenSetProgressClicked", StringComparison.Ordinal) &&
              mainCode.Contains("NavigateToNativeWorkspaceAsync(3)", StringComparison.Ordinal),
              "Set Progress must be available as a direct sidebar destination.");
+        // Responsive catalog header uses full-width search and stacked
+        // wrapping groups, never a fixed right-hand viewport that floats
+        // away from the filters as the main window is resized.
+        var responsiveCatalogShell = XDocument.Parse(main);
+        var catalog = responsiveCatalogShell.Descendants().First(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "CatalogWorkspace");
+        var search = catalog.Descendants().First(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "SearchBox");
+        var viewSelector = catalog.Descendants().First(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "CatalogViewMode");
+        Must(search.Ancestors().Any(x => x.Name.LocalName == "StackPanel") &&
+             viewSelector.Ancestors().Any(x => x.Name.LocalName == "StackPanel") &&
+             !catalog.Descendants().Any(x => x.Name.LocalName == "ColumnDefinition" &&
+                 x.Attribute("Width")?.Value == "275") &&
+             catalog.Descendants().Any(x => x.Name.LocalName == "WrapPanel" &&
+                 x.Descendants().Any(y =>
+                     y.Attribute(XName.Get("Name", XamlNs))?.Value == "OwnershipFilterBox")) &&
+             catalog.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "CatalogIncludeProxiesBox"),
+             "Catalog search/filter header must not depend on a fixed, misaligned view column.");
+
+        // Set Progress keeps the original live controls/selection logic,
+        // but is no longer an extra visible Collection tab.
+        var collectionXml = XDocument.Parse(collection);
+        var progressTab = collectionXml.Descendants().Single(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "SetProgressTab");
+        Must(progressTab.Attribute("Visibility")?.Value == "Collapsed" &&
+             collectionXml.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "SetProgressStandalone") &&
+             collectionXml.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "SetProgressContentHost") &&
+             v65DeckShell.Contains("SetProgressContentHost.Content = setProgressBody;") &&
+             v65DeckShell.Contains("CollectionWorkspaceHeader.Visibility =") &&
+             v65DeckShell.Contains("CollectionTabs.Visibility =") &&
+             v65DeckShell.Contains("SetProgressStandalone.Visibility =") &&
+             v65DeckShell.Contains("UpdateSectionPresentation();"),
+             "Set Progress must be an independent visible workspace, sharing the verified collection model.");
+
+
         Must(main.Contains("OnOpenDeckLibraryClicked", StringComparison.Ordinal) &&
              main.Contains("OnShowCatalogClicked", StringComparison.Ordinal) &&
              mainCode.Contains("nativeWorkspaceView.NavigateTo(section)", StringComparison.Ordinal),
