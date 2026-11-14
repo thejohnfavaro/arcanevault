@@ -231,13 +231,14 @@ public partial class NativeCardDetailsWindow : Window
                 "Start a native collection before saving a shortlist bookmark.";
             return;
         }
+        string cardName = CardName.Text;
         try
         {
             var names = await Task.Run(() =>
                 NativeWorkspaceSafety.ListShortlist(nativePath));
             if (artworkCancellation.IsCancellationRequested) return;
             bookmarkSaved = names.Any(n => n.Equals(
-                CardName.Text, StringComparison.OrdinalIgnoreCase));
+                cardName, StringComparison.OrdinalIgnoreCase));
             BookmarkCardButton.Content = bookmarkSaved
                 ? "★  Remove from My Shortlist" : "☆  Bookmark in My Shortlist";
             BookmarkCardButton.IsEnabled = !bookmarkBusy;
@@ -259,6 +260,8 @@ public partial class NativeCardDetailsWindow : Window
             string.IsNullOrWhiteSpace(nativePath)) return;
         bookmarkBusy = true;
         BookmarkCardButton.IsEnabled = false;
+        // WPF elements are dispatcher-bound; capture values before Task.Run.
+        string cardName = CardName.Text;
         try
         {
             bool next = await Task.Run(() =>
@@ -266,9 +269,9 @@ public partial class NativeCardDetailsWindow : Window
                 var workspace = NativeWorkspace.Open(nativePath);
                 var names = NativeWorkspaceSafety.ListShortlist(nativePath);
                 bool isSaved = names.Any(n => n.Equals(
-                    CardName.Text, StringComparison.OrdinalIgnoreCase));
+                    cardName, StringComparison.OrdinalIgnoreCase));
                 NativeWorkspaceSafety.SetShortlistCard(
-                    nativePath, CardName.Text, !isSaved, workspace.BackupSha256);
+                    nativePath, cardName, !isSaved, workspace.BackupSha256);
                 return !isSaved;
             });
             if (artworkCancellation.IsCancellationRequested) return;
@@ -297,6 +300,7 @@ public partial class NativeCardDetailsWindow : Window
     private async Task ShowPreferredArtworkAsync()
     {
         string? url = defaultArtworkUrl;
+        string cardName = CardName.Text;
         bool chosen = false;
         // The legacy preferredArtwork record stores a physical printing UUID,
         // not an MTG Arena cosmetic style. Never apply it in Arena scope.
@@ -305,7 +309,7 @@ public partial class NativeCardDetailsWindow : Window
             try
             {
                 var preference = await Task.Run(() =>
-                    NativeWorkspaceSafety.GetPreferredArtwork(nativePath, CardName.Text));
+                    NativeWorkspaceSafety.GetPreferredArtwork(nativePath, cardName));
                 if (artworkCancellation.IsCancellationRequested) return;
                 bool allowed = preference is not null &&
                     NativeCardArtwork.IsTrustedArtworkUrl(preference.Image);
@@ -314,7 +318,7 @@ public partial class NativeCardDetailsWindow : Window
                     // Preferred artwork can originate from the physical gallery.
                     // Only apply it here when its exact print is Arena-available.
                     allowed = !string.IsNullOrWhiteSpace(catalogPath) &&
-                        NativePrintingArtwork.Read(catalogPath, CardName.Text, 400,
+                        NativePrintingArtwork.Read(catalogPath, cardName, 400,
                             arenaOnly: true).Printings.Any(p =>
                                 p.Id == preference!.Id && p.ImageUrl == preference.Image);
                 }
@@ -341,7 +345,7 @@ public partial class NativeCardDetailsWindow : Window
             NativeCardArtwork.IsTrustedArtworkUrl(activeFrontArt))
         {
             string found = await Task.Run(() =>
-                NativeCardFaceLookup.Alternate(catalogPath,CardName.Text,activeFrontArt));
+                NativeCardFaceLookup.Alternate(catalogPath,cardName,activeFrontArt));
             if (version == artworkVersion && !artworkCancellation.IsCancellationRequested &&
                 NativeCardArtwork.IsTrustedArtworkUrl(found))
             {
