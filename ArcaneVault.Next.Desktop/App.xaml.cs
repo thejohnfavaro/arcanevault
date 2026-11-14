@@ -174,9 +174,9 @@ public partial class App : Application
                         // Switch the pinned launcher only after the upgraded
                         // window loaded; failed startup keeps the old target.
                         NativeInstalledLauncherActivation.TryActivate(
-                            NativeUpdateService.DefaultVersionsRoot, runningExe);
+                            NativeUpdateService.ResolveVersionsRoot(runningExe), runningExe);
                         NativeVersionRetention.CleanupAfterVerifiedLaunch(
-                            NativeUpdateService.DefaultVersionsRoot,runningExe);
+                            NativeUpdateService.ResolveVersionsRoot(runningExe),runningExe);
                     }
                     catch(Exception cleanupError)
                     {

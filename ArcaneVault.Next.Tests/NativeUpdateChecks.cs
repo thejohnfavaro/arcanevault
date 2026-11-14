@@ -297,6 +297,25 @@ internal static class NativeUpdateChecks
         Must(File.ReadAllText(userDataMarker) == "never delete this collection",
             "Installed launcher must not touch collection data.");
 
+        // Arbitrary per-user install locations (including non-C: volumes)
+        // must be discovered from the verified running native executable.
+        Must(Path.GetFullPath(NativeUpdateService.ResolveVersionsRoot(
+                 second.ExecutablePath)) == Path.GetFullPath(stableVersions),
+             "A custom Windows install directory must be used for future updates.");
+        Must(NativeUpdateService.ResolveVersionsRoot(
+                 Path.Combine(work, "unmanaged.exe")) ==
+             NativeUpdateService.DefaultVersionsRoot,
+             "Portable/unmanaged runs retain the existing update staging path.");
+        string stagedManifest = Path.Combine(second.Directory,
+            NativeUpdateService.ManifestName);
+        string manifestContents = File.ReadAllText(stagedManifest);
+        File.WriteAllText(stagedManifest, "not JSON");
+        Must(NativeUpdateService.ResolveVersionsRoot(second.ExecutablePath) ==
+             NativeUpdateService.DefaultVersionsRoot,
+             "A corrupt install identity must not redirect an update.");
+        File.WriteAllText(stagedManifest, manifestContents);
+
+
         Must(before.SequenceEqual(new[] { nativeWorkspace, catalog, recovery }.Select(Sha)) &&
              Sha(installed.ExecutablePath) == oldExeHash,
             "All failure paths must preserve old executable and user data.");

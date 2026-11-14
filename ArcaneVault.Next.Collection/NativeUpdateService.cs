@@ -27,6 +27,72 @@ public static class NativeUpdateService
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "ArcaneVaultNativeApps", "versions");
 
+    /// <summary>
+    /// Installed mode follows the currently running version's verified parent
+    /// directory, including custom installer destinations and other drives.
+    /// Portable mode preserves the existing default staging destination.
+    /// Never trust an arbitrary folder merely because it contains "versions".
+    /// </summary>
+    public static string ResolveVersionsRoot(string? runningExecutable)
+    {
+        if (!string.IsNullOrWhiteSpace(runningExecutable))
+        {
+            try
+            {
+                string executable = Path.GetFullPath(runningExecutable);
+                string versionDir = Path.GetDirectoryName(executable) ?? "";
+                string versionsDir = Path.GetDirectoryName(versionDir) ?? "";
+                string installDir = Path.GetDirectoryName(versionsDir) ?? "";
+                string token = Path.GetFileName(versionDir);
+                bool directorySafe(string path)
+                {
+                    var info = new DirectoryInfo(path);
+                    return info.Exists &&
+                        (info.Attributes & FileAttributes.ReparsePoint) == 0;
+                }
+                if (Path.GetFileName(executable).Equals(ExecutableName,
+                        StringComparison.OrdinalIgnoreCase) &&
+                    Path.GetFileName(versionsDir).Equals("versions",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    Regex.IsMatch(token, @"^v[0-9]+\.[0-9]+\.[0-9]+$",
+                        RegexOptions.CultureInvariant) &&
+                    directorySafe(installDir) && directorySafe(versionsDir) &&
+                    directorySafe(versionDir) &&
+                    File.Exists(Path.Combine(installDir,
+                        NativeInstalledLauncherActivation.LauncherName)) &&
+                    File.Exists(Path.Combine(versionDir, ManifestName)))
+                {
+                    var launcher = new FileInfo(Path.Combine(installDir,
+                        NativeInstalledLauncherActivation.LauncherName));
+                    var manifest = new FileInfo(Path.Combine(versionDir, ManifestName));
+                    if ((launcher.Attributes & FileAttributes.ReparsePoint) == 0 &&
+                        (manifest.Attributes & FileAttributes.ReparsePoint) == 0 &&
+                        manifest.Length is > 0 and <= 4096)
+                    {
+                        using var doc = JsonDocument.Parse(File.ReadAllText(manifest.FullName));
+                        var root = doc.RootElement;
+                        if (root.ValueKind == JsonValueKind.Object &&
+                            root.TryGetProperty("version", out var v) &&
+                            v.ValueKind == JsonValueKind.String &&
+                            Version.TryParse(v.GetString(), out var parsed) &&
+                            parsed.ToString(3) == token[1..] &&
+                            root.TryGetProperty("sourceSha", out var sha) &&
+                            Regex.IsMatch(sha.GetString() ?? "", "^[a-fA-F0-9]{40}$") &&
+                            root.TryGetProperty("channel", out var channel) &&
+                            channel.GetString() == "preview")
+                            return versionsDir;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                or ArgumentException or JsonException or InvalidOperationException)
+            {
+                // An unmanaged portable build has no installer root.
+            }
+        }
+        return DefaultVersionsRoot;
+    }
+
     public sealed record Candidate(Version Version, string Tag, Uri ReleasePage,
         Uri ArchiveUrl, Uri ChecksumUrl);
 
@@ -400,7 +466,8 @@ public static class NativeUpdateService
     }
 
     public static async Task<Installed> DownloadAndStageAsync(Candidate update,
-        CancellationToken cancellation = default, IProgress<string>? progress = null)
+        CancellationToken cancellation = default, IProgress<string>? progress = null,
+        string? versionsRoot = null)
     {
         ArgumentNullException.ThrowIfNull(update);
         if (!TryVersion(update.Tag, out var tagVersion) ||
@@ -417,7 +484,7 @@ public static class NativeUpdateService
         string expected = ParseChecksum(Encoding.UTF8.GetString(
             await ReadBoundedAsync(checksumStream, 4096, cancellation)));
 
-        string root = DefaultVersionsRoot;
+        string root = versionsRoot ?? DefaultVersionsRoot;
         Directory.CreateDirectory(root);
         string download = Path.Combine(root, ".download-" + Guid.NewGuid().ToString("N") + ".zip");
         try
