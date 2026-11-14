@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Diagnostics;
 using ArcaneVault.Next.Collection;
 using System.IO;
@@ -9,6 +10,10 @@ namespace ArcaneVault.Next.Desktop;
 public partial class App : Application
 {
     private static int reportingFailure;
+    // Matches the stable launcher shortcut created by the native installer.
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
+
 
     // A WPF UI exception previously could close the process without a usable
     // error report. Keep collection data untouched and log to the user profile.
@@ -93,6 +98,10 @@ public partial class App : Application
                 readyId = arg[NativeUpgradeHandoff.ArgumentPrefix.Length..];
         }
 
+        // Keep running WPF windows grouped with the permanent pinned launcher.
+        try { SetCurrentProcessExplicitAppUserModelID("RNGesus.ArcaneVault"); }
+        catch (Exception ex) { RecordFailure("Taskbar app identity", ex); }
+
         // Appearance is optional and never a reason to lose access to cards.
         // In particular, do not re-run a failed Apply on the same resources.
         try { VaultThemeManager.LoadSaved(); }
@@ -162,6 +171,10 @@ public partial class App : Application
                 {
                     try
                     {
+                        // Switch the pinned launcher only after the upgraded
+                        // window loaded; failed startup keeps the old target.
+                        NativeInstalledLauncherActivation.TryActivate(
+                            NativeUpdateService.DefaultVersionsRoot, runningExe);
                         NativeVersionRetention.CleanupAfterVerifiedLaunch(
                             NativeUpdateService.DefaultVersionsRoot,runningExe);
                     }
