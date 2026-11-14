@@ -923,6 +923,22 @@ internal static class NativeVisualShellChecks
             main.Contains("Click=\"OnShowDataSyncClicked\"", StringComparison.Ordinal) &&
             main.Contains("x:Name=\"DataSyncNavigationButton\"", StringComparison.Ordinal),
             "Data & Sync must be a navigable, initially hidden full-page workspace.");
+        foreach (var section in new[] {
+            (Tab: "DataSyncDevicesTab", Panel: "DataSyncDevicesPanel"),
+            (Tab: "DataSyncSnapshotsTab", Panel: "DataSyncSnapshotsPanel"),
+            (Tab: "DataSyncImportsTab", Panel: "DataSyncImportsPanel"),
+            (Tab: "DataSyncUpdatesTab", Panel: "DataSyncUpdatesPanel")
+        })
+        {
+            Must(syncPage!.Descendants().Count(e =>
+                e.Attribute(XName.Get("Name", XamlNs))?.Value == section.Tab) == 1 &&
+                syncPage.Descendants().Count(e =>
+                    e.Attribute(XName.Get("Name", XamlNs))?.Value == section.Panel) == 1,
+                "Data & Sync must expose each section as a selectable full-page tab.");
+        }
+        Must(main.Contains("Click=\"OnDataSyncSectionClicked\"", StringComparison.Ordinal) &&
+             File.ReadAllText(Path.Combine(dir, "MainWindow.xaml.cs")).Contains("ShowDataSyncSection", StringComparison.Ordinal),
+             "Data & Sync tabs must switch visible content without modifying collections.");
         foreach (string name in new[] {
             "SyncCatalogButton", "CancelCatalogButton", "OpenCatalogButton",
             "SaveNativeCatalogButton", "CheckNativeUpdatesButton", "NativeVersionLabel",
