@@ -6,6 +6,8 @@
 - Uses the existing SHA-verified, staged native workspace replacement and retained rollback file for applied collection, deck and artwork changes.
 
 ## Changed
+- After a read-only Wi-Fi comparison shows **zero record differences**, Windows can save the matching Android snapshot as a local common baseline (explicit approval required). Previous checkpoint versions are retained.
+- On future wireless write-back, the previously approved baseline may be reused with confirmation instead of browsing for an older file.
 - The wireless listener only receives and validates snapshot bytes. Application writes occur separately after the LAN transfer finishes and the user reviews the merge.
 - Read-only wireless transfer, manual file export and existing peer comparison remain available.
 
