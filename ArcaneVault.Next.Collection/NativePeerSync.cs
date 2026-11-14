@@ -384,6 +384,79 @@ public static class NativePeerSync
             "peer-sync-v2-approved-three-way",actual.BackupSha256);
     }
 
+    public sealed record FirstPairUnion(byte[] CandidateBackup,byte[] CandidatePeer,
+        string ExpectedCurrentSha,int AdditionsFromPhone,int AdditionsFromWindows);
+
+    /// <summary>Conservative baseline-less merge: preserve every unmatched
+    /// record on both devices. Only identical overlapping records can be
+    /// combined; changing the same key requires an explicit source choice.</summary>
+    public static FirstPairUnion PrepareFirstPairUnion(string nativePath,byte[] phoneBytes)
+    {
+        var remote=ParsePeer(phoneBytes);
+        if(remote.Device==DeviceId())
+            throw new InvalidDataException("Cannot pair with the same device.");
+        byte[] localBackup=ReadCurrent(nativePath);
+        var local=RequireData(JsonNode.Parse(localBackup));
+        var merged=(JsonObject)local.DeepClone();
+        int fromPhone=0,fromWindows=0;
+        foreach(var group in new[]{"cards","physicalCards","deckLibrary"})
+        {
+            var current=(JsonArray)local[group]!;
+            var incoming=(JsonArray)remote.Data[group]!;
+            var localIndex=Index(group,current);
+            var remoteIndex=Index(group,incoming);
+            var output=(JsonArray)current.DeepClone();
+            foreach(var row in incoming)
+            {
+                var key=Key(group,row);
+                if(localIndex.TryGetValue(key,out var own))
+                {
+                    if(own!=remoteIndex[key])
+                        throw new InvalidDataException("First-sync conflicting "+
+                            group+" record: "+key);
+                }
+                else{output.Add(row!.DeepClone());fromPhone++;}
+            }
+            fromWindows+=localIndex.Keys.Except(remoteIndex.Keys,
+                StringComparer.OrdinalIgnoreCase).Count();
+            merged[group]=output;
+        }
+        var localArt=(JsonObject)local["preferredArtwork"]!;
+        var remoteArt=(JsonObject)remote.Data["preferredArtwork"]!;
+        var combinedArt=(JsonObject)localArt.DeepClone();
+        foreach(var entry in remoteArt)
+        {
+            if(localArt.TryGetPropertyValue(entry.Key,out var old))
+            {
+                if(Canonical(old)!=Canonical(entry.Value))
+                    throw new InvalidDataException("First-sync conflicting artwork: "+entry.Key);
+            }else{combinedArt[entry.Key]=entry.Value?.DeepClone();fromPhone++;}
+        }
+        fromWindows+=localArt.Select(x=>x.Key).Except(remoteArt.Select(x=>x.Key),
+            StringComparer.OrdinalIgnoreCase).Count();
+        merged["preferredArtwork"]=combinedArt;
+        byte[] backup=JsonSerializer.SerializeToUtf8Bytes(merged);
+        NativeBackupReader.Read(backup);
+        var envelope=JsonNode.Parse(Export(nativePath,DeviceId()))!.AsObject();
+        envelope["data"]=merged.DeepClone();
+        envelope["revision"]=Digest(backup);
+        byte[] peer=JsonSerializer.SerializeToUtf8Bytes(envelope);
+        if(peer.Length>MaxBytes)throw new InvalidDataException("First-sync union too large.");
+        return new FirstPairUnion(backup,peer,Digest(localBackup),
+            fromPhone,fromWindows);
+    }
+
+    public static NativeWorkspaceSafety.Replacement ApplyFirstPairUnion(
+        string nativePath,FirstPairUnion plan)
+    {
+        var live=NativeWorkspace.Open(nativePath);
+        if(!string.Equals(live.BackupSha256,plan.ExpectedCurrentSha,
+            StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Workspace changed after first-sync comparison.");
+        return NativeWorkspaceSafety.Refresh(nativePath,plan.CandidateBackup,
+            "peer-first-pair-approved-nonconflicting-union",plan.ExpectedCurrentSha);
+    }
+
     /// <summary>First pairing only: replace the recognized groups from an
     /// explicitly approved Android snapshot. Retain Windows workspace metadata
     /// and the native rollback file; no baseline is fabricated.</summary>
