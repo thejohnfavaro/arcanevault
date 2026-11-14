@@ -129,26 +129,37 @@
             </ListView.ItemsPanel>
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <Grid Margin="4,7">
+                    <Grid Margin="4,5" MinHeight="105">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="79"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="145"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
-                            <TextBlock Text="{Binding TypeLine}" Foreground="{DynamicResource VaultMuted}" FontSize="12"
+                        <Border Grid.Column="0" Width="72" Height="101" CornerRadius="6"
+                                ClipToBounds="True" VerticalAlignment="Center"
+                                Background="{DynamicResource VaultPanelRaised}"
+                                BorderBrush="{DynamicResource VaultEdgeLift}" BorderThickness="1"
+                                ToolTip="Official commander card image">
+                            <local:NativeCardArtImage ArtUrl="{Binding Card.ImageUrl}"
+                                                      Width="70" Height="99" DecodeWidth="160"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                                    Margin="9,0,6,0">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                       FontSize="13.5" TextWrapping="Wrap" MaxHeight="38"/>
+                            <TextBlock Text="{Binding TypeLine}"
+                                       Foreground="{DynamicResource VaultMuted}" FontSize="11"
                                        TextTrimming="CharacterEllipsis"/>
+                            <local:NativeManaStrip Kind="Identity"
+                                                   Value="{Binding Card.ColorIdentity}"
+                                                   SymbolSize="16" Margin="0,5,0,0"
+                                                   HorizontalAlignment="Left"
+                                                   ToolTip="Official commander color identity"/>
                         </StackPanel>
-                        <local:NativeManaStrip Grid.Column="1" Kind="Identity"
-                                               Value="{Binding Card.ColorIdentity}"
-                                               SymbolSize="17"
-                                               VerticalAlignment="Center"
-                                               HorizontalAlignment="Right"
-                                               ToolTip="Official symbols for commander color identity; not the casting cost"/>
                         <TextBlock Grid.Column="2" Text="{Binding InventoryText}"
                                    TextAlignment="Right" VerticalAlignment="Center"
-                                   Margin="10,0,0,0" FontSize="11"
+                                   Margin="4,0,0,0" FontSize="10.5"
+                                   MaxWidth="100" TextWrapping="Wrap"
                                    Foreground="{DynamicResource VaultMuted}"/>
                     </Grid>
                 </DataTemplate>
