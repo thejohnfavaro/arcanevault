@@ -226,6 +226,36 @@ internal static class NativeUpdateChecks
         Must(!File.Exists(readyFile),
              "Native handoff must not leave temporary signal files.");
 
+
+        // New post-startup retention keeps the current and one previous
+        // verified binary version, while leaving unrelated files untouched.
+        string retentionRoot=Path.Combine(work,"retention-versions");
+        Directory.CreateDirectory(retentionRoot);
+        foreach(string version in new[]{"0.9.20","0.9.21","0.9.22"})
+        {
+            string packaged=Zip(upgrade,"retention-"+version+".zip",version);
+            NativeUpdateService.InstallVerifiedArchive(
+                packaged,Sha(packaged),Version.Parse(version),retentionRoot);
+        }
+        string userDataMarker=Path.Combine(work,"collection-outside-versions.db");
+        File.WriteAllText(userDataMarker,"never delete this collection");
+        string unrecognized=Path.Combine(retentionRoot,"v0.9.18");
+        Directory.CreateDirectory(unrecognized);
+        File.WriteAllText(Path.Combine(unrecognized,"my-cards.csv"),"user export");
+        var cleaned=NativeVersionRetention.CleanupAfterVerifiedLaunch(retentionRoot,
+            Path.Combine(retentionRoot,"v0.9.22",
+                NativeUpdateService.ExecutableName));
+        Must(cleaned.Deleted==1 &&
+             !Directory.Exists(Path.Combine(retentionRoot,"v0.9.20")) &&
+             Directory.Exists(Path.Combine(retentionRoot,"v0.9.21")) &&
+             Directory.Exists(Path.Combine(retentionRoot,"v0.9.22")) &&
+             Directory.Exists(unrecognized) &&
+             File.ReadAllText(userDataMarker)=="never delete this collection",
+             "Retention must preserve running, previous, unknown folders and user data.");
+        Must(NativeVersionRetention.CleanupAfterVerifiedLaunch(retentionRoot,
+            Path.Combine(work,"unknown","ArcaneVault.Next.Desktop.exe")).Deleted==0,
+             "Retention may not delete anything from unmanaged startup paths.");
+
         Must(before.SequenceEqual(new[] { nativeWorkspace, catalog, recovery }.Select(Sha)) &&
              Sha(installed.ExecutablePath) == oldExeHash,
             "All failure paths must preserve old executable and user data.");
