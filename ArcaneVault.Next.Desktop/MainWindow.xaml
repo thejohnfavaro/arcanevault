@@ -441,7 +441,7 @@
                     <StackPanel Grid.Row="0" Grid.Column="1" MinWidth="0">
                 <Border Background="{DynamicResource VaultPanelRaised}" BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" CornerRadius="13" Padding="15" Margin="0,0,12,12" MinWidth="260">
                     <StackPanel>
-                        <TextBlock Text="SNAPSHOTS & RECOVERY" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
+                        <TextBlock Text="SNAPSHOTS &amp; RECOVERY" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
                         <TextBlock Text="Create a verified local snapshot before syncing. Recovery actions require confirmation." TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,12"/>
                         <Button x:Name="CreateSyncSnapshotButton"
                         Content="◷   Save Sync Snapshot (One Click)"
@@ -461,7 +461,7 @@
                     <StackPanel Grid.Row="1" Grid.Column="0" MinWidth="0">
                 <Border Background="{DynamicResource VaultPanelRaised}" BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" CornerRadius="13" Padding="15" Margin="0,0,12,12" MinWidth="260">
                     <StackPanel>
-                        <TextBlock Text="IMPORT & EXPORT" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
+                        <TextBlock Text="IMPORT &amp; EXPORT" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
                         <TextBlock Text="Move backups and legacy data without silently replacing your collection." TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,12"/>
                         <Button x:Name="ImportNativeButton"
                         Content="↓   Import Full Backup"
@@ -491,7 +491,7 @@
                     <StackPanel Grid.Row="1" Grid.Column="1" MinWidth="0">
                 <Border Background="{DynamicResource VaultPanelRaised}" BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" CornerRadius="13" Padding="15" Margin="0,0,12,12" MinWidth="260">
                     <StackPanel>
-                        <TextBlock Text="APP & CATALOG UPDATES" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
+                        <TextBlock Text="APP &amp; CATALOG UPDATES" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
                         <TextBlock Text="Manage your local Scryfall catalog and install verified native versions." TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,12"/>
                         <Button x:Name="SyncCatalogButton"
                         Content="⟳   Sync Scryfall Catalog"
