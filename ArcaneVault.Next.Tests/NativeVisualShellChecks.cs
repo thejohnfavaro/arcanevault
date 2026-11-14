@@ -821,6 +821,9 @@ internal static class NativeVisualShellChecks
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, (name == "NativeDeckEditorView" ?
                         "NativeDeckEditorView." : "NativeDeckEditorWindow.") + "ManaBaseProposal.cs"));
+                if (name == "NativeDeckEditorView")
+                    code += "\n" + File.ReadAllText(
+                        Path.Combine(dir, "NativeDeckEditorView.ResponsiveLayout.cs"));
             }
             var named = doc.Descendants()
                 .Select(e => e.Attribute(XName.Get("Name", XamlNs))?.Value)
@@ -1773,6 +1776,38 @@ internal static class NativeVisualShellChecks
              File.ReadAllText(Path.Combine(dir, "NativeDeckEditorView.xaml.cs"))
                  .Contains("Saved?.Invoke(this, saved);"),
              "EDH Lab deck edits must use the in-app workspace with draft preservation and explicit save callbacks.");
+
+        // At compact main-window widths the actual (single) card preview
+        // docks in the visible EDH tab strip, rather than forcing a 220px
+        // third column outside the available editor area. It must return to
+        // the right when the app widens without duplicating its card state.
+        var responsiveEditor = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorView.ResponsiveLayout.cs"));
+        var previewPanels = embeddedEditorUi.Descendants().Where(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "CardPreviewPanel").ToArray();
+        var narrowTab = embeddedEditorUi.Descendants().FirstOrDefault(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "EdhPreviewTab");
+        var previewSplitter = embeddedEditorUi.Descendants().FirstOrDefault(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "PreviewGridSplitter");
+        Must(previewPanels.Length == 1 &&
+             narrowTab?.Name.LocalName == "TabItem" &&
+             narrowTab.Attribute("Visibility")?.Value == "Collapsed" &&
+             previewSplitter?.Name.LocalName == "GridSplitter" &&
+             embeddedEditorUi.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "EdhEditorRoot" &&
+                 x.Attribute("SizeChanged")?.Value == "OnEdhEditorRootSizeChanged") &&
+             embeddedEditorUi.Descendants().Any(x =>
+                 x.Attribute(XName.Get("Name", XamlNs))?.Value == "EdhEditorColumns" &&
+                 x.Attribute("SizeChanged")?.Value == "OnEdhEditorColumnsSizeChanged") &&
+             responsiveEditor.Contains("EdhEditorColumns.Children.Remove(CardPreviewPanel)") &&
+             responsiveEditor.Contains("EdhPreviewTab.Content = CardPreviewPanel") &&
+             responsiveEditor.Contains("EdhPreviewTab.Content = null") &&
+             responsiveEditor.Contains("EdhEditorColumns.Children.Add(CardPreviewPanel)") &&
+             responsiveEditor.Contains("PreviewGridSplitter.Visibility = Visibility.Collapsed") &&
+             responsiveEditor.Contains("PreviewGridSplitter.Visibility = Visibility.Visible") &&
+             responsiveEditor.Contains("AnalyticsPanel.MaxHeight = Math.Clamp") &&
+             responsiveEditor.Contains("movingPreview = true"),
+             "Responsive EDH panes must preserve the same live card preview and leave scrollable editing room.");
 
         var catalogColorFilters = XDocument.Load(
             Path.Combine(dir, "MainWindow.xaml"));
