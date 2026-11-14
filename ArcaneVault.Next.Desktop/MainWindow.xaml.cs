@@ -431,7 +431,9 @@ public partial class MainWindow : Window
                 if (!closing) FilterStatus.Text = message;
             });
             var installed = await NativeUpdateService.DownloadAndStageAsync(release,
-                progress: progress);
+                progress: progress,
+                versionsRoot: NativeUpdateService.ResolveVersionsRoot(
+                    Environment.ProcessPath));
             if (closing) return;
             FilterStatus.Text = $"Native v{version} installed separately; current collection unchanged.";
             PostAppNotice("Update installed",
