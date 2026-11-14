@@ -57,6 +57,22 @@ internal static class NativePeerSyncChecks
             JsonSerializer.SerializeToUtf8Bytes(ordered));
         Check(!orderSafe.HasChanges && orderSafe.EqualRecords==4,
             "Android JSON field order must not trigger false Windows conflicts.");
+        var baseExport=JsonNode.Parse(exported)!.AsObject();
+        var remoteOnly=JsonNode.Parse(exported)!.AsObject();
+        remoteOnly["data"]!["cards"]!.AsArray()[0]!["qty"]=5;
+        var plan=NativePeerSync.CompareWithBaseline(path,
+            JsonSerializer.SerializeToUtf8Bytes(remoteOnly),
+            JsonSerializer.SerializeToUtf8Bytes(baseExport));
+        Check(plan.IncomingOnly==1 && plan.LocalOnly==0 &&
+            plan.Conflicts==0 && !plan.SafeToAutoApply,
+            "Expected one incoming-only modification relative to the shared base.");
+        var divergedBase=JsonNode.Parse(exported)!.AsObject();
+        divergedBase["data"]!["cards"]!.AsArray()[0]!["qty"]=3;
+        var divergent=NativePeerSync.CompareWithBaseline(path,
+            JsonSerializer.SerializeToUtf8Bytes(remoteOnly),
+            JsonSerializer.SerializeToUtf8Bytes(divergedBase));
+        Check(divergent.Conflicts==1 && !divergent.SafeToAutoApply,
+            "Independently modified records must be treated as conflicts.");
         var invalid=JsonNode.Parse(exported)!.AsObject();
         invalid["format"]="untrusted-peer";
         Reject(()=>NativePeerSync.Compare(path,
