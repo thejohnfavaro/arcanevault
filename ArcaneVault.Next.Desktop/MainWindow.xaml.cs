@@ -924,7 +924,8 @@ public partial class MainWindow : Window
             {
                 var comparison=await Task.Run(()=>
                     NativePeerSync.Compare(NativeWorkspace.DefaultPath,body));
-                await Dispatcher.InvokeAsync(()=>
+                byte[] validatedSnapshot=body.ToArray();
+                _=Dispatcher.BeginInvoke(new Action(()=>
                 {
                     if(closing)return;
                     string items=string.Join("\n",comparison.Changes.Take(12)
@@ -939,8 +940,29 @@ public partial class MainWindow : Window
                         "\n\nRead-only review. Nothing was applied to Windows.",
                         "Incoming wireless peer snapshot",
                         MessageBoxButton.OK,MessageBoxImage.Information);
-                    FilterStatus.Text="Wireless peer review finished without editing the collection.";
-                }).Task;
+                    if(!comparison.HasChanges &&
+                        NativeInAppDialog.Show(this,
+                            "Windows and this Android peer currently have identical "+
+                            "recognized inventory, deck and artwork records. Save a "+
+                            "local baseline for future three-way comparisons? "+
+                            "Previous baseline files will be retained as history. "+
+                            "This is NOT authenticated pairing and requires "+
+                            "confirmation on the phone as well.",
+                            "Save matching peer baseline?",
+                            MessageBoxButton.YesNo,MessageBoxImage.Question)
+                            ==MessageBoxResult.Yes)
+                    {
+                        try {
+                            string path=NativePeerCheckpoint.SaveIdentical(
+                                NativeWorkspace.DefaultPath,validatedSnapshot);
+                            FilterStatus.Text="Matching peer baseline stored at "+path;
+                        } catch(Exception error) {
+                            FilterStatus.Text="Baseline was not stored: "+error.Message;
+                        }
+                    }
+                    else FilterStatus.Text=
+                        "Wireless peer review finished without editing the collection.";
+                }));
             });
             Clipboard.SetText(offer.Url);
             FilterStatus.Text="Waiting for Android peer snapshot (one use, five minutes).";
