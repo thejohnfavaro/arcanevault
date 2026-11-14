@@ -1272,6 +1272,9 @@ public partial class MainWindow : Window
     private void InvalidateNativeWorkspace()
     {
         nativeWorkspaceGeneration++;
+        // Explicit data changes invalidate the view; normal sidebar switches
+        // do not. Cancel work against the old verified SHA before detaching it.
+        nativeWorkspaceView?.InvalidateForVerifiedWorkspaceRefresh();
         nativeWorkspaceView = null;
         NativeWorkspaceHost.Content = null;
         if (nativeWorkspaceRequested && !closing)
@@ -1321,9 +1324,12 @@ public partial class MainWindow : Window
         nativeWorkspaceRequested = true;
         nativeWorkspaceSelectedTab = section;
         if (nativeWorkspaceView is not null)
+        {
             nativeWorkspaceView.NavigateTo(section);
-        else
-            NativeWorkspaceHost.Content = new TextBlock
+            UpdateWorkspaceNavigation();
+            return; // no native backup reopen on ordinary sidebar navigation
+        }
+        NativeWorkspaceHost.Content = new TextBlock
             {
                 Text = "Opening and verifying your local workspace…",
                 Foreground = (System.Windows.Media.Brush)FindResource("VaultMuted"),
