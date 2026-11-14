@@ -2729,6 +2729,15 @@ public partial class MainWindow : Window
         _ = FilterAsync(debounce: false);
     }
 
+    private static double? CatalogManaValue(string? input)
+    {
+        var text = (input ?? "").Trim();
+        if (text.Length == 0) return null;
+        return double.TryParse(text, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var result)
+            ? result : double.NaN; // Validator reports malformed bounds without throwing in the UI callback.
+    }
+
     private CatalogSnapshot.SearchOptions SelectedCatalogFilters()
     {
         string colors =
@@ -2750,7 +2759,9 @@ public partial class MainWindow : Window
                 OwnershipFilterBox?.SelectedIndex ?? 0, 0, 4),
             (RoleFilterBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "",
             CatalogIncludeProxiesBox?.IsChecked == true &&
-                OwnershipFilterBox?.SelectedIndex == 1);
+                OwnershipFilterBox?.SelectedIndex == 1,
+            CatalogManaValue(ManaValueMinBox?.Text),
+            CatalogManaValue(ManaValueMaxBox?.Text));
     }
 
     private async Task FilterAsync(bool debounce = true, bool resetPage = true)
