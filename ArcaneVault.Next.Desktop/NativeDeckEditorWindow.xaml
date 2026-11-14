@@ -738,6 +738,11 @@
                                                    TextWrapping="Wrap" Margin="0,5,0,8"
                                                    Foreground="{DynamicResource VaultMuted}"
                                                    FontSize="11"/>
+                                        <CheckBox x:Name="EdhOptimizeBasicLands"
+                                                  Content="Optimize owned nonbasic lands (replace surplus basics)"
+                                                  IsChecked="False" Margin="0,0,0,8"
+                                                  Foreground="{DynamicResource VaultText}"
+                                                  ToolTip="Optional: suggest untapped multicolor lands and eligible shock lands, preserving existing nonbasics, spells and at least one of each existing basic."/>
                                         <Button x:Name="EdhManaBaseBuildButton"
                                                 Content="Build proposed mana base"
                                                 Click="OnEdhManaBaseBuildClicked"
