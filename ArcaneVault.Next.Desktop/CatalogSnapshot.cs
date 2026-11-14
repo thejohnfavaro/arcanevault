@@ -72,13 +72,15 @@ public sealed class CatalogSnapshot : IDisposable
         bool ColorlessOnly = false, bool ArenaOnly = false,
         OwnershipMode Ownership = OwnershipMode.All,
         string Role = "", bool IncludeProxies = false,
-        double? ManaValueMin = null, double? ManaValueMax = null)
+        double? ManaValueMin = null, double? ManaValueMax = null,
+        string OracleContains = "")
     {
         public bool IsDefault =>
             SetCode.Length == 0 && Rarity.Length == 0 && TypeContains.Length == 0 &&
             ColorMask.Length == 0 && !ColorlessOnly && !ArenaOnly &&
             Ownership == OwnershipMode.All && Role.Length == 0 &&
-            !IncludeProxies && ManaValueMin is null && ManaValueMax is null;
+            !IncludeProxies && ManaValueMin is null && ManaValueMax is null &&
+            OracleContains.Length == 0;
     }
 
     private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true,
@@ -376,6 +378,9 @@ public sealed class CatalogSnapshot : IDisposable
                 "This catalog lacks Scryfall paper/digital printing metadata; refresh the native catalog before filtering physical ownership.");
         if (!NativeCardRoles.Valid(filters.Role))
             throw new ArgumentException("Unknown card utilization role.");
+        if (!string.IsNullOrWhiteSpace(filters.OracleContains) && !HasRoleMetadata)
+            throw new InvalidDataException(
+                "This catalog has no Oracle rules text. Run Full Scryfall Sync to search mechanics.");
         if (!string.IsNullOrWhiteSpace(filters.Role) && !HasRoleMetadata)
             throw new InvalidDataException(
                 "This catalog lacks Scryfall Oracle text for utilization tags. " +
@@ -405,11 +410,12 @@ public sealed class CatalogSnapshot : IDisposable
             throw new ArgumentException("Mana value range must be finite, nonnegative, and ordered.");
         string set = filters.SetCode.Trim();
         string type = filters.TypeContains.Trim();
-        if (set.Length > 20 || type.Length > 80)
+        string oracle = filters.OracleContains.Trim();
+        if (set.Length > 20 || type.Length > 80 || oracle.Length > 120)
             throw new ArgumentException("Catalog filter exceeds its supported length.");
         bool needsCard = filters.ManaValueMin.HasValue || filters.ManaValueMax.HasValue ||
             filters.ColorlessOnly || color.Length > 0 || type.Length > 0 ||
-            HasRoleMetadata || filters.Role.Length > 0;
+            HasRoleMetadata || filters.Role.Length > 0 || oracle.Length > 0;
         if ((needsCard || filters.ArenaOnly ||
              filters.Ownership is OwnershipMode.ArenaOwned or OwnershipMode.ArenaNotOwned ||
              rarity.Length > 0) && !HasFullMetadata)
@@ -471,6 +477,14 @@ public sealed class CatalogSnapshot : IDisposable
             {
                 where.Add(@"c.type LIKE $type ESCAPE '\' COLLATE NOCASE");
                 cmd.Parameters.AddWithValue("$type", "%" + EscapeLike(type) + "%");
+            }
+            if (oracle.Length > 0)
+            {
+                // Scryfall Oracle text contains keyword ability names as well as
+                // full rules text, including multi-face text indexed at sync time.
+                // Parameterized literal substring search; never interpret % or _.
+                where.Add(@"c.oracle LIKE $oracle ESCAPE '\' COLLATE NOCASE");
+                cmd.Parameters.AddWithValue("$oracle", "%" + EscapeLike(oracle) + "%");
             }
             if (filters.ColorlessOnly)
                 where.Add("c.colors = ''");
