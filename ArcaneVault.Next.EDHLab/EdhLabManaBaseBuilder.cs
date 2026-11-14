@@ -50,7 +50,7 @@ public static class EdhLabManaBaseBuilder
         string commanderColors, IReadOnlyList<(string Name, int Quantity)> entries,
         int targetLands,
         IReadOnlyDictionary<string, long>? paperProxies = null,
-        bool arena = false)
+        bool arena = false, bool optimizeBasics = false)
     {
         ArgumentNullException.ThrowIfNull(eligibleCards);
         ArgumentNullException.ThrowIfNull(entries);
@@ -159,6 +159,55 @@ public static class EdhLabManaBaseBuilder
                         Delta = changes[old].Delta + 1
                     };
                 else changes.Add(new Change(next.Name, 1, reason));
+            }
+        }
+        // Optional second pass: trade surplus basic slots for stronger owned
+        // nonbasics. Never remove a spell or an existing nonbasic, and never
+        // assume an unowned printing or a paper proxy is Arena-owned.
+        // Re-ranking each step keeps the advisor's color gap estimates fresh.
+        if (warning.Length == 0 && optimizeBasics && lands == targetLands)
+        {
+            for (int step = 0; step < 12; step++)
+            {
+                var basicsInDraft = draft
+                    .Where(x => x.Value > 1 &&
+                        catalog.TryGetValue(x.Key, out var c) &&
+                        c.IsBasicLand && IsLand(c))
+                    .OrderByDescending(x => x.Value)
+                    .ThenBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                if (basicsInDraft.Length == 0) break;
+                var result = EdhLabLandAdvisor.Recommend(
+                    eligibleCards, color, draft, arena ? null : paperProxies,
+                    EdhLabLandAdvisor.Availability.OwnedOrProxy,
+                    includeBasics: false, limit: 500);
+                var next = result.Rows
+                    .Where(x => !x.IsBasic && !x.Restricted &&
+                        x.InDeckCopies == 0 &&
+                        x.CoveredCommanderColors >= 2 &&
+                        !x.FetchesLand &&
+                        x.Tempo != "Enters tapped" &&
+                        (x.Tempo != "May enter tapped" ||
+                            x.LandCategory == "Shock land" ||
+                            x.LandCategory == "Bond land" ||
+                            x.LandCategory == "Check land") &&
+                        x.RealOwned + (arena ? 0 : x.ProxyCopies) > 0 &&
+                        catalog.TryGetValue(x.Name, out var c) &&
+                        c.SuggestedCopyLimit >= 1)
+                    .OrderByDescending(x => x.RealOwned > 0)
+                    .ThenBy(x => x.Tempo == "No tapped-entry clause found" ? 0 : 1)
+                    .ThenByDescending(x => x.GapPriority)
+                    .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+                if (next is null) break;
+                var basic = basicsInDraft[0];
+                draft[basic.Key]--;
+                draft[next.Name] = 1;
+                changes.Add(new Change(basic.Key, -1,
+                    "Optimized basic slot; at least one copy retained"));
+                changes.Add(new Change(next.Name, 1,
+                    next.LandCategory + " · " + next.EntryRequirement + " · " +
+                    (next.RealOwned > 0 ? "recorded real owned" : "paper Proxy")));
             }
         }
         return new Proposal(fingerprint, color, targetLands,
