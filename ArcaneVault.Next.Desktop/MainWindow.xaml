@@ -407,6 +407,24 @@
                                     Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"
                                     ToolTip="Select the incoming peer file and a verified previously shared baseline. Preview independent edits versus real conflicts; no data is written."/>
+                                <Button x:Name="SharePeerLanButton"
+                                    Content="📶   Share Sync to Phone (Wi-Fi)"
+                                    Click="OnSharePeerLanClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    Margin="0,0,0,5"
+                                    ToolTip="Five-minute one-use LAN link; copies the URL for Android to review"/>
+                                <Button x:Name="ReceivePeerLanButton"
+                                    Content="📶   Receive Phone Sync (Wi-Fi)"
+                                    Click="OnReceivePeerLanClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    Margin="0,0,0,5"
+                                    ToolTip="One-use LAN address for the phone to upload a peer snapshot for read-only review"/>
+                                <Button x:Name="CancelPeerLanButton"
+                                    Content="×   Cancel Wi-Fi Sync Offer"
+                                    Click="OnCancelPeerLanClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    Margin="0,0,0,5"
+                                    ToolTip="Immediately closes any pending peer transfer link"/>
                                 <Button x:Name="RestoreRecoveryButton"
                                     Content="↶   Restore Recovery Point"
                                     Click="OnRestoreRecoveryClicked" IsEnabled="False"
