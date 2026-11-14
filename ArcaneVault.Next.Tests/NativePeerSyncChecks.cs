@@ -34,6 +34,13 @@ internal static class NativePeerSyncChecks
         byte[] before=SHA256.HashData(File.ReadAllBytes(path));
         byte[] exported=NativePeerSync.Export(path,
             "00000000-0000-4000-8000-000000000365");
+        // Anonymous physical inventory cannot be reconciled: a composite
+        // length-prefixed empty key is not a real printing identity.
+        var anonymous=JsonNode.Parse(exported)!.AsObject();
+        anonymous["data"]!["physicalCards"]!.AsArray().Add(JsonNode.Parse(
+            """{"qty":1,"name":"","scryfallId":"","set":"","number":""}"""));
+        Reject(()=>NativePeerSync.Compare(path,
+            JsonSerializer.SerializeToUtf8Bytes(anonymous)));
         var same=NativePeerSync.Compare(path,exported);
         Check(same.Changes.Count==0 && same.EqualRecords==4,
             "Identical peer snapshot should be a no-op.");

@@ -148,7 +148,14 @@ public static class NativePeerSync
             "deckLibrary" => Value("id"),
             _ => throw new InvalidDataException("Unexpected record collection.")
         };
-        if (string.IsNullOrWhiteSpace(result.Replace("|", "")))
+        // A length-prefixed physical key containing only empty values (0:|0:...)
+        // is not an identity. Require at least a name or printing UUID.
+        if (group == "physicalCards" &&
+            string.IsNullOrEmpty(Value("name")) &&
+            string.IsNullOrEmpty(Value("scryfallId")))
+            throw new InvalidDataException(
+                "Physical sync records require a card name or printing ID.");
+        if (string.IsNullOrWhiteSpace(result))
             throw new InvalidDataException("Sync records require stable identities.");
         if (group == "deckLibrary" && string.IsNullOrEmpty(result))
             throw new InvalidDataException("Saved decks need stable IDs before syncing.");
