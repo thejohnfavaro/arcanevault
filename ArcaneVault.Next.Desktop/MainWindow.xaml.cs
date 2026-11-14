@@ -1091,6 +1091,70 @@ public partial class MainWindow : Window
         FilterStatus.Text="Wireless transfer canceled. Any previously offered link is invalid.";
     }
 
+    /// <summary>
+    /// One-click, durable pre-sync snapshot. This is a local restore/reference
+    /// point, NOT proof that another device has the same common baseline.
+    /// Never overwrite prior snapshots and never modify the live workspace.
+    /// </summary>
+    private async void OnCreateSyncSnapshotClicked(object sender, RoutedEventArgs e)
+    {
+        if (!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Open or import a native collection before saving a sync snapshot.";
+            return;
+        }
+        CreateSyncSnapshotButton.IsEnabled = false;
+        FilterStatus.Text = "Saving verified local sync snapshot…";
+        try
+        {
+            string savedPath = await Task.Run(() =>
+            {
+                byte[] bytes = NativePeerSync.Export(
+                    NativeWorkspace.DefaultPath, NativePeerSync.DeviceId());
+                string folder = Path.Combine(NativeWorkspace.RootDirectory, "sync-snapshots");
+                Directory.CreateDirectory(folder);
+                string path = Path.Combine(folder,
+                    "ArcaneVault-Windows-" +
+                    DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss-fffffff") +
+                    "-" + Guid.NewGuid().ToString("N")[..8] + ".json");
+                // CreateNew makes an accidental overwrite impossible.
+                using (var output = new FileStream(path, FileMode.CreateNew,
+                    FileAccess.Write, FileShare.None))
+                {
+                    output.Write(bytes);
+                    output.Flush(flushToDisk: true);
+                }
+                if (!System.Security.Cryptography.SHA256.HashData(bytes)
+                    .AsSpan().SequenceEqual(
+                        System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path))))
+                    throw new InvalidDataException("Saved sync snapshot failed verification.");
+                return path;
+            });
+            if (closing) return;
+            FilterStatus.Text = "Sync snapshot saved: " + savedPath +
+                " · The live collection was not changed.";
+            NativeInAppDialog.Show(this,
+                "A verified local snapshot of your current Windows collection " +
+                "has been saved automatically. No file selection was needed.\n\n" +
+                savedPath + "\n\n" +
+                "This snapshot can be used for recovery/reference. For a three-way " +
+                "cross-device merge, the baseline must represent the last state " +
+                "confirmed identical on BOTH devices. A local snapshot by itself " +
+                "does not establish that shared state.",
+                "Sync snapshot saved", MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+                FilterStatus.Text = "Sync snapshot could not be saved: " + ex.Message;
+        }
+        finally
+        {
+            if (!closing) CreateSyncSnapshotButton.IsEnabled = true;
+        }
+    }
+
     private async void OnExportPeerSyncClicked(object sender, RoutedEventArgs e)
     {
         if (!File.Exists(NativeWorkspace.DefaultPath))
