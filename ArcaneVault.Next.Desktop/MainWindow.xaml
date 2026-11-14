@@ -637,7 +637,7 @@
                                    Style="{StaticResource VaultEyebrow}"
                                    Margin="0,0,0,7"/>
                         <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged"
-                                 ToolTip="Search catalog card names by prefix; use Next to browse all matching pages"
+                                 ToolTip="Search card names or Scryfall Oracle mechanics and rules text (Banding, Connive, Replicate); use Next to browse matching printings"
                                  FontSize="15" Height="44"
                                  Padding="14,7"
                                  Background="{DynamicResource VaultPanelRaised}"
@@ -650,6 +650,15 @@
                                 <TextBox x:Name="SetFilterBox" Width="90" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
                                          ToolTip="Exact set abbreviation (e.g. MH3, CMM)"
+                                         Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                         Foreground="{DynamicResource VaultText}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,7">
+                                <TextBlock Text="KEYWORD / RULES TEXT" Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <TextBox x:Name="OracleFilterBox" Width="205" Height="36"
+                                         TextChanged="OnCatalogFilterChanged"
+                                         ToolTip="Search Scryfall Oracle text for abilities and synergies: Banding, Connive, Replicate, etc. Can combine with color, type, rarity and ownership."
                                          Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
                                          Foreground="{DynamicResource VaultText}"/>
                             </StackPanel>
