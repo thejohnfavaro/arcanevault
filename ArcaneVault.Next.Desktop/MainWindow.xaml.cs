@@ -38,6 +38,7 @@ public partial class MainWindow : Window
     private NativeShortlistWindow? shortlistWindow;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
+    private readonly WirelessPeerOffer wirelessPeer=new();
     private CancellationTokenSource? catalogSyncCancellation;
     private bool catalogSyncBusy;
     private bool nativeUpdateBusy;
@@ -183,6 +184,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             closing = true;
+            wirelessPeer.Dispose();
             inspectorRequestVersion++;
             DisconnectInAppNotices();
             catalogSyncCancellation?.Cancel();
@@ -885,6 +887,88 @@ public partial class MainWindow : Window
     /// This includes all native edits and deck versions; it does not depend
     /// on the old Windows application or an exported legacy backup.
     /// </summary>
+    private async void OnSharePeerLanClicked(object sender, RoutedEventArgs e)
+    {
+        if(!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text="Open your native workspace before sharing it.";
+            return;
+        }
+        try
+        {
+            var bytes=await Task.Run(()=>
+                NativePeerSync.Export(NativeWorkspace.DefaultPath,NativePeerSync.DeviceId()));
+            var link=wirelessPeer.Share(bytes);
+            Clipboard.SetText(link.Url);
+            FilterStatus.Text="One-time Wi-Fi link copied. Expires in five minutes.";
+            NativeInAppDialog.Show(this,
+                "PC → Android peer snapshot is ready.\n\n"+
+                link.Url+"\n\nLink copied to clipboard. Open Android Data & Sync > "+
+                "Receive Windows sync over Wi-Fi and enter this link. "+
+                "Both devices must use the same trusted local network. "+
+                "The link works once and expires in five minutes. "+
+                "This transfer is HTTP, not encrypted, so avoid guest/public Wi-Fi.",
+                "Wireless peer review",MessageBoxButton.OK,MessageBoxImage.Information);
+        }
+        catch(Exception error)
+        {
+            FilterStatus.Text="Could not start wireless share: "+error.Message;
+        }
+    }
+
+    private void OnReceivePeerLanClicked(object sender,RoutedEventArgs e)
+    {
+        if(!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text="Open your native workspace before reviewing incoming sync.";
+            return;
+        }
+        try
+        {
+            var offer=wirelessPeer.Request(async body=>
+            {
+                var comparison=await Task.Run(()=>
+                    NativePeerSync.Compare(NativeWorkspace.DefaultPath,body));
+                await Dispatcher.InvokeAsync(()=>
+                {
+                    if(closing)return;
+                    string items=string.Join("\n",comparison.Changes.Take(12)
+                        .Select(c=>c.Action+" · "+c.Group+" · "+
+                            c.Key[..Math.Min(80,c.Key.Length)]));
+                    NativeInAppDialog.Show(this,
+                        "Android device: "+comparison.Device+
+                        "\nDifferences: "+comparison.Changes.Count+
+                        "\nPotential conflicts: "+comparison.Conflicts+
+                        "\nMatching records: "+comparison.EqualRecords+
+                        "\n\n"+items+
+                        "\n\nRead-only review. Nothing was applied to Windows.",
+                        "Incoming wireless peer snapshot",
+                        MessageBoxButton.OK,MessageBoxImage.Information);
+                    FilterStatus.Text="Wireless peer review finished without editing the collection.";
+                }).Task;
+            });
+            Clipboard.SetText(offer.Url);
+            FilterStatus.Text="Waiting for Android peer snapshot (one use, five minutes).";
+            NativeInAppDialog.Show(this,
+                "Android → PC: In Android Data & Sync, select "+
+                "'Send phone sync over Wi-Fi' and enter this one-time address.\n\n"+
+                offer.Url+"\n\nCopied to clipboard. Both devices must use trusted home Wi-Fi. "+
+                "This transport is unencrypted HTTP and permits review only.",
+                "Receive wireless peer snapshot",
+                MessageBoxButton.OK,MessageBoxImage.Information);
+        }
+        catch(Exception error)
+        {
+            FilterStatus.Text="Wireless receive unavailable: "+error.Message;
+        }
+    }
+
+    private void OnCancelPeerLanClicked(object sender,RoutedEventArgs e)
+    {
+        wirelessPeer.Cancel();
+        FilterStatus.Text="Wireless transfer canceled. Any previously offered link is invalid.";
+    }
+
     private async void OnExportPeerSyncClicked(object sender, RoutedEventArgs e)
     {
         if (!File.Exists(NativeWorkspace.DefaultPath))
