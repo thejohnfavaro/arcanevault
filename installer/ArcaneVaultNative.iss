@@ -1,5 +1,5 @@
 ; Arcane Vault native per-user installer. Keep ALL private user data outside {app}.
-; Build: ISCC.exe /DAppVersion=0.9.108 installer\ArcaneVaultNative.iss
+; Build: ISCC.exe /DAppVersion=0.9.109 installer\ArcaneVaultNative.iss
 #ifndef AppVersion
   #error AppVersion must be passed by CI as /DAppVersion=x.y.z
 #endif
@@ -13,7 +13,9 @@ UninstallDisplayName=Arcane Vault
 CreateUninstallRegKey=yes
 Uninstallable=yes
 AppPublisherURL=https://github.com/thejohnfavaro/arcanevault
-DefaultDirName={localappdata}\ArcaneVaultNativeApps
+; A clean single app folder. A chosen destination IS the application root.
+; Example: D:\Games\ArcaneVault, not D:\Games\ArcaneVault\AppData\Local\ArcaneVaultNativeApps.
+DefaultDirName={localappdata}\Programs\ArcaneVault
 DefaultGroupName=Arcane Vault
 DisableDirPage=no
 PrivilegesRequired=lowest
