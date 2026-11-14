@@ -288,7 +288,7 @@ public partial class MainWindow : Window
         OnCatalogViewModeChanged(CatalogViewMode, new SelectionChangedEventArgs(
             System.Windows.Controls.Primitives.Selector.SelectionChangedEvent,
             Array.Empty<object>(), Array.Empty<object>()));
-        NativeVersionLabel.Text = "Native preview v" +
+        NativeVersionLabel.Text = "Arcane Vault v" +
             (GetType().Assembly.GetName().Version?.ToString(3) ?? "unknown");
         sampleCards = Enumerable.Range(1, 25_000).Select(i =>
             new SampleCard($"Sample Card {i:D5}", $"S{i % 60:D2}", $"#{i % 450 + 1:D3}")).ToArray();
@@ -404,31 +404,24 @@ public partial class MainWindow : Window
         {
             Version current = GetType().Assembly.GetName().Version ??
                 new Version(0, 9, 0);
-            FilterStatus.Text = "Checking versioned Arcane Vault Native preview releases…";
+            FilterStatus.Text = "Checking for Arcane Vault updates…";
             var release = await NativeUpdateService.FindUpdateAsync(current);
             if (closing) return;
             if (release is null)
             {
-                FilterStatus.Text = "No newer versioned native preview release is available.";
-                NativeInAppDialog.Show(this,
-                    $"Current native version: {current.ToString(3)}.\n\n" +
-                    "No newer verified native preview release was found. " +
-                    "The existing WebView app uses a separate updater.",
-                    "Native updates", MessageBoxButton.OK, MessageBoxImage.Information);
+                FilterStatus.Text = $"Arcane Vault v{current.ToString(3)} is up to date.";
+                PostAppNotice("Updates",FilterStatus.Text);
                 return;
             }
             string version = release.Version.ToString(3);
-            if (NativeInAppDialog.Show(this,
-                $"Native preview v{version} is available.\n\n" +
-                "Download the official ZIP and SHA-256 checksum from the project’s " +
-                "GitHub release. The ZIP will be verified and unpacked into a NEW " +
-                "versioned application folder; existing installed versions, " +
-                "the installed WebView app and all collection/recovery files are " +
-                "left untouched.\n\n" +
-                "This is an unsigned preview, not the certified 1.0 release. " +
-                "Install this version side-by-side?",
-                "Install native update?", MessageBoxButton.YesNo,
-                MessageBoxImage.Question) != MessageBoxResult.Yes)
+            if (!await ConfirmNativeUpdateAsync("Arcane Vault update available",
+                $"Arcane Vault v{version} is available.\\n\\n" +
+                "Download and verify the official release checksum, then install " +
+                "the update into a new managed version folder. Your collection, " +
+                "decks, artwork, snapshots and recovery files remain unchanged.\\n\\n" +
+                "After the new app starts successfully, only the current app " +
+                "version and the most recent prior version are retained.",
+                "Install update"))
             {
                 FilterStatus.Text = "Native update canceled. No application or collection files changed.";
                 return;
@@ -441,14 +434,14 @@ public partial class MainWindow : Window
                 progress: progress);
             if (closing) return;
             FilterStatus.Text = $"Native v{version} installed separately; current collection unchanged.";
-            if (NativeInAppDialog.Show(this,
-                $"Native preview v{version} is installed at:\n" +
+            PostAppNotice("Update installed",
+                $"Arcane Vault v{version} has been verified and staged.");
+            if (await ConfirmNativeUpdateAsync("Update ready to launch",
+                $"Arcane Vault v{version} is installed at:\\n" +
                 installed.Directory +
-                "\n\nThe previous executable remains available. " +
-                "Your existing native collection will be opened by the new " +
-                "version AFTER this instance closes.\n\nLaunch the new version now?",
-                "Native update staged", MessageBoxButton.YesNo,
-                MessageBoxImage.Information) == MessageBoxResult.Yes)
+                "\\n\\nThe prior version remains available for rollback. " +
+                "Your existing collection will open after this instance exits.\\n\\n" +
+                "Launch the new version now?", "Restart into update"))
             {
                 string token = NativeUpgradeHandoff.NewId();
                 try
@@ -475,16 +468,10 @@ public partial class MainWindow : Window
                             ? "The new process exited before confirming startup."
                             : "The new process did not confirm startup in 20 seconds.";
                         FilterStatus.Text = "New version installed but automatic relaunch failed.";
-                        NativeInAppDialog.Show(this,
-                            reason + Environment.NewLine + Environment.NewLine +
-                            "The current app remains open. Your collection and both " +
-                            "version folders are unchanged." +
-                            Environment.NewLine + Environment.NewLine +
-                            "Check " + Path.Combine(
-                                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                                "ArcaneVault", "Diagnostics", "native-crash.log"),
-                            "Native update launch failed",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
+                        PostAppNotice("Update launch failed",
+                            reason + "\\nYour current app remains open. " +
+                            "The collection and version folders are unchanged. " +
+                            "See Diagnostics/native-crash.log.",true);
                         return;
                     }
                     // Child has reached application startup. It now waits
@@ -500,12 +487,9 @@ public partial class MainWindow : Window
             if (!closing)
             {
                 FilterStatus.Text = "Native update was not installed. Existing collection was not edited.";
-                NativeInAppDialog.Show(this,
-                    "Native update failed verification or installation.\n\n" +
-                    ex.Message +
-                    "\n\nYour active executable and collection were not replaced.",
-                    "Native update not applied",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                PostAppNotice("Update not applied",
+                    "Update failed verification or installation: " + ex.Message +
+                    ". Your active executable and collection were not replaced.",true);
             }
         }
         finally
