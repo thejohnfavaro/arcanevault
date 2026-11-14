@@ -252,6 +252,22 @@ internal static class NativeVisualShellChecks
              mainXaml[starStart..Math.Min(starStart + 1050, mainXaml.Length)]
                 .Contains("VerticalContentAlignment=\"Center\""),
              "Catalog favorite-star glyph must be centered within its clickable tile.");
+        var shortlistButton = XDocument.Parse(mainXaml).Descendants().FirstOrDefault(x =>
+            x.Attribute(XName.Get("Name", XamlNs))?.Value == "CardShortlistStar");
+        Must(shortlistButton is not null &&
+             shortlistButton.Descendants().Any(x =>
+                 x.Name.LocalName == "Grid" &&
+                 x.Attribute("Width")?.Value == "28" &&
+                 x.Attribute("Height")?.Value == "28") &&
+             shortlistButton.Descendants().Any(x =>
+                 x.Name.LocalName == "TextBlock" &&
+                 x.Attribute("HorizontalAlignment")?.Value == "Center" &&
+                 x.Attribute("VerticalAlignment")?.Value == "Center" &&
+                 x.Attribute("TextAlignment")?.Value == "Center") &&
+             shortlistButton.Descendants().Any(x =>
+                 x.Name.LocalName == "TranslateTransform" &&
+                 x.Attribute("Y")?.Value == "-1.5"),
+             "Star overlay must use optically centered glyph content, not default text baseline.");
 
         Must(optionsXaml.Contains("Click=\"OnBackupReadinessClicked\"") &&
              readinessOptionsCode.Contains("new NativeReadinessWindow { Owner = this }") &&
