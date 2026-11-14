@@ -186,6 +186,7 @@ public partial class MainWindow : Window
         {
             closing = true;
             wirelessPeer.Dispose();
+            _ = UsbPeerBridge.CloseAsync(activeUsbBridge);
             inspectorRequestVersion++;
             DisconnectInAppNotices();
             catalogSyncCancellation?.Cancel();
