@@ -407,6 +407,12 @@
                                     Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"
                                     ToolTip="Select the incoming peer file and a verified previously shared baseline. Preview independent edits versus real conflicts; no data is written."/>
+                                <Button x:Name="ApplyPeerMergeButton"
+                                    Content="✓   Review &amp; Apply Peer Changes"
+                                    Click="OnApplyPeerMergeClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    Margin="0,0,0,5"
+                                    ToolTip="Select a latest peer snapshot and your common baseline; fail closed on conflict or deletions and preserve a verified rollback."/>
                                 <Button x:Name="SharePeerLanButton"
                                     Content="📶   Share Sync to Phone (Wi-Fi)"
                                     Click="OnSharePeerLanClicked"
