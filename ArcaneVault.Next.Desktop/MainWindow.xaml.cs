@@ -2839,9 +2839,9 @@ public partial class MainWindow : Window
                 if (!physicalMode) CatalogIncludeProxiesBox.IsChecked = false;
             }
         }
-        // ComboBox/checkbox selections are complete values; unlike typing,
-        // they do not need the search box's 140 ms debounce.
-        _ = FilterAsync(debounce: false);
+        // Debounce typed filters (including keyword text) to avoid a full
+        // Oracle-text catalog query for every keystroke.
+        _ = FilterAsync(debounce: sender is TextBox);
     }
 
     private static double? CatalogManaValue(string? input)
