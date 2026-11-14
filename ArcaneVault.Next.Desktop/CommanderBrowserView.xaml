@@ -201,6 +201,16 @@
                                     <local:NativeCardArtImage x:Name="CommanderInspectorArt"
                                                               DecodeWidth="350"
                                                               Width="186" Height="261"/>
+                                    <Button x:Name="CommanderFaceFlip" Content="⟳"
+                                            Width="35" Height="35" Padding="0" FontSize="20"
+                                            Visibility="Collapsed" Cursor="Hand"
+                                            HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                            Margin="0,0,5,5"
+                                            Background="{DynamicResource VaultAccentSurface}"
+                                            BorderBrush="{DynamicResource VaultAccentBorder}"
+                                            Foreground="{DynamicResource VaultText}"
+                                            Click="OnCommanderFaceFlipClicked"
+                                            ToolTip="Tap to flip this commander card"/>
                                 </Grid>
                             </Border>
                             <TextBlock x:Name="CommanderInspectorType"

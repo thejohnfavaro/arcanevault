@@ -56,6 +56,74 @@ public partial class MainWindow : Window
     private int catalogPageIndex;
     private bool catalogPageMayHaveMore;
     private bool catalogPageBusy;
+    private bool catalogPagingMove;
+    private sealed record CatalogCacheKey(CatalogSnapshot Snapshot,
+        NativeCatalogOwnership? Ownership, string Search,
+        CatalogSnapshot.SearchOptions Filters, int Page);
+    private readonly LinkedList<(CatalogCacheKey Key, CatalogSnapshot.SearchResult Data)>
+        catalogPageCache = new();
+    private CancellationTokenSource? catalogArtworkPrefetch;
+
+    private bool TryGetCachedCatalogPage(CatalogCacheKey key,
+        out CatalogSnapshot.SearchResult result)
+    {
+        for (var node = catalogPageCache.First; node is not null; node = node.Next)
+        {
+            if (node.Value.Key != key) continue;
+            result = node.Value.Data;
+            catalogPageCache.Remove(node);
+            catalogPageCache.AddFirst((key, result));
+            return true;
+        }
+        result = default!;
+        return false;
+    }
+
+    private void RememberCatalogPage(CatalogCacheKey key, CatalogSnapshot.SearchResult result)
+    {
+        catalogPageCache.AddFirst((key, result));
+        while (catalogPageCache.Count > 3) catalogPageCache.RemoveLast();
+    }
+
+    private void InvalidateCatalogPageCache()
+    {
+        catalogPageCache.Clear();
+        try { catalogArtworkPrefetch?.Cancel(); }
+        catch (ObjectDisposedException) { }
+        catalogArtworkPrefetch = null;
+    }
+
+    private void PrefetchCatalogPageArtwork(IReadOnlyList<CatalogSnapshot.PrintingRow> rows)
+    {
+        try { catalogArtworkPrefetch?.Cancel(); }
+        catch (ObjectDisposedException) { }
+        var cancel = new CancellationTokenSource();
+        catalogArtworkPrefetch = cancel;
+        var urls = rows.Select(x => x.ImageUrl)
+            .Where(NativeCardArtwork.IsTrustedArtworkUrl)
+            .Distinct(StringComparer.Ordinal).ToArray();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var semaphore = new SemaphoreSlim(2);
+                await Task.WhenAll(urls.Select(async url =>
+                {
+                    await semaphore.WaitAsync(cancel.Token);
+                    try { await NativeCardArtwork.LoadAsync(url, cancel.Token); }
+                    catch (Exception) { /* Browsing works offline. */ }
+                    finally { semaphore.Release(); }
+                }));
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception) { }
+            finally
+            {
+                cancel.Dispose();
+            }
+        });
+    }
+
 
     private void SetCatalogPageState(int displayedRows, bool hasMore)
     {
@@ -88,6 +156,7 @@ public partial class MainWindow : Window
     {
         if (catalogPageBusy || catalogPageIndex <= 0) return;
         catalogPageIndex--;
+        catalogPagingMove = true;
         _ = FilterAsync(debounce: false, resetPage: false);
     }
 
@@ -96,6 +165,7 @@ public partial class MainWindow : Window
         if (catalogPageBusy || !catalogPageMayHaveMore ||
             catalogPageIndex == int.MaxValue / CatalogPageSize) return;
         catalogPageIndex++;
+        catalogPagingMove = true;
         _ = FilterAsync(debounce: false, resetPage: false);
     }
 
@@ -112,6 +182,12 @@ public partial class MainWindow : Window
         selectedTilePrinting = null;
         activeTileColumns = 0;
         ApplyCatalogLayout();
+        if (catalogPagingMove)
+        {
+            catalogPagingMove = false;
+            if (CardsList.Items.Count > 0)
+                CardsList.ScrollIntoView(CardsList.Items[0]);
+        }
     }
 
     private void ApplyCatalogLayout()
@@ -145,7 +221,7 @@ public partial class MainWindow : Window
         for (System.Windows.DependencyObject? node = e.OriginalSource as System.Windows.DependencyObject;
              node is not null; node = System.Windows.Media.VisualTreeHelper.GetParent(node))
         {
-            if (node is Button { Name: "CardShortlistStar" }) return;
+            if (node is Button { Name: "CardShortlistStar" or "CardFaceFlip" }) return;
             if (ReferenceEquals(node, sender)) break;
         }
         selectedTilePrinting = card;
@@ -160,6 +236,43 @@ public partial class MainWindow : Window
         }
     }
 
+
+    private static NativeCardArtImage? FindArtworkChild(DependencyObject node)
+    {
+        if (node is NativeCardArtImage art) return art;
+        for (int i=0; i<System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); i++)
+        {
+            var found=FindArtworkChild(
+                System.Windows.Media.VisualTreeHelper.GetChild(node,i));
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
+    private void OnCatalogTileFaceFlipClicked(object sender,RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: CatalogSnapshot.PrintingRow card } button ||
+            !NativeCardArtwork.IsTrustedArtworkUrl(card.ImageUrl) ||
+            !NativeCardArtwork.IsTrustedArtworkUrl(card.BackImageUrl)) return;
+        e.Handled=true;
+        DependencyObject? ancestor=button;
+        while (ancestor is not null)
+        {
+            if (ancestor is Border { Tag: CatalogSnapshot.PrintingRow })
+            {
+                var artwork=FindArtworkChild(ancestor);
+                if (artwork is null) return;
+                bool reverse=string.Equals(artwork.ArtUrl,card.ImageUrl,
+                    StringComparison.Ordinal);
+                artwork.SetCurrentValue(NativeCardArtImage.ArtUrlProperty,
+                    reverse?card.BackImageUrl:card.ImageUrl);
+                button.ToolTip=reverse
+                    ? "Tap to show front card face" : "Tap to show alternate card face";
+                return;
+            }
+            ancestor=System.Windows.Media.VisualTreeHelper.GetParent(ancestor);
+        }
+    }
 
     public MainWindow()
     {
@@ -2020,6 +2133,7 @@ public partial class MainWindow : Window
 
     private void InvalidateNativeWorkspace()
     {
+        InvalidateCatalogPageCache();
         // A true source-data change must be reverified, but filter/search
         // choices and stable selection IDs can safely cross that refresh.
         pendingNativeUiState = nativeWorkspaceView?.CaptureNavigationState() ??
@@ -2729,6 +2843,15 @@ public partial class MainWindow : Window
         _ = FilterAsync(debounce: false);
     }
 
+    private static double? CatalogManaValue(string? input)
+    {
+        var text = (input ?? "").Trim();
+        if (text.Length == 0) return null;
+        return double.TryParse(text, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var result)
+            ? result : double.NaN; // Validator reports malformed bounds without throwing in the UI callback.
+    }
+
     private CatalogSnapshot.SearchOptions SelectedCatalogFilters()
     {
         string colors =
@@ -2750,7 +2873,9 @@ public partial class MainWindow : Window
                 OwnershipFilterBox?.SelectedIndex ?? 0, 0, 4),
             (RoleFilterBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "",
             CatalogIncludeProxiesBox?.IsChecked == true &&
-                OwnershipFilterBox?.SelectedIndex == 1);
+                OwnershipFilterBox?.SelectedIndex == 1,
+            CatalogManaValue(ManaValueMinBox?.Text),
+            CatalogManaValue(ManaValueMaxBox?.Text));
     }
 
     private async Task FilterAsync(bool debounce = true, bool resetPage = true)
@@ -2796,13 +2921,19 @@ public partial class MainWindow : Window
             }
             else
             {
-                var results = await Task.Run(() =>
-                    active.SearchFiltered(filter, filters, cancellationToken: token,
-                        ownership: ownership,
-                        offset: checked(catalogPageIndex * CatalogPageSize)), token);
+                var cacheKey = new CatalogCacheKey(active, ownership,
+                    filter, filters, catalogPageIndex);
+                bool cached = TryGetCachedCatalogPage(cacheKey, out var results);
+                if (!cached)
+                    results = await Task.Run(() =>
+                        active.SearchFiltered(filter, filters, cancellationToken: token,
+                            ownership: ownership,
+                            offset: checked(catalogPageIndex * CatalogPageSize)), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
+                if (!cached) RememberCatalogPage(cacheKey, results);
                 SetCatalogResults(results.Rows.Cast<object>());
+                PrefetchCatalogPageArtwork(results.Rows);
                 SetCatalogPageState(results.Rows.Count, results.MayHaveMore);
                 FilterStatus.Text = $"{results.Rows.Count:N0} printings on page {catalogPageIndex + 1:N0} · SQL {results.SqlMilliseconds:F1} ms" +
                     (results.MayHaveMore ? " · More catalog pages available" : " · Last page") +

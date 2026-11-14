@@ -14,7 +14,7 @@ public sealed class CatalogSnapshot : IDisposable
     public sealed record PrintingRow(string Name, string SetCode, string CollectorNumber,
         int PhysicalOwned = 0, int ArenaOwned = 0, int UnresolvedName = 0,
         string ImageUrl = "", string RolesLabel = "", bool ArenaPresentation = false,
-        string Rarity = "", int ProxyCopies = 0)
+        string Rarity = "", int ProxyCopies = 0, string BackImageUrl = "")
     {
         public string RarityLabel => Rarity.Length == 0
             ? "" : Rarity.ToUpperInvariant();
@@ -56,6 +56,7 @@ public sealed class CatalogSnapshot : IDisposable
     public bool HasRoleMetadata { get; }
     public bool HasPrintingArtwork { get; }
     public bool HasPrintingRarity { get; }
+    public bool HasPrintingBackArtwork { get; }
 
     public enum ColorMatching { ContainsAll, Exact, ContainsAny }
     public enum OwnershipMode
@@ -70,19 +71,20 @@ public sealed class CatalogSnapshot : IDisposable
         string ColorMask = "", ColorMatching ColorMatch = ColorMatching.ContainsAll,
         bool ColorlessOnly = false, bool ArenaOnly = false,
         OwnershipMode Ownership = OwnershipMode.All,
-        string Role = "", bool IncludeProxies = false)
+        string Role = "", bool IncludeProxies = false,
+        double? ManaValueMin = null, double? ManaValueMax = null)
     {
         public bool IsDefault =>
             SetCode.Length == 0 && Rarity.Length == 0 && TypeContains.Length == 0 &&
             ColorMask.Length == 0 && !ColorlessOnly && !ArenaOnly &&
             Ownership == OwnershipMode.All && Role.Length == 0 &&
-            !IncludeProxies;
+            !IncludeProxies && ManaValueMin is null && ManaValueMax is null;
     }
 
     private CatalogSnapshot(string path, long total, bool ownsTemporaryFile = true,
         bool hasFullMetadata = false, bool hasPaperPrintingMetadata = false,
         bool hasRoleMetadata = false, bool hasPrintingArtwork = false,
-        bool hasPrintingRarity = false)
+        bool hasPrintingRarity = false, bool hasPrintingBackArtwork = false)
     {
         snapshotPath = path;
         TotalPrintings = total;
@@ -92,6 +94,7 @@ public sealed class CatalogSnapshot : IDisposable
         HasRoleMetadata = hasRoleMetadata;
         HasPrintingArtwork = hasPrintingArtwork;
         HasPrintingRarity = hasPrintingRarity;
+        HasPrintingBackArtwork = hasPrintingBackArtwork;
     }
 
     public long TotalPrintings { get; }
@@ -153,7 +156,8 @@ public sealed class CatalogSnapshot : IDisposable
         return new PrintingRow(name, set, collector,
             counts?.VerifiedPhysical ?? 0, counts?.Arena ?? 0,
             counts?.UnresolvedName ?? 0, image, roles, arenaPresentation, rarity,
-            counts?.Proxy ?? 0);
+            counts?.Proxy ?? 0,
+            HasPrintingBackArtwork && !reader.IsDBNull(10) ? reader.GetString(10) : "");
     }
 
     private static bool IsPaper(SqliteDataReader reader)
@@ -204,7 +208,8 @@ public sealed class CatalogSnapshot : IDisposable
                 hasRoleMetadata: hasFullMetadata &&
                     HasFields(snapshot, "cards", "type", "oracle"),
                 hasPrintingArtwork: HasFields(snapshot, "variants", "image"),
-                hasPrintingRarity: HasFields(snapshot, "variants", "rarity"));
+                hasPrintingRarity: HasFields(snapshot, "variants", "rarity"),
+                hasPrintingBackArtwork: HasFields(snapshot, "variants", "image_back"));
         }
         catch
         {
@@ -238,7 +243,8 @@ public sealed class CatalogSnapshot : IDisposable
             hasPaperPrintingMetadata: HasPaperFields(db),
             hasRoleMetadata: HasFields(db, "cards", "type", "oracle"),
             hasPrintingArtwork: HasFields(db, "variants", "image"),
-            hasPrintingRarity: HasFields(db, "variants", "rarity"));
+            hasPrintingRarity: HasFields(db, "variants", "rarity"),
+            hasPrintingBackArtwork: HasFields(db, "variants", "image_back"));
     }
 
     /// <summary>
@@ -311,13 +317,14 @@ public sealed class CatalogSnapshot : IDisposable
                 ? "v.games,v.digital" : "'missing',1";
             string art = HasPrintingArtwork ? "v.image" : "''";
             string rarityField = HasPrintingRarity ? "v.rarity" : "''";
+            string backField = HasPrintingBackArtwork ? "v.image_back" : "''";
             string roles = HasRoleMetadata
                 ? "c.type,c.oracle" : "'',''";
             string join = HasRoleMetadata
                 ? " LEFT JOIN cards c ON c.name = v.name COLLATE NOCASE" : "";
             cmd.CommandText =
                 "SELECT v.print_id,v.name,v.setcode,v.collector," +
-                paper + "," + art + "," + roles + "," + rarityField +
+                paper + "," + art + "," + roles + "," + rarityField + "," + backField +
                 " FROM variants v" + join +
                 @" WHERE v.name LIKE $prefix ESCAPE '\' " +
                 " ORDER BY v.name COLLATE NOCASE,v.setcode,v.collector,v.print_id LIMIT $limit OFFSET $offset";
@@ -389,11 +396,19 @@ public sealed class CatalogSnapshot : IDisposable
         if (rarity.Length > 0 && rarity is not (
             "common" or "uncommon" or "rare" or "mythic" or "special" or "bonus"))
             throw new ArgumentException("Unknown catalog rarity filter.");
+        if ((filters.ManaValueMin is < 0 or > 1000) ||
+            (filters.ManaValueMax is < 0 or > 1000) ||
+            (filters.ManaValueMin.HasValue && !double.IsFinite(filters.ManaValueMin.Value)) ||
+            (filters.ManaValueMax.HasValue && !double.IsFinite(filters.ManaValueMax.Value)) ||
+            (filters.ManaValueMin.HasValue && filters.ManaValueMax.HasValue &&
+             filters.ManaValueMin > filters.ManaValueMax))
+            throw new ArgumentException("Mana value range must be finite, nonnegative, and ordered.");
         string set = filters.SetCode.Trim();
         string type = filters.TypeContains.Trim();
         if (set.Length > 20 || type.Length > 80)
             throw new ArgumentException("Catalog filter exceeds its supported length.");
-        bool needsCard = filters.ColorlessOnly || color.Length > 0 || type.Length > 0 ||
+        bool needsCard = filters.ManaValueMin.HasValue || filters.ManaValueMax.HasValue ||
+            filters.ColorlessOnly || color.Length > 0 || type.Length > 0 ||
             HasRoleMetadata || filters.Role.Length > 0;
         if ((needsCard || filters.ArenaOnly ||
              filters.Ownership is OwnershipMode.ArenaOwned or OwnershipMode.ArenaNotOwned ||
@@ -417,10 +432,11 @@ public sealed class CatalogSnapshot : IDisposable
                 ? "v.games,v.digital" : "'missing' AS games, 1 AS digital";
             string artColumn = HasPrintingArtwork ? "v.image" : "''";
             string rarityColumn = HasPrintingRarity ? "v.rarity" : "''";
+            string backColumn = HasPrintingBackArtwork ? "v.image_back" : "''";
             string roleColumns = HasRoleMetadata ? "c.type,c.oracle" : "'',''";
             cmd.CommandText = "SELECT v.print_id,v.name,v.setcode,v.collector," +
                 paperColumns + "," + artColumn + "," + roleColumns +
-                "," + rarityColumn +
+                "," + rarityColumn + "," + backColumn +
                 "\nFROM variants v\n" +
                 (needsCard
                     ? "INNER JOIN cards c ON c.name = v.name COLLATE NOCASE\n"
@@ -430,6 +446,16 @@ public sealed class CatalogSnapshot : IDisposable
             {
                 where.Add("v.setcode = $set COLLATE NOCASE");
                 cmd.Parameters.AddWithValue("$set", set);
+            }
+            if (filters.ManaValueMin is double minValue)
+            {
+                where.Add("c.mv >= $mvMin");
+                cmd.Parameters.AddWithValue("$mvMin", minValue);
+            }
+            if (filters.ManaValueMax is double maxValue)
+            {
+                where.Add("c.mv <= $mvMax");
+                cmd.Parameters.AddWithValue("$mvMax", maxValue);
             }
             if (rarity.Length > 0)
             {

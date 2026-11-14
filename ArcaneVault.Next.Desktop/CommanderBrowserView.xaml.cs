@@ -28,6 +28,10 @@ public partial class CommanderBrowserView : UserControl
     private bool initialized;
     private bool updatingColors;
     private int commanderCostVersion;
+    private string frontCommanderArt="";
+    private string backCommanderArt="";
+    private bool viewingBackFace;
+    private int commanderFaceVersion;
 
     public CommanderBrowserView(EdhLabCommanderIndex index,
         CommanderInventory? inventory = null, bool hasCollection = false,
@@ -62,6 +66,8 @@ public partial class CommanderBrowserView : UserControl
         if (CommanderInspectorPanel is null) return;
         ++commanderCostVersion;
         CommanderInspectorManaCost.Value = "";
+        CommanderFaceFlip.Visibility = Visibility.Collapsed;
+        frontCommanderArt="";backCommanderArt="";viewingBackFace=false;
         if (CommanderList.SelectedItem is not CommanderRow selected)
         {
             CommanderInspectorPanel.Visibility = Visibility.Collapsed;
@@ -71,8 +77,10 @@ public partial class CommanderBrowserView : UserControl
         var card = selected.Card;
         CommanderInspectorPanel.Visibility = Visibility.Visible;
         CommanderInspectorName.Text = card.Name;
-        CommanderInspectorArt.ArtUrl = NativeCardArtwork.IsTrustedArtworkUrl(card.ImageUrl)
+        frontCommanderArt = NativeCardArtwork.IsTrustedArtworkUrl(card.ImageUrl)
             ? card.ImageUrl : "";
+        CommanderInspectorArt.ArtUrl = frontCommanderArt;
+        _ = FindCommanderAlternateFaceAsync(card.Name,frontCommanderArt,++commanderFaceVersion);
         CommanderInspectorType.Text = card.TypeLine;
         CommanderInspectorOwnership.Text = selected.InventoryText +
             " · name-level, not verified printing ownership";
@@ -83,6 +91,30 @@ public partial class CommanderBrowserView : UserControl
         _ = LoadCommanderCostAsync(card.Name, commanderCostVersion);
         CommanderInspectorStatus.Text =
             "Format eligibility uses cached legalities, not live bans. Selecting a commander does not modify your deck.";
+    }
+
+    private async Task FindCommanderAlternateFaceAsync(string name,string front,int version)
+    {
+        if (string.IsNullOrEmpty(front) || string.IsNullOrWhiteSpace(catalogPath)) return;
+        var alternate = await Task.Run(()=>
+            NativeCardFaceLookup.Alternate(catalogPath,name,front));
+        if (version!=commanderFaceVersion || !IsLoaded ||
+            CommanderList.SelectedItem is not CommanderRow current ||
+            !current.Name.Equals(name,StringComparison.OrdinalIgnoreCase))return;
+        backCommanderArt=alternate;
+        CommanderFaceFlip.Visibility = string.IsNullOrEmpty(backCommanderArt)
+            ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void OnCommanderFaceFlipClicked(object sender,RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(backCommanderArt) ||
+            string.IsNullOrEmpty(frontCommanderArt))return;
+        viewingBackFace = !viewingBackFace;
+        CommanderInspectorArt.ArtUrl = viewingBackFace
+            ? backCommanderArt : frontCommanderArt;
+        CommanderFaceFlip.ToolTip = viewingBackFace
+            ? "Tap to show front commander face" : "Tap to show alternate commander face";
     }
 
     private async Task LoadCommanderCostAsync(string name, int version)
@@ -112,7 +144,9 @@ public partial class CommanderBrowserView : UserControl
     private void OnCloseCommanderInspectorClicked(object sender, RoutedEventArgs e)
     {
         ++commanderCostVersion;
+        ++commanderFaceVersion;
         CommanderInspectorManaCost.Value = "";
+        CommanderFaceFlip.Visibility = Visibility.Collapsed;
         CommanderInspectorPanel.Visibility = Visibility.Collapsed;
         CommanderInspectorArt.ArtUrl = "";
     }
