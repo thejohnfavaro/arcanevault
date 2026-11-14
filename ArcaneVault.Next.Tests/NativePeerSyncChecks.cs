@@ -37,6 +37,25 @@ internal static class NativePeerSyncChecks
         var same=NativePeerSync.Compare(path,exported);
         Check(same.Changes.Count==0 && same.EqualRecords==4,
             "Identical peer snapshot should be a no-op.");
+        // A peer checkpoint can be stored only after identical recognized
+        // records; previous checkpoints are retained instead of overwritten.
+        string checkpointRoot=Path.Combine(work,"isolated-peer-checkpoints");
+        var remoteBaseline=JsonNode.Parse(exported)!.AsObject();
+        remoteBaseline["deviceId"]="00000000-0000-4000-8000-000000000366";
+        byte[] peerBytes=JsonSerializer.SerializeToUtf8Bytes(remoteBaseline);
+        var checkpoint=NativePeerCheckpoint.SaveIdentical(path,peerBytes,checkpointRoot);
+        Check(File.Exists(checkpoint),"Matching peer checkpoint must persist.");
+        Check(NativePeerCheckpoint.Exists("00000000-0000-4000-8000-000000000366",
+            checkpointRoot),"Checkpoint should be discoverable by peer UUID.");
+        Check(NativePeerCheckpoint.Load("00000000-0000-4000-8000-000000000366",
+            checkpointRoot).SequenceEqual(peerBytes),"Persisted peer snapshot must remain lossless.");
+        NativePeerCheckpoint.SaveIdentical(path,peerBytes,checkpointRoot);
+        Check(Directory.GetFiles(checkpointRoot,"*.history-*.json").Length==1,
+            "Refreshing a peer checkpoint must preserve one earlier snapshot.");
+        var wrongPeer=JsonNode.Parse(peerBytes)!.AsObject();
+        wrongPeer["data"]!["cards"]!.AsArray()[0]!["qty"]=99;
+        Reject(()=>NativePeerCheckpoint.SaveIdentical(path,
+            JsonSerializer.SerializeToUtf8Bytes(wrongPeer),checkpointRoot));
         var modified=JsonNode.Parse(exported)!.AsObject();
         var data=modified["data"]!.AsObject();
         data["cards"]!.AsArray()[0]!["qty"]=5;

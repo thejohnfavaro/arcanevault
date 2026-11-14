@@ -425,6 +425,12 @@
                                     Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"
                                     ToolTip="One-use LAN address for the phone to upload a peer snapshot for read-only review"/>
+                                <Button x:Name="ReceiveAndApplyPeerLanButton"
+                                    Content="⇄   Receive &amp; Apply Phone Sync (Wi-Fi)"
+                                    Click="OnReceiveAndApplyPeerLanClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    Margin="0,0,0,5"
+                                    ToolTip="Scan QR with Android Send to PC. Then choose your previous common baseline, review and approve a verified Windows-only merge with rollback."/>
                                 <Button x:Name="CancelPeerLanButton"
                                     Content="×   Cancel Wi-Fi Sync Offer"
                                     Click="OnCancelPeerLanClicked"
