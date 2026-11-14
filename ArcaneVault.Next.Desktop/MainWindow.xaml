@@ -389,6 +389,12 @@
                                     Click="OnExportFullBackupClicked" IsEnabled="False"
                                     Style="{StaticResource VaultNavButtonDepth}"
                                     Margin="0,0,0,5"/>
+                                <Button x:Name="CreateSyncSnapshotButton"
+                                    Content="◷   Save Sync Snapshot (One Click)"
+                                    Click="OnCreateSyncSnapshotClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    Margin="0,0,0,5"
+                                    ToolTip="Immediately save a verified, timestamped local peer snapshot before Wi-Fi syncing. No file picker and no collection changes. This is not automatically a verified shared-device baseline."/>
                                 <Button x:Name="ExportPeerSyncButton"
                                     Content="⇄   Export PC / Android Sync"
                                     Click="OnExportPeerSyncClicked"
