@@ -971,8 +971,8 @@ internal static class NativeVisualShellChecks
         // Responsive catalog header uses full-width search and stacked
         // wrapping groups, never a fixed right-hand viewport that floats
         // away from the filters as the main window is resized.
-        var shell = XDocument.Parse(main);
-        var catalog = shell.Descendants().First(x =>
+        var responsiveCatalogShell = XDocument.Parse(main);
+        var catalog = responsiveCatalogShell.Descendants().First(x =>
             x.Attribute(XName.Get("Name", XamlNs))?.Value == "CatalogWorkspace");
         var search = catalog.Descendants().First(x =>
             x.Attribute(XName.Get("Name", XamlNs))?.Value == "SearchBox");
