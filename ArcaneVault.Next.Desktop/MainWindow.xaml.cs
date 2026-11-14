@@ -219,7 +219,7 @@ public partial class MainWindow : Window
         for (System.Windows.DependencyObject? node = e.OriginalSource as System.Windows.DependencyObject;
              node is not null; node = System.Windows.Media.VisualTreeHelper.GetParent(node))
         {
-            if (node is Button { Name: "CardShortlistStar" }) return;
+            if (node is Button { Name: "CardShortlistStar" or "CardFaceFlip" }) return;
             if (ReferenceEquals(node, sender)) break;
         }
         selectedTilePrinting = card;
@@ -234,6 +234,43 @@ public partial class MainWindow : Window
         }
     }
 
+
+    private static NativeCardArtImage? FindArtworkChild(DependencyObject node)
+    {
+        if (node is NativeCardArtImage art) return art;
+        for (int i=0; i<System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); i++)
+        {
+            var found=FindArtworkChild(
+                System.Windows.Media.VisualTreeHelper.GetChild(node,i));
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
+    private void OnCatalogTileFaceFlipClicked(object sender,RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: CatalogSnapshot.PrintingRow card } button ||
+            !NativeCardArtwork.IsTrustedArtworkUrl(card.ImageUrl) ||
+            !NativeCardArtwork.IsTrustedArtworkUrl(card.BackImageUrl)) return;
+        e.Handled=true;
+        DependencyObject? ancestor=button;
+        while (ancestor is not null)
+        {
+            if (ancestor is Border { Tag: CatalogSnapshot.PrintingRow })
+            {
+                var artwork=FindArtworkChild(ancestor);
+                if (artwork is null) return;
+                bool reverse=string.Equals(artwork.ArtUrl,card.ImageUrl,
+                    StringComparison.Ordinal);
+                artwork.SetCurrentValue(NativeCardArtImage.ArtUrlProperty,
+                    reverse?card.BackImageUrl:card.ImageUrl);
+                button.ToolTip=reverse
+                    ? "Tap to show front card face" : "Tap to show alternate card face";
+                return;
+            }
+            ancestor=System.Windows.Media.VisualTreeHelper.GetParent(ancestor);
+        }
+    }
 
     public MainWindow()
     {
