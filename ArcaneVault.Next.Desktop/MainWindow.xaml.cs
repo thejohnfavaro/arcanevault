@@ -186,6 +186,7 @@ public partial class MainWindow : Window
         {
             closing = true;
             wirelessPeer.Dispose();
+            _ = UsbPeerBridge.CloseAsync(activeUsbBridge);
             inspectorRequestVersion++;
             DisconnectInAppNotices();
             catalogSyncCancellation?.Cancel();
@@ -888,6 +889,85 @@ public partial class MainWindow : Window
     /// This includes all native edits and deck versions; it does not depend
     /// on the old Windows application or an exported legacy backup.
     /// </summary>
+    private (string Adb,string Serial,int Port)? activeUsbBridge;
+
+    private async void OnSharePeerUsbClicked(object sender,RoutedEventArgs e)
+    {
+        if(!File.Exists(NativeWorkspace.DefaultPath)) {
+            FilterStatus.Text="Open the native collection before USB sharing.";
+            return;
+        }
+        try {
+            await StopPeerUsbAsync();
+            byte[] bytes=await Task.Run(()=>
+                NativePeerSync.Export(NativeWorkspace.DefaultPath,NativePeerSync.DeviceId()));
+            var offer=wirelessPeer.ShareUsb(bytes);
+            activeUsbBridge=await UsbPeerBridge.OpenAsync(offer.Url,false);
+            FilterStatus.Text="USB peer share ready. Confirm Receive on Android; link expires in 5 minutes.";
+            NativeInAppDialog.Show(this,
+                "A cable-only loopback sync offer is active. Approve Receive "+
+                "on your Android phone. After download, Android will review "+
+                "differences against your shared baseline before any write. "+
+                "No home Wi-Fi is required.",
+                "Windows → Android USB peer sync",
+                MessageBoxButton.OK,MessageBoxImage.Information);
+        } catch(Exception error) {
+            await StopPeerUsbAsync();
+            FilterStatus.Text="USB peer share unavailable: "+error.Message;
+        }
+    }
+
+    private async void OnReceiveAndApplyPeerUsbClicked(object sender,RoutedEventArgs e)
+    {
+        if(!File.Exists(NativeWorkspace.DefaultPath)) {
+            FilterStatus.Text="Open the native collection before USB receiving.";
+            return;
+        }
+        try {
+            await StopPeerUsbAsync();
+            var offer=wirelessPeer.RequestUsb(async body=>
+            {
+                var preview=await Task.Run(()=>
+                    NativePeerSync.Compare(NativeWorkspace.DefaultPath,body));
+                byte[] snapshot=body.ToArray();
+                _=Dispatcher.BeginInvoke(new Action(async ()=>
+                {
+                    if(closing)return;
+                    try {await ApplyReceivedPeerSnapshotAsync(snapshot,preview.Device);}
+                    catch(Exception error) {
+                        if(!closing)FilterStatus.Text=
+                            "USB peer apply rejected: "+error.Message;
+                    }
+                }));
+            });
+            activeUsbBridge=await UsbPeerBridge.OpenAsync(offer.Url,true);
+            FilterStatus.Text="USB receive ready. Confirm Send on Android; link expires in 5 minutes.";
+            NativeInAppDialog.Show(this,
+                "A cable-only loopback sync offer is active. Approve Send "+
+                "on Android. Windows will request your common baseline and "+
+                "approval before applying any received changes.",
+                "Android → Windows USB peer sync",
+                MessageBoxButton.OK,MessageBoxImage.Information);
+        }catch(Exception error) {
+            await StopPeerUsbAsync();
+            FilterStatus.Text="USB peer receive unavailable: "+error.Message;
+        }
+    }
+
+    private async Task StopPeerUsbAsync()
+    {
+        var bridge=activeUsbBridge;
+        activeUsbBridge=null;
+        wirelessPeer.Cancel();
+        await UsbPeerBridge.CloseAsync(bridge);
+    }
+
+    private async void OnCancelPeerUsbClicked(object sender,RoutedEventArgs e)
+    {
+        await StopPeerUsbAsync();
+        FilterStatus.Text="USB peer offer canceled and ADB reverse removed.";
+    }
+
     private async void OnSharePeerLanClicked(object sender, RoutedEventArgs e)
     {
         if(!File.Exists(NativeWorkspace.DefaultPath))

@@ -25,18 +25,21 @@ internal sealed class WirelessPeerOffer : IDisposable
     public sealed record Offer(string Url,int Seconds,string Direction);
     public Offer Share(byte[] snapshot)=>Start(snapshot,null);
     public Offer Request(Func<byte[],Task> handler)=>Start(null,handler);
+    // ADB reverse exposes loopback on the phone, with no Wi-Fi listener.
+    public Offer ShareUsb(byte[] snapshot)=>Start(snapshot,null,true);
+    public Offer RequestUsb(Func<byte[],Task> handler)=>Start(null,handler,true);
 
-    private Offer Start(byte[]? bytes,Func<byte[],Task>? handler)
+    private Offer Start(byte[]? bytes,Func<byte[],Task>? handler,bool usb=false)
     {
         if(bytes is {Length: < 20 or > MaxBytes})
             throw new InvalidDataException("Peer snapshot exceeds 30 MiB or is empty.");
-        var address=LocalAddress()??throw new InvalidOperationException(
-            "Connect both devices to trusted home Wi-Fi/Ethernet. No private IPv4 network found.");
+        var address=usb?IPAddress.Loopback:(LocalAddress()??throw new InvalidOperationException(
+            "Connect both devices to trusted home Wi-Fi/Ethernet. No private IPv4 network found."));
         lock(gate)
         {
             StopLocked();
             stop=new CancellationTokenSource();
-            listener=new TcpListener(IPAddress.Any,0);
+            listener=new TcpListener(usb?IPAddress.Loopback:IPAddress.Any,0);
             listener.Start(2);
             payload=bytes?.ToArray();
             receive=handler;
