@@ -416,6 +416,11 @@
                             Foreground="{DynamicResource VaultAccent}" Margin="0,12,0,7"/>
                         <TextBlock Text="Connect one authorized Android phone by USB with debugging enabled. No Wi-Fi or QR code required. The same reviewed peer merge and recovery rules apply."
                             TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,9"/>
+                        <Button x:Name="CreateSharedBaselineUsbButton"
+                            Content="⇄   First USB Sync / Create Shared Baseline"
+                            Click="OnCreateSharedBaselineUsbClicked"
+                            Style="{StaticResource VaultNavButtonDepth}" Margin="0,0,0,5"
+                            ToolTip="Compare both collections, review differences, synchronize the chosen source, and verify matching checkpoints on both devices"/>
                         <Button x:Name="SharePeerUsbButton"
                             Content="⇄   Share Sync to Phone (USB)"
                             Click="OnSharePeerUsbClicked"
