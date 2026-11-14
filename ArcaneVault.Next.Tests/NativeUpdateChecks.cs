@@ -203,6 +203,60 @@ internal static class NativeUpdateChecks
              !Directory.Exists(Path.Combine(root, "v0.9.4")),
             "ZIP path traversal must not create files outside staging.");
 
+        // Exercise the update against an actual verified native workspace,
+        // not just sentinel text files. The application archive must never
+        // touch a recoverable collection, its separate catalog, or its history.
+        string realUserData = Path.Combine(work, "verified-update-user-data");
+        Directory.CreateDirectory(realUserData);
+        string realWorkspace = Path.Combine(realUserData, "native-workspace.sqlite");
+        var realBackup = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schema = 2,
+            cards = new[] { new { name = "Arena Sentinel", qty = 4 } },
+            physicalCards = new[] { new {
+                name = "Sol Ring", qty = 2, set = "TST", number = "001",
+                finish = "foil", scryfallId = "00000000-0000-4000-8000-000000000789"
+            } },
+            deckLibrary = new[] { new {
+                name = "Recovery Sentinel", entries = new[] { new { name = "Sol Ring", qty = 1 } },
+                revisions = new[] { new { label = "Pre-update" } }
+            } },
+            preferredArtwork = new { choice = "keep-this" },
+            futureOpaqueField = "must-survive"
+        });
+        var firstReal = NativeWorkspace.ImportNewBytes(
+            realBackup, "updater-verified-fixture", realWorkspace);
+        var changedReal = NativeWorkspaceSafety.AddArenaCopies(
+            realWorkspace, "Arena Sentinel", 1, firstReal.BackupSha256);
+        var originalReal = NativeWorkspace.Open(realWorkspace);
+        Must(originalReal.Collection.PhysicalCopies == 2 &&
+             originalReal.Collection.ArenaCopies == 5 &&
+             originalReal.Collection.Decks == 1 &&
+             originalReal.Collection.DeckRevisions == 1 &&
+             NativeWorkspaceSafety.RecoveryPaths(realWorkspace).Count == 1,
+             "Real workspace fixture is not recoverable before upgrade.");
+        string[] realFiles = new[] { realWorkspace, changedReal.RecoveryPath };
+        var realHashes = realFiles.Select(Sha).ToArray();
+        string laterZip = Zip(upgrade, "later-good.zip", "0.9.12");
+        var laterInstall = NativeUpdateService.InstallVerifiedArchive(
+            laterZip, Sha(laterZip), new Version(0, 9, 12), root);
+        Must(File.Exists(laterInstall.ExecutablePath),
+             "Subsequent version must install beside previous versions.");
+        string failedZip = Zip(upgrade, "later-bad.zip", "0.9.13",
+            badManifest: "{invalid update}");
+        Reject(() => NativeUpdateService.InstallVerifiedArchive(
+            failedZip, Sha(failedZip), new Version(0, 9, 13), root));
+        var verifiedAfter = NativeWorkspace.Open(realWorkspace);
+        Must(realHashes.SequenceEqual(realFiles.Select(Sha)) &&
+             verifiedAfter.BackupSha256 == originalReal.BackupSha256 &&
+             verifiedAfter.Collection.PhysicalCopies == 2 &&
+             verifiedAfter.Collection.ArenaCopies == 5 &&
+             verifiedAfter.Collection.Decks == 1 &&
+             verifiedAfter.Collection.DeckRevisions == 1 &&
+             NativeWorkspaceSafety.RecoveryPaths(realWorkspace).Count == 1 &&
+             !Directory.Exists(Path.Combine(root, "v0.9.13")),
+             "Successful/failed app upgrades must preserve verified inventory, deck revisions, and rollback bytes.");
+
         // Relaunch signal is always outside installed app/version/data roots.
         // A failed child must leave the old process in control.
         string handshake = NativeUpgradeHandoff.NewId();
