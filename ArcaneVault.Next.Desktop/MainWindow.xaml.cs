@@ -1025,27 +1025,40 @@ public partial class MainWindow : Window
     {
         // Do not assume a random old export is a valid common checkpoint.
         // The user must explicitly supply the previously shared snapshot.
-        var baselinePicker=new OpenFileDialog {
-            Title="Choose the last common PC/Android peer snapshot (before either device edited)",
-            Filter="Arcane Vault peer sync (*.json)|*.json",
-            CheckFileExists=true
-        };
         if(NativeInAppDialog.Show(this,
             "Received an Android snapshot from device "+device+
-            ".\n\nThe transfer did not update Windows. To prepare a three-way merge, "+
-            "select an earlier snapshot both devices last agreed on. "+
-            "Do not select a random historical export.\n\nContinue?",
+            ".\n\nNo data changed during transfer. To prepare a three-way merge "+
+            "we require a genuine earlier common baseline. Existing locally "+
+            "saved checkpoints are not cryptographic device pairing. Continue?",
             "Review received Wi-Fi sync",MessageBoxButton.YesNo,
             MessageBoxImage.Information)!=MessageBoxResult.Yes)return;
-        if(baselinePicker.ShowDialog(this)!=true)return;
-        var proposed=await Task.Run(()=>
+
+        byte[] baseline;
+        if(NativePeerCheckpoint.Exists(device) &&
+            NativeInAppDialog.Show(this,
+                "A previously confirmed matching snapshot exists for this device. "+
+                "Use that locally stored baseline?\n\n"+
+                "Select No to browse for a different previously shared baseline.",
+                "Use remembered peer baseline",MessageBoxButton.YesNo,
+                MessageBoxImage.Question)==MessageBoxResult.Yes)
         {
+            baseline=NativePeerCheckpoint.Load(device);
+        }
+        else
+        {
+            var baselinePicker=new OpenFileDialog {
+                Title="Choose the last common PC/Android peer snapshot",
+                Filter="Arcane Vault peer sync (*.json)|*.json",
+                CheckFileExists=true
+            };
+            if(baselinePicker.ShowDialog(this)!=true)return;
             var file=new FileInfo(baselinePicker.FileName);
             if(file.Length is <=20 or > NativePeerSync.MaxBytes)
                 throw new InvalidDataException("Baseline must be 21 bytes to 30 MiB.");
-            return NativePeerSync.PrepareMerge(NativeWorkspace.DefaultPath,
-                received,File.ReadAllBytes(baselinePicker.FileName));
-        });
+            baseline=File.ReadAllBytes(baselinePicker.FileName);
+        }
+        var proposed=await Task.Run(()=>
+            NativePeerSync.PrepareMerge(NativeWorkspace.DefaultPath,received,baseline));
         if(closing)return;
         if(!proposed.HasChanges)
         {
