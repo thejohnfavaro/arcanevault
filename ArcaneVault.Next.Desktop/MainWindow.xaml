@@ -654,6 +654,15 @@
                                          Foreground="{DynamicResource VaultText}"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,12,7">
+                                <TextBlock Text="KEYWORD / RULES TEXT" Style="{StaticResource VaultEyebrow}"
+                                           Margin="0,0,0,4"/>
+                                <TextBox x:Name="OracleFilterBox" Width="205" Height="36"
+                                         TextChanged="OnCatalogFilterChanged"
+                                         ToolTip="Search Scryfall Oracle text for abilities and synergies: Banding, Connive, Replicate, etc. Can combine with color, type, rarity and ownership."
+                                         Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                         Foreground="{DynamicResource VaultText}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="RARITY" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
                                 <ComboBox x:Name="RarityFilterBox" Width="135" Height="36"
