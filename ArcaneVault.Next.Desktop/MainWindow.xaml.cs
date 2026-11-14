@@ -36,7 +36,8 @@ public partial class MainWindow : Window
     private bool nativeWorkspaceLoading;
     private int nativeWorkspaceSelectedTab;
     private int nativeWorkspaceGeneration;
-    private NativeShortlistWindow? shortlistWindow;
+    private NativeShortlistWorkspace? shortlistWorkspace;
+    private bool shortlistRequested;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
     private readonly WirelessPeerOffer wirelessPeer=new();
@@ -306,7 +307,8 @@ public partial class MainWindow : Window
             ClearEmbeddedEdhLab();
             collectionWindow?.Close();
             InvalidateNativeWorkspace();
-            shortlistWindow?.Close();
+            shortlistWorkspace?.Dispose();
+            shortlistWorkspace = null;
             CancelPendingSearch();
             catalogSnapshot?.Dispose();
         };
@@ -1927,31 +1929,36 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnOpenShortlistClicked(object sender, RoutedEventArgs e)
+    private async void OnOpenShortlistClicked(object sender,RoutedEventArgs e)
     {
-        if (shortlistWindow is not null)
+        if (!File.Exists(NativeWorkspace.DefaultPath))
         {
-            shortlistWindow.Activate();
+            FilterStatus.Text="Create or import a collection before opening My Shortlist.";
             return;
         }
-        if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
+        if (shortlistWorkspace is null)
         {
-            FilterStatus.Text =
-                "My Shortlist belongs to a native collection. Start Fresh or import a full backup first.";
-            return;
+            shortlistWorkspace=new NativeShortlistWorkspace(NativeWorkspace.DefaultPath,
+                catalogSnapshot?.ReadOnlySnapshotPath);
+            shortlistWorkspace.ShortlistEdited += () =>
+            {
+                _=Dispatcher.BeginInvoke(new Action(async () =>
+                {
+                    if(closing)return;
+                    await RefreshCatalogBookmarkNamesAsync();
+                    await RefreshNativeWorkspaceAsync();
+                }));
+            };
+            shortlistWorkspace.ReturnToCatalog += () => OnShowCatalogClicked(this,
+                new RoutedEventArgs());
+            ShortlistWorkspaceHost.Content=shortlistWorkspace;
         }
-        var view = new NativeShortlistWindow(NativeWorkspace.DefaultPath,
-            catalogSnapshot?.ReadOnlySnapshotPath) { Owner = this };
-        shortlistWindow = view;
-        view.Closed += async (_, _) =>
-        {
-            if (ReferenceEquals(shortlistWindow, view)) shortlistWindow = null;
-            if (closing || !view.ShortlistChanged)
-                return;
-            await RefreshCatalogBookmarkNamesAsync();
-            await RefreshNativeWorkspaceAsync(); // reload after optimistic SHA change
-        };
-        view.Show();
+        nativeWorkspaceRequested=false;
+        edhLabRequested=false;
+        dataSyncRequested=false;
+        shortlistRequested=true;
+        UpdateWorkspaceNavigation();
+        await shortlistWorkspace.RefreshFromWorkspaceAsync();
     }
 
     private async Task RefreshCatalogBookmarkNamesAsync()
@@ -2034,8 +2041,8 @@ public partial class MainWindow : Window
             NativeNoticeHub.Publish("My Shortlist", FilterStatus.Text);
             if (result.Saved)
             {
-                if (shortlistWindow is not null)
-                    await shortlistWindow.RefreshFromWorkspaceAsync();
+                if (shortlistWorkspace is not null)
+                    await shortlistWorkspace.RefreshFromWorkspaceAsync();
                 if (nativeWorkspaceView is not null || nativeWorkspaceRequested)
                     await RefreshNativeWorkspaceAsync();
             }
@@ -2063,22 +2070,25 @@ public partial class MainWindow : Window
     private void UpdateWorkspaceNavigation()
     {
         CatalogWorkspace.Visibility = nativeWorkspaceRequested || edhLabRequested ||
-            dataSyncRequested ? Visibility.Collapsed : Visibility.Visible;
+            dataSyncRequested || shortlistRequested ? Visibility.Collapsed : Visibility.Visible;
         DataSyncWorkspace.Visibility = dataSyncRequested &&
-            !nativeWorkspaceRequested && !edhLabRequested
+            !nativeWorkspaceRequested && !edhLabRequested && !shortlistRequested
             ? Visibility.Visible : Visibility.Collapsed;
-        NativeWorkspaceHost.Visibility = nativeWorkspaceRequested && !edhLabRequested
+        ShortlistWorkspaceHost.Visibility = shortlistRequested
             ? Visibility.Visible : Visibility.Collapsed;
-        EdhLabHost.Visibility = edhLabRequested
+        NativeWorkspaceHost.Visibility = nativeWorkspaceRequested && !edhLabRequested && !shortlistRequested
+            ? Visibility.Visible : Visibility.Collapsed;
+        EdhLabHost.Visibility = edhLabRequested && !shortlistRequested
             ? Visibility.Visible : Visibility.Collapsed;
 
         var active = (Style)FindResource("VaultNavPrimary");
         var inactive = (Style)FindResource("VaultNavButtonDepth");
         CatalogNavigationButton.Style = nativeWorkspaceRequested || edhLabRequested ||
-            dataSyncRequested ? inactive : active;
+            dataSyncRequested || shortlistRequested ? inactive : active;
         DataSyncNavigationButton.Style = dataSyncRequested &&
-            !nativeWorkspaceRequested && !edhLabRequested ? active : inactive;
-        EdhLabButton.Style = edhLabRequested ? active : inactive;
+            !nativeWorkspaceRequested && !edhLabRequested && !shortlistRequested ? active : inactive;
+        EdhLabButton.Style = edhLabRequested && !shortlistRequested ? active : inactive;
+        MyShortlistButton.Style = shortlistRequested ? active : inactive;
         OpenNativeButton.Style = nativeWorkspaceRequested &&
             nativeWorkspaceSelectedTab is not (2 or 3) ? active : inactive;
         DeckLibraryNavigationButton.Style = nativeWorkspaceRequested &&
@@ -2092,6 +2102,7 @@ public partial class MainWindow : Window
         nativeWorkspaceRequested = false;
         edhLabRequested = false;
         dataSyncRequested = false;
+        shortlistRequested = false;
         UpdateWorkspaceNavigation();
     }
 
@@ -2125,6 +2136,7 @@ public partial class MainWindow : Window
         nativeWorkspaceRequested = false;
         edhLabRequested = false;
         dataSyncRequested = true;
+        shortlistRequested = false;
         ShowDataSyncSection("devices");
         UpdateWorkspaceNavigation();
     }
@@ -2182,6 +2194,7 @@ public partial class MainWindow : Window
     {
         dataSyncRequested = false;
         edhLabRequested = false;
+        shortlistRequested = false;
         UpdateWorkspaceNavigation();
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
         {
@@ -2191,6 +2204,7 @@ public partial class MainWindow : Window
             return;
         }
         nativeWorkspaceRequested = true;
+        shortlistRequested = false;
         nativeWorkspaceSelectedTab = section;
         if (nativeWorkspaceView is not null)
         {
@@ -2580,6 +2594,7 @@ public partial class MainWindow : Window
         nativeWorkspaceRequested = false;
         edhLabRequested = true;
         dataSyncRequested = false;
+        shortlistRequested = false;
         UpdateWorkspaceNavigation();
     }
 
