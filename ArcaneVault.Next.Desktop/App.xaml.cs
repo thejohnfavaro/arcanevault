@@ -46,11 +46,11 @@ public partial class App : Application
         {
             MessageBox.Show(
                 (recovered
-                    ? "Set Progress could not render and was safely closed. "
+                    ? "A UI operation failed; the Set Progress workspace was closed as a precaution. "
                     : "Arcane Vault encountered an unexpected UI error. ") +
                 "Your collection has not been intentionally modified.\n\n" +
                 e.Exception.Message + "\n\nDiagnostic log: " + path,
-                "Arcane Vault Native — error", MessageBoxButton.OK,
+                "Arcane Vault — error", MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
         catch { }
