@@ -181,7 +181,28 @@
                                                 BorderBrush="{DynamicResource VaultAccentBorder}"
                                                 Foreground="{DynamicResource VaultWarning}"
                                                 Cursor="Hand"
-                                                ToolTipService.ShowDuration="15000"/>
+                                                ToolTipService.ShowDuration="15000">
+                                            <Button.ContentTemplate>
+                                                <!-- Glyph metrics have uneven optical bounds;
+                                                     center inside the square explicitly instead
+                                                     of using the default button text baseline. -->
+                                                <DataTemplate>
+                                                    <Grid Width="28" Height="28">
+                                                        <TextBlock Text="{Binding}" FontFamily="Segoe UI Symbol"
+                                                                   FontSize="23" FontWeight="Normal"
+                                                                   TextAlignment="Center"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"
+                                                                   LineStackingStrategy="BlockLineHeight"
+                                                                   LineHeight="28">
+                                                            <TextBlock.RenderTransform>
+                                                                <TranslateTransform X="0" Y="-1.5"/>
+                                                            </TextBlock.RenderTransform>
+                                                        </TextBlock>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </Button.ContentTemplate>
+                                        </Button>
                                     </Grid>
                                 </Border>
                                 <StackPanel Grid.Row="1" Margin="5,6,5,0">
