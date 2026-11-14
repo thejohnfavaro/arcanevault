@@ -20,6 +20,9 @@ public partial class NativeCardDetailsWindow : Window
     private readonly string? defaultArtworkUrl;
     private readonly bool arenaScope;
     private int artworkVersion;
+    private string activeFrontArt="";
+    private string activeBackArt="";
+    private bool showingBackArt;
     private bool bookmarkBusy;
     private bool bookmarkSaved;
     private string oraclePlainText = "";
@@ -329,10 +332,38 @@ public partial class NativeCardDetailsWindow : Window
         }
         if (artworkCancellation.IsCancellationRequested) return;
         int version = ++artworkVersion;
+        activeFrontArt = NativeCardArtwork.IsTrustedArtworkUrl(url) ? url! : "";
+        activeBackArt = "";
+        showingBackArt = false;
+        ArtworkFaceFlip.Visibility = Visibility.Collapsed;
         await LoadArtworkAsync(url, version);
+        if (!string.IsNullOrWhiteSpace(catalogPath) &&
+            NativeCardArtwork.IsTrustedArtworkUrl(activeFrontArt))
+        {
+            string found = await Task.Run(() =>
+                NativeCardFaceLookup.Alternate(catalogPath,CardName.Text,activeFrontArt));
+            if (version == artworkVersion && !artworkCancellation.IsCancellationRequested &&
+                NativeCardArtwork.IsTrustedArtworkUrl(found))
+            {
+                activeBackArt = found;
+                ArtworkFaceFlip.Visibility = Visibility.Visible;
+                ArtworkFaceFlip.ToolTip = "Tap to show reverse card face";
+            }
+        }
         if (artworkCancellation.IsCancellationRequested || version != artworkVersion) return;
         if (chosen && CardArtwork.Visibility == Visibility.Visible)
             ArtworkStatus.Text = "Saved preferred printing artwork · cached for offline use.";
+    }
+
+    private async void OnArtworkFaceFlipClicked(object sender,RoutedEventArgs e)
+    {
+        if (!NativeCardArtwork.IsTrustedArtworkUrl(activeBackArt) ||
+            !NativeCardArtwork.IsTrustedArtworkUrl(activeFrontArt))return;
+        showingBackArt = !showingBackArt;
+        ArtworkFaceFlip.ToolTip = showingBackArt
+            ? "Tap to show front card face" : "Tap to show reverse card face";
+        int version=++artworkVersion;
+        await LoadArtworkAsync(showingBackArt ? activeBackArt : activeFrontArt,version);
     }
 
     private async void OnOpenArtworkGalleryClicked(object sender, RoutedEventArgs e)
