@@ -885,6 +885,165 @@ public partial class MainWindow : Window
     /// This includes all native edits and deck versions; it does not depend
     /// on the old Windows application or an exported legacy backup.
     /// </summary>
+    private async void OnExportPeerSyncClicked(object sender, RoutedEventArgs e)
+    {
+        if (!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Open a native collection before exporting peer sync.";
+            return;
+        }
+        var picker = new SaveFileDialog
+        {
+            Title = "Export Windows / Android peer sync snapshot",
+            Filter = "Arcane Vault peer sync (*.json)|*.json",
+            AddExtension = true,
+            DefaultExt = ".json",
+            OverwritePrompt = false,
+            FileName = "ArcaneVault-PeerSync-Windows-" +
+                DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".json"
+        };
+        if (picker.ShowDialog(this) != true) return;
+        if (File.Exists(picker.FileName))
+        {
+            FilterStatus.Text = "Existing peer sync file must not be overwritten.";
+            return;
+        }
+        try
+        {
+            byte[] bytes = await Task.Run(() =>
+                NativePeerSync.Export(NativeWorkspace.DefaultPath, NativePeerSync.DeviceId()));
+            using (var stream = new FileStream(picker.FileName,
+                FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                await stream.WriteAsync(bytes);
+                stream.Flush(flushToDisk: true);
+            }
+            FilterStatus.Text =
+                "Peer snapshot exported. Import it on Android > Data & Sync > Preview peer file. " +
+                "Export is read-only and does not synchronize automatically.";
+        }
+        catch (Exception error)
+        {
+            FilterStatus.Text = "Peer snapshot export failed: " + error.Message;
+        }
+    }
+
+    private async void OnPreviewPeerSyncClicked(object sender, RoutedEventArgs e)
+    {
+        if (!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Open a native collection before comparing peer changes.";
+            return;
+        }
+        var picker = new OpenFileDialog
+        {
+            Title = "Preview an Arcane Vault peer sync file from Android / Windows",
+            Filter = "Arcane Vault peer sync (*.json)|*.json",
+            CheckFileExists = true
+        };
+        if (picker.ShowDialog(this) != true) return;
+        try
+        {
+            var preview = await Task.Run(() =>
+            {
+                var info = new FileInfo(picker.FileName);
+                if (info.Length is <= 20 or > NativePeerSync.MaxBytes)
+                    throw new InvalidDataException("Peer file is empty or exceeds 30 MiB.");
+                return NativePeerSync.Compare(NativeWorkspace.DefaultPath,
+                    File.ReadAllBytes(picker.FileName));
+            });
+            string details = string.Join("\n", preview.Changes.Take(14).Select(c =>
+                c.Action + " · " + c.Group + " · " +
+                c.Key[..Math.Min(100, c.Key.Length)]));
+            if (preview.Changes.Count > 14)
+                details += "\n… and " + (preview.Changes.Count - 14) + " more";
+            NativeInAppDialog.Show(this,
+                "Other device: " + preview.Device + "\n" +
+                "Matching records: " + preview.EqualRecords.ToString("N0") + "\n" +
+                "Additions: " + preview.Additions.ToString("N0") + "\n" +
+                "Differences: " + preview.Updates.ToString("N0") + "\n" +
+                "Absent on peer: " + preview.Removals.ToString("N0") + "\n" +
+                "Potential conflicts: " + preview.Conflicts.ToString("N0") +
+                "\n\n" + details +
+                "\n\nNo data was changed. This preview does not authorize replacing " +
+                "records without a verified shared sync baseline.",
+                "Arcane Vault peer comparison", MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            FilterStatus.Text = preview.HasChanges
+                ? "Peer differences inspected (read-only). Existing data preserved."
+                : "Peer data matches your current native workspace.";
+        }
+        catch (Exception error)
+        {
+            FilterStatus.Text = "Peer comparison rejected: " + error.Message;
+        }
+    }
+
+    private async void OnComparePeerBaselineClicked(object sender, RoutedEventArgs e)
+    {
+        if (!File.Exists(NativeWorkspace.DefaultPath))
+        {
+            FilterStatus.Text = "Open your native collection before comparing peer edits.";
+            return;
+        }
+        var incomingPicker = new OpenFileDialog
+        {
+            Title = "Step 1: Choose the latest Android / Windows peer snapshot",
+            Filter = "Arcane Vault peer sync (*.json)|*.json",
+            CheckFileExists = true
+        };
+        if (incomingPicker.ShowDialog(this) != true) return;
+        var basePicker = new OpenFileDialog
+        {
+            Title = "Step 2: Choose the previously shared sync baseline",
+            Filter = "Arcane Vault peer sync (*.json)|*.json",
+            CheckFileExists = true
+        };
+        if (basePicker.ShowDialog(this) != true) return;
+        if (Path.GetFullPath(incomingPicker.FileName).Equals(
+                Path.GetFullPath(basePicker.FileName), StringComparison.OrdinalIgnoreCase))
+        {
+            FilterStatus.Text = "Peer and baseline must be different verified snapshots.";
+            return;
+        }
+        try
+        {
+            var planned = await Task.Run(() =>
+            {
+                byte[] Read(string path)
+                {
+                    var info = new FileInfo(path);
+                    if (info.Length is <= 20 or > NativePeerSync.MaxBytes)
+                        throw new InvalidDataException("Peer file must be 21 bytes to 30 MiB.");
+                    return File.ReadAllBytes(path);
+                }
+                return NativePeerSync.CompareWithBaseline(NativeWorkspace.DefaultPath,
+                    Read(incomingPicker.FileName), Read(basePicker.FileName));
+            });
+            string details = string.Join("\n", planned.Records.Take(16).Select(c =>
+                c.Decision + (c.IncomingDeletion ? " (peer lacks record)" : "") +
+                " · " + c.Group + " · " + c.Key[..Math.Min(100,c.Key.Length)]));
+            if (planned.Records.Count > 16)
+                details += "\n… and " + (planned.Records.Count - 16) + " more";
+            NativeInAppDialog.Show(this,
+                "Compared your native workspace, the latest peer snapshot and " +
+                "a user-selected previous common snapshot.\n\n" +
+                "Incoming-only changes: " + planned.IncomingOnly.ToString("N0") + "\n" +
+                "Windows-only changes: " + planned.LocalOnly.ToString("N0") + "\n" +
+                "Concurrent conflicts: " + planned.Conflicts.ToString("N0") +
+                "\n\n" + details +
+                "\n\nNo changes were applied. The supplied baseline has not yet been " +
+                "authenticated as a paired-device checkpoint.",
+                "Windows / Android three-way sync review", MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            FilterStatus.Text = "Three-way peer comparison completed without changing data.";
+        }
+        catch (Exception ex)
+        {
+            FilterStatus.Text = "Three-way peer comparison failed: " + ex.Message;
+        }
+    }
+
     private async void OnExportFullBackupClicked(object sender, RoutedEventArgs e)
     {
         if (!System.IO.File.Exists(NativeWorkspace.DefaultPath))
