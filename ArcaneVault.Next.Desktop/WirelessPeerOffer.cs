@@ -152,7 +152,17 @@ internal sealed class WirelessPeerOffer : IDisposable
                     if(baselineCallback!=null) {
                         // This separate consented setup path may persist only
                         // a validated matching checkpoint, never live data.
-                        byte[] response=await baselineCallback(bytes,phase);
+                        byte[] response;
+                        try {response=await baselineCallback(bytes,phase);}
+                        catch(Exception error) {
+                            // A rejected source choice must notify Android
+                            // immediately, rather than waiting for HTTP timeout.
+                            byte[] failure=System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
+                                new {status="error",message=error.Message});
+                            await Reply(stream,200,failure,ct);
+                            lock(gate)StopLocked();
+                            return;
+                        }
                         if(response.Length<20||response.Length>MaxBytes)
                             throw new InvalidDataException("Invalid baseline response size.");
                         await Reply(stream,200,response,ct);
