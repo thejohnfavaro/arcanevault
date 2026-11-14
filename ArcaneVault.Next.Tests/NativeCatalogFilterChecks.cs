@@ -27,7 +27,8 @@ internal static class NativeCatalogFilterChecks
             cmd.CommandText = """
                 CREATE TABLE cards(
                     name TEXT PRIMARY KEY COLLATE NOCASE,
-                    type TEXT NOT NULL,colors TEXT NOT NULL);
+                    type TEXT NOT NULL,colors TEXT NOT NULL,
+                    oracle TEXT NOT NULL DEFAULT '');
                 CREATE TABLE variants (
                     print_id TEXT PRIMARY KEY,name TEXT NOT NULL COLLATE NOCASE,
                     setcode TEXT NOT NULL,collector TEXT NOT NULL,
@@ -51,6 +52,17 @@ internal static class NativeCatalogFilterChecks
                     ('bg-a','Boros Garrison','cmm','392','common',0),
                     ('per-a','Special%Literal','tst','1','common',0),
                     ('under-a','Special_Literal','tst','2','common',0);
+                """;
+            cmd.ExecuteNonQuery();
+            cmd.CommandText = """
+                UPDATE cards SET oracle='Banding (This creature can attack in a band.)'
+                    WHERE name='Esper Sentinel';
+                UPDATE cards SET oracle='Connive. Whenever this creature connives, draw a card.'
+                    WHERE name='Clever Impersonator';
+                UPDATE cards SET oracle='Replicate {1}{U} (Copy this spell for each payment.)'
+                    WHERE name='Azorius Guildmage';
+                UPDATE cards SET oracle='Replicate% and special_literal ability'
+                    WHERE name='Special%Literal';
                 """;
             cmd.ExecuteNonQuery();
         }
@@ -78,6 +90,24 @@ internal static class NativeCatalogFilterChecks
             "Type filter must join authoritative card metadata.");
         Must(catalog.SearchFiltered("", new(TypeContains: "Wizard")).Rows.Count == 1,
             "Subtype filter must be able to match an individual creature subtype.");
+        Must(catalog.HasRoleMetadata &&
+             catalog.SearchFiltered("", new(OracleContains: "Banding")).Rows.Single().Name ==
+                "Esper Sentinel" &&
+             catalog.SearchFiltered("", new(OracleContains: "connive")).Rows.Single().Name ==
+                "Clever Impersonator" &&
+             catalog.SearchFiltered("", new(OracleContains: "Replicate")).Rows.Count == 2,
+             "Banding, Connive and Replicate keyword ability text must be searchable.");
+        Must(catalog.SearchFiltered("", new(OracleContains: "replicate",
+            ColorMask: "WU", Rarity: "uncommon")).Rows.Single().Name == "Azorius Guildmage",
+            "Oracle mechanic search must compose with color identity and rarity.");
+        Must(catalog.SearchFiltered("", new(OracleContains: "Replicate%")).Rows.Single().Name ==
+                "Special%Literal" &&
+             catalog.SearchFiltered("", new(OracleContains: "special_")).Rows.Single().Name ==
+                "Special%Literal",
+             "Oracle % and _ inputs must remain literal rather than wildcard matching.");
+        Must(catalog.SearchFiltered("", new(OracleContains: "nonexistent")).Rows.Count == 0,
+             "Unknown ability names must not match unrelated cards.");
+
         Must(catalog.SearchFiltered("", new(ColorlessOnly: true)).Rows.Count == 2,
             "Colorless identity must ignore the land's mana production.");
         Must(catalog.SearchFiltered("", new(ColorMask: "WU",
