@@ -905,6 +905,7 @@ public partial class MainWindow : Window
             string? selectedAuthority=null;
             string? expectedWindowsSha=null;
             string? expectedPhoneRevision=null;
+            NativePeerSync.FirstPairUnion? unionPlan=null;
             var offer=wirelessPeer.RequestUsbBaseline(async (phoneBytes,phase)=>
             {
                 if(phase==0) {
@@ -915,7 +916,16 @@ public partial class MainWindow : Window
                     using(var phoneDoc=System.Text.Json.JsonDocument.Parse(phoneBytes))
                         expectedPhoneRevision=phoneDoc.RootElement.GetProperty("revision").GetString();
                     selectedAuthority="matched";
-                    if(comparison.HasChanges){
+                    byte[] latest=NativePeerSync.Export(
+                        NativeWorkspace.DefaultPath,NativePeerSync.DeviceId());
+                    if(comparison.HasChanges) {
+                        try {
+                            unionPlan=await Task.Run(()=>
+                                NativePeerSync.PrepareFirstPairUnion(
+                                    NativeWorkspace.DefaultPath,phoneBytes));
+                            latest=unionPlan.CandidatePeer;
+                            selectedAuthority="merge";
+                        } catch(InvalidDataException) {
                         var decision=await Dispatcher.InvokeAsync(()=>
                             NativeInAppDialog.Show(this,
                                 "First USB sync found "+comparison.Changes.Count+
@@ -934,9 +944,8 @@ public partial class MainWindow : Window
                                 "Initial sync canceled; no device changed.");
                         selectedAuthority=decision==MessageBoxResult.Yes?
                             "windows":"android";
+                        }
                     }
-                    byte[] latest=NativePeerSync.Export(
-                        NativeWorkspace.DefaultPath,NativePeerSync.DeviceId());
                     var reply=new System.Text.Json.Nodes.JsonObject {
                         ["status"]="review",
                         ["authority"]=selectedAuthority,
@@ -959,6 +968,10 @@ public partial class MainWindow : Window
                 if(selectedAuthority=="android")
                     await Task.Run(()=>NativePeerSync.ApplyFirstPairFromAndroid(
                         NativeWorkspace.DefaultPath,phoneBytes,expectedWindowsSha!));
+                if(selectedAuthority=="merge" && unionPlan!=null &&
+                    unionPlan.AdditionsFromPhone>0)
+                    await Task.Run(()=>NativePeerSync.ApplyFirstPairUnion(
+                        NativeWorkspace.DefaultPath,unionPlan));
                 var verified=await Task.Run(()=>
                     NativePeerSync.Compare(NativeWorkspace.DefaultPath,phoneBytes));
                 if(verified.HasChanges)
@@ -970,7 +983,9 @@ public partial class MainWindow : Window
                 _=Dispatcher.BeginInvoke(new Action(async ()=>{
                     if(closing)return;
                     FilterStatus.Text="USB baseline established. Checkpoint: "+checkpoint;
-                    if(selectedAuthority=="android")await RefreshNativeWorkspaceAsync();
+                    if(selectedAuthority=="android"||
+                        (selectedAuthority=="merge"&&unionPlan?.AdditionsFromPhone>0))
+                        await RefreshNativeWorkspaceAsync();
                 }));
                 return System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
                     new System.Text.Json.Nodes.JsonObject {
