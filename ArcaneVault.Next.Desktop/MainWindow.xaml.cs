@@ -901,14 +901,9 @@ public partial class MainWindow : Window
             var link=wirelessPeer.Share(bytes);
             Clipboard.SetText(link.Url);
             FilterStatus.Text="One-time Wi-Fi link copied. Expires in five minutes.";
-            NativeInAppDialog.Show(this,
-                "PC → Android peer snapshot is ready.\n\n"+
-                link.Url+"\n\nLink copied to clipboard. Open Android Data & Sync > "+
-                "Receive Windows sync over Wi-Fi and enter this link. "+
-                "Both devices must use the same trusted local network. "+
-                "The link works once and expires in five minutes. "+
-                "This transfer is HTTP, not encrypted, so avoid guest/public Wi-Fi.",
-                "Wireless peer review",MessageBoxButton.OK,MessageBoxImage.Information);
+            WirelessPeerQrDialog.Show(this,
+                "Share Windows collection with phone",link.Url,
+                "Windows → Android: receive the verified peer snapshot for read-only comparison.");
         }
         catch(Exception error)
         {
@@ -949,13 +944,9 @@ public partial class MainWindow : Window
             });
             Clipboard.SetText(offer.Url);
             FilterStatus.Text="Waiting for Android peer snapshot (one use, five minutes).";
-            NativeInAppDialog.Show(this,
-                "Android → PC: In Android Data & Sync, select "+
-                "'Send phone sync over Wi-Fi' and enter this one-time address.\n\n"+
-                offer.Url+"\n\nCopied to clipboard. Both devices must use trusted home Wi-Fi. "+
-                "This transport is unencrypted HTTP and permits review only.",
-                "Receive wireless peer snapshot",
-                MessageBoxButton.OK,MessageBoxImage.Information);
+            WirelessPeerQrDialog.Show(this,
+                "Receive Android collection over Wi-Fi",offer.Url,
+                "Android → Windows: send your phone snapshot for read-only comparison.");
         }
         catch(Exception error)
         {
