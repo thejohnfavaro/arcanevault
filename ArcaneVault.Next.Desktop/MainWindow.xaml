@@ -376,12 +376,20 @@
                 <TextBlock Text="Data &amp; Sync" FontSize="31" FontWeight="Bold" Foreground="{DynamicResource VaultText}"/>
                 <TextBlock Text="Connect devices, review inventory differences, and protect your collection."
                            Style="{StaticResource VaultMutedText}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                <WrapPanel Margin="0,16,0,0">
+                    <Button x:Name="DataSyncDevicesTab" Content="Device Sync" Tag="devices"
+                            Click="OnDataSyncSectionClicked" Style="{StaticResource VaultNavPrimary}" Padding="13,9" Margin="0,0,9,7"/>
+                    <Button x:Name="DataSyncSnapshotsTab" Content="Snapshots" Tag="snapshots"
+                            Click="OnDataSyncSectionClicked" Style="{StaticResource VaultNavButtonDepth}" Padding="13,9" Margin="0,0,9,7"/>
+                    <Button x:Name="DataSyncImportsTab" Content="Import &amp; Export" Tag="imports"
+                            Click="OnDataSyncSectionClicked" Style="{StaticResource VaultNavButtonDepth}" Padding="13,9" Margin="0,0,9,7"/>
+                    <Button x:Name="DataSyncUpdatesTab" Content="Updates" Tag="updates"
+                            Click="OnDataSyncSectionClicked" Style="{StaticResource VaultNavButtonDepth}" Padding="13,9" Margin="0,0,9,7"/>
+                </WrapPanel>
             </StackPanel>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Grid.Column="0" MinWidth="0">
+                <StackPanel>
+<StackPanel x:Name="DataSyncDevicesPanel" Visibility="Visible" MaxWidth="840" HorizontalAlignment="Left">
                 <Border Background="{DynamicResource VaultPanelRaised}" BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" CornerRadius="13" Padding="15" Margin="0,0,12,12" MinWidth="260">
                     <StackPanel>
                         <TextBlock Text="DEVICE SYNC" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
@@ -438,7 +446,7 @@
                     </StackPanel>
                 </Border>
                     </StackPanel>
-                    <StackPanel Grid.Row="0" Grid.Column="1" MinWidth="0">
+<StackPanel x:Name="DataSyncSnapshotsPanel" Visibility="Collapsed" MaxWidth="840" HorizontalAlignment="Left">
                 <Border Background="{DynamicResource VaultPanelRaised}" BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" CornerRadius="13" Padding="15" Margin="0,0,12,12" MinWidth="260">
                     <StackPanel>
                         <TextBlock Text="SNAPSHOTS &amp; RECOVERY" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
@@ -458,7 +466,7 @@
                     </StackPanel>
                 </Border>
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Grid.Column="0" MinWidth="0">
+<StackPanel x:Name="DataSyncImportsPanel" Visibility="Collapsed" MaxWidth="840" HorizontalAlignment="Left">
                 <Border Background="{DynamicResource VaultPanelRaised}" BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" CornerRadius="13" Padding="15" Margin="0,0,12,12" MinWidth="260">
                     <StackPanel>
                         <TextBlock Text="IMPORT &amp; EXPORT" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
@@ -488,7 +496,7 @@
                     </StackPanel>
                 </Border>
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Grid.Column="1" MinWidth="0">
+<StackPanel x:Name="DataSyncUpdatesPanel" Visibility="Collapsed" MaxWidth="840" HorizontalAlignment="Left">
                 <Border Background="{DynamicResource VaultPanelRaised}" BorderBrush="{DynamicResource VaultLine}" BorderThickness="1" CornerRadius="13" Padding="15" Margin="0,0,12,12" MinWidth="260">
                     <StackPanel>
                         <TextBlock Text="APP &amp; CATALOG UPDATES" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
@@ -531,7 +539,7 @@
                     </StackPanel>
                 </Border>
                     </StackPanel>
-                </Grid>
+                </StackPanel>
             </ScrollViewer>
         </Grid>
 
