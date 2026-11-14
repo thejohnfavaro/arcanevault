@@ -182,6 +182,63 @@ public static class NativePeerSync
         return indexed;
     }
 
+    public sealed record ThreeWayRecord(string Group,string Key,string Decision,
+        bool IncomingDeletion);
+    public sealed record ThreeWayPlan(string LocalRevision,string IncomingRevision,
+        string BaselineRevision,IReadOnlyList<ThreeWayRecord> Records)
+    {
+        public int IncomingOnly => Records.Count(r=>r.Decision=="Incoming only");
+        public int LocalOnly => Records.Count(r=>r.Decision=="Local only");
+        public int Conflicts => Records.Count(r=>r.Decision=="Conflict");
+        // Comparing a user-supplied baseline does not prove it was approved by both
+        // devices. No automatic application until durable pairing and recovery.
+        public bool SafeToAutoApply => false;
+    }
+
+    private static Dictionary<string,string> Flatten(JsonObject snapshot)
+    {
+        var result=new Dictionary<string,string>(StringComparer.Ordinal);
+        foreach(var group in new[]{"cards","physicalCards","deckLibrary"})
+        {
+            var entries=Index(group,(JsonArray)snapshot[group]!);
+            foreach(var pair in entries)
+                result.Add(group+"\u001f"+pair.Key,pair.Value);
+        }
+        var artwork=(JsonObject)snapshot["preferredArtwork"]!;
+        foreach(var pair in artwork)
+            result.Add("preferredArtwork\u001f"+pair.Key,Canonical(pair.Value));
+        return result;
+    }
+
+    /// <summary>Three-way classification only. It neither trusts the supplied
+    /// baseline as paired nor applies changes to local or remote data.</summary>
+    public static ThreeWayPlan CompareWithBaseline(
+        string nativePath,byte[] incoming,byte[] lastCommonSnapshot)
+    {
+        var remote=ParsePeer(incoming);
+        var baseSnapshot=ParsePeer(lastCommonSnapshot);
+        byte[] bytes=ReadCurrent(nativePath);
+        var local=RequireData(JsonNode.Parse(bytes));
+        var a=Flatten(local);
+        var b=Flatten(baseSnapshot.Data);
+        var c=Flatten(remote.Data);
+        var output=new List<ThreeWayRecord>();
+        foreach(var combined in a.Keys.Union(b.Keys,StringComparer.Ordinal)
+            .Union(c.Keys,StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        {
+            a.TryGetValue(combined,out var own);
+            b.TryGetValue(combined,out var ancestor);
+            c.TryGetValue(combined,out var incomingValue);
+            if(own==incomingValue)continue;
+            string decision=own==ancestor?"Incoming only":
+                incomingValue==ancestor?"Local only":"Conflict";
+            int divider=combined.IndexOf('\u001f');
+            output.Add(new ThreeWayRecord(combined[..divider],combined[(divider+1)..],
+                decision,incomingValue is null));
+        }
+        return new ThreeWayPlan(Digest(bytes),remote.Revision,baseSnapshot.Revision,output);
+    }
+
     public static Preview Compare(string nativePath, byte[] incoming)
     {
         var peer = ParsePeer(incoming);
