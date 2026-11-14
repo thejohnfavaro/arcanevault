@@ -637,7 +637,7 @@
                                    Style="{StaticResource VaultEyebrow}"
                                    Margin="0,0,0,7"/>
                         <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged"
-                                 ToolTip="Search catalog card names by prefix; use Next to browse all matching pages"
+                                 ToolTip="Search card names or Scryfall Oracle mechanics and rules text (Banding, Connive, Replicate); use Next to browse matching printings"
                                  FontSize="15" Height="44"
                                  Padding="14,7"
                                  Background="{DynamicResource VaultPanelRaised}"
