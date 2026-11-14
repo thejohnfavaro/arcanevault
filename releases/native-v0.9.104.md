@@ -15,6 +15,10 @@
 - Replace "Windows Native Preview" and "Windows native edition" labels with normal Arcane Vault branding.
 - Activity notifications now appear as a compact bubble in the Card Catalog header, where the old preview badge was.
 
+## Removed
+- The obsolete "Native Windows Preview" and "Windows native edition" UI labels have been retired.
+- No collection, deck, proxy, sync baseline or recovery features have been removed.
+
 ## Safety
 - Updater cleanup never touches the native collection, catalog data, decks, imported files, saved snapshots, artwork preferences, proxies or recovery backups.
 - All update installers are checksum-verified as before, and the old executable remains available if the new one does not successfully start.
