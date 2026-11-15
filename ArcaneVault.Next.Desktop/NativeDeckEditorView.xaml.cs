@@ -891,6 +891,11 @@ public partial class NativeDeckEditorView : UserControl
         if (!updatingPackageTheme) RenderSynergyPackages();
     }
 
+    private void OnEdhExplorerFilterChanged(object sender, RoutedEventArgs e)
+    {
+        if (lastPackageReport is not null) RenderSynergyPackages();
+    }
+
     private void RenderSynergyPackages()
     {
         if (EdhPackagesList is null || EdhPackagesStatus is null ||
@@ -909,16 +914,14 @@ public partial class NativeDeckEditorView : UserControl
         var visible = theme == "All mechanics"
             ? report.Packages
             : report.Packages.Where(p => p.Theme == theme).ToArray();
-        var display = visible.SelectMany(package =>
-            package.InDeck.Select(x => new PackageDisplay(
-                x.Name, package.Theme, "In deck", x.Kind, x.Why,
-                x.RecordedCopies, x.RoleHints))
-            .Concat(package.OwnedOptions.Select(x => new PackageDisplay(
-                x.Name, package.Theme, "Owned option", x.Kind, x.Why,
-                x.RecordedCopies, x.RoleHints)))
-            .Concat(package.MissingOptions.Select(x => new PackageDisplay(
-                x.Name, package.Theme, "Missing", x.Kind, x.Why,
-                x.RecordedCopies, x.RoleHints)))).ToArray();
+        bool ownedOnly = EdhExplorerOwnedOnly?.IsChecked != false;
+        bool gapsFirst = EdhExplorerGapsFirst?.IsChecked != false;
+        var explored = EdhLabSynergyPackages.Explore(report,
+            theme == "All mechanics" ? "" : theme, ownedOnly, gapsFirst);
+        var display = explored.Select(x => new PackageDisplay(
+            x.Card.Name, x.Theme, x.Group, x.Card.Kind,
+            x.Card.Why + " · " + x.Gap,
+            x.Card.RecordedCopies, x.Card.RoleHints)).ToArray();
         EdhPackagesStatus.Text = string.Join("\n\n",
             visible.Select(p => p.Theme + ": " +
                 p.InDeckCount + " matching copies in deck; " +
@@ -928,7 +931,10 @@ public partial class NativeDeckEditorView : UserControl
             (report.UnknownDeckCopies > 0
                 ? $"\n{report.UnknownDeckCopies} unverified deck copies."
                 : "") +
-            "\nRead-only cached-text hints; lists capped at five per category.";
+            "\nSynergy Explorer: " + (ownedOnly ? "owned candidates only" :
+                "owned and unowned examples") + " · " +
+                (gapsFirst ? "engine gaps prioritized" : "mechanics grouped by fit") +
+                ". Read-only text signals; lists capped at five per category.";
         EdhPackagesList.ItemsSource = display;
         if (previous is not null)
             EdhPackagesList.SelectedItem = display.FirstOrDefault(x =>
