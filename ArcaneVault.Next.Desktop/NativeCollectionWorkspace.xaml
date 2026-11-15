@@ -1014,6 +1014,81 @@
                     </ListView>
                 </Grid>
             </TabItem>
+            <TabItem Header="Collection Analytics">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16,14" MaxWidth="1180">
+                        <TextBlock Text="COLLECTION INTELLIGENCE"
+                                   Style="{StaticResource VaultEyebrow}"/>
+                        <TextBlock Text="Your collection, explained" FontSize="25"
+                                   Foreground="{DynamicResource VaultText}"
+                                   FontWeight="Bold" Margin="0,5,0,7"/>
+                        <TextBlock Text="Physical-printing values and owned-card deck coverage. Prices are cached Scryfall estimates; inventory additions are not market gains."
+                                   TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}"
+                                   Margin="0,0,0,14"/>
+                        <Border Style="{StaticResource VaultElevatedPanel}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="PORTFOLIO HEALTH"
+                                           Style="{StaticResource VaultEyebrow}"/>
+                                <TextBlock x:Name="AnalyticsSummary" Margin="0,7,0,6"
+                                           FontSize="18" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource VaultText}"
+                                           TextWrapping="Wrap"
+                                           Text="Calculating collection analytics…"/>
+                                <TextBlock x:Name="AnalyticsCoverage"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           TextWrapping="Wrap"/>
+                                <Canvas x:Name="AnalyticsHistoryCanvas" Height="160"
+                                        Margin="0,12,0,0" ClipToBounds="True"/>
+                            </StackPanel>
+                        </Border>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Style="{StaticResource VaultElevatedPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="MOST VALUABLE OWNED PRINTINGS"
+                                               Style="{StaticResource VaultEyebrow}"/>
+                                    <TextBlock x:Name="AnalyticsCards" Margin="0,9,0,0"
+                                               Foreground="{DynamicResource VaultText}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Style="{StaticResource VaultElevatedPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="TOP SETS BY OWNED VALUE"
+                                               Style="{StaticResource VaultEyebrow}"/>
+                                    <TextBlock x:Name="AnalyticsSets" Margin="0,9,0,0"
+                                               Foreground="{DynamicResource VaultText}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                        <Border Style="{StaticResource VaultElevatedPanel}" Margin="0,12,0,12">
+                            <StackPanel>
+                                <TextBlock Text="DECKS YOU CAN NEARLY BUILD"
+                                           Style="{StaticResource VaultEyebrow}"/>
+                                <TextBlock Text="Counts are based on actual owned card names in the matching Physical or Arena inventory. Missing cards are not replaced with speculative substitutes."
+                                           Foreground="{DynamicResource VaultMuted}" TextWrapping="Wrap"
+                                           Margin="0,6,0,0"/>
+                                <TextBlock x:Name="AnalyticsDecks" Margin="0,10,0,0"
+                                           TextWrapping="Wrap" Foreground="{DynamicResource VaultText}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource VaultElevatedPanel}">
+                            <StackPanel>
+                                <TextBlock Text="UNPRICED OWNED PRINTINGS"
+                                           Style="{StaticResource VaultEyebrow}"/>
+                                <TextBlock x:Name="AnalyticsMissing" Margin="0,8,0,0"
+                                           Foreground="{DynamicResource VaultText}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
         </TabControl>
         <TextBlock Grid.Row="4" x:Name="StatusText" Margin="0,12,0,0"
                    Foreground="#B7C9D8" TextWrapping="Wrap"
