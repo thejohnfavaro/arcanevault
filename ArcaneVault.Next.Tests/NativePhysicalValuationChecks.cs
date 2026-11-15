@@ -92,6 +92,25 @@ internal static class NativePhysicalValuationChecks
              result.PricedRows == 4 && result.MissingRows == 4,
             "Valuation must use each exact printing+finish and leave unknown copies out.");
 
+        // Set-specific values reuse exact printing+finish quote lines;
+        // their lifetime baselines are independent and stable on recalculation.
+        string baselines = Path.Combine(work, "per-set-valuations.json");
+        var setValues = NativeSetValuation.Calculate(result, baselines);
+        Must(setValues.TryGetValue("TST", out var tst) &&
+             tst.PricedUsd == 18.80m && tst.PricedRows == 2 &&
+             tst.BaselineUsd == 18.80m && tst.ChangeUsd == 0m,
+            "TST owned value must include only its exact nonfoil and foil copies.");
+        Must(setValues.TryGetValue("XYZ", out var xyz) &&
+             xyz.PricedUsd == 25.00m && xyz.PricedRows == 1,
+            "A different set must never contribute to TST subtotal.");
+        var recalculated = NativeSetValuation.Calculate(result, baselines);
+        Must(recalculated["TST"].BaselineUsd == tst.BaselineUsd &&
+             recalculated["TST"].ChangeUsd == 0m,
+            "Repeated price calculations must preserve the first valid set baseline.");
+        Must(setValues.Values.Sum(s => s.PricedUsd) ==
+             result.PricedSubtotalUsd,
+            "Per-set subtotal aggregation must conserve verified priced total.");
+
         // A matching-name, independently registered proxy must NEVER gain
         // an official Scryfall quotation or inflate physical collection value.
         byte[] withProxy = NativeProxyEditing.SetQuantity(owned, "Reprint", 99);
