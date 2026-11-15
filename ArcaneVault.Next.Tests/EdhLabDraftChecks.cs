@@ -357,6 +357,29 @@ internal static class EdhLabDraftChecks
              "An updated catalog source must never reuse old Oracle/legality metadata.");
         EdhLabReadOnlyCache.Clear();
 
+        // Batch substitutions must reserve each inventory copy across all
+        // proposals; unresolved shortages remain visible and do not invent
+        // proxy or off-color inventory.
+        var batch = EdhLabAutomaticSubstitutions.Analyze(paper,
+            new[] { (Name: "Heavy Insight", Quantity: 2) },
+            new[] { new EdhLabAutomaticSubstitutions.Shortage("Heavy Insight", 2) });
+        Must(batch.Swaps.Count == 1 &&
+             batch.Swaps[0].ReplacementName == "Tiny Insight" &&
+             batch.Unresolved.Count == 1 &&
+             batch.Unresolved[0].Copies == 1,
+             "Batch plan must not spend the same physical copy twice.");
+        var noArenaBatch = EdhLabAutomaticSubstitutions.Analyze(arena,
+            new[] { (Name: "Heavy Insight", Quantity: 1) },
+            new[] { new EdhLabAutomaticSubstitutions.Shortage("Heavy Insight", 1) });
+        Must(noArenaBatch.Swaps.All(x => x.ReplacementName != "Tiny Insight" &&
+            x.ReplacementName != "Lightning Bolt"),
+            "Batch plan must respect isolated Arena inventory and color identity.");
+        Must(EdhLabAutomaticSubstitutions.Analyze(paper,
+            new[] { (Name: "Heavy Insight", Quantity: 1) },
+            new[] { new EdhLabAutomaticSubstitutions.Shortage("Heavy Insight", 0) })
+            .Swaps.Count == 0,
+            "No missing copies must produce no edits.");
+
         // v0.9.67: Missing-card replacements must be candidate-only until
         // an explicit unsaved edit. Inventory, color and format gating are
         // inherited from the pre-verified local EDH draft catalog.
