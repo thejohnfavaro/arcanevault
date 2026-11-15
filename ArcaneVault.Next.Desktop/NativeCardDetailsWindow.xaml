@@ -288,6 +288,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Button x:Name="OpenArtworkGalleryButton" Grid.Row="0" Grid.Column="0"
@@ -297,18 +298,25 @@
                         Foreground="{DynamicResource VaultText}"
                         BorderBrush="{DynamicResource VaultAccentBorder}"
                         ToolTip="Explore official Scryfall printings; choose display art without changing ownership"/>
-                <Button x:Name="BookmarkCardButton" Grid.Row="0" Grid.Column="1"
+                <Button x:Name="AddToCollectionButton" Grid.Row="0" Grid.Column="1"
+                        Content="＋  Add to Collection"
+                        Click="OnAddToCollectionClicked" Padding="10,7" Margin="0,0,8,0"
+                        Background="{DynamicResource VaultAccentSurface}"
+                        Foreground="{DynamicResource VaultText}"
+                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                        ToolTip="Add a verified physical printing and quantity to your native collection"/>
+                <Button x:Name="BookmarkCardButton" Grid.Row="0" Grid.Column="2"
                         Content="☆  Bookmark in My Shortlist"
                         Click="OnBookmarkClicked" Padding="10,7" Margin="0,0,10,0"
                         Background="{DynamicResource VaultPanelRaised}"
                         Foreground="{DynamicResource VaultText}"
                         BorderBrush="{DynamicResource VaultLine}"
                         ToolTip="Save or remove from shortlist without changing owned copies"/>
-                <TextBlock x:Name="BookmarkStatus" Grid.Row="0" Grid.Column="2"
+                <TextBlock x:Name="BookmarkStatus" Grid.Row="0" Grid.Column="3"
                            Foreground="{DynamicResource VaultMuted}"
                            VerticalAlignment="Center" TextWrapping="Wrap"
                            FontSize="11"/>
-                <TextBlock Grid.Row="1" Grid.ColumnSpan="3"
+                <TextBlock Grid.Row="1" Grid.ColumnSpan="4"
                            Foreground="{DynamicResource VaultMuted}"
                            FontSize="10.5" TextWrapping="Wrap" Margin="0,6,0,0"
                            Text="Display artwork may differ from your owned printing. Preferred-art changes preserve a recoverable native backup."/>
