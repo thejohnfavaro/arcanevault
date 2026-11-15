@@ -143,6 +143,9 @@ public partial class NativeCardDetailsWindow : Window
 
     public bool ShortlistChanged { get; private set; }
 
+    /// <summary>Only true after a verified physical collection edit succeeds.</summary>
+    public bool OwnershipChanged { get; private set; }
+
     /// <summary>Set only after the gallery's SHA-guarded native write succeeds.</summary>
     public bool PreferenceChanged { get; private set; }
 
@@ -164,6 +167,9 @@ public partial class NativeCardDetailsWindow : Window
                 ? selectedArtworkUrl : info?.ArtworkUrl);
         InitializeComponent();
         OpenArtworkGalleryButton.IsEnabled = !string.IsNullOrWhiteSpace(catalogPath);
+        AddToCollectionButton.IsEnabled = !arenaScope &&
+            !string.IsNullOrWhiteSpace(catalogPath) &&
+            !string.IsNullOrWhiteSpace(nativePath) && File.Exists(nativePath);
         BookmarkCardButton.IsEnabled = !string.IsNullOrWhiteSpace(nativePath) &&
             File.Exists(nativePath);
         CardName.Text = name;
@@ -219,6 +225,37 @@ public partial class NativeCardDetailsWindow : Window
             await ShowPreferredArtworkAsync();
         };
         Closed += (_, _) => artworkCancellation.Cancel();
+    }
+
+    private void OnAddToCollectionClicked(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(catalogPath) ||
+            string.IsNullOrWhiteSpace(nativePath) || arenaScope) return;
+        AddToCollectionButton.IsEnabled = false;
+        try
+        {
+            // Read the current SHA when opening the editor, not when Card Details
+            // was first displayed, so concurrent collection edits are detected.
+            var workspace = NativeWorkspace.Open(nativePath);
+            var dialog = new NativeAddPrintingWindow(catalogPath, nativePath,
+                workspace.BackupSha256, CardName.Text) { Owner = this };
+            if (dialog.ShowDialog() == true)
+            {
+                OwnershipChanged = true;
+                Ownership.Text = "Physical printing added. Collection ownership will refresh.";
+            }
+        }
+        catch (Exception ex)
+        {
+            NativeInAppDialog.Show(this, "Could not open physical card editor: " +
+                ex.Message, "Add to Collection", MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        finally
+        {
+            if (!artworkCancellation.IsCancellationRequested)
+                AddToCollectionButton.IsEnabled = true;
+        }
     }
 
     private async Task RefreshBookmarkAsync()

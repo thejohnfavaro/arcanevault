@@ -17,12 +17,17 @@ public partial class NativeAddPrintingWindow : Window
     private bool busy;
 
     public NativeAddPrintingWindow(string catalogPath, string nativePath,
-        string expectedBackupSha)
+        string expectedBackupSha, string? initialCardName = null)
     {
         this.catalogPath = catalogPath;
         this.nativePath = nativePath;
         this.expectedBackupSha = expectedBackupSha;
         InitializeComponent();
+        if (!string.IsNullOrWhiteSpace(initialCardName))
+        {
+            QueryBox.Text = initialCardName;
+            Loaded += (_, _) => _ = SearchAsync();
+        }
     }
 
     private void OnSearchKeyDown(object sender, KeyEventArgs e)
