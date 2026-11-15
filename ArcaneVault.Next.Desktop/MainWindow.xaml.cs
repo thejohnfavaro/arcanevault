@@ -2401,6 +2401,11 @@ public partial class MainWindow : Window
                 OwnershipFilterBox.SelectedIndex is 3 or 4,
             selectedArtworkUrl: selected.ImageUrl)
         { Owner = this };
+        dialog.Closed += async (_, _) =>
+        {
+            if (!closing && dialog.OwnershipChanged)
+                await RefreshNativeWorkspaceAsync();
+        };
         dialog.Show();
     }
 
