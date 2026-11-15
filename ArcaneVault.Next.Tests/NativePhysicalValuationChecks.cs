@@ -101,7 +101,7 @@ internal static class NativePhysicalValuationChecks
              tst.BaselineUsd == 18.80m && tst.ChangeUsd == 0m,
             "TST owned value must include only its exact nonfoil and foil copies.");
         Must(setValues.TryGetValue("XYZ", out var xyz) &&
-             xyz.PricedUsd == 25.00m && xyz.PricedRows == 1,
+             xyz.PricedUsd == 115.50m && xyz.PricedRows == 2,
             "A different set must never contribute to TST subtotal.");
         var recalculated = NativeSetValuation.Calculate(result, baselines);
         Must(recalculated["TST"].BaselineUsd == tst.BaselineUsd &&
