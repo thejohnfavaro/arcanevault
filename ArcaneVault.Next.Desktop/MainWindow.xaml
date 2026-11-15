@@ -316,20 +316,35 @@
                         <Border Height="5" CornerRadius="3"
                                 Background="{DynamicResource VaultThemeBanner}"
                                 Margin="7,-12,7,17"/>
-                        <TextBlock Text="WORKSPACES" Style="{StaticResource VaultEyebrow}"
-                                   Margin="10,0,0,10"/>
+                                                <TextBlock Text="DISCOVER" Style="{StaticResource VaultEyebrow}" Margin="10,14,0,8"/>
                         <Button x:Name="CatalogNavigationButton"
                                 Content="▤   Card Catalog"
                                 Click="OnShowCatalogClicked"
                                 Style="{StaticResource VaultNavPrimary}"
                                 ToolTip="Browse all Scryfall printings in the main window"
                                 Margin="0,0,0,5"/>
+                        <Button x:Name="MyShortlistButton"
+                                Content="☆   My Shortlist"
+                                Click="OnOpenShortlistClicked"
+                                Style="{StaticResource VaultNavButtonDepth}"
+                                ToolTip="Browse bookmarked cards in their own workspace"
+                                Margin="0,0,0,5"/>
+                        <Border BorderBrush="{DynamicResource VaultLine}" BorderThickness="0,1,0,0" Margin="8,9,8,9"/>
+                        <TextBlock Text="COLLECTION" Style="{StaticResource VaultEyebrow}" Margin="10,14,0,8"/>
                         <Button x:Name="OpenNativeButton"
                                 Content="▣   My Collection"
                                 Click="OnOpenNativeClicked" IsEnabled="False"
                                 Style="{StaticResource VaultNavPrimary}"
                                 ToolTip="Browse your physical collection, Arena inventory and Set Progress in the main window"
                                 Margin="0,0,0,5"/>
+                        <Button x:Name="SetProgressNavigationButton"
+                                Content="▦   Set Progress"
+                                Click="OnOpenSetProgressClicked" IsEnabled="False"
+                                Style="{StaticResource VaultNavButtonDepth}"
+                                ToolTip="Browse verified owned set progress in the main workspace"
+                                Margin="0,0,0,5"/>
+                        <Border BorderBrush="{DynamicResource VaultLine}" BorderThickness="0,1,0,0" Margin="8,9,8,9"/>
+                        <TextBlock Text="BUILD &amp; PLAY" Style="{StaticResource VaultEyebrow}" Margin="10,14,0,8"/>
                         <Button x:Name="DeckLibraryNavigationButton"
                                 Content="▧   Deck Library"
                                 Click="OnOpenDeckLibraryClicked" IsEnabled="False"
@@ -342,23 +357,9 @@
                                 Style="{StaticResource VaultNavButtonDepth}"
                                 ToolTip="Browse Commanders or Arena Brawl leaders and build with your collection. Requires a synced Scryfall catalog."
                                 Margin="0,0,0,5"/>
-                        <Button x:Name="SetProgressNavigationButton"
-                                Content="▦   Set Progress"
-                                Click="OnOpenSetProgressClicked" IsEnabled="False"
-                                Style="{StaticResource VaultNavButtonDepth}"
-                                ToolTip="Browse verified owned set progress in the main workspace"
-                                Margin="0,0,0,5"/>
-                        <Button x:Name="MyShortlistButton"
-                                Content="☆   My Shortlist"
-                                Click="OnOpenShortlistClicked"
-                                Style="{StaticResource VaultNavButtonDepth}"
-                                ToolTip="Browse bookmarked cards in their own workspace"
-                                Margin="0,0,0,5"/>
-                        <Border BorderBrush="{DynamicResource VaultLine}" BorderThickness="0,1,0,0"
-                                Margin="8,9,8,16"/>
-
-                        <TextBlock Text="TOOLS &amp; SETTINGS" Style="{StaticResource VaultEyebrow}" Margin="10,0,0,13"/>
-                                                <Button x:Name="DataSyncNavigationButton"
+                        <Border BorderBrush="{DynamicResource VaultLine}" BorderThickness="0,1,0,0" Margin="8,9,8,9"/>
+                        <TextBlock Text="SYSTEM" Style="{StaticResource VaultEyebrow}" Margin="10,14,0,8"/>
+                        <Button x:Name="DataSyncNavigationButton"
                                 Content="⇄   Data &amp; Sync"
                                 Click="OnShowDataSyncClicked"
                                 Style="{StaticResource VaultNavButtonDepth}"

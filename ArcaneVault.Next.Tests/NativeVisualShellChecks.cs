@@ -28,6 +28,20 @@ internal static class NativeVisualShellChecks
     public static void Run()
     {
         string dir = FindDesktop();
+        string mainShell = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
+        string deckStudio = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorView.xaml"));
+        foreach (var heading in new[] { "DISCOVER", "COLLECTION", "BUILD &amp; PLAY", "SYSTEM" })
+            Must(mainShell.Contains("Text=" + (char)34 + heading + (char)34),
+                "Windows navigation must expose the shared workspace grouping: " + heading);
+        foreach (var command in new[] { "OnShowCatalogClicked", "OnOpenShortlistClicked",
+                     "OnOpenNativeClicked", "OnOpenSetProgressClicked",
+                     "OnOpenDeckLibraryClicked", "OnEdhLabClicked", "OnShowDataSyncClicked" })
+            Must(mainShell.Contains(command), "Unified navigation must preserve " + command);
+        Must(deckStudio.Contains("VaultAccentSurface") &&
+             deckStudio.Contains("VaultNavHoverWash") &&
+             deckStudio.Contains("VaultPanelRaised"),
+             "EDH Lab tab states must honor the selected native theme.");
+
         // v0.9.65: Deck Library and EDH Lab commander discovery use
         // persistent, read-only selection inspectors. Opening a full
         // details window requires an explicit separate action.
@@ -441,9 +455,13 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) <
              mainXaml.IndexOf("x:Name=\"EdhLabButton\"",
                  StringComparison.Ordinal) &&
-             mainXaml.IndexOf("x:Name=\"EdhLabButton\"",
+             mainXaml.IndexOf("x:Name=\"OpenNativeButton\"",
                  StringComparison.Ordinal) <
              mainXaml.IndexOf("x:Name=\"SetProgressNavigationButton\"",
+                 StringComparison.Ordinal) &&
+             mainXaml.IndexOf("x:Name=\"SetProgressNavigationButton\"",
+                 StringComparison.Ordinal) <
+             mainXaml.IndexOf("x:Name=\"DeckLibraryNavigationButton\"",
                  StringComparison.Ordinal),
              "EDH Lab must remain a visible, accessible sidebar workspace.");
         Must(Regex.IsMatch(mainShellCode,
