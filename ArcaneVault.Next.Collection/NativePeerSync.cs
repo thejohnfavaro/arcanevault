@@ -38,6 +38,34 @@ public static class NativePeerSync
         public string ReviewWarning => Conflicts > 0
             ? "Differences or peer absences require baseline-aware review; nothing auto-applied."
             : "Only peer additions detected; still requires approval and verified sync baseline.";
+        private static long Quantity(string? source)
+        {
+            if(string.IsNullOrWhiteSpace(source)||source.Length>50_000)return 0;
+            try
+            {
+                using var parsed=JsonDocument.Parse(source);
+                var root=parsed.RootElement;
+                return root.ValueKind==JsonValueKind.Object &&
+                    root.TryGetProperty("qty",out var element) &&
+                    element.TryGetInt64(out long value) && value>0 ? value : 0;
+            }
+            catch(JsonException){return 0;}
+        }
+        public string InventoryQuantityPreview
+        {
+            get
+            {
+                long gained=0,lost=0;
+                foreach(var change in Changes.Where(c=>c.Group is "physicalCards" or "cards"))
+                {
+                    long delta=Quantity(change.RemoteJson)-Quantity(change.LocalJson);
+                    if(delta>0)gained=checked(gained+delta);
+                    if(delta<0)lost=checked(lost-delta);
+                }
+                return $"Peer quantity difference: +{gained:N0} / −{lost:N0} copies " +
+                    "(comparison only, not an approved inventory change)";
+            }
+        }
     }
 
     public static string DeviceId()
