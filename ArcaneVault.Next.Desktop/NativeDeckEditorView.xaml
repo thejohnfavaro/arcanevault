@@ -6,9 +6,9 @@
         Foreground="{DynamicResource VaultText}">
     <UserControl.Resources>
         <Style x:Key="VaultDeckTabStyle" TargetType="{x:Type TabItem}">
-            <Setter Property="Background" Value="#252E3E"/>
-            <Setter Property="Foreground" Value="#E5ECF7"/>
-            <Setter Property="BorderBrush" Value="#586477"/>
+            <Setter Property="Background" Value="{DynamicResource VaultPanelRaised}"/>
+            <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource VaultLine}"/>
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Margin" Value="0,0,4,0"/>
             <Setter Property="Template">
@@ -29,10 +29,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabHeaderChrome" Property="Background" Value="#314F69"/>
+                                <Setter TargetName="TabHeaderChrome" Property="Background" Value="{DynamicResource VaultAccentSurface}"/>
                                 <Setter TargetName="TabHeaderChrome" Property="BorderBrush"
-                                        Value="{DynamicResource VaultAccentSurface}"/>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        Value="{DynamicResource VaultAccent}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource VaultText}"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                             </Trigger>
                             <MultiTrigger>
@@ -40,15 +40,15 @@
                                     <Condition Property="IsMouseOver" Value="True"/>
                                     <Condition Property="IsSelected" Value="False"/>
                                 </MultiTrigger.Conditions>
-                                <Setter TargetName="TabHeaderChrome" Property="Background" Value="#3A475A"/>
+                                <Setter TargetName="TabHeaderChrome" Property="Background" Value="{DynamicResource VaultNavHoverWash}"/>
                                 <Setter Property="Foreground" Value="#FFFFFF"/>
                             </MultiTrigger>
                             <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                <Setter TargetName="TabHeaderChrome" Property="BorderBrush" Value="#F0BB73"/>
+                                <Setter TargetName="TabHeaderChrome" Property="BorderBrush" Value="{DynamicResource VaultAccent}"/>
                                 <Setter TargetName="TabHeaderChrome" Property="BorderThickness" Value="2"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Foreground" Value="#99A4B4"/>
+                                <Setter Property="Foreground" Value="{DynamicResource VaultMuted}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
