@@ -74,6 +74,53 @@ public static class EdhLabLandAdvisor
               " · single-click to preview, double-click to add once.");
     }
 
+    public sealed record ManaAudit(int Lands, int ReliableUntapped,
+        int AlwaysTapped, int ConditionalEntry, int FetchTargets,
+        IReadOnlyDictionary<char, int> DirectColorSources, string Description);
+
+    /// <summary>
+    /// Audit only lands actually in the draft. A fetchland is not counted
+    /// as a colored mana source without confirmed fetchable targets.
+    /// Conditional and restricted production is shown, not assumed reliable.
+    /// </summary>
+    public static ManaAudit Audit(IReadOnlyList<EdhLabDraftCatalog.Card> eligibleCards,
+        string commanderColors, IReadOnlyDictionary<string, int> inDeck)
+    {
+        ArgumentNullException.ThrowIfNull(eligibleCards);
+        ArgumentNullException.ThrowIfNull(inDeck);
+        int allowed = EdhLabCommanderRules.ColorBits(commanderColors ?? "");
+        var counts = "WUBRG".Where((_, i) => (allowed & (1 << i)) != 0)
+            .ToDictionary(ch => ch, _ => 0);
+        int lands = 0, untapped = 0, tapped = 0, conditional = 0, fetch = 0;
+        foreach (var card in eligibleCards)
+        {
+            int copies = inDeck.GetValueOrDefault(card.Name);
+            if (copies < 0) throw new InvalidDataException("Negative drafted land count.");
+            if (copies == 0 || !IsLand(card.Type)) continue;
+            lands = checked(lands + copies);
+            var mana = Production(card, allowed);
+            if (mana.Fetch) fetch = checked(fetch + copies);
+            if (mana.Tempo == "Enters tapped") tapped = checked(tapped + copies);
+            else if (mana.Tempo == "May enter tapped" ||
+                     mana.Tempo == "Check entry conditions" || mana.Conditional)
+                conditional = checked(conditional + copies);
+            else untapped = checked(untapped + copies);
+            if (mana.Fetch || mana.Restricted) continue;
+            foreach (char color in counts.Keys.ToArray())
+                if (mana.Symbols.Contains(color))
+                    counts[color] = checked(counts[color] + copies);
+        }
+        string sourceText = counts.Count == 0 ? "colorless commander" :
+            string.Join(" · ", counts.Select(x => x.Key + " " + x.Value));
+        return new ManaAudit(lands, untapped, tapped, conditional, fetch,
+            counts, "Direct color-source hints: " + sourceText +
+            $". Entry: {untapped} without detected tapped clause, " +
+            $"{conditional} conditional, {tapped} always tapped; " +
+            $"{fetch} fetch-target-dependent. " +
+            "A source may support multiple colors; counts are not draw odds " +
+            "or proof of untapped play. Inspect card text and fetch targets.");
+    }
+
     private static int BitsForText(string text)
     {
         int mask = 0;

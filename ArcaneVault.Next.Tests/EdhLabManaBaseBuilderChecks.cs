@@ -44,6 +44,12 @@ internal static class EdhLabManaBaseBuilderChecks
              baseline.SequenceEqual(initial) &&
              plan.SourceFingerprint == EdhLabManaBaseBuilder.Fingerprint(baseline),
              "Incomplete deck must get a five-land additive proposal without inventing ownership.");
+        Must(plan.BeforeAudit is not null && plan.AfterAudit is not null &&
+             plan.BeforeAudit.Lands == 15 && plan.AfterAudit.Lands == 20 &&
+             plan.AfterAudit.DirectColorSources['U'] >= plan.BeforeAudit.DirectColorSources['U'] &&
+             plan.Summary.Contains("Direct color-source hints") &&
+             plan.Summary.Contains("Entry:"),
+             "Mana-base proposal must explain before/after actual source and tapped-entry cues.");
         Must(plan.Changes.Any(x => x.Name == "Command Tower") &&
              plan.Changes.Any(x => x.Name == "Dual") &&
              plan.Changes.Any(x => x.Name == "Proxy Dual"),
@@ -124,6 +130,11 @@ internal static class EdhLabManaBaseBuilderChecks
                  x.Name == "Island" || x.Name == "Plains") &&
              optimizeDraft.SequenceEqual(optimizeSnapshot),
             "Opt-in optimization must swap only surplus basics for owned reliable multicolor lands.");
+        Must(optimized.AfterAudit is not null &&
+             optimized.AfterAudit.DirectColorSources['B'] >= 2 &&
+             optimized.AfterAudit.Lands == 20 &&
+             optimized.Summary.Contains("Proposed: "),
+             "Improved untapped/shock land plan must expose additional black mana access.");
         var unownedOptimizer = EdhLabManaBaseBuilder.Build(
             optimizeCandidates.Where(x => x.Name != "Untapped Example").ToArray(),
             "WUB", optimizeDraft, 20, arena: true, optimizeBasics: true);

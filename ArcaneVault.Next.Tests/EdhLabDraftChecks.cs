@@ -562,6 +562,32 @@ internal static class EdhLabDraftChecks
              artifactPackage.NextStep.Contains("No complete enabler/payoff") &&
              tokenPackage.Coverage.Contains("0 potential enablers"),
              "Mechanic coverage must describe actual full draft signals, not missing suggestions.");
+        var ownedExplorer = EdhLabSynergyPackages.Explore(paperPackages);
+        var fullExplorer = EdhLabSynergyPackages.Explore(paperPackages,
+            ownedOnly: false);
+        Must(ownedExplorer.All(x => x.Group != "Missing") &&
+             fullExplorer.Any(x => x.Card.Name == "Thopter Foundry" &&
+                x.Group == "Missing") &&
+             ownedExplorer.Any(x => x.Card.Name == "Sol Ring" &&
+                x.Group == "In deck"),
+             "Synergy Explorer must separate owned candidates from missing catalog examples.");
+        var syntheticExplorer = new EdhLabSynergyPackages.Report(
+            new[] { new EdhLabSynergyPackages.Package("Tokens", 0,
+                Array.Empty<EdhLabSynergyPackages.Option>(),
+                new[] {
+                    new EdhLabSynergyPackages.Option("Payoff", "Potential payoff",
+                        "Token payoffs", 1, 0, 1, 1, ""),
+                    new EdhLabSynergyPackages.Option("Enabler", "Potential enabler",
+                        "Creates tokens", 1, 0, 1, 3, "")
+                },
+                Array.Empty<EdhLabSynergyPackages.Option>(), "", "") },
+            0, "");
+        Must(EdhLabSynergyPackages.Explore(syntheticExplorer).First().Gap ==
+                "Missing enabler signal" &&
+             EdhLabSynergyPackages.Explore(syntheticExplorer).All(x =>
+                x.Group == "Owned option" && x.Gap.Contains("Missing")),
+             "Explorer prioritizes missing engine roles without claiming validated combos.");
+
         var seededPackages = EdhLabSynergyPackages.Analyze(paper,
             new[] { (Name: "Thopter Foundry", Quantity: 1),
                     (Name: "Artifact Engine", Quantity: 1) });
@@ -874,6 +900,15 @@ internal static class EdhLabDraftChecks
              partialHealth.Areas.Single(x => x.Key == "Early")
                 .State == "Mana values unavailable",
              "Deck health should distinguish early drafts, locally owned draw roles and legacy missing MV.");
+        var singleRampHealth = EdhLabDeckHealth.Analyze(paper,
+            new[] { (Name: "Sol Ring", Quantity: 1),
+                    (Name: "Island", Quantity: 12) });
+        var rampBackup = singleRampHealth.Areas.Single(x => x.Key == "Backup-Ramp");
+        Must(rampBackup.Copies == 1 &&
+             rampBackup.State == "Partial draft" &&
+             rampBackup.Explanation.Contains("1 distinct card names") &&
+             !singleRampHealth.Areas.Any(x => x.Key == "Backup-Land"),
+             "Deck health must describe distinct role sources without calling partial lists defective.");
         var unknownHealth = EdhLabDeckHealth.Analyze(paper,
             new[] { (Name: "Lightning Bolt", Quantity: 1),
                     (Name: "Island", Quantity: 12) });

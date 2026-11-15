@@ -19,7 +19,9 @@ public static class EdhLabManaBaseBuilder
         int OriginalCopies, int ResultingCopies,
         IReadOnlyList<Change> Changes, string Warning,
         IReadOnlyList<EdhLabDraftCatalog.Card> CatalogSnapshot,
-        bool IsArena, bool OptimizedBasics)
+        bool IsArena, bool OptimizedBasics,
+        EdhLabLandAdvisor.ManaAudit? BeforeAudit = null,
+        EdhLabLandAdvisor.ManaAudit? AfterAudit = null)
     {
         public bool CanApply => Changes.Count > 0 &&
             ResultingLands == Target && ResultingCopies <= 99 &&
@@ -27,6 +29,10 @@ public static class EdhLabManaBaseBuilder
         public string Summary => $"Mana-base proposal: {CurrentLands} → " +
             $"{ResultingLands}/{Target} lands · {OriginalCopies} → " +
             $"{ResultingCopies}/99 mainboard cards · {Changes.Count} card-name changes." +
+            (BeforeAudit is not null && AfterAudit is not null
+                ? "\nCurrent: " + BeforeAudit.Description +
+                  "\nProposed: " + AfterAudit.Description
+                : "") +
             (Warning.Length > 0 ? "\nReview needed: " + Warning : "") +
             (CanApply ? "\nNothing changes until you approve the exact diff." :
                 "\nNo automatic changes are available.");
@@ -196,7 +202,8 @@ public static class EdhLabManaBaseBuilder
                         catalog.TryGetValue(x.Name, out var c) &&
                         c.SuggestedCopyLimit >= 1)
                     .OrderByDescending(x => x.RealOwned > 0)
-                    .ThenBy(x => x.Tempo == "No tapped-entry clause found" ? 0 : 1)
+                    .ThenBy(x => x.Tempo == "No tapped-entry clause found" ||
+                        x.LandCategory == "Shock land" ? 0 : 1)
                     .ThenByDescending(x => x.GapPriority)
                     .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                     .FirstOrDefault();
@@ -211,10 +218,15 @@ public static class EdhLabManaBaseBuilder
                     (next.RealOwned > 0 ? "recorded real owned" : "paper Proxy")));
             }
         }
+        var beforeAudit = EdhLabLandAdvisor.Audit(eligibleCards, color,
+            entries.ToDictionary(x => x.Name, x => x.Quantity,
+                StringComparer.OrdinalIgnoreCase));
+        var afterAudit = EdhLabLandAdvisor.Audit(eligibleCards, color, draft);
         return new Proposal(fingerprint, color, targetLands,
             entries.Sum(x => catalog.TryGetValue(x.Name, out var c) &&
                 IsLand(c) ? x.Quantity : 0),
             lands, entries.Sum(x => x.Quantity), total,
-            changes, warning, eligibleCards, arena, optimizeBasics);
+            changes, warning, eligibleCards, arena, optimizeBasics,
+            beforeAudit, afterAudit);
     }
 }

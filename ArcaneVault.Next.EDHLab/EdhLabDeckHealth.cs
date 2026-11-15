@@ -172,6 +172,38 @@ public static class EdhLabDeckHealth
                 role.SuggestedMinimum, state, why, role.Role, c.Item1, c.Item2));
         }
 
+        // Role totals alone can hide reliance on a single card name.
+        // Keep backups distinct and never count multiple copies as redundancy.
+        foreach (string role in new[] { "Ramp", "Card Draw", "Removal", "Protection", "Synergy" })
+        {
+            bool Matches(EdhLabDraftCatalog.Card card) => role == "Synergy"
+                ? catalog.SynergyFor(card.Name)?.Matches == true
+                : card.RoleHints.Split(" · ", StringSplitOptions.RemoveEmptyEntries)
+                    .Contains(role, StringComparer.OrdinalIgnoreCase);
+            var present = pairs.Where(x => catalog.Find(x.Name) is { } card &&
+                Matches(card)).ToArray();
+            if (present.Length == 0) continue;
+            var backup = safe ? catalog.AllEligibleCards
+                .Where(card => !draft.ContainsKey(card.Name) &&
+                    Matches(card) && card.RecordedCopies > 0 &&
+                    card.SuggestedCopyLimit > 0)
+                .OrderByDescending(card => catalog.SynergyFor(card.Name)?.Score ?? 0)
+                .ThenBy(card => card.Name, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault() : null;
+            string state = !safe ? "Review unavailable"
+                : blueprint.MainboardCopies < 60 ? "Partial draft"
+                : present.Length == 1 ? "Single-card dependency"
+                : present.Length == 2 ? "Limited redundancy"
+                : "Multiple distinct sources";
+            areas.Add(new Area("Backup-" + role,
+                role + " redundancy", present.Length, null, state,
+                $"{present.Sum(x => x.Quantity)} role-matching copies across " +
+                $"{present.Length} distinct card names. " +
+                "Multiple copies of the same card do not count as separate backup plans. " +
+                "This is cached Oracle-text role coverage, not interaction uptime.",
+                role, backup?.Name ?? "", backup?.RecordedCopies ?? 0));
+        }
+
         string earlyState = !catalog.HasManaValueMetadata
             ? "Mana values unavailable"
             : optimizer.UnknownCopies > 0 ? "Metadata incomplete"
