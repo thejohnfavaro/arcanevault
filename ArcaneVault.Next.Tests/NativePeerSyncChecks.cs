@@ -76,6 +76,10 @@ internal static class NativePeerSyncChecks
         Check(changed.Additions==1 && changed.Updates==2 &&
             changed.Conflicts==2 && !changed.SafeToAutoApply,
             "Expected one new printing and two unresolved conflicts.");
+        Check(changed.GroupSummary.Contains("physicalCards") &&
+             changed.InventoryQuantityPreview.Contains("Peer quantity difference") &&
+             changed.ReviewWarning.Contains("baseline-aware"),
+            "Peer preview must explain group and quantity changes without authorizing a merge.");
         var ordered=JsonNode.Parse(exported)!.AsObject();
         ordered["data"]!["cards"]!.AsArray()[0]=JsonNode.Parse(
             """{"qty":4,"name":"Lightning Bolt"}""");
