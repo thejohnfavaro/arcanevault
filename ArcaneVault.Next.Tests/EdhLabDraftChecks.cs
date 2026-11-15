@@ -915,7 +915,7 @@ internal static class EdhLabDraftChecks
         Must(unknownHealth.UnknownCopies == 1 &&
              !unknownHealth.SafeToSuggest &&
              unknownHealth.Areas.All(x => !x.CanBrowse) &&
-             unknownHealth.ReviewNext.Contains("Correct"),
+             unknownHealth.ReviewNext.Contains("Lightning Bolt"),
              "Unknown or off-color draft names must pause actionable health recommendations.");
         Must(unknownHealth.UnverifiedNames?.SequenceEqual(new[] { "Lightning Bolt" }) == true &&
              unknownHealth.Explanation.Contains("Lightning Bolt") &&
