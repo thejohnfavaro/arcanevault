@@ -24,6 +24,47 @@ public static class EdhLabSynergyPackages
         public bool HasRecognizedThemes => Packages.Count > 0;
     }
 
+    /// <summary>
+    /// Deck-aware Explorer ordering. Never changes local eligibility or
+    /// invents copies. A missing engine role is only a heuristic text gap.
+    /// </summary>
+    public sealed record ExplorerRow(string Theme, Option Card, string Group,
+        string Gap, int Priority);
+
+    public static IReadOnlyList<ExplorerRow> Explore(Report report,
+        string theme = "", bool ownedOnly = true, bool missingRolesFirst = true)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        var rows = new List<ExplorerRow>();
+        foreach (var package in report.Packages.Where(x =>
+            theme.Length == 0 || x.Theme.Equals(theme,
+                StringComparison.OrdinalIgnoreCase)))
+        {
+            bool hasEnabler = package.InDeck.Any(x => x.Kind == "Potential enabler");
+            bool hasPayoff = package.InDeck.Any(x => x.Kind == "Potential payoff");
+            void Add(Option option, string group)
+            {
+                if (ownedOnly && group == "Missing") return;
+                string gap = option.Kind == "Potential enabler" && !hasEnabler
+                    ? "Missing enabler signal"
+                    : option.Kind == "Potential payoff" && !hasPayoff
+                        ? "Missing payoff signal" : "Supporting mechanic";
+                int priority = group == "In deck" ? 3 :
+                    missingRolesFirst && gap != "Supporting mechanic" ? 0 :
+                    group == "Owned option" ? 1 : 2;
+                rows.Add(new ExplorerRow(package.Theme, option, group, gap, priority));
+            }
+            foreach (var option in package.InDeck) Add(option, "In deck");
+            foreach (var option in package.OwnedOptions) Add(option, "Owned option");
+            foreach (var option in package.MissingOptions) Add(option, "Missing");
+        }
+        return rows.OrderBy(x => x.Priority)
+            .ThenByDescending(x => x.Card.MatchStrength)
+            .ThenBy(x => x.Theme, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Card.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private static string Kind(EdhLabDraftCatalog.Card card)
     {
         var o = card.Oracle;
