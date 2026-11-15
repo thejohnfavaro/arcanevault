@@ -1088,7 +1088,7 @@
                                         ToolTip="Filter the existing EDH Lab card browser to owned, format-eligible early-play options; does not swap, remove, add, craft or save anything"/>
                             </StackPanel>
                         </Expander>
-                        <Expander Header="Commander synergy packages — inspect or add"
+                        <Expander Header="Synergy Explorer — commander mechanics and engine gaps"
                                   IsExpanded="False" Margin="0,3,0,9"
                                   Background="{DynamicResource VaultPanelRaised}"
                                   BorderBrush="{DynamicResource VaultLine}"
@@ -1101,6 +1101,20 @@
                                           Background="{DynamicResource VaultPanel}"
                                           Foreground="{DynamicResource VaultText}"
                                           ToolTip="Choose one recognized commander mechanic or show all."/>
+                                <WrapPanel Margin="0,1,0,7">
+                                    <CheckBox x:Name="EdhExplorerOwnedOnly"
+                                              Content="Owned first (hide unowned)"
+                                              IsChecked="True" Margin="0,0,15,5"
+                                              Foreground="{DynamicResource VaultText}"
+                                              Checked="OnEdhExplorerFilterChanged"
+                                              Unchecked="OnEdhExplorerFilterChanged"/>
+                                    <CheckBox x:Name="EdhExplorerGapsFirst"
+                                              Content="Prioritize missing engine roles"
+                                              IsChecked="True" Margin="0,0,8,5"
+                                              Foreground="{DynamicResource VaultText}"
+                                              Checked="OnEdhExplorerFilterChanged"
+                                              Unchecked="OnEdhExplorerFilterChanged"/>
+                                </WrapPanel>
                                 <TextBlock x:Name="EdhPackagesStatus" TextWrapping="Wrap"
                                            FontSize="11" Margin="0,0,0,7"
                                            Foreground="{DynamicResource VaultText}"
