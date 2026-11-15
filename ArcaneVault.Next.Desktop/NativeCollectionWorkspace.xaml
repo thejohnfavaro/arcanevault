@@ -1037,6 +1037,9 @@
                                 <TextBlock x:Name="AnalyticsCoverage"
                                            Foreground="{DynamicResource VaultMuted}"
                                            TextWrapping="Wrap"/>
+                                <TextBlock x:Name="AnalyticsHealth" Margin="0,7,0,0"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           TextWrapping="Wrap" Text="Inventory verification pending…"/>
                                 <Canvas x:Name="AnalyticsHistoryCanvas" Height="160"
                                         Margin="0,12,0,0" ClipToBounds="True"/>
                             </StackPanel>
