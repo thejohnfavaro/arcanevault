@@ -16,7 +16,9 @@ public static class NativeSetProgress
         string Released,
         int TotalSlots,
         int OwnedSlots,
-        long VerifiedCopies, bool NameCoverage = false, string ArtworkUrl = "")
+        long VerifiedCopies, bool NameCoverage = false, string ArtworkUrl = "",
+        string OwnedValueLabel = "", string OwnedValueChange = "",
+        string OwnedValueColor = "#C5CEDE")
     {
         public string DisplaySetCode => SetCode.ToUpperInvariant();
         // Normal Scryfall card images are full-card frames. A set banner should
