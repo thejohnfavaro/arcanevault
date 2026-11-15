@@ -29,6 +29,15 @@ public static class NativePeerSync
         public int Removals => Changes.Count(c => c.Action == "Absent in peer");
         public bool HasChanges => Changes.Count > 0;
         public bool SafeToAutoApply => false; // no common-base proof in v1
+        public string GroupSummary => string.Join(" • ",
+            Changes.GroupBy(c => c.Group, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(c => c.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(g => $"{g.Key}: {g.Count(c=>c.Action=="Add")} new, " +
+                    $"{g.Count(c=>c.Action=="Different")} changed, " +
+                    $"{g.Count(c=>c.Action=="Absent in peer")} absent"));
+        public string ReviewWarning => Conflicts > 0
+            ? "Differences or peer absences require baseline-aware review; nothing auto-applied."
+            : "Only peer additions detected; still requires approval and verified sync baseline.";
     }
 
     public static string DeviceId()
