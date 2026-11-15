@@ -43,6 +43,8 @@ public partial class NativeCollectionWorkspace : UserControl
     private bool arenaImportBusy;
     private bool valuationBusy;
     private NativePhysicalValuation.Result? valuation;
+    private IReadOnlyDictionary<string, NativeSetValuation.SetValue> setValues =
+        new Dictionary<string, NativeSetValuation.SetValue>(StringComparer.OrdinalIgnoreCase);
     private int valuationVersion;
 
     public NativeCollectionWorkspace(NativeBackupView backup,
@@ -338,6 +340,11 @@ public partial class NativeCollectionWorkspace : UserControl
                 NativePhysicalValuation.Calculate(review, catalogPath));
             if (closing || generation != valuationVersion) return;
             valuation = result;
+            setValues = NativeSetValuation.Calculate(result);
+            RefreshSetList(preserveDetails: true);
+            if (selectedSetRow is not null && !selectedSetRow.NameCoverage &&
+                setValues.TryGetValue(selectedSetRow.SetCode, out var updatedValue))
+                SetDetailsHeader.Text = updatedValue.DetailLabel;
             PhysicalValuationSummary.Text = result.Summary;
             PhysicalValuationTimestamp.Text = result.SnapshotStatus +
                 " • Estimated resale/market reference only; not a live shop quote or offer.";
@@ -587,6 +594,17 @@ public partial class NativeCollectionWorkspace : UserControl
                 (query.Length == 0 ||
                  x.SetCode.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                  x.SetName.Contains(query, StringComparison.OrdinalIgnoreCase)))
+            .Select(x =>
+            {
+                if (arena || !setValues.TryGetValue(x.SetCode, out var value) ||
+                    !value.HasPrice) return x;
+                return x with
+                {
+                    OwnedValueLabel = value.ValueLabel,
+                    OwnedValueChange = value.DeltaLabel,
+                    OwnedValueColor = value.DeltaColor
+                };
+            })
             .ToArray();
         if (!preserveDetails)
         {
@@ -709,6 +727,8 @@ public partial class NativeCollectionWorkspace : UserControl
                   "Collector numbers below are catalog references, not ownership evidence."
                 : $"{selected.SetName} · {selected.SlotsLabel} verified slots " +
                   $"({selected.PercentLabel}), {selected.VerifiedCopies:N0} physical copies · " +
+                  (setValues.TryGetValue(selected.SetCode, out var scopedValue)
+                      ? scopedValue.DetailLabel + " · " : "") +
                   "double-click a card for offline details.";
         }
         catch (Exception ex)
