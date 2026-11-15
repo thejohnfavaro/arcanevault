@@ -657,11 +657,19 @@
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="KEYWORD / RULES TEXT" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
-                                <TextBox x:Name="OracleFilterBox" Width="205" Height="36"
-                                         TextChanged="OnCatalogFilterChanged"
-                                         ToolTip="Separate mechanics with commas (e.g. Connive, Discard). Match All requires both; Match Any finds either. Combines with color, ownership and other filters."
+                                <TextBox x:Name="OracleFilterBox" Width="235" Height="36"
+                                         TextChanged="OnOracleKeywordChanged"
+                                         PreviewKeyDown="OnOracleKeywordKeyDown"
+                                         ToolTip="Type a mechanic and press Space or Enter to complete; tap suggestions or use commas for custom Oracle phrases. Completed keywords can be removed."
                                          Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
                                          Foreground="{DynamicResource VaultText}"/>
+                                <WrapPanel x:Name="OracleTokensPanel" MaxWidth="250" Margin="0,4,0,0"/>
+                                <ListBox x:Name="OracleKeywordSuggestions" Width="235" MaxHeight="132"
+                                         Visibility="Collapsed"
+                                         SelectionChanged="OnOracleSuggestionSelected"
+                                         Background="{DynamicResource VaultPanelRaised}"
+                                         Foreground="{DynamicResource VaultText}"
+                                         BorderBrush="{DynamicResource VaultLine}"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="MECHANIC MATCH" Style="{StaticResource VaultEyebrow}"
