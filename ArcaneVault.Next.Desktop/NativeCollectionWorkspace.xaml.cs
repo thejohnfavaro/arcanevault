@@ -83,6 +83,7 @@ public partial class NativeCollectionWorkspace : UserControl
         UpdateSectionPresentation();
         physicalDetailedView = PhysicalList.View as GridView;
         PhysicalHistoryCanvas.SizeChanged += (_, _) => DrawCollectionValueHistory();
+        AnalyticsHistoryCanvas.SizeChanged += (_, _) => DrawCollectionAnalyticsHistory();
         SetHistoryCanvas.SizeChanged += (_, _) => DrawSelectedSetHistory();
         RefreshDeckRows();
         AddDeckButton.IsEnabled = nativeWorkspace &&
@@ -344,6 +345,7 @@ public partial class NativeCollectionWorkspace : UserControl
             valuation = result;
             setValues = NativeSetValuation.Calculate(result);
             NativeValueHistory.RecordSnapshot(result, setValues);
+            RefreshCollectionAnalytics();
             DrawCollectionValueHistory();
             DrawSelectedSetHistory();
             RefreshSetList(preserveDetails: true);
@@ -834,6 +836,7 @@ public partial class NativeCollectionWorkspace : UserControl
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         DeckLibraryList.ItemsSource = filtered;
+        if (valuation is not null) RefreshCollectionAnalytics();
         // Applying asynchronous cached cover metadata creates new display
         // record instances. Keep the deck selection by stable saved identity.
         if (selected is not null)
