@@ -23,6 +23,7 @@ public partial class NativeDeckEditorWindow
     // Deck Library. It does not reserve copies for different saved decks.
     private void RefreshMissingCardReview(NativeDeckOwnedPicker.DraftSummary summary)
     {
+        InvalidateAutomaticPlan();
         if (edhLabCommander is null || EdhMissingShortagesList is null) return;
         string? previous = (EdhMissingShortagesList.SelectedItem as MissingDeckRow)?.Name;
         var mainboard = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
@@ -54,8 +55,138 @@ public partial class NativeDeckEditorWindow
         }
     }
 
+    private EdhLabAutomaticSubstitutions.Plan? pendingAutomaticPlan;
+    private string? pendingAutomaticSource;
+
+    private void InvalidateAutomaticPlan()
+    {
+        pendingAutomaticPlan = null;
+        pendingAutomaticSource = null;
+        if (EdhApplyAutomaticSwapsButton is not null)
+            EdhApplyAutomaticSwapsButton.IsEnabled = false;
+    }
+
+    private EdhLabAutomaticSubstitutions.Plan CalculateAutomaticPlan()
+    {
+        if (edhCatalog is null) throw new InvalidDataException(
+            "The format- and commander-validated catalog is unavailable.");
+        var shortages = (EdhMissingShortagesList.ItemsSource as
+                IEnumerable<MissingDeckRow> ?? [])
+            .Where(x => x.IsMainboard && x.Missing > 0)
+            .Select(x => new EdhLabAutomaticSubstitutions.Shortage(x.Name, x.Missing));
+        var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
+        return EdhLabAutomaticSubstitutions.Analyze(edhCatalog,
+            entries.Select(x => (x.Name, x.Quantity)), shortages,
+            focus: SelectedStrategyFocus,
+            landTarget: TryLandTarget(out int lands) ? lands : 36);
+    }
+
+    private static bool SameAutomaticPlan(
+        EdhLabAutomaticSubstitutions.Plan left,
+        EdhLabAutomaticSubstitutions.Plan right) =>
+        left.Swaps.SequenceEqual(right.Swaps) &&
+        left.Unresolved.SequenceEqual(right.Unresolved);
+
+    private void OnEdhPlanAutomaticSwapsClicked(object sender, RoutedEventArgs e)
+    {
+        InvalidateAutomaticPlan();
+        EdhAutomaticPlanDetails.Visibility = Visibility.Collapsed;
+        if (busy || edhCatalog is null)
+        {
+            EdhAutomaticPlanStatus.Text = "Wait until the validated catalog is available.";
+            return;
+        }
+        try
+        {
+            var plan = CalculateAutomaticPlan();
+            string details = string.Join(Environment.NewLine,
+                plan.Swaps.Select((x, i) =>
+                    $"{i + 1}. {x.MissingName} → {x.ReplacementName} " +
+                    $"(rank {x.Score}) — {x.Reasons}"));
+            if (plan.Unresolved.Count > 0)
+                details += Environment.NewLine + "Unresolved:" + Environment.NewLine +
+                    string.Join(Environment.NewLine, plan.Unresolved.Select(x =>
+                        $"{x.Name}: {x.Copies:N0} missing — {x.Reason}"));
+            EdhAutomaticPlanStatus.Text = plan.Summary +
+                " All swaps are unsaved, one-for-one draft edits; review each proposal.";
+            EdhAutomaticPlanDetails.Text = details;
+            EdhAutomaticPlanDetails.Visibility = Visibility.Visible;
+            if (plan.Swaps.Count > 0)
+            {
+                pendingAutomaticPlan = plan;
+                pendingAutomaticSource = MainboardBox.Text;
+                EdhApplyAutomaticSwapsButton.IsEnabled = true;
+            }
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException)
+        {
+            EdhAutomaticPlanStatus.Text = "Cannot plan substitutions: " + ex.Message;
+        }
+    }
+
+    private void OnEdhApplyAutomaticSwapsClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy || pendingAutomaticPlan is not { } proposed ||
+            pendingAutomaticSource is null) return;
+        try
+        {
+            if (!string.Equals(MainboardBox.Text, pendingAutomaticSource,
+                    StringComparison.Ordinal))
+            {
+                InvalidateAutomaticPlan();
+                EdhAutomaticPlanStatus.Text =
+                    "The mainboard changed. Generate a fresh plan before applying.";
+                return;
+            }
+            var fresh = CalculateAutomaticPlan();
+            if (!SameAutomaticPlan(proposed, fresh))
+            {
+                InvalidateAutomaticPlan();
+                EdhAutomaticPlanStatus.Text =
+                    "Card availability, strategy or inventory changed. Re-plan before applying.";
+                return;
+            }
+            string draft = MainboardBox.Text;
+            int originalCount = NativeDeckEditing.ParseMainboard(draft)
+                .Sum(x => x.Quantity);
+            foreach (var swap in fresh.Swaps)
+            {
+                draft = NativeDeckOwnedPicker.RemoveOne(draft, swap.MissingName);
+                draft = NativeDeckOwnedPicker.AddOne(draft, swap.ReplacementName);
+            }
+            if (NativeDeckEditing.ParseMainboard(draft).Sum(x => x.Quantity) !=
+                originalCount) throw new InvalidDataException(
+                    "The plan would change the mainboard card count.");
+
+            if (NativeInAppDialog.Show(this,
+                $"Apply {fresh.Swaps.Count:N0} reviewed one-for-one substitutions " +
+                "to the current UNSAVED mainboard?\\n\\n" +
+                string.Join("\\n", fresh.Swaps.Select(x =>
+                    $"- {x.MissingName} → {x.ReplacementName}")) +
+                "\\n\\nNo inventory, saved deck, proxy or collection value will change. " +
+                "You must separately Review & Save the revised deck.",
+                "Review automatic substitutions",
+                MessageBoxButton.YesNo, MessageBoxImage.Question,
+                MessageBoxResult.No) != MessageBoxResult.Yes) return;
+
+            InvalidateAutomaticPlan();
+            MainboardBox.Text = draft;
+            EdhAutomaticPlanStatus.Text =
+                $"Applied {fresh.Swaps.Count:N0} swaps to UNSAVED draft. " +
+                "Review legality, strategy and printings before saving.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or
+            ArgumentException or OverflowException)
+        {
+            InvalidateAutomaticPlan();
+            EdhAutomaticPlanStatus.Text = "Plan not applied: " + ex.Message;
+        }
+    }
+
     private void ClearMissingCardReview(string status)
     {
+        InvalidateAutomaticPlan();
         if (EdhMissingShortagesList is null) return;
         EdhMissingShortagesList.ItemsSource = null;
         EdhMissingAlternativesList.ItemsSource = null;
