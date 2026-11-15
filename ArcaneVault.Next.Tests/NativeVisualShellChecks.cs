@@ -827,6 +827,8 @@ internal static class NativeVisualShellChecks
                     Path.Combine(dir, "MainWindow.InspectorAndNotices.cs"));
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "MainWindow.NativeUpdatePrompt.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "MainWindow.OracleKeywordTokens.cs"));
             }
             if (name == "NativeCollectionWorkspace")
             {
