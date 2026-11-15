@@ -2882,7 +2882,7 @@ public partial class MainWindow : Window
                 OwnershipFilterBox?.SelectedIndex == 1,
             CatalogManaValue(ManaValueMinBox?.Text),
             CatalogManaValue(ManaValueMaxBox?.Text),
-            OracleFilterBox?.Text ?? "",
+            EffectiveOracleFilter(),
             OracleMatchBox?.SelectedIndex == 1);
     }
 
