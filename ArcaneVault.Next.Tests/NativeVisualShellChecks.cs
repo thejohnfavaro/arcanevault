@@ -31,7 +31,7 @@ internal static class NativeVisualShellChecks
         string mainShell = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
         string deckStudio = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorView.xaml"));
         foreach (var heading in new[] { "DISCOVER", "COLLECTION", "BUILD &amp; PLAY", "SYSTEM" })
-            Must(mainShell.Contains("Text=\\\"" + heading + "\\\""),
+            Must(mainShell.Contains("Text=" + (char)34 + heading + (char)34),
                 "Windows navigation must expose the shared workspace grouping: " + heading);
         foreach (var command in new[] { "OnShowCatalogClicked", "OnOpenShortlistClicked",
                      "OnOpenNativeClicked", "OnOpenSetProgressClicked",
