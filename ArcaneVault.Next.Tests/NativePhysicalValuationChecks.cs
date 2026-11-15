@@ -133,6 +133,20 @@ internal static class NativePhysicalValuationChecks
         Must(Hash(catalog)==catalogHash && Hash(sourceBackup)==originalBackupHash,
             "Recording value history must not change catalog or inventory files.");
 
+        var intelligence=NativeCollectionInsights.Build(result,backup,
+            NativeDeckEditing.List(owned));
+        Must(intelligence.PricedUsd==result.PricedSubtotalUsd &&
+             intelligence.Sets.Count>=2 &&
+             intelligence.Sets.First(x=>x.Code=="XYZ").PricedUsd==115.50m,
+            "Analytics must retain verified set isolation and the exact collection subtotal.");
+        Must(intelligence.Cards.All(x=>x.LineUsd>0m) &&
+             intelligence.UnpricedRows==result.MissingRows &&
+             intelligence.Unpriced.Count>0,
+            "Analytics must not invent values for unavailable printing/finish quotes.");
+        Must(intelligence.UniqueOwnedNames==backup.DistinctPhysicalNames &&
+             intelligence.Cards[0].Name=="Reprint",
+            "Analytics must derive card names from owned physical printings only.");
+
         // A matching-name, independently registered proxy must NEVER gain
         // an official Scryfall quotation or inflate physical collection value.
         byte[] withProxy = NativeProxyEditing.SetQuantity(owned, "Reprint", 99);
