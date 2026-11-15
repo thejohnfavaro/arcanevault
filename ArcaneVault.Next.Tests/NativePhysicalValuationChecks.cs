@@ -111,6 +111,28 @@ internal static class NativePhysicalValuationChecks
              result.PricedSubtotalUsd,
             "Per-set subtotal aggregation must conserve verified priced total.");
 
+        // History must preserve separately observed days and never duplicate
+        // repeated refreshes on the same day.
+        string historyDir=Path.Combine(work,"value-history-checks");
+        DateOnly today=DateOnly.FromDateTime(DateTime.UtcNow);
+        NativeValueHistory.Record("TST",18.80m,historyDir,today.AddDays(-1));
+        NativeValueHistory.Record("TST",19.20m,historyDir,today);
+        NativeValueHistory.Record("TST",20.00m,historyDir,today);
+        var setTrend=NativeValueHistory.Read("TST",historyDir);
+        Must(setTrend.Count==2 && setTrend[0].Usd==18.80m &&
+             setTrend[1].Usd==20.00m,
+            "Set history should keep previous dates but coalesce same-day edits.");
+        Must(NativeValueHistory.Read(null,historyDir).Count==0,
+            "Physical collection history must not be mixed with set values.");
+        NativeValueHistory.RecordSnapshot(result,setValues,historyDir);
+        Must(NativeValueHistory.Read(null,historyDir).Count==1 &&
+             NativeValueHistory.Read("XYZ",historyDir).Count==1,
+            "Snapshot should record the whole collection and verified sets.");
+        Must(NativeValueHistory.Read("TST",historyDir).Count==2,
+            "Snapshot must update today's point without adding duplicates.");
+        Must(Hash(catalog)==catalogHash && Hash(sourceBackup)==originalBackupHash,
+            "Recording value history must not change catalog or inventory files.");
+
         // A matching-name, independently registered proxy must NEVER gain
         // an official Scryfall quotation or inflate physical collection value.
         byte[] withProxy = NativeProxyEditing.SetQuantity(owned, "Reprint", 99);
