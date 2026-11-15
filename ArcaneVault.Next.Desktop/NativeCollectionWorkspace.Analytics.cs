@@ -26,6 +26,11 @@ public partial class NativeCollectionWorkspace
             $"{data.PriceCoverage:0.0}% of physical printing rows have valid quotes" +
             $" · {data.PricedCopies:N0} priced physical copies" +
             (data.Stale ? " · prices may be stale" : "");
+        AnalyticsHealth.Text=
+            $"Physical printing verification: {review.ConfirmedCopies:N0} confirmed copies" +
+            $" · {review.UnresolvedCopies:N0} unresolved copies" +
+            (review.CatalogVerified ? " · catalog verified" : " · catalog not verified") +
+            ". Missing prices and unresolved editions do not count as $0 values.";
         AnalyticsCards.Text=data.Cards.Count==0
             ? "No verified priced physical printings."
             : string.Join("\n",data.Cards.Select((x,i)=>
