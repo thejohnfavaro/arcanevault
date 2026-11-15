@@ -917,6 +917,28 @@ internal static class EdhLabDraftChecks
              unknownHealth.Areas.All(x => !x.CanBrowse) &&
              unknownHealth.ReviewNext.Contains("Correct"),
              "Unknown or off-color draft names must pause actionable health recommendations.");
+        Must(unknownHealth.UnverifiedNames?.SequenceEqual(new[] { "Lightning Bolt" }) == true &&
+             unknownHealth.Explanation.Contains("Lightning Bolt") &&
+             unknownHealth.Areas.Single(x => x.Key == "Land").State.Contains("verified portion") &&
+             !unknownHealth.Areas.Any(x => x.State == "Review unavailable") &&
+             unknownHealth.ReviewNext.Contains("Lightning Bolt"),
+             "Partial Deck Health must show validated counts with actionable names, not blanket unavailable labels.");
+        var overfullHealth = EdhLabDeckHealth.Analyze(paper,
+            new[] { (Name: "Island", Quantity: 100) });
+        Must(!overfullHealth.SafeToSuggest &&
+             overfullHealth.BlockerExplanation.Contains("100/99") &&
+             overfullHealth.BlockerExplanation.Contains("remove 1") &&
+             overfullHealth.Areas.Single(x => x.Key == "Land").State.Contains("At starting target") &&
+             overfullHealth.Areas.All(x => !x.CanBrowse),
+             "Overfull drafts must show their exact excess and retain visible read-only role coverage.");
+        var bothBlockers = EdhLabDeckHealth.Analyze(paper,
+            new[] { (Name: "Island", Quantity: 99),
+                    (Name: "Lightning Bolt", Quantity: 1) });
+        Must(bothBlockers.BlockerExplanation.Contains("100/99") &&
+             bothBlockers.BlockerExplanation.Contains("Lightning Bolt") &&
+             bothBlockers.ReviewNext.Contains("remove 1") &&
+             bothBlockers.ReviewNext.Contains("Lightning Bolt"),
+             "Simultaneous size and ineligible-card blockers must both be explained.");
         var synergyHealth = EdhLabDeckHealth.Analyze(paper,
             new[] { (Name: "Island", Quantity: 10) },
             focus: EdhLabStrategyFocus.CommanderSynergy);
