@@ -455,9 +455,13 @@ internal static class NativeVisualShellChecks
                  StringComparison.Ordinal) <
              mainXaml.IndexOf("x:Name=\"EdhLabButton\"",
                  StringComparison.Ordinal) &&
-             mainXaml.IndexOf("x:Name=\"EdhLabButton\"",
+             mainXaml.IndexOf("x:Name=\"OpenNativeButton\"",
                  StringComparison.Ordinal) <
              mainXaml.IndexOf("x:Name=\"SetProgressNavigationButton\"",
+                 StringComparison.Ordinal) &&
+             mainXaml.IndexOf("x:Name=\"SetProgressNavigationButton\"",
+                 StringComparison.Ordinal) <
+             mainXaml.IndexOf("x:Name=\"DeckLibraryNavigationButton\"",
                  StringComparison.Ordinal),
              "EDH Lab must remain a visible, accessible sidebar workspace.");
         Must(Regex.IsMatch(mainShellCode,
