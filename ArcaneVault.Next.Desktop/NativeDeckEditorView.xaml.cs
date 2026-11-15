@@ -805,15 +805,20 @@ public partial class NativeDeckEditorView : UserControl
             return;
         }
         EdhHealthAreaDetails.Text = area.Title + ": " + area.Explanation +
-            (area.CanBrowse
-                ? $"\nEligible owned example: {area.CandidateName} " +
-                  $"({area.CandidateUnused} unused recorded). Check the full card text."
-                : "\nNo unused eligible recorded suggestion is offered for this area.");
+            (lastHealthReport?.SafeToSuggest != true
+                ? "\nCounts reflect the verified portion of the draft. " +
+                  "Owned-card recommendations are paused until the issues above are resolved."
+                : area.CanBrowse
+                    ? $"\nEligible owned example: {area.CandidateName} " +
+                      $"({area.CandidateUnused} unused recorded). Check the full card text."
+                    : "\nNo unused eligible recorded suggestion is offered for this area.");
         EdhHealthBrowseButton.IsEnabled = !busy &&
             lastHealthReport?.SafeToSuggest == true && area.CanBrowse;
-        EdhHealthBrowseButton.Content = area.CanBrowse
-            ? "Inspect owned " + area.CandidateName + " in Cards"
-            : "No owned candidate to inspect";
+        EdhHealthBrowseButton.Content = lastHealthReport?.SafeToSuggest != true
+            ? "Resolve validation issues to browse"
+            : area.CanBrowse
+                ? "Inspect owned " + area.CandidateName + " in Cards"
+                : "No owned candidate to inspect";
     }
 
     private void OnEdhHealthBrowseClicked(object sender, RoutedEventArgs e)

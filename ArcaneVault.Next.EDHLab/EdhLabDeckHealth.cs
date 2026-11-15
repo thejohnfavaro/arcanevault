@@ -22,19 +22,35 @@ public static class EdhLabDeckHealth
     public sealed record Report(int MainboardCopies, int UnknownCopies,
         int MissingOracleCopies, int SynergyCopies,
         EdhLabStrategyFocus Focus, bool SafeToSuggest,
-        IReadOnlyList<Area> Areas, string ReviewNext)
+        IReadOnlyList<Area> Areas, string ReviewNext,
+        IReadOnlyList<string>? UnverifiedNames = null)
     {
+        public bool HasBlockers => UnknownCopies > 0 || MainboardCopies > 99;
+        public string BlockerExplanation
+        {
+            get
+            {
+                var issues = new List<string>();
+                if (MainboardCopies > 99)
+                    issues.Add($"Mainboard has {MainboardCopies}/99 cards: remove " +
+                        $"{MainboardCopies - 99} card(s) before final validation.");
+                if (UnknownCopies > 0)
+                    issues.Add($"{UnknownCopies} unverified/format-ineligible copy(s): " +
+                        string.Join(", ", UnverifiedNames ?? Array.Empty<string>()) +
+                        ". Review card spelling, current format and color identity, " +
+                        "or refresh local card metadata.");
+                return string.Join(" ", issues);
+            }
+        }
         public string Headline => "Deck health · " + MainboardCopies +
             "/99 mainboard · " + EdhLabStrategyGoals.Label(Focus);
         public string Explanation =>
-            (UnknownCopies > 0
-                ? $"{UnknownCopies} draft copies are unverified or format-ineligible. " +
-                  "Collection-aware browsing is paused until the draft is corrected. "
-                : MainboardCopies > 99
-                    ? "Mainboard exceeds 99; correct draft size before following advice. "
-                    : MainboardCopies < 60
-                        ? "Partial deck: these are construction checkpoints, not diagnoses. "
-                        : "Broad deck-composition checks, not a power or win-rate grade. ") +
+            (HasBlockers
+                ? BlockerExplanation + " Verified-card coverage is shown below, " +
+                  "but recommendations are paused until these checks pass. "
+                : MainboardCopies < 60
+                    ? "Partial deck: these are construction checkpoints, not diagnoses. "
+                    : "Broad deck-composition checks, not a power or win-rate grade. ") +
             (MissingOracleCopies > 0
                 ? $"{MissingOracleCopies} copies lack cached Oracle text, so roles and synergy may be undercounted. "
                 : "") +
@@ -96,6 +112,9 @@ public static class EdhLabDeckHealth
         var blueprint = EdhLabDeckBlueprint.Analyze(catalog, pairs, landTarget);
         var optimizer = curve ?? EdhLabDeckOptimizer.Analyze(catalog, pairs, focus: focus);
         int unknown = blueprint.UnverifiedCopies;
+        var unverifiedNames = pairs.Where(x => catalog.Find(x.Name) is null)
+            .Select(x => x.Quantity == 1 ? x.Name : $"{x.Name} ×{x.Quantity}")
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
         int missingOracle = pairs.Sum(x =>
         {
             var card = catalog.Find(x.Name);
@@ -153,10 +172,10 @@ public static class EdhLabDeckHealth
         var areas = new List<Area>();
         foreach (var role in blueprint.Roles)
         {
-            string state = !safe ? "Review unavailable"
-                : role.Shortfall == 0 ? "At starting target"
+            string state = role.Shortfall == 0 ? "At starting target"
                 : blueprint.MainboardCopies < 60 ? "Draft building"
                 : "Below suggested target";
+            if (!safe) state += " (verified portion)";
             string why = role.Role switch
             {
                 "Land" => "Mana-source count only. Color pips, untapped sources, and land quality are reviewed separately in Mana.",
@@ -190,11 +209,11 @@ public static class EdhLabDeckHealth
                 .OrderByDescending(card => catalog.SynergyFor(card.Name)?.Score ?? 0)
                 .ThenBy(card => card.Name, StringComparer.OrdinalIgnoreCase)
                 .FirstOrDefault() : null;
-            string state = !safe ? "Review unavailable"
-                : blueprint.MainboardCopies < 60 ? "Partial draft"
+            string state = blueprint.MainboardCopies < 60 ? "Partial draft"
                 : present.Length == 1 ? "Single-card dependency"
                 : present.Length == 2 ? "Limited redundancy"
                 : "Multiple distinct sources";
+            if (!safe) state += " (verified portion)";
             areas.Add(new Area("Backup-" + role,
                 role + " redundancy", present.Length, null, state,
                 $"{present.Sum(x => x.Quantity)} role-matching copies across " +
@@ -237,7 +256,12 @@ public static class EdhLabDeckHealth
                 target > 0 ? (double)Math.Max(0, target - x.Copies) / target : 0)
             .ToArray();
         var next = !safe
-            ? "Correct unknown/ineligible cards or an overfull draft before browsing suggestions."
+            ? "Resolve validation blockers: " +
+              (blueprint.MainboardCopies > 99
+                  ? $"remove {blueprint.MainboardCopies - 99} mainboard card(s). " : "") +
+              (unknown > 0 ? "Review " + string.Join(", ", unverifiedNames) +
+                  " for format, identity or catalog issues. " : "") +
+              "Card counts are provisional; owned recommendations remain disabled."
             : focus == EdhLabStrategyFocus.CommanderSynergy &&
               synergy == 0 && synergyPick.Item2 > 0
                 ? $"Review owned commander-mechanic match: {synergyPick.Item1}. " +
@@ -259,6 +283,6 @@ public static class EdhLabDeckHealth
                       "Targets are advisory; adjust the deck to your game plan.";
 
         return new Report(blueprint.MainboardCopies, unknown, missingOracle,
-            synergy, focus, safe, areas, next);
+            synergy, focus, safe, areas, next, unverifiedNames);
     }
 }
