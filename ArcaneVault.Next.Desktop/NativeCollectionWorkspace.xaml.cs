@@ -82,6 +82,8 @@ public partial class NativeCollectionWorkspace : UserControl
         };
         UpdateSectionPresentation();
         physicalDetailedView = PhysicalList.View as GridView;
+        PhysicalHistoryCanvas.SizeChanged += (_, _) => DrawCollectionValueHistory();
+        SetHistoryCanvas.SizeChanged += (_, _) => DrawSelectedSetHistory();
         RefreshDeckRows();
         AddDeckButton.IsEnabled = nativeWorkspace &&
             !string.IsNullOrWhiteSpace(nativePath) &&
@@ -341,6 +343,9 @@ public partial class NativeCollectionWorkspace : UserControl
             if (closing || generation != valuationVersion) return;
             valuation = result;
             setValues = NativeSetValuation.Calculate(result);
+            NativeValueHistory.RecordSnapshot(result, setValues);
+            DrawCollectionValueHistory();
+            DrawSelectedSetHistory();
             RefreshSetList(preserveDetails: true);
             if (selectedSetRow is not null && !selectedSetRow.NameCoverage &&
                 setValues.TryGetValue(selectedSetRow.SetCode, out var updatedValue))
@@ -364,6 +369,25 @@ public partial class NativeCollectionWorkspace : UserControl
             valuationBusy = false;
             if (!closing) RecalculatePricesButton.IsEnabled = true;
         }
+    }
+
+    private void DrawCollectionValueHistory()
+    {
+        if (PhysicalHistoryCanvas is null) return;
+        NativeValueHistoryChart.Draw(PhysicalHistoryCanvas,
+            NativeValueHistory.Read(), "Physical collection · Scryfall USD");
+    }
+
+    private void DrawSelectedSetHistory()
+    {
+        if (SetHistoryPanel is null || SetHistoryCanvas is null) return;
+        bool eligible = selectedSetRow is { NameCoverage: false };
+        SetHistoryPanel.Visibility = eligible
+            ? Visibility.Visible : Visibility.Collapsed;
+        if (!eligible) return;
+        NativeValueHistoryChart.Draw(SetHistoryCanvas,
+            NativeValueHistory.Read(selectedSetRow!.SetCode),
+            selectedSetRow.SetName + " · owned value");
     }
 
     private void OnPhysicalViewModeChanged(object sender, SelectionChangedEventArgs e)
@@ -610,6 +634,7 @@ public partial class NativeCollectionWorkspace : UserControl
         {
             setQueryVersion++;
             selectedSetRow = null;
+            DrawSelectedSetHistory();
             allSetSlots = Array.Empty<NativeSetProgress.SetSlot>();
             SetSlotsList.ItemsSource = null;
             SetDetailsMode(false);
@@ -650,6 +675,7 @@ public partial class NativeCollectionWorkspace : UserControl
         e.Handled = true;
         selectedSetRow = selected;
         SetDetailsMode(true);
+        DrawSelectedSetHistory();
         await LoadSetDetailsAsync(selected);
     }
 
