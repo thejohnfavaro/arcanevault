@@ -1242,6 +1242,8 @@ public partial class MainWindow : Window
                         "\nDifferences: "+comparison.Changes.Count+
                         "\nPotential conflicts: "+comparison.Conflicts+
                         "\nMatching records: "+comparison.EqualRecords+
+                        "\nChange groups: "+comparison.GroupSummary+
+                        "\n"+comparison.ReviewWarning+
                         "\n\n"+items+
                         "\n\nRead-only review. Nothing was applied to Windows.",
                         "Incoming wireless peer snapshot",
@@ -1540,6 +1542,8 @@ public partial class MainWindow : Window
                 "Differences: " + preview.Updates.ToString("N0") + "\n" +
                 "Absent on peer: " + preview.Removals.ToString("N0") + "\n" +
                 "Potential conflicts: " + preview.Conflicts.ToString("N0") +
+                "\nChange groups: " + preview.GroupSummary +
+                "\n" + preview.ReviewWarning +
                 "\n\n" + details +
                 "\n\nNo data was changed. This preview does not authorize replacing " +
                 "records without a verified shared sync baseline.",
