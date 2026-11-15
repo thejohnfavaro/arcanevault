@@ -858,6 +858,27 @@
                                            TextWrapping="Wrap" Margin="0,0,0,7"
                                            Foreground="{DynamicResource VaultAccent}"
                                            Text="Checking missing recorded copies…"/>
+                                <WrapPanel Margin="0,0,0,7">
+                                    <Button x:Name="EdhPlanAutomaticSwapsButton"
+                                            Content="Plan owned substitutions"
+                                            Click="OnEdhPlanAutomaticSwapsClicked"
+                                            Padding="11,6" Margin="0,0,8,4"/>
+                                    <Button x:Name="EdhApplyAutomaticSwapsButton"
+                                            Content="Apply reviewed plan to draft"
+                                            Click="OnEdhApplyAutomaticSwapsClicked"
+                                            IsEnabled="False" Padding="11,6" Margin="0,0,0,4"/>
+                                </WrapPanel>
+                                <TextBlock x:Name="EdhAutomaticPlanStatus"
+                                           Text="Preview multiple owned replacements without changing your deck."
+                                           TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           Margin="0,0,0,5"/>
+                                <TextBox x:Name="EdhAutomaticPlanDetails"
+                                         Visibility="Collapsed" IsReadOnly="True"
+                                         TextWrapping="Wrap" AcceptsReturn="True"
+                                         MinHeight="52" MaxHeight="180"
+                                         VerticalScrollBarVisibility="Auto"
+                                         Margin="0,0,0,8"/>
                                 <ListBox x:Name="EdhMissingShortagesList"
                                          SelectionChanged="OnEdhMissingShortageSelected"
                                          DisplayMemberPath="Display"
