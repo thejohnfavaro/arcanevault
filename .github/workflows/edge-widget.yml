@@ -1,0 +1,44 @@
+name: XENEON EDGE Widget Preview
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'integrations/xeneon-edge/**'
+      - '.github/workflows/edge-widget.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check standalone widget JavaScript
+        shell: pwsh
+        run: node --check integrations/xeneon-edge/scripts/widget.js
+      - name: Install official iCUE Widget CLI
+        shell: pwsh
+        run: npm install -g icuewidget-cli@latest
+      - name: Validate widget with official CLI
+        shell: pwsh
+        run: icuewidget validate integrations/xeneon-edge
+      - name: Package iCUE widget with official CLI
+        shell: pwsh
+        run: icuewidget package integrations/xeneon-edge
+      - name: Locate verified iCUE widget
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem -Path . -Filter '*.icuewidget' -Recurse -File)
+          if ($packages.Count -eq 0) { throw 'Official CLI did not produce an .icuewidget file.' }
+          New-Item -ItemType Directory -Force -Path widget-dist | Out-Null
+          $packages | ForEach-Object { Copy-Item $_.FullName -Destination 'widget-dist/' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArcaneVault-XeneonEdge-Widget-0.1-preview
+          path: widget-dist/*.icuewidget
+          if-no-files-found: error
