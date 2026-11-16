@@ -208,7 +208,8 @@ internal static class NativeVisualShellChecks
              v65StudioCode.Contains("EdhLabReadOnlyCache.GetDraft(") &&
              v65DeckShell.Contains("EdhLabReadOnlyCache.GetCommanderIndex(") &&
              readOnlyCache.Contains("MaxDraftSnapshots = 2") &&
-             readOnlyCache.Contains("PoolHash(inventory, format)") &&
+             readOnlyCache.Contains("PoolHash(inventory, arenaOwnership ?? format == EdhLabFormat.ArenaBrawl)") &&
+             readOnlyCache.Contains("bool ArenaOwnership") &&
              readOnlyCache.Contains("Fingerprint(catalogPath) != before.Catalog"),
              "Deck-only refresh must not reload the whole collection or reuse stale EDH advisory metadata.");
 
