@@ -162,15 +162,11 @@
   // numbers are read from a real user's saved collection.
   if (typeof window.iCUE === "undefined" && typeof window.plugins === "undefined") {
     $("previewLabel").textContent = "SAMPLE PREVIEW";
-    readSnapshot({
+    readSnapshot(JSON.stringify({
       decks:[{id:"sample",name:"Demo Commander Deck",commander:"Sample commander",wins:12,losses:7,artUrl:""}],
       collection:{value:0,currency:"USD",asOf:"example"},
       recentMatch:{result:"win",deckName:"Demo Commander Deck"}
-    } instanceof Object ? JSON.stringify({
-      decks:[{id:"sample",name:"Demo Commander Deck",commander:"Sample commander",wins:12,losses:7,artUrl:""}],
-      collection:{value:0,currency:"USD",asOf:"example"},
-      recentMatch:{result:"win",deckName:"Demo Commander Deck"}
-    }) : "");
+    }));
     status("SAMPLE PREVIEW · iCUE not connected", true);
   }
 }());
