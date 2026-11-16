@@ -1675,6 +1675,7 @@ public partial class NativeDeckEditorView : UserControl
             throw new ArgumentException("Verified workspace SHA required.",
                 nameof(verifiedSha));
         int version = ++ownershipRefreshVersion;
+        bool useArenaOwnership = OwnedPoolBox?.SelectedIndex == 1;
         string mainboard = MainboardBox.Text;
         string commander = CommanderBox.Text;
         ownership = verified;
@@ -1689,7 +1690,8 @@ public partial class NativeDeckEditorView : UserControl
             {
                 var refreshed = await Task.Run(() => EdhLabReadOnlyCache.GetDraft(
                     catalogPath!, verified, edhLabCommander,
-                    edhLabColors ?? "", edhLabFormat.Value));
+                    edhLabColors ?? "", edhLabFormat.Value,
+                    arenaOwnership: useArenaOwnership));
                 if (version != ownershipRefreshVersion) return;
                 edhCatalog = refreshed;
                 EdhSuggestionsStatus.Text =
@@ -1719,6 +1721,7 @@ public partial class NativeDeckEditorView : UserControl
 
     private async Task LoadEdhSuggestionsAsync()
     {
+        bool useArenaOwnership = OwnedPoolBox?.SelectedIndex == 1;
         int ownershipVersion = ownershipRefreshVersion;
         if (edhLabCommander is null || edhLabFormat is null ||
             string.IsNullOrWhiteSpace(catalogPath)) return;
@@ -1730,7 +1733,7 @@ public partial class NativeDeckEditorView : UserControl
             EdhLabDraftCatalog suggestions;
             if (EdhLabReadOnlyCache.TryGetDraft(catalogPath!, ownership,
                     edhLabCommander, edhLabColors ?? "", edhLabFormat.Value,
-                    out var cached) && cached is not null)
+                    out var cached, arenaOwnership: useArenaOwnership) && cached is not null)
                 suggestions = cached;
             else
                 suggestions = await Task.Run(() => EdhLabReadOnlyCache.GetDraft(
@@ -1807,6 +1810,14 @@ public partial class NativeDeckEditorView : UserControl
     private void OnOwnedPoolChanged(object sender,
         System.Windows.Controls.SelectionChangedEventArgs e)
     {
+        // The selected inventory pool is independent of commander format.
+        // Rebuild the advisory snapshot before showing recorded/missing labels.
+        if (edhLabCommander is not null && edhLabFormat is not null)
+        {
+            edhCatalog = null;
+            ownershipRefreshVersion++;
+            _ = LoadEdhSuggestionsAsync();
+        }
         RefreshOwnedCards();
         RefreshDraftSummary();
         // Mainboard previews are available even when a card is unowned.
