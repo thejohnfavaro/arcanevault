@@ -19,6 +19,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArcaneVault");
     private readonly string diagnosticPath;
     private Task? worker;
+    private ArenaMatchTracker? arenaTracker;
     private string? lastWorkspaceStamp;
     private List<Deck> decks = new();
     private int artworkCursor;
@@ -53,10 +54,19 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         // Export a baseline even without a collection, catalog, network or Arena.
         try { Publish(null, null, "Native app connected"); }
         catch (Exception ex) { Log("Initial snapshot", ex); }
+        try
+        {
+            arenaTracker = new ArenaMatchTracker();
+            arenaTracker.Configure(enable: true, logFile: null);
+        }
+        catch (Exception ex) when (ex is IOException or SqliteException or
+            InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        { Log("Native Arena match tracker unavailable", ex); }
         while (!stopped.IsCancellationRequested)
         {
             try
             {
+                arenaTracker?.Tick();
                 await RefreshAsync(stopped.Token);
             }
             catch (OperationCanceledException) when (stopped.IsCancellationRequested) { break; }
@@ -64,6 +74,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             try { await Task.Delay(TimeSpan.FromSeconds(15), stopped.Token); }
             catch (OperationCanceledException) { break; }
         }
+        arenaTracker?.Dispose();
+        stopped.Dispose();
     }
 
     private async Task RefreshAsync(CancellationToken cancel)
@@ -187,6 +199,10 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     current = null;
                 }
             }
+            string? chosen = arenaTracker?.CurrentDeckName;
+            if (!string.IsNullOrWhiteSpace(chosen) &&
+                unique.TryGetValue(chosen.Trim(), out var selected))
+                current = selected.id;
             return (recent, file == native ? "native" : "legacy-read-only", current);
         }
         catch (Exception ex) when (ex is IOException or SqliteException or
@@ -236,6 +252,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     {
         stopped.Cancel();
         // The worker reads immutable snapshots and is canceled cooperatively.
-        stopped.Dispose();
+        // Do not block WPF shutdown waiting for a log file read.
+        // Native match tracker is disposed by the background loop.
     }
 }
