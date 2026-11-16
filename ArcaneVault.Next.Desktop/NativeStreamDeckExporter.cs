@@ -2,6 +2,7 @@ using ArcaneVault.Next.Collection;
 using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Text.Json;
 
 namespace ArcaneVault.Next.Desktop;
