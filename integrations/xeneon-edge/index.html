@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arcane Vault — Deck Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg" />
+  <link rel="stylesheet" href="styles/widget.css" />
+</head>
+<body>
+  <main class="shell" aria-label="Arcane Vault Deck Dashboard">
+    <section class="panel art-panel">
+      <img class="art" id="art" alt="" />
+      <div class="brand">ARCANE VAULT <span id="previewLabel"></span></div>
+      <div class="eyebrow">SELECTED DECK</div>
+      <h1 class="deck-name" id="deckName">Waiting for Arcane Vault</h1>
+      <div class="commander" id="commander">Start Arcane Vault Native on Windows</div>
+      <nav class="nav" aria-label="Choose saved deck">
+        <button id="prev" type="button" aria-label="Previous deck">‹</button>
+        <span class="counter" id="deckCount">— / —</span>
+        <button id="next" type="button" aria-label="Next deck">›</button>
+      </nav>
+    </section>
+    <section class="panel stats">
+      <div class="topline">
+        <div class="eyebrow">ARENA DECK RECORD</div>
+        <span class="pill" id="recordSummary">Confirmed matches only</span>
+      </div>
+      <div class="wl" aria-label="Wins and losses">
+        <div class="metric"><div class="number" id="wins">—</div><div class="metric-label">WINS</div></div>
+        <div class="separator">/</div>
+        <div class="metric"><div class="number" id="losses">—</div><div class="metric-label">LOSSES</div></div>
+      </div>
+      <div class="win-rate">
+        <div><div class="eyebrow">WIN RATE</div><div class="rate" id="rate">—</div></div>
+        <div class="bar" aria-label="Win percentage"><span id="rateFill"></span></div>
+      </div>
+    </section>
+    <section class="panel side">
+      <div class="feature">
+        <div class="feature-title">LATEST MATCH</div>
+        <div class="feature-data latest" id="recent">—</div>
+        <div class="feature-small" id="recentDescription">No recent match</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">PHYSICAL COLLECTION</div>
+        <div class="feature-data" id="collectionValue">—</div>
+        <div class="feature-small" id="valuationAge">Waiting for valuation</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">CONNECTION</div>
+        <div class="status" id="status" role="status" aria-live="polite">Watching the native Arcane Vault snapshot…</div>
+      </div>
+    </section>
+  </main>
+  <script src="scripts/widget.js"></script>
+</body>
+</html>
