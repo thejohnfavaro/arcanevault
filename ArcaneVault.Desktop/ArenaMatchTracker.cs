@@ -88,6 +88,10 @@ internal sealed class ArenaMatchTracker : IDisposable
             { error = ex.Message; }
         }
     }
+    public string? CurrentDeckName
+    {
+        get { lock (gate) return currentDeckName; }
+    }
     public object Snapshot()
     {
         lock (gate)
