@@ -743,6 +743,15 @@
                                                   IsChecked="False" Margin="0,0,0,8"
                                                   Foreground="{DynamicResource VaultText}"
                                                   ToolTip="Optional: suggest untapped multicolor lands and eligible shock lands, preserving existing nonbasics, spells and at least one of each existing basic."/>
+                                        <Button x:Name="EdhSmartManaButton"
+                                                Content="Smart Mana — Optimize Now"
+                                                Click="OnEdhSmartManaClicked"
+                                                Padding="12,9" Margin="0,0,0,9"
+                                                HorizontalAlignment="Left"
+                                                Background="{DynamicResource VaultAccentMuted}"
+                                                Foreground="{DynamicResource VaultText}"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                                ToolTip="One click: optimize the UNSAVED mainboard using real owned shock lands, then untapped sources, then conditional/tapped lands as needed. Existing nonbasics and spells are kept."/>
                                         <Button x:Name="EdhManaBaseBuildButton"
                                                 Content="Build proposed mana base"
                                                 Click="OnEdhManaBaseBuildClicked"
