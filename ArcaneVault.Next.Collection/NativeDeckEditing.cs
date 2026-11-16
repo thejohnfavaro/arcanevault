@@ -25,6 +25,8 @@ public static class NativeDeckEditing
     {
         // Presentation-only catalog art, never persisted into the deck library.
         public string CoverArtworkUrl { get; init; } = "";
+        // MTG Arena deck identity is distinct from the user-facing native deck name.
+        public string ArenaDeckId { get; init; } = "";
         public string FavoriteLabel => Favorite ? "★ Favorite" : "";
         // Exact per-deck display choice; independent of collection ownership.
         public IReadOnlyDictionary<string, string> EntryPrintingIds { get; init; } =
@@ -178,6 +180,7 @@ public static class NativeDeckEditing
                 entries.Count, copies, revisions, editable,
                 string.Join("\n", mainboard), Hash(json), format, favorite)
             {
+                ArenaDeckId = GetString(deck, "arenaDeckId"),
                 EntryPrintingIds = entries.OfType<JsonObject>()
                     .Where(x => GetString(x, "name").Length > 0 &&
                         Guid.TryParse(GetString(x, "displayPrintId"), out var printingId) &&
