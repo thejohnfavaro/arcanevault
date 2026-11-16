@@ -23,12 +23,17 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private string? lastWorkspaceStamp;
     private List<Deck> decks = new();
     private int artworkCursor;
+    private string? lastRefreshNonce;
+    private string? selectedRefreshDeckId;
+    private DateTimeOffset nextScheduledRefresh = DateTimeOffset.MinValue;
 
     private sealed class Deck
     {
         public string id { get; set; } = "";
         public string name { get; set; } = "";
         public string commander { get; set; } = "";
+        public string arenaDeckId { get; set; } = "";
+        public string keyImagePath { get; set; } = "";
         public string imagePath { get; set; } = "";
         public string artUrl { get; set; } = "";
         public int wins { get; set; }
@@ -66,12 +71,19 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         {
             try
             {
-                arenaTracker?.Tick();
-                await RefreshAsync(stopped.Token);
+                // A Stream Deck key requests a new snapshot immediately.
+                // Automatic refresh still occurs every fifteen seconds.
+                bool pressed = ConsumeRefreshRequest();
+                if (pressed || DateTimeOffset.UtcNow >= nextScheduledRefresh)
+                {
+                    arenaTracker?.Tick();
+                    await RefreshAsync(stopped.Token);
+                    nextScheduledRefresh = DateTimeOffset.UtcNow.AddSeconds(15);
+                }
             }
             catch (OperationCanceledException) when (stopped.IsCancellationRequested) { break; }
             catch (Exception ex) { Log("Snapshot refresh", ex); }
-            try { await Task.Delay(TimeSpan.FromSeconds(15), stopped.Token); }
+            try { await Task.Delay(TimeSpan.FromSeconds(1), stopped.Token); }
             catch (OperationCanceledException) { break; }
         }
         arenaTracker?.Dispose();
@@ -100,7 +112,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 .Take(1000)
                 .Select(d => new Deck
                 {
-                    id = d.Id, name = d.Name, commander = d.Commander
+                    id = d.Id, name = d.Name, commander = d.Commander,
+                    arenaDeckId = d.ArenaDeckId
                 }).ToList();
 
             // Don't let cover metadata failure suppress deck selection.
@@ -129,37 +142,95 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         var (recent, source, active) = ApplyMatches();
         Publish(recent, source, "Native app connected", active);
 
-        // Artwork is optional; never delay the first populated deck-list snapshot.
+        // Render at most three buttons per tick. The selected deck is first
+        // when a key or Property Inspector requests a refresh, so a long
+        // library doesn't delay the user's chosen tile.
         if (decks.Count == 0) return;
-        int attempts = 0;
-        int inspected = 0;
-        while (inspected++ < decks.Count && attempts < 2)
+        var candidates = new List<Deck>();
+        if (!string.IsNullOrWhiteSpace(selectedRefreshDeckId))
+        {
+            var selected = decks.FirstOrDefault(x => x.id == selectedRefreshDeckId);
+            if (selected is not null) candidates.Add(selected);
+        }
+        selectedRefreshDeckId = null;
+        for (int scan = 0; scan < decks.Count && candidates.Count < 3; scan++)
+        {
+            var candidate = decks[(artworkCursor++) % decks.Count];
+            if (!candidates.Contains(candidate)) candidates.Add(candidate);
+        }
+        foreach (var deck in candidates)
         {
             cancel.ThrowIfCancellationRequested();
-            var deck = decks[(artworkCursor++) % decks.Count];
-            if (deck.imagePath.Length > 0 || !NativeCardArtwork.IsTrustedArtworkUrl(deck.artUrl))
-                continue;
-            attempts++;
+            await RenderDeckAsync(deck, cancel);
+        }
+        Publish(recent, source, "Native app connected", active);
+    }
+
+    private bool ConsumeRefreshRequest()
+    {
+        var path = Path.Combine(exportDirectory, "streamdeck-refresh.request");
+        try
+        {
+            if (!File.Exists(path) || new FileInfo(path).Length > 4096) return false;
+            using var request = JsonDocument.Parse(File.ReadAllText(path));
+            var data = request.RootElement;
+            if (!data.TryGetProperty("nonce", out var nonceElement)) return false;
+            string? nonce = nonceElement.GetString();
+            if (string.IsNullOrWhiteSpace(nonce) || nonce == lastRefreshNonce) return false;
+            lastRefreshNonce = nonce;
+            selectedRefreshDeckId =
+                data.TryGetProperty("deckId", out var deckElement)
+                    && deckElement.ValueKind == JsonValueKind.String
+                    ? deckElement.GetString() : null;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or
+            InvalidOperationException or UnauthorizedAccessException)
+        { Log("Refresh request unavailable", ex); return false; }
+    }
+
+    private async Task RenderDeckAsync(Deck deck, CancellationToken cancel)
+    {
+        byte[]? art = null;
+        if (NativeCardArtwork.IsTrustedArtworkUrl(deck.artUrl))
+        {
             try
             {
-                byte[]? bytes = await NativeCardArtwork.LoadAsync(deck.artUrl, cancel);
-                if (bytes is null || bytes.Length < 8 || bytes.Length > 2_000_000) continue;
-                string ext = bytes[0] == 137 && bytes[1] == 80 ? ".png" :
-                    bytes[0] == 255 && bytes[1] == 216 ? ".jpg" : "";
-                if (ext.Length == 0) continue;
-                string folder = Path.Combine(exportDirectory, "StreamDeckArtwork");
-                Directory.CreateDirectory(folder);
-                string file = Path.Combine(folder,
-                    Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
-                        System.Text.Encoding.UTF8.GetBytes(deck.artUrl))) + ext);
-                if (!File.Exists(file)) await File.WriteAllBytesAsync(file, bytes, cancel);
-                deck.imagePath = file;
+                art = await NativeCardArtwork.LoadAsync(deck.artUrl, cancel);
             }
             catch (Exception ex) when (ex is IOException or HttpRequestException or
                 UnauthorizedAccessException or TaskCanceledException or InvalidOperationException)
             { Log("Deck artwork unavailable", ex); }
         }
-        Publish(recent, source, "Native app connected", active);
+        var folder = Path.Combine(exportDirectory, "StreamDeckArtwork");
+        Directory.CreateDirectory(folder);
+        string signature = deck.id + "|" + deck.name + "|" + deck.wins + "|" +
+            deck.losses + "|" + (art is not null ? deck.artUrl : "no-art");
+        var key = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(signature)));
+        string keyFile = Path.Combine(folder, "key-" + key + ".png");
+        if (!File.Exists(keyFile))
+        {
+            try
+            {
+                var png = await NativeStreamDeckTileRenderer.DrawAsync(
+                    deck.name, deck.wins, deck.losses, art, cancel);
+                if (png.Length is > 0 and < 2_000_000)
+                {
+                    string stage = keyFile + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                    try
+                    {
+                        await File.WriteAllBytesAsync(stage, png, cancel);
+                        File.Move(stage, keyFile, overwrite: true);
+                    }
+                    finally { if (File.Exists(stage)) File.Delete(stage); }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or
+                UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
+            { Log("Deck tile rendering unavailable", ex); }
+        }
+        if (File.Exists(keyFile)) deck.keyImagePath = keyFile;
     }
 
     private (RecentMatch? Recent, string? Source, string? ActiveDeck) ApplyMatches()
@@ -169,6 +240,10 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         string legacy = Path.Combine(exportDirectory, "match-history.sqlite3");
         var files = new[] { native, legacy }.Where(File.Exists).ToArray();
         var unique = decks.GroupBy(x => x.name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var uniqueArenaIds = decks.Where(d => !string.IsNullOrWhiteSpace(d.arenaDeckId))
+            .GroupBy(d => d.arenaDeckId.Trim(), StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() == 1)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var knownMatches = new HashSet<string>(StringComparer.Ordinal);
@@ -185,16 +260,20 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 }.ToString());
                 db.Open();
                 using var cmd = db.CreateCommand();
-                cmd.CommandText = "SELECT match_id,result,deck_name,played_utc FROM matches " +
+                cmd.CommandText = "SELECT match_id,result,deck_name,played_utc,deck_id FROM matches " +
                     "WHERE result IN ('win','loss') ORDER BY played_utc DESC LIMIT 25000";
                 using var reader = cmd.ExecuteReader();
                 bool used = false;
                 while (reader.Read())
                 {
                     string id = reader.GetString(0);
-                    string result = reader.GetString(1), name = reader.GetString(2).Trim();
-                    if (id.Length == 0 || !unique.TryGetValue(name, out var deck) ||
-                        !knownMatches.Add(id)) continue;
+                    string result = reader.GetString(1);
+                    string name = reader.IsDBNull(2) ? "" : reader.GetString(2).Trim();
+                    string arenaId = reader.IsDBNull(4) ? "" : reader.GetString(4).Trim();
+                    Deck? deck = null;
+                    if (arenaId.Length > 0) uniqueArenaIds.TryGetValue(arenaId, out deck);
+                    if (deck is null && name.Length > 0) unique.TryGetValue(name, out deck);
+                    if (deck is null || id.Length == 0 || !knownMatches.Add(id)) continue;
                     used = true;
                     if (result == "win") deck.wins++; else deck.losses++;
                     if (DateTimeOffset.TryParse(reader.GetString(3), out var when) &&
@@ -211,8 +290,13 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             { Log("Optional Arena match history unavailable", ex); }
         }
         string? chosen = arenaTracker?.CurrentDeckName;
-        string? active = !string.IsNullOrWhiteSpace(chosen) &&
-            unique.TryGetValue(chosen.Trim(), out var selected) ? selected.id : null;
+        string? chosenId = arenaTracker?.CurrentDeckId;
+        Deck? selected = null;
+        if (!string.IsNullOrWhiteSpace(chosenId))
+            uniqueArenaIds.TryGetValue(chosenId.Trim(), out selected);
+        if (selected is null && !string.IsNullOrWhiteSpace(chosen))
+            unique.TryGetValue(chosen.Trim(), out selected);
+        string? active = selected?.id;
         return (recent, sources.Count == 0 ? null : string.Join("+", sources), active);
     }
 
