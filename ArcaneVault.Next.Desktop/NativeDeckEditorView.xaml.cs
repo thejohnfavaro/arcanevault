@@ -13,18 +13,19 @@ namespace ArcaneVault.Next.Desktop;
 public partial class NativeDeckEditorView : UserControl
 {
     private readonly string nativePath;
-    private readonly string expectedSha;
+    private string expectedSha;
     // On a confirmed save, carry the already fully verified replacement
     // back to the embedded library; do not reopen the whole collection.
     public NativeWorkspaceSafety.Replacement? SavedReplacement { get; private set; }
     private readonly NativeDeckEditing.DeckRow? original;
-    private readonly NativeBackupView ownership;
+    private NativeBackupView ownership;
     private readonly string? catalogPath;
     private bool busy;
     private readonly string? edhLabCommander;
     private readonly EdhLabFormat? edhLabFormat;
     private readonly string? edhLabColors;
     private EdhLabDraftCatalog? edhCatalog;
+    private int ownershipRefreshVersion;
     private EdhLabDeckOptimizer.Report? lastOptimization;
     private EdhLabDeckHealth.Report? lastHealthReport;
     // Only the analysis pass is deferred while typing. Draft text, the
@@ -1660,8 +1661,65 @@ public partial class NativeDeckEditorView : UserControl
         RefreshOwnedCards();
     }
 
+    /// <summary>
+    /// A verified Arena diff/peer update can change owned counts while this
+    /// embedded draft remains open. Rebase its READ-ONLY ownership and save
+    /// checksum on the newly verified native workspace without discarding
+    /// unsaved mainboard edits. Never run automatic land balancing here.
+    /// </summary>
+    public async Task RefreshVerifiedOwnershipAsync(
+        NativeBackupView verified, string verifiedSha)
+    {
+        ArgumentNullException.ThrowIfNull(verified);
+        if (string.IsNullOrWhiteSpace(verifiedSha))
+            throw new ArgumentException("Verified workspace SHA required.",
+                nameof(verifiedSha));
+        int version = ++ownershipRefreshVersion;
+        string mainboard = MainboardBox.Text;
+        string commander = CommanderBox.Text;
+        ownership = verified;
+        expectedSha = verifiedSha;
+        edhCatalog = null;
+        if (edhLabCommander is not null && edhLabFormat is not null &&
+            !string.IsNullOrWhiteSpace(catalogPath))
+        {
+            EdhSuggestionsStatus.Text =
+                "Refreshing Arena/Physical owned counts from verified collection…";
+            try
+            {
+                var refreshed = await Task.Run(() => EdhLabReadOnlyCache.GetDraft(
+                    catalogPath!, verified, edhLabCommander,
+                    edhLabColors ?? "", edhLabFormat.Value));
+                if (version != ownershipRefreshVersion) return;
+                edhCatalog = refreshed;
+                EdhSuggestionsStatus.Text =
+                    $"{refreshed.RecordedEligibleCount:N0} eligible recorded names · " +
+                    "ownership refreshed from current native collection.";
+            }
+            catch (Exception ex) when (ex is IOException or
+                InvalidDataException or ArgumentException)
+            {
+                if (version != ownershipRefreshVersion) return;
+                EdhSuggestionsStatus.Text =
+                    "Ownership was refreshed, but EDH suggestions need catalog review: " +
+                    ex.Message;
+            }
+        }
+        if (version != ownershipRefreshVersion) return;
+        // Never overwrite a draft, or let a cached old analysis count as new.
+        lastOptimization = null;
+        lastSwapAdvice = null;
+        lastHealthReport = null;
+        RefreshOwnedCards();
+        RefreshDraftSummary();
+        if (MainboardBox.Text == mainboard && CommanderBox.Text == commander)
+            StatusText.Text =
+                "Current collection ownership refreshed. Unsaved deck edits preserved.";
+    }
+
     private async Task LoadEdhSuggestionsAsync()
     {
+        int ownershipVersion = ownershipRefreshVersion;
         if (edhLabCommander is null || edhLabFormat is null ||
             string.IsNullOrWhiteSpace(catalogPath)) return;
         EdhSuggestionsStatus.Text = "Loading verified offline EDH cards (reused on later opens)…";
@@ -1678,7 +1736,7 @@ public partial class NativeDeckEditorView : UserControl
                 suggestions = await Task.Run(() => EdhLabReadOnlyCache.GetDraft(
                     catalogPath!, ownership, edhLabCommander,
                     edhLabColors ?? "", edhLabFormat.Value));
-            if (!IsLoaded) return;
+            if (!IsLoaded || ownershipVersion != ownershipRefreshVersion) return;
             edhCatalog = suggestions;
             EdhSuggestionsStatus.Text =
                 $"{suggestions.RecordedEligibleCount:N0} eligible recorded names · " +
