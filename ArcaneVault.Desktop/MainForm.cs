@@ -8,6 +8,7 @@ public sealed class MainForm : Form
 {
     private readonly WebView2 browser = new() { Dock = DockStyle.Fill, DefaultBackgroundColor = System.Drawing.Color.FromArgb(15, 18, 29) };
     private LocalAppServer? server;
+    private StreamDeckBridge? streamDeckBridge;
 
     public MainForm()
     {
@@ -34,7 +35,7 @@ public sealed class MainForm : Form
         BackColor = System.Drawing.Color.FromArgb(15, 18, 29);
         Controls.Add(browser);
         Shown += async (_, _) => await StartAsync();
-        FormClosed += (_, _) => server?.Dispose();
+        FormClosed += (_, _) => { streamDeckBridge?.Dispose(); server?.Dispose(); };
     }
 
     private async Task StartAsync()
@@ -63,6 +64,14 @@ public sealed class MainForm : Form
                     args.Cancel = true;
                     try { Process.Start(new ProcessStartInfo(args.Uri) { UseShellExecute = true }); }
                     catch { /* ignore unsupported links */ }
+                }
+            };
+            browser.CoreWebView2.NavigationCompleted += (_, args) =>
+            {
+                if (args.IsSuccess && streamDeckBridge is null)
+                {
+                    streamDeckBridge = new StreamDeckBridge(browser);
+                    streamDeckBridge.Start();
                 }
             };
             browser.Source = new Uri(LocalAppServer.BaseUrl);
