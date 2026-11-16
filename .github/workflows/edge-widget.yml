@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate-and-package:
@@ -42,3 +42,18 @@ jobs:
           name: ArcaneVault-XeneonEdge-Widget-0.1-preview
           path: widget-dist/*.icuewidget
           if-no-files-found: error
+      - name: Publish independent EDGE widget preview release
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'edge-widget-v0.1.0'
+          gh release view $tag --repo ${{ github.repository }} *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "EDGE widget $tag is already published; leaving existing immutable version intact."
+          } else {
+            $files = @(Get-ChildItem 'widget-dist/*.icuewidget' -File | ForEach-Object { $_.FullName })
+            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.1.0 (Preview)' --notes 'Initial iCUE 5.52+ XENEON EDGE native dashboard. Read-only Arcane Vault local snapshot, touch deck cycling, Scryfall commander art crop, verified Arena W/L and physical collection value. Hardware verification pending. Stream Deck Companion remains independent.' --prerelease
+            if ($LASTEXITCODE -ne 0) { throw 'Could not publish XENEON EDGE release.' }
+          }
