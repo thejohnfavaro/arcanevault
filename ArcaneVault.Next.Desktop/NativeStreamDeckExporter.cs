@@ -23,6 +23,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private string? lastWorkspaceStamp;
     private List<Deck> decks = new();
     private int artworkCursor;
+    private DateTimeOffset nextCoverRetry = DateTimeOffset.MinValue;
     private string? lastRefreshNonce;
     private string? selectedRefreshDeckId;
     private DateTimeOffset nextScheduledRefresh = DateTimeOffset.MinValue;
@@ -36,6 +37,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         public string keyImagePath { get; set; } = "";
         public string imagePath { get; set; } = "";
         public string artUrl { get; set; } = "";
+        public string artStatus { get; set; } = "Pending artwork lookup";
         public int wins { get; set; }
         public int losses { get; set; }
     }
@@ -116,27 +118,19 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     arenaDeckId = d.ArenaDeckId
                 }).ToList();
 
-            // Don't let cover metadata failure suppress deck selection.
-            if (File.Exists(NativeWorkspace.CatalogPath))
-            {
-                try
-                {
-                    var verified = NativeWorkspace.Open(workspace, cancel);
-                    var covers = NativeDeckCoverCache.Get(
-                        read.Select(d => d.commander).Where(x => x.Length > 0),
-                        NativeWorkspace.CatalogPath, verified.BackupSha256,
-                        cancellation: cancel);
-                    foreach (var deck in read)
-                        if (covers.TryGetValue(deck.commander, out string? url))
-                            deck.artUrl = url;
-                }
-                catch (Exception ex) when (ex is IOException or InvalidDataException or
-                    SqliteException or UnauthorizedAccessException or ArgumentException)
-                { Log("Cover metadata unavailable", ex); }
-            }
             decks = read;
             artworkCursor = 0;
             lastWorkspaceStamp = stamp;
+            nextCoverRetry = DateTimeOffset.MinValue;
+        }
+
+        // Card metadata can become available after a catalog sync, without
+        // any deck library change. Retry missing artwork independently.
+        if (DateTimeOffset.UtcNow >= nextCoverRetry ||
+            !string.IsNullOrWhiteSpace(selectedRefreshDeckId))
+        {
+            RefreshCommanderArtwork(cancel);
+            nextCoverRetry = DateTimeOffset.UtcNow.AddSeconds(45);
         }
 
         var (recent, source, active) = ApplyMatches();
@@ -164,6 +158,68 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             await RenderDeckAsync(deck, cancel);
         }
         Publish(recent, source, "Native app connected", active);
+    }
+
+    private void RefreshCommanderArtwork(CancellationToken cancel)
+    {
+        var missing = decks.Where(d => string.IsNullOrWhiteSpace(d.artUrl)
+                && !string.IsNullOrWhiteSpace(d.commander))
+            .OrderByDescending(d => d.id == selectedRefreshDeckId)
+            .Take(12).ToArray();
+        foreach (var empty in decks.Where(d => string.IsNullOrWhiteSpace(d.commander)))
+            empty.artStatus = "No commander assigned to saved deck";
+        if (missing.Length == 0) return;
+
+        string catalog = NativeWorkspace.CatalogPath;
+        if (!File.Exists(catalog))
+        {
+            foreach (var deck in missing)
+                deck.artStatus = "Offline Scryfall catalog not installed";
+            return;
+        }
+        try
+        {
+            var verified = NativeWorkspace.Open(NativeWorkspace.DefaultPath, cancel);
+            var covers = NativeDeckCoverCache.Get(
+                missing.Select(d => d.commander), catalog, verified.BackupSha256,
+                cancellation: cancel);
+            foreach (var deck in missing)
+            {
+                cancel.ThrowIfCancellationRequested();
+                string? url = covers.GetValueOrDefault(deck.commander);
+                // The cards table may have no canonical image for a special
+                // multi-face name. Fall back to the official printings table.
+                if (!NativeCardArtwork.IsTrustedArtworkUrl(url))
+                {
+                    try
+                    {
+                        url = NativePrintingArtwork.Read(catalog,
+                            deck.commander, limit: 20, cancellation: cancel)
+                            .Printings.Select(p => p.ImageUrl)
+                            .FirstOrDefault(NativeCardArtwork.IsTrustedArtworkUrl);
+                    }
+                    catch (Exception ex) when (ex is SqliteException or
+                        InvalidDataException or IOException or ArgumentException)
+                    { Log("Commander printing-art lookup unavailable", ex); }
+                }
+                if (NativeCardArtwork.IsTrustedArtworkUrl(url))
+                {
+                    deck.artUrl = url!;
+                    deck.artStatus = "Artwork URL found; preparing key image";
+                }
+                else
+                    deck.artStatus = "No official artwork for commander: " +
+                        deck.commander;
+            }
+        }
+        catch (Exception ex) when (ex is SqliteException or
+            InvalidDataException or IOException or UnauthorizedAccessException
+            or ArgumentException)
+        {
+            foreach (var deck in missing)
+                deck.artStatus = "Artwork catalog read failed (see diagnostics)";
+            Log("Commander artwork lookup failed", ex);
+        }
     }
 
     private bool ConsumeRefreshRequest()
@@ -197,10 +253,14 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             try
             {
                 art = await NativeCardArtwork.LoadAsync(deck.artUrl, cancel);
+                deck.artStatus = art is null
+                    ? "Artwork download returned no supported JPEG/PNG"
+                    : "Commander artwork loaded";
             }
             catch (Exception ex) when (ex is IOException or HttpRequestException or
                 UnauthorizedAccessException or TaskCanceledException or InvalidOperationException)
-            { Log("Deck artwork unavailable", ex); }
+            { deck.artStatus = "Artwork download failed (see diagnostics)";
+              Log("Deck artwork unavailable", ex); }
         }
         var folder = Path.Combine(exportDirectory, "StreamDeckArtwork");
         Directory.CreateDirectory(folder);
@@ -230,7 +290,13 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
             { Log("Deck tile rendering unavailable", ex); }
         }
-        if (File.Exists(keyFile)) deck.keyImagePath = keyFile;
+        if (File.Exists(keyFile))
+        {
+            deck.keyImagePath = keyFile;
+            if (art is not null) deck.artStatus = "Commander artwork tile ready";
+            else if (string.IsNullOrWhiteSpace(deck.artUrl))
+                deck.artStatus = "Text-only tile ready; commander art unavailable";
+        }
     }
 
     private (RecentMatch? Recent, string? Source, string? ActiveDeck) ApplyMatches()
