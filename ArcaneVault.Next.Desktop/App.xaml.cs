@@ -10,6 +10,7 @@ namespace ArcaneVault.Next.Desktop;
 public partial class App : Application
 {
     private static int reportingFailure;
+    private NativeStreamDeckExporter? streamDeckExporter;
     // Matches the stable launcher shortcut created by the native installer.
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
@@ -184,7 +185,20 @@ public partial class App : Application
                     }
                 });
         };
+        window.Loaded += (_, _) =>
+        {
+            if (streamDeckExporter is null)
+            {
+                streamDeckExporter = new NativeStreamDeckExporter();
+                streamDeckExporter.Start();
+            }
+        };
         window.Show();
     }
 
+    protected override void OnExit(ExitEventArgs e)
+    {
+        streamDeckExporter?.Dispose();
+        base.OnExit(e);
+    }
 }
