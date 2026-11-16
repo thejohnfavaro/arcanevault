@@ -44,6 +44,15 @@ public static class EdhLabManaBaseBuilder
             .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .Select(x => x.Name.ToUpperInvariant() + ":" + x.Quantity));
 
+    // Favor owned shock lands (pay-life option), then reliable untapped,
+    // then conditional lands and always-tapped lands as a last resort.
+    private static int SmartTier(EdhLabLandAdvisor.Land land) =>
+        land.LandCategory == "Shock land" ? 0 :
+        land.Tempo == "No tapped-entry clause found" && !land.Conditional ? 1 :
+        land.Tempo == "May enter tapped" ? 2 :
+        land.Tempo == "Check entry conditions" || land.Conditional ? 3 :
+        land.Tempo == "Enters tapped" ? 5 : 4;
+
     private static bool IsLand(EdhLabDraftCatalog.Card card) =>
         System.Text.RegularExpressions.Regex.IsMatch(card.Type,
             @"(?:^|[\s—])Land(?:$|[\s—])",
@@ -56,7 +65,7 @@ public static class EdhLabManaBaseBuilder
         string commanderColors, IReadOnlyList<(string Name, int Quantity)> entries,
         int targetLands,
         IReadOnlyDictionary<string, long>? paperProxies = null,
-        bool arena = false, bool optimizeBasics = false)
+        bool arena = false, bool optimizeBasics = false, bool smartMana = false)
     {
         ArgumentNullException.ThrowIfNull(eligibleCards);
         ArgumentNullException.ThrowIfNull(entries);
@@ -131,7 +140,7 @@ public static class EdhLabManaBaseBuilder
                     eligibleCards, color, draft, arena ? null : paperProxies,
                     EdhLabLandAdvisor.Availability.OwnedOrProxy,
                     includeBasics: true, limit: 500);
-                var next = result.Rows.FirstOrDefault(x =>
+                var next = (smartMana ? result.Rows.OrderBy(SmartTier).ThenByDescending(x => x.GapPriority).ToArray() : result.Rows).FirstOrDefault(x =>
                 {
                     if (!catalog.TryGetValue(x.Name, out var card)) return false;
                     int already = draft.GetValueOrDefault(x.Name);
@@ -202,8 +211,7 @@ public static class EdhLabManaBaseBuilder
                         catalog.TryGetValue(x.Name, out var c) &&
                         c.SuggestedCopyLimit >= 1)
                     .OrderByDescending(x => x.RealOwned > 0)
-                    .ThenBy(x => x.Tempo == "No tapped-entry clause found" ||
-                        x.LandCategory == "Shock land" ? 0 : 1)
+                    .ThenBy(x => SmartTier(x))
                     .ThenByDescending(x => x.GapPriority)
                     .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                     .FirstOrDefault();
