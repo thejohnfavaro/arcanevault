@@ -70,7 +70,7 @@ public sealed class MainForm : Form
             {
                 if (args.IsSuccess && streamDeckBridge is null)
                 {
-                    streamDeckBridge = new StreamDeckBridge(browser);
+                    streamDeckBridge = new StreamDeckBridge(browser, server!);
                     streamDeckBridge.Start();
                 }
             };
