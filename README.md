@@ -22,9 +22,15 @@ The old WinForms/WebView2 Windows app (`ArcaneVault.Desktop`, v5.x) has been ret
 
 The native application uses the two original Arcane Vault icon assets now stored in `ArcaneVault.Next.Desktop/Assets`. The native project, installer, and permanent launcher all refer to these paths.
 
-## Stream Deck Companion
+## Stream Deck Companion (native Windows)
 
-The legacy-only Stream Deck exporter was removed with the retired WinForms application. It was **not** a native WPF integration. A native exporter needs to be implemented against the verified native deck library, native collection valuation and actual Arena match data before Stream Deck buttons can receive live records. Do not assume the legacy snapshot exists or copy data between user profiles.
+Native Windows v0.9.126 includes a read-only Stream Deck Companion adapter. While Arcane Vault is running, it writes the existing Alpha 0.1 plugin's compatible presentation snapshot to `%LOCALAPPDATA%\\ArcaneVault\\streamdeck.json`. This path is retained **only for plugin compatibility**; authoritative native data remains under `%LOCALAPPDATA%\\ArcaneVaultNext`.
+
+The snapshot includes saved native deck names/IDs, cached official Scryfall commander artwork, latest recorded physical collection valuation, confirmed Arena match W/L, and an Arena-selected current deck when uniquely identifiable. Artwork downloads are incremental, so the deck list can appear before deck images.
+
+Confirmed Arena matches are read from MTG Arena's local `Player.log` when Detailed Logs is enabled. Deduplicated results are stored in the independent native `ArcaneVaultNext\\match-history.sqlite3`; an existing historical `ArcaneVault\\match-history.sqlite3` can be read without modification, and duplicate match IDs are counted once. Unverified outcomes and unidentifiable decks never count as confirmed wins or losses.
+
+For diagnosis, inspect `%LOCALAPPDATA%\\ArcaneVault\\Diagnostics\\streamdeck-export.log`. The Stream Deck plugin's deck selector can be refreshed in its property inspector. This integration never modifies collection or saved-deck data, and does not run the retired legacy executable.
 
 ## Rights
 
