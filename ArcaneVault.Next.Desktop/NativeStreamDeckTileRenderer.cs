@@ -15,7 +15,8 @@ namespace ArcaneVault.Next.Desktop;
 internal static class NativeStreamDeckTileRenderer
 {
     public static Task<byte[]> DrawAsync(string name, int wins, int losses,
-        byte[]? commanderArt, CancellationToken cancellation = default)
+        byte[]? commanderArt, CancellationToken cancellation = default,
+        bool fullCardFallback = false)
     {
         var completion = new TaskCompletionSource<byte[]>(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -28,7 +29,8 @@ internal static class NativeStreamDeckTileRenderer
                     completion.TrySetCanceled(cancellation);
                     return;
                 }
-                completion.TrySetResult(Draw(name, wins, losses, commanderArt));
+                completion.TrySetResult(Draw(name, wins, losses, commanderArt,
+                    fullCardFallback));
             }
             catch (Exception ex) { completion.TrySetException(ex); }
         });
@@ -39,7 +41,8 @@ internal static class NativeStreamDeckTileRenderer
         return completion.Task;
     }
 
-    private static byte[] Draw(string name, int wins, int losses, byte[]? art)
+    private static byte[] Draw(string name, int wins, int losses, byte[]? art,
+        bool fullCardFallback)
     {
         const double size = 144;
         var visual = new DrawingVisual();
@@ -62,6 +65,14 @@ internal static class NativeStreamDeckTileRenderer
                     AlignmentX = AlignmentX.Center,
                     AlignmentY = AlignmentY.Center
                 };
+                // A full card image is only a fallback. Crop to its
+                // illustration rectangle rather than shrinking the entire
+                // frame, rules box and title into the Stream Deck tile.
+                if (fullCardFallback)
+                {
+                    brush.ViewboxUnits = BrushMappingMode.RelativeToBoundingBox;
+                    brush.Viewbox = new Rect(0.09, 0.115, 0.82, 0.43);
+                }
                 dc.DrawRectangle(brush, null, new Rect(0, 0, size, size));
             }
             var shade = new LinearGradientBrush(
