@@ -93,6 +93,10 @@ internal sealed class ArenaMatchTracker : IDisposable
     {
         get { lock (gate) return currentDeckName; }
     }
+    public string? CurrentDeckId
+    {
+        get { lock (gate) return currentDeckId; }
+    }
     public object Snapshot()
     {
         lock (gate)
