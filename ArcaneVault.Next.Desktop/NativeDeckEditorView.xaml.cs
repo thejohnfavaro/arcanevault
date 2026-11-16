@@ -1738,7 +1738,8 @@ public partial class NativeDeckEditorView : UserControl
             else
                 suggestions = await Task.Run(() => EdhLabReadOnlyCache.GetDraft(
                     catalogPath!, ownership, edhLabCommander,
-                    edhLabColors ?? "", edhLabFormat.Value));
+                    edhLabColors ?? "", edhLabFormat.Value,
+                    arenaOwnership: useArenaOwnership));
             if (!IsLoaded || ownershipVersion != ownershipRefreshVersion) return;
             edhCatalog = suggestions;
             EdhSuggestionsStatus.Text =
