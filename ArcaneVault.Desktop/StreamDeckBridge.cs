@@ -167,8 +167,8 @@ internal sealed class StreamDeckBridge : IDisposable
                     else match.losses++;
                     output.recentMatch ??= new Recent { result = result, deckName = match.name };
                 }
-            }
               }
+            }
             catch (Exception ex) when (ex is SqliteException or IOException or InvalidOperationException)
             {
                 WriteDiagnostic("Match history unavailable: " + ex.Message);
