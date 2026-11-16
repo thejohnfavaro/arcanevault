@@ -245,27 +245,71 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         { Log("Refresh request unavailable", ex); return false; }
     }
 
+    /// <summary>
+    /// Official Scryfall card images have a corresponding art_crop CDN size.
+    /// Use only the trusted Scryfall host and known image-size path segments.
+    /// Other image URLs remain unchanged and use the framed-card fallback.
+    /// </summary>
+    private static string? ArtCropUrl(string original)
+    {
+        if (!NativeCardArtwork.IsTrustedArtworkUrl(original)) return null;
+        var uri = new Uri(original);
+        var segments = uri.AbsolutePath.Split('/');
+        if (segments.Length < 4) return null;
+        var known = new[] { "normal", "large", "small", "png", "border_crop" };
+        if (!known.Contains(segments[1], StringComparer.OrdinalIgnoreCase))
+            return null;
+        bool wasPng = segments[1].Equals("png", StringComparison.OrdinalIgnoreCase);
+        segments[1] = "art_crop";
+        if (wasPng && segments[^1].EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            segments[^1] = segments[^1][..^4] + ".jpg";
+        var builder = new UriBuilder(uri) { Path = string.Join("/", segments) };
+        string candidate = builder.Uri.AbsoluteUri;
+        return NativeCardArtwork.IsTrustedArtworkUrl(candidate) ? candidate : null;
+    }
+
     private async Task RenderDeckAsync(Deck deck, CancellationToken cancel)
     {
         byte[]? art = null;
+        bool fullCardFallback = false;
+        string? selectedArtworkUrl = null;
         if (NativeCardArtwork.IsTrustedArtworkUrl(deck.artUrl))
         {
-            try
+            string? crop = ArtCropUrl(deck.artUrl);
+            if (crop is not null)
             {
-                art = await NativeCardArtwork.LoadAsync(deck.artUrl, cancel);
-                deck.artStatus = art is null
-                    ? "Artwork download returned no supported JPEG/PNG"
-                    : "Commander artwork loaded";
+                try
+                {
+                    art = await NativeCardArtwork.LoadAsync(crop, cancel);
+                    if (art is not null) selectedArtworkUrl = crop;
+                }
+                catch (Exception ex) when (ex is IOException or HttpRequestException or
+                    UnauthorizedAccessException or TaskCanceledException or InvalidOperationException)
+                { Log("Scryfall art crop unavailable; trying full card", ex); }
             }
-            catch (Exception ex) when (ex is IOException or HttpRequestException or
-                UnauthorizedAccessException or TaskCanceledException or InvalidOperationException)
-            { deck.artStatus = "Artwork download failed (see diagnostics)";
-              Log("Deck artwork unavailable", ex); }
+            if (art is null)
+            {
+                try
+                {
+                    art = await NativeCardArtwork.LoadAsync(deck.artUrl, cancel);
+                    fullCardFallback = art is not null;
+                    if (fullCardFallback) selectedArtworkUrl = deck.artUrl;
+                }
+                catch (Exception ex) when (ex is IOException or HttpRequestException or
+                    UnauthorizedAccessException or TaskCanceledException or InvalidOperationException)
+                { Log("Deck fallback artwork unavailable", ex); }
+            }
+            deck.artStatus = art is null
+                ? "Scryfall art crop and fallback image unavailable"
+                : fullCardFallback
+                    ? "Art crop unavailable; using cropped card illustration"
+                    : "Commander art crop loaded";
         }
         var folder = Path.Combine(exportDirectory, "StreamDeckArtwork");
         Directory.CreateDirectory(folder);
         string signature = deck.id + "|" + deck.name + "|" + deck.wins + "|" +
-            deck.losses + "|" + (art is not null ? deck.artUrl : "no-art");
+            deck.losses + "|art-crop-v1|" +
+            (selectedArtworkUrl ?? "no-art");
         var key = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(signature)));
         string keyFile = Path.Combine(folder, "key-" + key + ".png");
@@ -274,7 +318,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             try
             {
                 var png = await NativeStreamDeckTileRenderer.DrawAsync(
-                    deck.name, deck.wins, deck.losses, art, cancel);
+                    deck.name, deck.wins, deck.losses, art, cancel,
+                    fullCardFallback);
                 if (png.Length is > 0 and < 2_000_000)
                 {
                     string stage = keyFile + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -293,7 +338,9 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         if (File.Exists(keyFile))
         {
             deck.keyImagePath = keyFile;
-            if (art is not null) deck.artStatus = "Commander artwork tile ready";
+            if (art is not null) deck.artStatus = fullCardFallback
+                ? "Illustration extracted from full card; key tile ready"
+                : "Commander art crop tile ready";
             else if (string.IsNullOrWhiteSpace(deck.artUrl))
                 deck.artStatus = "Text-only tile ready; commander art unavailable";
         }
