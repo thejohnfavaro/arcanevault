@@ -259,8 +259,27 @@ public partial class NativeDeckEditorWindow : Window
                 EdhLabCardPresenceFilter.InDeck => "In deck",
                 _ => "All eligible"
             };
+            // Ownership is authoritative even when a card is filtered out
+            // of legal/eligible suggestions. Explain that distinction instead
+            // of implying that the Arena collection is empty.
+            string inventoryNote = "";
+            if (results.Length == 0 && !string.IsNullOrWhiteSpace(OwnedSearchBox.Text))
+            {
+                var search = OwnedSearchBox.Text.Trim();
+                var selectedPool = OwnedPoolBox.SelectedIndex == 1
+                    ? NativeDeckOwnedPicker.Pool.Arena
+                    : NativeDeckOwnedPicker.Pool.Physical;
+                long actualOwned = NativeDeckOwnedPicker.CountOwned(
+                    ownership, selectedPool, search);
+                if (actualOwned > 0 && edhCatalog.Find(search) is null)
+                    inventoryNote = $" · {actualOwned:N0} recorded in " +
+                        (selectedPool == NativeDeckOwnedPicker.Pool.Arena
+                            ? "Arena" : "Physical") +
+                        " inventory; not currently eligible for this deck's " +
+                        "format, color identity, or local catalog metadata.";
+            }
             SetOwnedBrowserRows(results,
-                $"{viewLabel} · {results.Length:N0} shown" +
+                $"{viewLabel} · {results.Length:N0} shown" + inventoryNote +
                 (results.Length == 200 ? " (first 200 matches)" : "") +
                 $" · {counts.Count:N0} distinct mainboard names. " +
                 "Counts reflect the unsaved draft; no inventory changes.");
