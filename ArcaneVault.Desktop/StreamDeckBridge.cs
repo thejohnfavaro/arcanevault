@@ -112,7 +112,11 @@ internal sealed class StreamDeckBridge : IDisposable
         {
             var raw = await browser.ExecuteScriptAsync(Script);
             var input = JsonSerializer.Deserialize<Input>(raw);
-            if (input?.error is not null || input?.decks is null) return;
+            if (input is null || input.error is not null || input.decks is null)
+            {
+                WriteDiagnostic("WebView snapshot unavailable: " + (input?.error ?? raw[..Math.Min(raw.Length, 300)]));
+                return;
+            }
             var output = new Output
             {
                 decks = input.decks.Take(1000).ToList(),
@@ -129,9 +133,14 @@ internal sealed class StreamDeckBridge : IDisposable
                     d.name.Trim(), arenaName.Trim(), StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
                 if (candidates.Length == 1) output.activeDeckId = candidates[0].id;
             }
+            // Write a usable baseline immediately. Match history and art are optional:
+            // a corrupt/locked database must not hide the entire deck selector.
+            await WriteSnapshotAsync(output);
             var matchDb = Path.Combine(outputFolder, "match-history.sqlite3");
-            if (File.Exists(matchDb))
+            try
             {
+              if (File.Exists(matchDb))
+              {
                 using var db = new SqliteConnection("Data Source=" + matchDb + ";Mode=ReadOnly");
                 db.Open();
                 using var command = db.CreateCommand();
@@ -159,6 +168,12 @@ internal sealed class StreamDeckBridge : IDisposable
                     output.recentMatch ??= new Recent { result = result, deckName = match.name };
                 }
             }
+              }
+            catch (Exception ex) when (ex is SqliteException or IOException or InvalidOperationException)
+            {
+                WriteDiagnostic("Match history unavailable: " + ex.Message);
+            }
+            await WriteSnapshotAsync(output);
             // Resolve previously cached artwork immediately; download only two missing
             // images per cycle so records and deck selection remain responsive.
             int uncached = 0;
@@ -172,22 +187,41 @@ internal sealed class StreamDeckBridge : IDisposable
                 else if (File.Exists(Path.ChangeExtension(file, ".jpg")))
                     deck.imagePath = Path.ChangeExtension(file, ".jpg");
             }
-            Directory.CreateDirectory(outputFolder);
-            var target = Path.Combine(outputFolder, "streamdeck.json");
-            var temp = Path.Combine(outputFolder, "streamdeck." + Guid.NewGuid().ToString("N") + ".tmp");
-            try
-            {
-                await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(output));
-                File.Move(temp, target, overwrite: true);
-            }
-            finally { if (File.Exists(temp)) File.Delete(temp); }
+            await WriteSnapshotAsync(output);
         }
         catch (Exception ex) when (ex is IOException or SqliteException or JsonException or HttpRequestException
             or InvalidOperationException or UnauthorizedAccessException or TaskCanceledException)
         {
-            Debug.WriteLine("Stream Deck snapshot: " + ex.Message);
+            WriteDiagnostic("Stream Deck snapshot: " + ex);
         }
         finally { busy = false; }
+    }
+
+    private async Task WriteSnapshotAsync(Output output)
+    {
+        Directory.CreateDirectory(outputFolder);
+        var target = Path.Combine(outputFolder, "streamdeck.json");
+        var temp = Path.Combine(outputFolder, "streamdeck." + Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(output));
+            File.Move(temp, target, overwrite: true);
+        }
+        finally { if (File.Exists(temp)) File.Delete(temp); }
+    }
+
+    private void WriteDiagnostic(string message)
+    {
+        Debug.WriteLine(message);
+        try
+        {
+            var folder = Path.Combine(outputFolder, "Diagnostics");
+            Directory.CreateDirectory(folder);
+            File.AppendAllText(Path.Combine(folder, "streamdeck-export.log"),
+                DateTimeOffset.Now.ToString("O") + " " + message + Environment.NewLine);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     private string CachedArtPath(Deck deck)
