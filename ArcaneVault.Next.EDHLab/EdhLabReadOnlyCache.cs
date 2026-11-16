@@ -16,7 +16,7 @@ public static class EdhLabReadOnlyCache
     private sealed record Stamp(string Path, long Length, long Modified,
         long WalLength, long WalModified);
     private sealed record DraftKey(Stamp Catalog, string Commander,
-        string Colors, EdhLabFormat Format, string PoolHash);
+        string Colors, EdhLabFormat Format, bool ArenaOwnership, string PoolHash);
     private static readonly object Gate = new();
     private const int MaxDraftSnapshots = 2;
     private static readonly LinkedList<(DraftKey Key, EdhLabDraftCatalog Value)>
@@ -38,11 +38,11 @@ public static class EdhLabReadOnlyCache
 
     // Pool-specific name/quantity fingerprint: deck edits don't invalidate
     // ownership, while even same-total different-name imports always do.
-    private static string PoolHash(NativeBackupView inventory, EdhLabFormat format)
+    private static string PoolHash(NativeBackupView inventory, bool arenaOwnership)
     {
         ArgumentNullException.ThrowIfNull(inventory);
         var totals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-        if (format == EdhLabFormat.ArenaBrawl)
+        if (arenaOwnership)
         {
             foreach (var card in inventory.ArenaCards)
                 if (card.Quantity > 0 && !string.IsNullOrWhiteSpace(card.Name))
@@ -69,15 +69,18 @@ public static class EdhLabReadOnlyCache
     }
 
     private static DraftKey KeyFor(string path, NativeBackupView inventory,
-        string commander, string colors, EdhLabFormat format) =>
+        string commander, string colors, EdhLabFormat format,
+        bool? arenaOwnership) =>
         new(Fingerprint(path), commander.Trim().ToUpperInvariant(),
-            colors.Trim().ToUpperInvariant(), format, PoolHash(inventory, format));
+            colors.Trim().ToUpperInvariant(), format,
+            arenaOwnership ?? format == EdhLabFormat.ArenaBrawl,
+            PoolHash(inventory, arenaOwnership ?? format == EdhLabFormat.ArenaBrawl));
 
     public static bool TryGetDraft(string catalogPath, NativeBackupView inventory,
         string commander, string colors, EdhLabFormat format,
-        out EdhLabDraftCatalog? cached)
+        out EdhLabDraftCatalog? cached, bool? arenaOwnership = null)
     {
-        var key = KeyFor(catalogPath, inventory, commander, colors, format);
+        var key = KeyFor(catalogPath, inventory, commander, colors, format, arenaOwnership);
         lock (Gate)
         {
             for (var node = DraftEntries.First; node is not null; node = node.Next)
@@ -95,15 +98,16 @@ public static class EdhLabReadOnlyCache
 
     public static EdhLabDraftCatalog GetDraft(string catalogPath,
         NativeBackupView inventory, string commander, string colors,
-        EdhLabFormat format, CancellationToken cancellation = default)
+        EdhLabFormat format, CancellationToken cancellation = default,
+        bool? arenaOwnership = null)
     {
         if (TryGetDraft(catalogPath, inventory, commander, colors, format,
-                out var ready) && ready is not null)
+                out var ready, arenaOwnership) && ready is not null)
             return ready;
         cancellation.ThrowIfCancellationRequested();
-        var before = KeyFor(catalogPath, inventory, commander, colors, format);
+        var before = KeyFor(catalogPath, inventory, commander, colors, format, arenaOwnership);
         var loaded = EdhLabDraftCatalog.OpenReadOnly(catalogPath, inventory,
-            commander, colors, format, cancellation);
+            commander, colors, format, cancellation, arenaOwnership);
         cancellation.ThrowIfCancellationRequested();
         // A simultaneous Scryfall update cannot make an old eligibility
         // snapshot appear current. Reopen on next request; never cache it.
