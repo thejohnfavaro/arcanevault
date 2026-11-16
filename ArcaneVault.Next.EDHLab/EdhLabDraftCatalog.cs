@@ -138,7 +138,8 @@ public sealed class EdhLabDraftCatalog
 
     public static EdhLabDraftCatalog OpenReadOnly(string catalogPath,
         NativeBackupView inventory, string commander, string commanderColors,
-        EdhLabFormat format, CancellationToken cancellation = default)
+        EdhLabFormat format, CancellationToken cancellation = default,
+        bool? arenaOwnership = null)
     {
         ArgumentNullException.ThrowIfNull(inventory);
         if (string.IsNullOrWhiteSpace(commander) || commander.Length > 255)
@@ -147,7 +148,11 @@ public sealed class EdhLabDraftCatalog
             throw new FileNotFoundException("EDH Lab needs a synced local Scryfall catalog.", catalogPath);
         int allowed = EdhLabCommanderRules.ColorBits(commanderColors);
         var counts = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-        if (format == EdhLabFormat.PaperCommander)
+        // Inventory ownership and format legality are independent: the
+        // selected browser pool determines recorded quantities; the format
+        // still governs legality and card availability below.
+        if (arenaOwnership != true && (arenaOwnership == false ||
+            format == EdhLabFormat.PaperCommander))
         {
             foreach (var x in inventory.PhysicalCards)
                 if (x.Quantity > 0 && !string.IsNullOrWhiteSpace(x.Name))
