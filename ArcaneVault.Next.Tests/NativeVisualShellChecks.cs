@@ -213,6 +213,18 @@ internal static class NativeVisualShellChecks
              readOnlyCache.Contains("Fingerprint(catalogPath) != before.Catalog"),
              "Deck-only refresh must not reload the whole collection or reuse stale EDH advisory metadata.");
 
+        // Ownership is a user-selected view even inside EDH Lab.
+        // The locked deck format must not disable Arena/Physical holdings.
+        var editorViewSource = File.ReadAllText(Path.Combine(dir,
+            "NativeDeckEditorView.xaml.cs"));
+        var editorWindowSource = File.ReadAllText(Path.Combine(dir,
+            "NativeDeckEditorWindow.xaml.cs"));
+        Must(editorViewSource.Contains("OwnedPoolBox.IsEnabled = true;") &&
+             editorWindowSource.Contains("OwnedPoolBox.IsEnabled = true;") &&
+             !editorViewSource.Contains("OwnedPoolBox.IsEnabled = false;") &&
+             !editorWindowSource.Contains("OwnedPoolBox.IsEnabled = false;"),
+             "EDH Lab must permit selecting Arena inventory separately from legality.");
+
         var app = XDocument.Load(Path.Combine(dir, "App.xaml"));
         // v0.9.26 startup crash: WPF can freeze application resource
         // SolidColorBrush instances. Theme updates must REPLACE resources,
