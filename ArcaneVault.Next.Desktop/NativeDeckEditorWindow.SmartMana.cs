@@ -90,7 +90,8 @@ public partial class NativeDeckEditorWindow
             var afterSpells = result.Where(x =>
                 edhCatalog.Find(x.Name) is not { } c ||
                 !c.Type.Contains("Land", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+                .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(x => (x.Name, x.Quantity)).ToArray();
             if (!beforeSpells.SequenceEqual(afterSpells))
                 throw new InvalidDataException("Smart Mana refused a nonland change.");
 
