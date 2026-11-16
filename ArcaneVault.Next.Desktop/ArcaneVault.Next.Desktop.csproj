@@ -9,11 +9,11 @@
     <AssemblyName>ArcaneVault.Next.Desktop</AssemblyName>
     <RootNamespace>ArcaneVault.Next.Desktop</RootNamespace>
     <ApplicationTitle>Arcane Vault — Native Windows</ApplicationTitle>
-    <Version>0.9.123</Version>
-    <ApplicationIcon>..\ArcaneVault.Desktop\Assets\ArcaneVault.ico</ApplicationIcon>
+    <Version>0.9.124</Version>
+    <ApplicationIcon>Assets\ArcaneVault.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Resource Include="..\ArcaneVault.Desktop\Assets\ArcaneVaultIcon.png"
+    <Resource Include="Assets\ArcaneVaultIcon.png"
               Link="Assets\ArcaneVaultIcon.png"/>
   </ItemGroup>
   <ItemGroup>

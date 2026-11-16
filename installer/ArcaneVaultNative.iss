@@ -22,7 +22,7 @@ PrivilegesRequired=lowest
 UsePreviousAppDir=yes
 OutputDir=..\native-installer
 OutputBaseFilename=ArcaneVaultSetup-win-x64
-SetupIconFile=..\ArcaneVault.Desktop\Assets\ArcaneVault.ico
+SetupIconFile=..\ArcaneVault.Next.Desktop\Assets\ArcaneVault.ico
 UninstallDisplayIcon={app}\ArcaneVault.exe
 Compression=lzma2
 SolidCompression=yes
@@ -37,7 +37,7 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 [Files]
 ; A permanent, never-versioned taskbar and Start Menu target.
 Source: "..\preview\ArcaneVaultLauncher\ArcaneVault.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\ArcaneVault.Desktop\Assets\ArcaneVault.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\ArcaneVault.Next.Desktop\Assets\ArcaneVault.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; Never replace an already activated newer version on reinstall.
 Source: "..\preview\ArcaneVaultLauncher\active-version.txt"; DestDir: "{app}"; Flags: onlyifdoesntexist
 ; Install a self-contained native build into the existing side-by-side update root.

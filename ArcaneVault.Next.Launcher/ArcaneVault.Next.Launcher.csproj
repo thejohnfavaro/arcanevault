@@ -8,6 +8,6 @@
     <AssemblyName>ArcaneVault</AssemblyName>
     <RootNamespace>ArcaneVault.Next.Launcher</RootNamespace>
     <ApplicationTitle>Arcane Vault</ApplicationTitle>
-    <ApplicationIcon>..\ArcaneVault.Desktop\Assets\ArcaneVault.ico</ApplicationIcon>
+    <ApplicationIcon>..\ArcaneVault.Next.Desktop\Assets\ArcaneVault.ico</ApplicationIcon>
   </PropertyGroup>
 </Project>
