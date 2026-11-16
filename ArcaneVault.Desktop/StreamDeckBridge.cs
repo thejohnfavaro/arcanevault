@@ -14,6 +14,7 @@ namespace ArcaneVault.Desktop;
 internal sealed class StreamDeckBridge : IDisposable
 {
     private readonly WebView2 browser;
+    private readonly LocalAppServer server;
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 5000 };
     private readonly HttpClient artworkClient = new() { Timeout = TimeSpan.FromSeconds(8) };
     private readonly string outputFolder = Path.Combine(
@@ -91,9 +92,10 @@ internal sealed class StreamDeckBridge : IDisposable
         public string appPath { get; set; } = Application.ExecutablePath;
     }
 
-    public StreamDeckBridge(WebView2 browser)
+    public StreamDeckBridge(WebView2 browser, LocalAppServer server)
     {
         this.browser = browser;
+        this.server = server;
         artworkClient.DefaultRequestHeaders.UserAgent.ParseAdd("ArcaneVault/5.21 StreamDeck-Companion");
         timer.Tick += async (_, _) => await ExportAsync();
     }
@@ -118,6 +120,15 @@ internal sealed class StreamDeckBridge : IDisposable
                 collection = input.collection,
                 sync = input.sync
             };
+            // The Arena log's explicitly selected deck takes precedence over Studio's
+            // active editor. Only map the name if it identifies one saved deck.
+            var arenaName = server.CurrentArenaDeckName;
+            if (!string.IsNullOrWhiteSpace(arenaName))
+            {
+                var candidates = output.decks.Where(d => string.Equals(
+                    d.name.Trim(), arenaName.Trim(), StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+                if (candidates.Length == 1) output.activeDeckId = candidates[0].id;
+            }
             var matchDb = Path.Combine(outputFolder, "match-history.sqlite3");
             if (File.Exists(matchDb))
             {
