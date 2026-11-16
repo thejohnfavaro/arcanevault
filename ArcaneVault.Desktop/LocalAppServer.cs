@@ -27,6 +27,7 @@ internal sealed class LocalAppServer : IDisposable
     private readonly Dictionary<int,string> arenaCardNames = new();
     private readonly SemaphoreSlim arenaNameGate = new(1,1);
     private readonly ArenaMatchTracker tracker = new();
+    internal string? CurrentArenaDeckName => tracker.CurrentDeckName;
     private readonly PeriodicTimer matchTimer = new(TimeSpan.FromSeconds(4));
     private Task? matchLoop;
     private readonly CancellationTokenSource stopped = new();
