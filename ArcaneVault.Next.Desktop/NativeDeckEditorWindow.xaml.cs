@@ -1648,8 +1648,11 @@ public partial class NativeDeckEditorWindow : Window
         RefreshOwnedCards();
     }
 
+    private int ownershipPoolVersion;
     private async Task LoadEdhSuggestionsAsync()
     {
+        int poolVersion = ++ownershipPoolVersion;
+        bool useArenaOwnership = OwnedPoolBox?.SelectedIndex == 1;
         if (edhLabCommander is null || edhLabFormat is null ||
             string.IsNullOrWhiteSpace(catalogPath)) return;
         EdhSuggestionsStatus.Text = "Loading verified offline EDH cards (reused on later opens)…";
@@ -1660,13 +1663,14 @@ public partial class NativeDeckEditorWindow : Window
             EdhLabDraftCatalog suggestions;
             if (EdhLabReadOnlyCache.TryGetDraft(catalogPath!, ownership,
                     edhLabCommander, edhLabColors ?? "", edhLabFormat.Value,
-                    out var cached) && cached is not null)
+                    out var cached, arenaOwnership: useArenaOwnership) && cached is not null)
                 suggestions = cached;
             else
                 suggestions = await Task.Run(() => EdhLabReadOnlyCache.GetDraft(
                     catalogPath!, ownership, edhLabCommander,
-                    edhLabColors ?? "", edhLabFormat.Value));
-            if (!IsLoaded) return;
+                    edhLabColors ?? "", edhLabFormat.Value,
+                    arenaOwnership: useArenaOwnership));
+            if (!IsLoaded || poolVersion != ownershipPoolVersion) return;
             edhCatalog = suggestions;
             EdhSuggestionsStatus.Text =
                 $"{suggestions.RecordedEligibleCount:N0} eligible recorded names · " +
@@ -1737,6 +1741,14 @@ public partial class NativeDeckEditorWindow : Window
     private void OnOwnedPoolChanged(object sender,
         System.Windows.Controls.SelectionChangedEventArgs e)
     {
+        // The selected inventory pool is independent of commander format.
+        // Rebuild the advisory snapshot before showing recorded/missing labels.
+        if (edhLabCommander is not null && edhLabFormat is not null)
+        {
+            edhCatalog = null;
+            
+            _ = LoadEdhSuggestionsAsync();
+        }
         RefreshOwnedCards();
         RefreshDraftSummary();
         // Mainboard previews are available even when a card is unowned.
