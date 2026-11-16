@@ -165,52 +165,55 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private (RecentMatch? Recent, string? Source, string? ActiveDeck) ApplyMatches()
     {
         foreach (var deck in decks) { deck.wins = 0; deck.losses = 0; }
-        // Native match history takes precedence. The legacy match-history.sqlite3
-        // is used ONLY when present as an optional read-only source of the same
-        // MTG Arena match IDs. The legacy program is not run or referenced.
         string native = Path.Combine(NativeWorkspace.RootDirectory, "match-history.sqlite3");
         string legacy = Path.Combine(exportDirectory, "match-history.sqlite3");
-        string? file = File.Exists(native) ? native : File.Exists(legacy) ? legacy : null;
-        if (file is null) return (null, null, null);
-        try
+        var files = new[] { native, legacy }.Where(File.Exists).ToArray();
+        var unique = decks.GroupBy(x => x.name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var knownMatches = new HashSet<string>(StringComparer.Ordinal);
+        RecentMatch? recent = null;
+        DateTimeOffset? latest = null;
+        var sources = new List<string>();
+        foreach (var file in files)
         {
-            using var db = new SqliteConnection(new SqliteConnectionStringBuilder
+            try
             {
-                DataSource = file, Mode = SqliteOpenMode.ReadOnly, Pooling = false
-            }.ToString());
-            db.Open();
-            using var cmd = db.CreateCommand();
-            cmd.CommandText = "SELECT result,deck_name FROM matches WHERE result IN ('win','loss') ORDER BY played_utc DESC LIMIT 25000";
-            using var reader = cmd.ExecuteReader();
-            var unique = decks.GroupBy(x => x.name.Trim(), StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Count() == 1)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            RecentMatch? recent = null;
-            string? current = null;
-            while (reader.Read())
-            {
-                string result = reader.GetString(0), name = reader.GetString(1).Trim();
-                if (!unique.TryGetValue(name, out var deck)) continue;
-                if (result == "win") deck.wins++; else deck.losses++;
-                if (recent is null)
+                using var db = new SqliteConnection(new SqliteConnectionStringBuilder
                 {
-                    recent = new RecentMatch(result, deck.name);
-                    // Recent match is not necessarily the currently selected deck.
-                    current = null;
+                    DataSource = file, Mode = SqliteOpenMode.ReadOnly, Pooling = false
+                }.ToString());
+                db.Open();
+                using var cmd = db.CreateCommand();
+                cmd.CommandText = "SELECT match_id,result,deck_name,played_utc FROM matches " +
+                    "WHERE result IN ('win','loss') ORDER BY played_utc DESC LIMIT 25000";
+                using var reader = cmd.ExecuteReader();
+                bool used = false;
+                while (reader.Read())
+                {
+                    string id = reader.GetString(0);
+                    string result = reader.GetString(1), name = reader.GetString(2).Trim();
+                    if (id.Length == 0 || !unique.TryGetValue(name, out var deck) ||
+                        !knownMatches.Add(id)) continue;
+                    used = true;
+                    if (result == "win") deck.wins++; else deck.losses++;
+                    if (DateTimeOffset.TryParse(reader.GetString(3), out var when) &&
+                        (!latest.HasValue || when > latest.Value))
+                    {
+                        latest = when;
+                        recent = new RecentMatch(result, deck.name);
+                    }
                 }
+                if (used) sources.Add(file == native ? "native" : "legacy-read-only");
             }
-            string? chosen = arenaTracker?.CurrentDeckName;
-            if (!string.IsNullOrWhiteSpace(chosen) &&
-                unique.TryGetValue(chosen.Trim(), out var selected))
-                current = selected.id;
-            return (recent, file == native ? "native" : "legacy-read-only", current);
+            catch (Exception ex) when (ex is IOException or SqliteException or
+                InvalidOperationException or UnauthorizedAccessException)
+            { Log("Optional Arena match history unavailable", ex); }
         }
-        catch (Exception ex) when (ex is IOException or SqliteException or
-            InvalidOperationException or UnauthorizedAccessException)
-        {
-            Log("Optional Arena match history unavailable", ex);
-            return (null, null, null);
-        }
+        string? chosen = arenaTracker?.CurrentDeckName;
+        string? active = !string.IsNullOrWhiteSpace(chosen) &&
+            unique.TryGetValue(chosen.Trim(), out var selected) ? selected.id : null;
+        return (recent, sources.Count == 0 ? null : string.Join("+", sources), active);
     }
 
     private void Publish(RecentMatch? recent, string? source, string status,
