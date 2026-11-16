@@ -94,6 +94,7 @@ internal sealed class StreamDeckBridge : IDisposable
     public StreamDeckBridge(WebView2 browser)
     {
         this.browser = browser;
+        artworkClient.DefaultRequestHeaders.UserAgent.ParseAdd("ArcaneVault/5.21 StreamDeck-Companion");
         timer.Tick += async (_, _) => await ExportAsync();
     }
     public void Start()
@@ -147,8 +148,19 @@ internal sealed class StreamDeckBridge : IDisposable
                     output.recentMatch ??= new Recent { result = result, deckName = match.name };
                 }
             }
-            foreach (var deck in output.decks.Take(60)) // artwork is lazy and capped
-                deck.imagePath = await CacheArtAsync(deck);
+            // Resolve previously cached artwork immediately; download only two missing
+            // images per cycle so records and deck selection remain responsive.
+            int uncached = 0;
+            foreach (var deck in output.decks)
+            {
+                var file = CachedArtPath(deck);
+                if (file.Length == 0) continue;
+                if (!File.Exists(file) && !File.Exists(Path.ChangeExtension(file, ".jpg")) && uncached++ < 2)
+                    await CacheArtAsync(deck, file);
+                if (File.Exists(file)) deck.imagePath = file;
+                else if (File.Exists(Path.ChangeExtension(file, ".jpg")))
+                    deck.imagePath = Path.ChangeExtension(file, ".jpg");
+            }
             Directory.CreateDirectory(outputFolder);
             var target = Path.Combine(outputFolder, "streamdeck.json");
             var temp = Path.Combine(outputFolder, "streamdeck." + Guid.NewGuid().ToString("N") + ".tmp");
@@ -167,32 +179,41 @@ internal sealed class StreamDeckBridge : IDisposable
         finally { busy = false; }
     }
 
-    private async Task<string> CacheArtAsync(Deck deck)
+    private string CachedArtPath(Deck deck)
     {
         if (string.IsNullOrWhiteSpace(deck.artUrl) ||
             !Uri.TryCreate(deck.artUrl, UriKind.Absolute, out var url) ||
             url.Scheme != Uri.UriSchemeHttps ||
             !(url.Host.Equals("api.scryfall.com", StringComparison.OrdinalIgnoreCase)
-              || url.Host.EndsWith(".scryfall.com", StringComparison.OrdinalIgnoreCase)))
+              || url.Host.Equals("cards.scryfall.io", StringComparison.OrdinalIgnoreCase)))
             return "";
         var folder = Path.Combine(outputFolder, "StreamDeckArtwork");
-        var file = Path.Combine(folder, Convert.ToHexString(
-            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(deck.artUrl))) + ".jpg");
-        if (File.Exists(file)) return file;
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(deck.artUrl)));
+        return Path.Combine(folder, hash + ".png");
+    }
+
+    private async Task CacheArtAsync(Deck deck, string file)
+    {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            using var response = await artworkClient.SendAsync(request);
+            using var response = await artworkClient.GetAsync(deck.artUrl);
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentType?.MediaType?.StartsWith("image/") != true ||
-                response.Content.Headers.ContentLength > 2_000_000) return "";
+                response.Content.Headers.ContentLength > 2_000_000) return;
             var bytes = await response.Content.ReadAsByteArrayAsync();
-            if (bytes.Length > 2_000_000 || bytes.Length == 0) return "";
-            Directory.CreateDirectory(folder);
-            await File.WriteAllBytesAsync(file, bytes);
-            return file;
+            if (bytes.Length > 2_000_000 || bytes.Length < 8) return;
+            // Scryfall artwork is JPEG or PNG. Preserve the real MIME format
+            // by writing a PNG only when it actually contains PNG bytes.
+            var png = bytes[0] == 137 && bytes[1] == 80 && bytes[2] == 78 && bytes[3] == 71;
+            var jpg = bytes[0] == 255 && bytes[1] == 216;
+            if (!png && !jpg) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            var actualFile = png ? file : Path.ChangeExtension(file, ".jpg");
+            await File.WriteAllBytesAsync(actualFile, bytes);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException) { return ""; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        { Debug.WriteLine("Stream Deck artwork: " + ex.Message); }
     }
     public void Dispose()
     {
