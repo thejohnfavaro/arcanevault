@@ -2156,7 +2156,7 @@ public partial class NativeDeckEditorView : UserControl
             }
             FormatBox.IsEnabled = false;
             CommanderBox.IsReadOnly = true;
-            OwnedPoolBox.IsEnabled = false;
+            // Allow reviewing either recorded inventory pool in EDH Lab.\n            // The selected deck format still determines legality independently.\n            OwnedPoolBox.IsEnabled = true;
             EdhSuggestionTools.Visibility = Visibility.Visible;
             EdhManaTab.Visibility = Visibility.Visible;
             EdhImproveTab.Visibility = Visibility.Visible;
