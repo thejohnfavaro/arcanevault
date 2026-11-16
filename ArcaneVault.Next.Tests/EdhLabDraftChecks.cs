@@ -312,6 +312,29 @@ internal static class EdhLabDraftChecks
              ReferenceEquals(cachedPaper, warm) &&
              cachedPaper.Find("Tiny Insight")?.RecordedCopies == 1,
              "Repeated verified EDH Lab loads must reuse the same owned snapshot.");
+        // Inventory UI can switch ownership pool independently from format.
+        // Switching to Arena must show recorded Arena copies without also
+        // switching the deck's legality rules to Brawl.
+        var arenaPoolInPaper = EdhLabReadOnlyCache.GetDraft(catalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.PaperCommander,
+            arenaOwnership: true);
+        Must(arenaPoolInPaper.Find("Brainstorm")?.RecordedCopies == 1 &&
+             arenaPoolInPaper.Find("Tiny Insight")?.RecordedCopies == 0 &&
+             arenaPoolInPaper.Find("Non-Arena Thopters") is not null &&
+             !ReferenceEquals(arenaPoolInPaper, cachedPaper),
+             "Selected Arena inventory must not inherit Physical counts or change legality.");
+        var physicalPoolInBrawl = EdhLabReadOnlyCache.GetDraft(catalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.ArenaBrawl,
+            arenaOwnership: false);
+        Must(physicalPoolInBrawl.Find("Tiny Insight")?.RecordedCopies == 1 &&
+             physicalPoolInBrawl.Find("Non-Arena Thopters") is null,
+             "Selected Physical ownership must not change Brawl availability checks.");
+        Must(EdhLabReadOnlyCache.TryGetDraft(catalog, ownership,
+            "Selected Leader", "WU", EdhLabFormat.PaperCommander,
+            out var warmArenaOwnership, arenaOwnership: true) &&
+             ReferenceEquals(warmArenaOwnership, arenaPoolInPaper),
+             "Selected Arena ownership cache must not be replaced by Physical inventory.");
+
         var cachedArena = EdhLabReadOnlyCache.GetDraft(catalog, ownership,
             "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
         Must(!ReferenceEquals(cachedArena, cachedPaper) &&
