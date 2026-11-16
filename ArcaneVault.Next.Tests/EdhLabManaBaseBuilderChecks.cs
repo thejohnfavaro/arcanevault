@@ -141,6 +141,33 @@ internal static class EdhLabManaBaseBuilderChecks
         Must(!unownedOptimizer.Changes.Any(x => x.Name == "Untapped Example"),
             "Optimizer never invents ownership or leaks paper proxies into Arena.");
 
+        // Smart Mana: one-click plan must prioritize real owned shock/untapped
+        // multi-color lands, preserve land total/spells, and reject proxies.
+        var smartCandidates = candidates.Concat(new[]
+        {
+            Card("Hallowed Fountain", "Land — Plains Island",
+                "As Hallowed Fountain enters, you may pay 2 life. If you don't, it enters tapped. {T}: Add {W} or {U}.", 1),
+            Card("Clean Dual", "Land",
+                "{T}: Add {W} or {U}.", 1),
+            Card("Always Tapped Dual", "Land",
+                "Always Tapped Dual enters tapped. {T}: Add {W} or {U}.", 1)
+        }).ToArray();
+        var smartDraft = new (string Name, int Quantity)[]
+        {
+            ("Plains", 12), ("Island", 8), ("Spell", 1)
+        };
+        var smart = EdhLabManaBaseBuilder.Build(smartCandidates, "WU",
+            smartDraft, 20, paperProxies: null, smartMana: true,
+            optimizeBasics: true);
+        Must(smart.CanApply && smart.ResultingLands == 20 &&
+             smart.ResultingCopies == smart.OriginalCopies &&
+             smart.Changes.Any(x => x.Name == "Hallowed Fountain" && x.Delta == 1) &&
+             smart.Changes.Any(x => x.Name == "Clean Dual" && x.Delta == 1) &&
+             !smart.Changes.Any(x => x.Name == "Proxy Dual") &&
+             !smart.Changes.Any(x => x.Name == "Spell") &&
+             smart.Changes.Sum(x => x.Delta) == 0,
+             "Smart Mana must use owned shock/untapped lands without altering spells or land totals.");
+
         Console.WriteLine("PASS: reviewed mana-base diff, target, real/Proxy limits, Arena isolation, conservative basic cuts and no unverified edits");
     }
 }
