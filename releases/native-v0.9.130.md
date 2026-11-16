@@ -13,4 +13,7 @@
 - Manual deck refresh prioritizes the selected deck for artwork lookup and PNG generation.
 - The Stream Deck JSON retains compatibility with earlier Companion releases.
 
+## Removed
+- No native functionality removed.
+
 All new artwork lookup and cache behavior is read-only with respect to decks, collection, pricing, and match records. The Companion v0.4 plugin separately fixes persistent Stream Deck deck selection.
