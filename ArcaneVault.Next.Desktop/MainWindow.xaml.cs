@@ -2347,6 +2347,26 @@ public partial class MainWindow : Window
             nativeWorkspaceSelectedTab = nativeWorkspaceView.SelectedSection;
         InvalidateNativeWorkspace();
         await OpenNativeCollectionAsync();
+        // A current native collection diff invalidates the inventory snapshot
+        // held by an already open embedded EDH draft, not its unsaved text.
+        if (!closing && embeddedEdhDraft is { } draft && nativeWorkspaceView is not null)
+        {
+            try
+            {
+                var current = await Task.Run(() =>
+                    NativeWorkspace.Open(NativeWorkspace.DefaultPath));
+                if (closing || !ReferenceEquals(embeddedEdhDraft, draft)) return;
+                await draft.RefreshVerifiedOwnershipAsync(
+                    current.Collection, current.BackupSha256);
+            }
+            catch (Exception ex) when (ex is IOException or
+                InvalidDataException or ArgumentException)
+            {
+                FilterStatus.Text =
+                    "EDH draft ownership did not refresh after the collection update. " +
+                    "Reopen the draft before saving. " + ex.Message;
+            }
+        }
     }
 
 
