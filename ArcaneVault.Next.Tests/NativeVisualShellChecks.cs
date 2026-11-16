@@ -861,6 +861,9 @@ internal static class NativeVisualShellChecks
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, (name == "NativeDeckEditorView" ?
                         "NativeDeckEditorView." : "NativeDeckEditorWindow.") + "ManaBaseProposal.cs"));
+                if (name == "NativeDeckEditorWindow")
+                    code += "\n" + File.ReadAllText(
+                        Path.Combine(dir, "NativeDeckEditorWindow.SmartMana.cs"));
                 if (name == "NativeDeckEditorView")
                     code += "\n" + File.ReadAllText(
                         Path.Combine(dir, "NativeDeckEditorView.ResponsiveLayout.cs"));
