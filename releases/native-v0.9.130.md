@@ -1,5 +1,8 @@
 # Arcane Vault Native Windows v0.9.130
 
+## Added
+- Per-deck artwork diagnostics in the native Stream Deck compatibility snapshot, including lookup and rendering states.
+
 ## Fixed
 - Stream Deck commander artwork lookups can now retry when an offline catalog becomes available, instead of remaining permanently empty until a saved deck changes.
 - Commander image lookup can fall back from the catalog card-identity image to a matching official Scryfall printing image.
