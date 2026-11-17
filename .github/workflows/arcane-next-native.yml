@@ -226,7 +226,7 @@ jobs:
         run: |
           [xml]$project = Get-Content "ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj"
           $version = [string]$project.Project.PropertyGroup.Version
-          if ($version -notmatch '^\d+\.\d+\.\d+
+          if ($version -notmatch "^[0-9]+[.][0-9]+[.][0-9]+") {
             throw "Invalid native version $version"
           }
           $tag = "native-v$version"
