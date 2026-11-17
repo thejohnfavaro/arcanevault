@@ -69,7 +69,19 @@ jobs:
         run: |
           [xml]$project = Get-Content 'ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj'
           $version = [string]$project.Project.PropertyGroup.Version
-          if ($version -notmatch '^\\d+\\.\\d+\\.\\d+$') { throw "Invalid native version $version" }
+          if ($version -notmatch '^\d+\.\d+\.\d+ { throw "Invalid native version $version" }
+          $tag = "native-v$version"
+          $existing = gh release view $tag --repo "${{ github.repository }}" --json tagName --jq '.tagName' 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "$tag already published: no replacement"
+            exit 0
+          }
+          $notes = "releases/native-v$version.md"
+          if (-not (Test-Path $notes)) { throw "Missing release notes $notes" }
+          $sha = (Get-Content native-package/source-sha.txt -Raw).Trim()
+          gh release create $tag native-package/ArcaneVaultNative-win-x64.zip native-package/ArcaneVaultNative-win-x64.zip.sha256 native-installer/ArcaneVaultSetup-win-x64.exe native-installer/ArcaneVaultSetup-win-x64.exe.sha256 --repo "${{ github.repository }}" --target $sha --title "Arcane Vault Native Windows v$version (Preview)" --notes-file $notes --prerelease
+          if ($LASTEXITCODE -ne 0) { throw "Release $tag failed" }
+) { throw "Invalid native version $version" }
           $tag = "native-v$version"
           $existing = gh release view $tag --repo "${{ github.repository }}" --json tagName --jq '.tagName' 2>$null
           if ($LASTEXITCODE -eq 0) {
