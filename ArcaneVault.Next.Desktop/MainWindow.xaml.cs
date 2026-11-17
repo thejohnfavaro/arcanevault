@@ -38,6 +38,8 @@ public partial class MainWindow : Window
     private int nativeWorkspaceGeneration;
     private NativeShortlistWorkspace? shortlistWorkspace;
     private bool shortlistRequested;
+    private bool matchHistoryRequested;
+    private NativeMatchHistoryView? matchHistoryWorkspace;
     private CancellationTokenSource? searchCancellation;
     private bool closing;
     private readonly WirelessPeerOffer wirelessPeer=new();
@@ -2061,12 +2063,18 @@ public partial class MainWindow : Window
 
     private void UpdateWorkspaceNavigation()
     {
+        // Switching to any existing workspace closes the match-history surface.
+        if (nativeWorkspaceRequested || edhLabRequested || dataSyncRequested || shortlistRequested)
+            matchHistoryRequested = false;
         CatalogWorkspace.Visibility = nativeWorkspaceRequested || edhLabRequested ||
-            dataSyncRequested || shortlistRequested ? Visibility.Collapsed : Visibility.Visible;
+            dataSyncRequested || shortlistRequested || matchHistoryRequested
+            ? Visibility.Collapsed : Visibility.Visible;
         DataSyncWorkspace.Visibility = dataSyncRequested &&
             !nativeWorkspaceRequested && !edhLabRequested && !shortlistRequested
             ? Visibility.Visible : Visibility.Collapsed;
         ShortlistWorkspaceHost.Visibility = shortlistRequested
+            ? Visibility.Visible : Visibility.Collapsed;
+        MatchHistoryWorkspaceHost.Visibility = matchHistoryRequested
             ? Visibility.Visible : Visibility.Collapsed;
         NativeWorkspaceHost.Visibility = nativeWorkspaceRequested && !edhLabRequested && !shortlistRequested
             ? Visibility.Visible : Visibility.Collapsed;
@@ -2076,7 +2084,8 @@ public partial class MainWindow : Window
         var active = (Style)FindResource("VaultNavPrimary");
         var inactive = (Style)FindResource("VaultNavButtonDepth");
         CatalogNavigationButton.Style = nativeWorkspaceRequested || edhLabRequested ||
-            dataSyncRequested || shortlistRequested ? inactive : active;
+            dataSyncRequested || shortlistRequested || matchHistoryRequested ? inactive : active;
+        MatchHistoryNavigationButton.Style = matchHistoryRequested ? active : inactive;
         DataSyncNavigationButton.Style = dataSyncRequested &&
             !nativeWorkspaceRequested && !edhLabRequested && !shortlistRequested ? active : inactive;
         EdhLabButton.Style = edhLabRequested && !shortlistRequested ? active : inactive;
@@ -2095,7 +2104,21 @@ public partial class MainWindow : Window
         edhLabRequested = false;
         dataSyncRequested = false;
         shortlistRequested = false;
+        matchHistoryRequested = false;
         UpdateWorkspaceNavigation();
+    }
+
+    private async void OnOpenMatchHistoryClicked(object sender, RoutedEventArgs e)
+    {
+        nativeWorkspaceRequested = false;
+        edhLabRequested = false;
+        dataSyncRequested = false;
+        shortlistRequested = false;
+        matchHistoryRequested = true;
+        matchHistoryWorkspace ??= new NativeMatchHistoryView();
+        MatchHistoryWorkspaceHost.Content = matchHistoryWorkspace;
+        UpdateWorkspaceNavigation();
+        await matchHistoryWorkspace.ReloadAsync();
     }
 
     private void OnDataSyncSectionClicked(object sender, RoutedEventArgs e)
