@@ -358,7 +358,12 @@ internal sealed class ArenaMatchTracker : IDisposable
         { info.DeckName = currentDeckName ?? ""; info.DeckVersion = currentDeckVersion ?? ""; info.Assignment = "manual_active_deck"; }
         var occurred = timestamp ?? info.Started ?? DateTimeOffset.UtcNow;
         var note = outcome=="unknown" ? "Player/team identity not verified; review result manually." :
-            info.DeckName.Length==0 ? "Deck not identified from match log; assign manually." :
+            info.DeckName.Length==0 ?
+                (info.DeckId.Length == 0 ?
+                    "No Arena deck ID in match log; choose a deck manually." :
+                    blockedArenaIds.Contains(info.DeckId) ?
+                        "Arena deck ID links to multiple saved decks; assign manually." :
+                        "Arena deck ID has no verified saved-deck mapping; assign manually.") :
             "Deck assignment: " + info.Assignment;
         history.Add(new MatchHistory.MatchRow(idMatch, occurred.ToUniversalTime().ToString("O"),outcome,
             outcome=="unknown"?"unverified":"arena_match_result",info.Format,info.DeckId,info.DeckName,info.DeckVersion,
@@ -378,8 +383,14 @@ internal sealed class ArenaMatchTracker : IDisposable
         // override verified native or user-confirmed persistent mappings.
         if (!blockedArenaIds.Contains(id) && !decksByArenaId.ContainsKey(id))
             decksByArenaId[id] = (name, "", "");
-        if (!blockedArenaIds.Contains(id))
-            history.AssignUnassignedByDeckId(id, name);
+        if (!blockedArenaIds.Contains(id) &&
+            decksByArenaId.TryGetValue(id, out var knownDeck))
+        {
+            if (knownDeck.NativeId.Length > 0)
+                history.BackfillExactArenaId(id, knownDeck.NativeId, knownDeck.Name);
+            else if (knownDeck.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                history.AssignUnassignedByDeckId(id, name);
+        }
         // Do not replace an intentionally selected deck label until we observe the exact deck ID in match data.
         if (isSelection && !userChoseActiveDeck && timestamp.HasValue)
         { currentDeckId = id; currentDeckName = name; latestLogDeckSelection = timestamp; }
