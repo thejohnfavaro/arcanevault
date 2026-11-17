@@ -10,7 +10,8 @@ internal static class MatchDeckAttribution
     internal sealed record Match(string MatchId, string DeckName, string ArenaId,
         string NativeId, string Note);
     internal static string? Resolve(Match match, IReadOnlyList<Deck> decks,
-        IReadOnlyDictionary<string, string> arenaToNative)
+        IReadOnlyDictionary<string, string> arenaToNative,
+        IReadOnlySet<string>? blockedArenaIds = null)
     {
         if (string.IsNullOrWhiteSpace(match.MatchId)) return null;
         var byNative = decks.Where(x => x.Id == match.NativeId).ToArray();
@@ -21,6 +22,7 @@ internal static class MatchDeckAttribution
             arenaToNative.TryGetValue(match.ArenaId.Trim(), out var mapped))
             return decks.Count(x => x.Id == mapped) == 1 ? mapped : null;
 
+        if (blockedArenaIds?.Contains(match.ArenaId.Trim()) == true) return null;
         if (string.IsNullOrWhiteSpace(match.DeckName)) return null;
         var byName = decks.Where(x =>
             x.Name.Trim().Equals(match.DeckName.Trim(),
