@@ -150,7 +150,12 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         // Render at most three buttons per tick. The selected deck is first
         // when a key or Property Inspector requests a refresh, so a long
         // library doesn't delay the user's chosen tile.
-        if (decks.Count == 0) return;
+        if (decks.Count == 0)
+        {
+            RefreshSetSummary(cancel);
+            Publish(recent, source, "Native app connected", active);
+            return;
+        }
         var candidates = new List<Deck>();
         if (!string.IsNullOrWhiteSpace(selectedRefreshDeckId))
         {
