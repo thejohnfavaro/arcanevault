@@ -20,6 +20,7 @@
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCardArtwork.cs" Link="NativeCardArtwork.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\MatchHistory.cs" Link="MatchHistory.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\MatchPerformanceAnalytics.cs" Link="MatchPerformanceAnalytics.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\MatchDeckAttribution.cs" Link="MatchDeckAttribution.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\ArenaMatchTracker.cs" Link="ArenaMatchTracker.cs" />
     <ProjectReference Include="..\ArcaneVault.Next.Domain\ArcaneVault.Next.Domain.csproj" />
     <ProjectReference Include="..\ArcaneVault.Next.Collection\ArcaneVault.Next.Collection.csproj" />
