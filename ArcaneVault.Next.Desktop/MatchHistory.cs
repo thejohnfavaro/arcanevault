@@ -131,7 +131,7 @@ internal sealed class MatchHistory : IDisposable
 
     internal record MatchRow(string matchId, string playedUtc, string result, string resultSource,
         string format, string deckId, string deckName, string deckVersion, string sourceLog,
-        string note, int gameWins, int gameLosses);
+        string note, int gameWins, int gameLosses, string nativeDeckId = "");
 
     public bool Add(MatchRow row)
     {
@@ -139,14 +139,15 @@ internal sealed class MatchHistory : IDisposable
         {
             using var cmd = db.CreateCommand();
             cmd.CommandText = @"INSERT OR IGNORE INTO matches
-                (match_id,played_utc,result,result_source,format,deck_id,deck_name,deck_version,source_log,note,game_wins,game_losses)
-                VALUES ($id,$time,$result,$source,$format,$deckId,$deck,$version,$log,$note,$gw,$gl)";
+                (match_id,played_utc,result,result_source,format,deck_id,native_deck_id,deck_name,deck_version,source_log,note,game_wins,game_losses)
+                VALUES ($id,$time,$result,$source,$format,$deckId,$native,$deck,$version,$log,$note,$gw,$gl)";
             cmd.Parameters.AddWithValue("$id", row.matchId);
             cmd.Parameters.AddWithValue("$time", row.playedUtc);
             cmd.Parameters.AddWithValue("$result", row.result);
             cmd.Parameters.AddWithValue("$source", row.resultSource);
             cmd.Parameters.AddWithValue("$format", row.format);
             cmd.Parameters.AddWithValue("$deckId", row.deckId);
+            cmd.Parameters.AddWithValue("$native", row.nativeDeckId);
             cmd.Parameters.AddWithValue("$deck", row.deckName);
             cmd.Parameters.AddWithValue("$version", row.deckVersion);
             cmd.Parameters.AddWithValue("$log", row.sourceLog);
@@ -195,7 +196,7 @@ internal sealed class MatchHistory : IDisposable
             using var cmd = db.CreateCommand();
             cmd.CommandText = @"UPDATE matches SET deck_name=$name,
                 note='Deck assignment: arena_deck_id (backfilled)'
-                WHERE deck_id=$id AND TRIM(deck_name)=''";
+                WHERE deck_id=$id AND TRIM(deck_name)='' AND TRIM(native_deck_id)=''";
             cmd.Parameters.AddWithValue("$id", deckId);
             cmd.Parameters.AddWithValue("$name", deckName);
             return cmd.ExecuteNonQuery();
