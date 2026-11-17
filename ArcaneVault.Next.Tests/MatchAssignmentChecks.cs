@@ -119,6 +119,31 @@ internal static class MatchAssignmentChecks
             Assert(Convert.ToInt64(cmd.ExecuteScalar()) == 4,
                 "Persistent backfill must not duplicate existing matches");
         }
+        // Replaying a match with newly discovered deck evidence must enrich
+        // exactly that row, without changing a recorded W/L or manual choice.
+        Assert(history.Add(new MatchHistory.MatchRow("late-id-1", played, "loss",
+            "arena_match_result", "", "", "", "", "Player.log",
+            "No Arena deck ID in match log", 0, 1)), "Late-ID fixture insert failed");
+        Assert(history.EnrichUnassignedMatch("late-id-1", "arena-late-1",
+            "native-late-1", "Late Matched Deck", "", "Deck assignment: verified ID"),
+            "A previously unassigned imported match must accept an exact later deck ID");
+        Assert(!history.EnrichUnassignedMatch("late-id-1", "wrong-id",
+            "", "Wrong Deck", "", "Incorrect overwrite"),
+            "An enriched match must not be attributed again");
+        Assert(!history.EnrichUnassignedMatch("manual-1", "arena-wrong",
+            "", "Wrong Deck", "", "Incorrect overwrite"),
+            "Manual choices must be protected against later automatic evidence");
+        using (var db = new SqliteConnection("Data Source=" + path))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT deck_id,deck_name,result,game_losses FROM matches WHERE match_id='late-id-1'";
+            using var reader = cmd.ExecuteReader();
+            Assert(reader.Read() && reader.GetString(0) == "arena-late-1" &&
+                reader.GetString(1) == "Late Matched Deck" && reader.GetString(2) == "loss" &&
+                reader.GetInt32(3) == 1,
+                "Late deck mapping must retain the original result and game counts");
+        }
         // A saved-deck collision must block automatic attribution even when
         // the Arena ID is otherwise present and both names are similar.
         Assert(history.Add(new MatchHistory.MatchRow("collision-1", played, "loss",
