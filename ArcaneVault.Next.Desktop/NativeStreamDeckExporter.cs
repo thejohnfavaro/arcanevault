@@ -135,6 +135,12 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             nextCoverRetry = DateTimeOffset.MinValue;
         }
 
+        // Prefer exact Arena IDs already saved with native decks. This also
+        // safely backfills older unassigned results that carry the exact ID.
+        // Never guess a deck from a result's timestamp or deck similarity.
+        arenaTracker?.SetKnownSavedDecks(decks
+            .Select(d => (ArenaId: d.arenaDeckId, Name: d.name)));
+
         // Card metadata can become available after a catalog sync, without
         // any deck library change. Retry missing artwork independently.
         if (DateTimeOffset.UtcNow >= nextCoverRetry ||
