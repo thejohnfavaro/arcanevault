@@ -193,6 +193,7 @@ internal sealed class ArenaMatchTracker : IDisposable
         bool relevant = false;
         int balance = 0;
         bool quoted = false, escaped = false;
+        string eventLabel = "";
         while ((line = reader.ReadLine()) != null)
         {
             // Stop on a partial trailing line; it will be read on the next scan.
@@ -201,10 +202,18 @@ internal sealed class ArenaMatchTracker : IDisposable
                 lastHeaderTime = HeaderTime(line) ?? lastHeaderTime;
             if (builder.Length == 0)
             {
+                // Deck submissions are frequently logged as an RPC prefix
+                // with a JSON-encoded "request", not an EventSetDeckV2
+                // property inside the JSON. Capture the prefix as evidence.
                 relevant = line.Contains("matchGameRoomStateChangedEvent", StringComparison.OrdinalIgnoreCase)
-                    || line.Contains("EventSetDeckV2", StringComparison.OrdinalIgnoreCase)
+                    || line.Contains("EventSetDeckV", StringComparison.OrdinalIgnoreCase)
                     || line.Contains("CourseDeckSummary", StringComparison.OrdinalIgnoreCase)
+                    || line.Contains("CourseDeck", StringComparison.OrdinalIgnoreCase)
                     || line.Contains("authenticateResponse", StringComparison.OrdinalIgnoreCase);
+                eventLabel = line.Contains("EventSetDeckV", StringComparison.OrdinalIgnoreCase)
+                    ? "deck_submission"
+                    : line.Contains("CourseDeck", StringComparison.OrdinalIgnoreCase)
+                    ? "course_deck" : "";
                 if (!relevant) continue;
                 timestamp = HeaderTime(line) ?? lastHeaderTime;
                 var brace = line.IndexOf('{');
@@ -223,9 +232,9 @@ internal sealed class ArenaMatchTracker : IDisposable
             }
             if (balance == 0 && builder.Length > 0)
             {
-                try { using var doc = JsonDocument.Parse(builder.ToString()); ParseEvent(doc.RootElement, timestamp, path); processedEvents++; }
+                try { using var doc = JsonDocument.Parse(builder.ToString()); ParseEvent(doc.RootElement, timestamp, path, eventLabel); processedEvents++; }
                 catch (JsonException) { skippedEvents++; }
-                builder.Clear(); quoted = false; escaped = false;
+                builder.Clear(); quoted = false; escaped = false; eventLabel = "";
             }
         }
         // Re-read an unfinished JSON object on the next pass rather than losing it.
@@ -264,9 +273,33 @@ internal sealed class ArenaMatchTracker : IDisposable
                 var found = Locate(child.Value,property,depth+1);
                 if (found.ValueKind != JsonValueKind.Undefined) return found;
             }
+        if (e.ValueKind == JsonValueKind.Array)
+            foreach (var child in e.EnumerateArray())
+            {
+                var found = Locate(child,property,depth+1);
+                if (found.ValueKind != JsonValueKind.Undefined) return found;
+            }
         return default;
     }
-    private void ParseEvent(JsonElement root, DateTimeOffset? timestamp, string source)
+    // Extract the submitted deck ID from either direct request parameters
+    // or the escaped request envelope's Summary object.
+    private void ReadDeckSubmission(JsonElement root, DateTimeOffset? timestamp)
+    {
+        var nested = Locate(root, "Summary");
+        if (nested.ValueKind == JsonValueKind.Object)
+            ReadDeck(nested, timestamp, isSelection:true);
+        else
+        {
+            var parameters = Locate(root,"params");
+            if (parameters.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                ReadDeck(parameters,timestamp,isSelection:true);
+            else
+                ReadDeck(root,timestamp,isSelection:true);
+        }
+    }
+
+    private void ParseEvent(JsonElement root, DateTimeOffset? timestamp, string source,
+        string eventLabel = "")
     {
         var auth = Locate(root,"authenticateResponse");
         if (auth.ValueKind == JsonValueKind.Object)
@@ -276,11 +309,40 @@ internal sealed class ArenaMatchTracker : IDisposable
             var name = Str(auth,"screenName");
             if (!string.IsNullOrWhiteSpace(name)) screenName = name;
         }
-        // Capture deck selection as a candidate; no speculative correlation to matches.
-        var deck = Locate(root,"EventSetDeckV2");
-        if (deck.ValueKind == JsonValueKind.Object) ReadDeck(deck, timestamp, isSelection:true);
+        // Queue submissions (EventSetDeckV2/V3 RPC, CourseDeck) are
+        // independent of matchGameRoomStateChangedEvent. Some payloads wrap
+        // their request as an escaped JSON string; parse only that known
+        // field rather than searching unrelated logged deck inventories.
+        if (eventLabel == "deck_submission" || eventLabel == "course_deck")
+        {
+            if (Property(root, "request", out var request) &&
+                request.ValueKind == JsonValueKind.String &&
+                request.GetString() is string encoded &&
+                encoded.Length is > 1 and <= 100_000)
+            {
+                try
+                {
+                    using var decoded = JsonDocument.Parse(encoded);
+                    ReadDeckSubmission(decoded.RootElement, timestamp);
+                }
+                catch (JsonException) { skippedEvents++; }
+            }
+            if (eventLabel == "course_deck")
+            {
+                var submitted = Locate(root,"CourseDeckSummary");
+                if (submitted.ValueKind == JsonValueKind.Object)
+                    ReadDeck(submitted,timestamp,isSelection:true);
+            }
+            else
+            {
+                // Some Arena versions emit the submission directly as JSON.
+                ReadDeckSubmission(root, timestamp);
+            }
+        }
+        // Deck summaries alone may describe inventory, not active play.
         var summary = Locate(root,"CourseDeckSummary");
-        if (summary.ValueKind == JsonValueKind.Object) ReadDeck(summary, timestamp, isSelection:false);
+        if (summary.ValueKind == JsonValueKind.Object && eventLabel != "course_deck")
+            ReadDeck(summary, timestamp, isSelection:false);
         var change = Locate(root,"matchGameRoomStateChangedEvent");
         if (change.ValueKind != JsonValueKind.Object || !Property(change,"gameRoomInfo",out var room)) return;
         var state = Str(room,"stateType");
