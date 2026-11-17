@@ -92,8 +92,9 @@
       (100 * owned / total).toFixed(1) + "% of catalog paper collector slots" :
       "No verified paper collector slots";
     for (const set of (Array.isArray(summary.topSets) ? summary.topSets : []).slice(0,4)) {
+      if (!set || typeof set !== "object") continue;
       const count = Number(set.owned) || 0, maximum = Number(set.total) || 0;
-      if (!set || maximum <= 0) continue;
+      if (maximum <= 0) continue;
       const item = document.createElement("div");
       item.className = "set-row";
       const name = document.createElement("span");
