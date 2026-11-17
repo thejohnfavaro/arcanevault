@@ -5,6 +5,7 @@
 - Match History offers an explicit "Remember this Arena deck ID for future matches" checkbox when the selected match contains a usable Arena deck ID.
 - On startup and after manual correction, match tracking reloads saved mappings, allowing future results and older unassigned matches with that exact Arena ID to resolve to the right saved deck.
 - More useful diagnostics distinguish missing Arena IDs, unknown mapped IDs, and conflicting saved-deck IDs.
+- Match History shows detected per-game W–L separately from the overall match result; unknown game details display a dash rather than fabricated game scores.
 - Regression checks cover persistent mappings, remapping conflict protection, historical backfill, and duplicate Arena IDs.
 
 ## Changed
