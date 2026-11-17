@@ -124,6 +124,65 @@ internal static class ArenaLogAssignmentChecks
                 r.GetString(1) == "native-split" && r.GetString(2) == "win",
                 "Separated Arena V3 header and escaped JSON request must carry the deck ID into the match.");
         }
+        // A multi-deck CourseDeck response is inventory, not proof that
+        // the first listed deck was submitted to matchmaking.
+        var inventoryLog = Path.Combine(local, "inventory-only", "Player.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(inventoryLog)!);
+        var inventoryDb = Path.Combine(local, "inventory-only.sqlite3");
+        File.WriteAllLines(inventoryLog, new [] {
+            Event(t, "Auth", auth),
+            Event(t.AddMinutes(1), "CourseDeck", new {
+                decks = new [] {
+                    new { CourseDeckSummary = new { DeckId = "inventory-only-1" } },
+                    new { CourseDeckSummary = new { DeckId = "inventory-only-2" } }
+                }
+            }),
+            Event(t.AddMinutes(2), "match", Match("inventory-match",
+                "MatchGameRoomStateType_Playing", "self-id")),
+            Event(t.AddMinutes(3), "match", Match("inventory-match",
+                "MatchGameRoomStateType_MatchCompleted", "self-id"))
+        });
+        using (var tracker = new ArenaMatchTracker(inventoryDb))
+        {
+            tracker.Configure(true, inventoryLog);
+            tracker.Tick();
+        }
+        using (var db = new SqliteConnection("Data Source=" + inventoryDb))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT deck_id,result FROM matches WHERE match_id='inventory-match'";
+            using var reader = cmd.ExecuteReader();
+            Assert(reader.Read() && reader.GetString(0) == "" && reader.GetString(1) == "win",
+                "A deck inventory must never guess the active deck");
+        }
+        // Arena also emits 24-hour log headings; they must be timestamped.
+        var clockLog = Path.Combine(local, "24h", "Player.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(clockLog)!);
+        var clockDb = Path.Combine(local, "24h.sqlite3");
+        File.WriteAllLines(clockLog, new [] {
+            Event(t, "Auth", auth),
+            "[UnityCrossThreadLogger] 11/17/2026 09:01:00 ==> EventSetDeckV3 " +
+                JsonSerializer.Serialize(new { request = JsonSerializer.Serialize(
+                    new { Summary = new { DeckId = "24h-deck" } }) }),
+            Event(t.AddMinutes(2), "match", Match("24h-match",
+                "MatchGameRoomStateType_Playing", "self-id")),
+            Event(t.AddMinutes(3), "match", Match("24h-match",
+                "MatchGameRoomStateType_MatchCompleted", "self-id"))
+        });
+        using (var tracker = new ArenaMatchTracker(clockDb))
+        {
+            tracker.Configure(true, clockLog);
+            tracker.Tick();
+        }
+        using (var db = new SqliteConnection("Data Source=" + clockDb))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT deck_id FROM matches WHERE match_id='24h-match'";
+            Assert((string?)cmd.ExecuteScalar() == "24h-deck",
+                "24-hour event headers must preserve deck submission timestamps");
+        }
         // A real submission without a saved mapping must STILL preserve the
         // Arena ID, allowing a reusable mapping to be created by the user.
         var unknownLog = Path.Combine(local,"unmapped","Player.log");
