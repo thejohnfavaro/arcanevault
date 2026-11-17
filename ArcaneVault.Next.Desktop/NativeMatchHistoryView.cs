@@ -62,7 +62,6 @@ internal sealed class NativeMatchHistoryView : UserControl
         Padding = new Thickness(14, 9, 14, 9),
         ToolTip = "Assign only exact Arena deck IDs already linked to one saved deck; never guess missing IDs" };
     private IReadOnlyList<MatchItem> loaded = Array.Empty<MatchItem>();
-    private readonly NativeMatchPerformancePanel performance = new();
     private bool busy;
 
     public NativeMatchHistoryView()
@@ -85,11 +84,6 @@ internal sealed class NativeMatchHistoryView : UserControl
         toolbar.Children.Add(resolveVerified);
         header.Children.Add(toolbar);
         header.Children.Add(status);
-        header.Children.Add(new Expander {
-            Header = "Deck performance dashboard", IsExpanded = false,
-            Foreground = Brushes.White, Content = performance,
-            Margin = new Thickness(0,4,0,8)
-        });
 
         var footer = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
         DockPanel.SetDock(footer, Dock.Bottom);
@@ -179,14 +173,15 @@ internal sealed class NativeMatchHistoryView : UserControl
             .Take(2000).ToArray();
     }
 
-    private void RefreshPerformance()
-    {
-        performance.SetMatches(loaded
+    // Shared read-only view of the same native-first, deduplicated rows shown
+    // in Match History. Analytics never opens the database for writing.
+    internal static IReadOnlyList<MatchPerformanceAnalytics.Entry> ReadPerformance() =>
+        ReadMatches()
             .Where(x => DateTimeOffset.TryParse(x.Played, out _))
             .Select(x => new MatchPerformanceAnalytics.Entry(
                 x.MatchId, DateTimeOffset.Parse(x.Played),
-                x.DeckName, "", x.Format, x.Result)));
-    }
+                x.DeckName, "", x.Format, x.Result))
+            .ToArray();
 
     private void FilterRows()
     {
@@ -246,7 +241,6 @@ internal sealed class NativeMatchHistoryView : UserControl
                 return (matches, decks);
             });
             loaded = data.matches;
-            RefreshPerformance();
             deckPicker.ItemsSource = data.decks;
             if (data.decks.Length > 0) deckPicker.SelectedIndex = 0;
             FilterRows();
@@ -340,7 +334,6 @@ internal sealed class NativeMatchHistoryView : UserControl
     private async Task ReloadAsyncAfterBulk(int changed)
     {
         loaded = await Task.Run(ReadMatches);
-        RefreshPerformance();
         FilterRows();
         status.Text = changed == 0
             ? "No additional matches could be safely assigned by exact Arena ID. " +
