@@ -281,8 +281,13 @@ internal sealed class ArenaMatchTracker : IDisposable
     }
     private static DateTimeOffset? HeaderTime(string line)
     {
-        var match = Regex.Match(line, @"\b\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s*[AP]M\b", RegexOptions.IgnoreCase);
-        return match.Success && DateTimeOffset.TryParse(match.Value, CultureInfo.GetCultureInfo("en-US"), DateTimeStyles.AssumeLocal, out var dt) ? dt : null;
+        // Both Unity 12-hour headings and Arena's newer 24-hour headings occur
+        // in real Player.log files. Do not drop correlation solely due to format.
+        var match = Regex.Match(line,
+            @"\b(?:\d{1,2}/\d{1,2}/\d{4}|\d{4}-\d{2}-\d{2})[ T]\d{1,2}:\d{2}:\d{2}(?:\.\d+)?(?:\s*[AP]M|Z|[+-]\d{2}:\d{2})?\b",
+            RegexOptions.IgnoreCase);
+        return match.Success && DateTimeOffset.TryParse(match.Value,
+            CultureInfo.GetCultureInfo("en-US"), DateTimeStyles.AssumeLocal, out var dt) ? dt : null;
     }
     private static bool Property(JsonElement e, string key, out JsonElement result)
     {
@@ -357,9 +362,18 @@ internal sealed class ArenaMatchTracker : IDisposable
             }
             if (eventLabel == "course_deck")
             {
-                var submitted = Locate(root,"CourseDeckSummary");
+                // A CourseDeck inventory may list 13+ unrelated decks. Only
+                // a singular, directly identified submission is an active
+                // queue selection. Never take the first item of a deck list.
+                var submitted = Property(root, "CourseDeckSummary", out var direct)
+                    ? direct : default;
+                if (submitted.ValueKind != JsonValueKind.Object &&
+                    Property(root, "CourseDeck", out var course) &&
+                    course.ValueKind == JsonValueKind.Object)
+                    submitted = Property(course, "CourseDeckSummary", out var inner)
+                        ? inner : default;
                 if (submitted.ValueKind == JsonValueKind.Object)
-                    ReadDeck(submitted,timestamp,isSelection:true);
+                    ReadDeck(submitted, timestamp, isSelection:true);
             }
             else
             {
@@ -386,7 +400,7 @@ internal sealed class ArenaMatchTracker : IDisposable
         // Do not use mere deck inventory or an indefinite "last deck".
         if (info.DeckId.Length == 0 && currentDeckId is { Length: > 0 } &&
             latestLogDeckSelection.HasValue && timestamp.HasValue &&
-            (timestamp.Value - latestLogDeckSelection.Value).TotalMinutes is >= 0 and <= 20)
+            (timestamp.Value - latestLogDeckSelection.Value).TotalMinutes is >= 0 and <= 45)
         {
             info.DeckId = currentDeckId;
             if (decksByArenaId.TryGetValue(currentDeckId, out var queued))
@@ -475,9 +489,12 @@ internal sealed class ArenaMatchTracker : IDisposable
                         "Arena deck ID links to multiple saved decks; assign manually." :
                         "Arena deck ID has no verified saved-deck mapping; assign manually.") :
             "Deck assignment: " + info.Assignment;
-        history.Add(new MatchHistory.MatchRow(idMatch, occurred.ToUniversalTime().ToString("O"),outcome,
+        var inserted = history.Add(new MatchHistory.MatchRow(idMatch, occurred.ToUniversalTime().ToString("O"),outcome,
             outcome=="unknown"?"unverified":"arena_match_result",info.Format,info.DeckId,info.DeckName,info.DeckVersion,
             Path.GetFileName(source),note,gw,gl,info.NativeDeckId));
+        if (!inserted && info.DeckId.Length > 0)
+            history.EnrichUnassignedMatch(idMatch, info.DeckId, info.NativeDeckId,
+                info.DeckName, info.DeckVersion, note);
         sessions.Remove(idMatch);
         if (sessions.Count > 300) sessions.Clear();
     }
