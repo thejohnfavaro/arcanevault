@@ -18,6 +18,9 @@ jobs:
   publish:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_run'
     runs-on: windows-latest
+    permissions:
+      contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,7 +28,7 @@ jobs:
       - name: Retrieve verified native build artifacts
         shell: pwsh
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if ("${{ github.event_name }}" -eq "workflow_run") {
             $runId = "${{ github.event.workflow_run.id }}"
@@ -67,7 +70,7 @@ jobs:
       - name: Publish checked native release
         shell: pwsh
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           [xml]$project = Get-Content 'ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj'
           $version = [string]$project.Project.PropertyGroup.Version
