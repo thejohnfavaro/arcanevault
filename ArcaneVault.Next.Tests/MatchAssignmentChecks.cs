@@ -94,6 +94,50 @@ internal static class MatchAssignmentChecks
             Assert(Convert.ToInt64(cmd.ExecuteScalar()) == 3,
                 "ID reconciliation must update in place without adding matches.");
         }
+        // Persist an explicit mapping, then verify a new tracker instance
+        // restores it and backfills an existing result without duplication.
+        Assert(history.Add(new MatchHistory.MatchRow("remember-1", played, "win",
+            "arena_match_result", "Historic", "arena-persistent-77", "", "",
+            "Player.log", "No mapping yet", 1, 0)),
+            "Persistent mapping fixture insert failed.");
+        Assert(history.RememberDeckMapping("arena-persistent-77", "saved-persisted",
+            "Persistent Commander"), "Mapping should be saved");
+        Assert(!history.RememberDeckMapping("arena-persistent-77", "other-saved",
+            "Wrong Commander"), "Conflicting mapping must not overwrite without consent");
+        using (var fresh = new ArenaMatchTracker(path))
+            fresh.SetKnownSavedDecks(new [] {
+                (ArenaId:"", Name:"Persistent Commander", NativeId:"saved-persisted")
+            });
+        using (var db = new SqliteConnection("Data Source=" + path))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT native_deck_id FROM matches WHERE match_id='remember-1'";
+            Assert((string?)cmd.ExecuteScalar() == "saved-persisted",
+                "Persisted mapping must survive a new tracker and backfill exact ID");
+            cmd.CommandText = "SELECT COUNT(*) FROM matches";
+            Assert(Convert.ToInt64(cmd.ExecuteScalar()) == 4,
+                "Persistent backfill must not duplicate existing matches");
+        }
+        // A saved-deck collision must block automatic attribution even when
+        // the Arena ID is otherwise present and both names are similar.
+        Assert(history.Add(new MatchHistory.MatchRow("collision-1", played, "loss",
+            "arena_match_result", "Historic", "arena-collision-1", "", "",
+            "Player.log", "No mapping", 0, 1)), "Collision fixture insert failed.");
+        using (var fresh = new ArenaMatchTracker(path))
+            fresh.SetKnownSavedDecks(new [] {
+                (ArenaId:"arena-collision-1", Name:"Commander One", NativeId:"saved-one"),
+                (ArenaId:"arena-collision-1", Name:"Commander Two", NativeId:"saved-two")
+            });
+        using (var db = new SqliteConnection("Data Source=" + path))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT native_deck_id FROM matches WHERE match_id='collision-1'";
+            Assert((string?)cmd.ExecuteScalar() == "",
+                "Ambiguous Arena IDs must remain unassigned");
+        }
+
     }
 
     private static void Assert(bool ok, string message)
