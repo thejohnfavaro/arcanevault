@@ -21,7 +21,9 @@ internal sealed class ArenaMatchTracker : IDisposable
     private string? currentDeckName;
     private string? currentDeckVersion;
     private DateTimeOffset? latestLogDeckSelection;
-    private readonly Dictionary<string, (string Name, string Version)> decksByArenaId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (string Name, string Version, string NativeId)> decksByArenaId =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> blockedArenaIds = new(StringComparer.OrdinalIgnoreCase);
     private string? error;
     private int processedEvents;
     private int skippedEvents;
@@ -36,6 +38,7 @@ internal sealed class ArenaMatchTracker : IDisposable
         public string Format = "";
         public int? PlayerTeam;
         public string DeckId = "";
+        public string NativeDeckId = "";
         public string DeckName = "";
         public string DeckVersion = "";
         public string Assignment = "unassigned";
@@ -70,25 +73,58 @@ internal sealed class ArenaMatchTracker : IDisposable
     /// the matching Arena deck ID.
     /// </summary>
     public void SetKnownSavedDecks(
-        IEnumerable<(string ArenaId, string Name)> savedDecks)
+        IEnumerable<(string ArenaId, string Name)> savedDecks) =>
+        SetKnownSavedDecks(savedDecks.Select(d =>
+            (d.ArenaId, d.Name, NativeId: "")));
+
+    public void SetKnownSavedDecks(
+        IEnumerable<(string ArenaId, string Name, string NativeId)> savedDecks)
     {
         ArgumentNullException.ThrowIfNull(savedDecks);
-        var verified = savedDecks
-            .Where(x => !string.IsNullOrWhiteSpace(x.ArenaId) &&
-                        !string.IsNullOrWhiteSpace(x.Name) &&
-                        x.ArenaId.Length <= 180 && x.Name.Length <= 150)
-            .GroupBy(x => x.ArenaId.Trim(), StringComparer.OrdinalIgnoreCase)
-            // An Arena ID linked to two saved deck records is ambiguous,
-            // even when those records happen to share the same display name.
-            .Where(x => x.Count() == 1)
-            .Select(x => (Id: x.Key, Name: x.First().Name.Trim()))
-            .Take(1000).ToArray();
+        var rows = savedDecks.Where(x => !string.IsNullOrWhiteSpace(x.ArenaId) &&
+            !string.IsNullOrWhiteSpace(x.Name) && x.ArenaId.Length <= 180 &&
+            x.Name.Length <= 150).ToArray();
+        var collisions = rows.GroupBy(x => x.ArenaId.Trim(),
+            StringComparer.OrdinalIgnoreCase).Where(g => g.Count() != 1)
+            .Select(g => g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var verified = rows.Where(x => !collisions.Contains(x.ArenaId.Trim()))
+            .ToDictionary(x => x.ArenaId.Trim(), x => x,
+                StringComparer.OrdinalIgnoreCase);
         lock (gate)
         {
-            foreach (var deck in verified)
+            blockedArenaIds.Clear();
+            blockedArenaIds.UnionWith(collisions);
+            decksByArenaId.Clear();
+            foreach (var d in verified.Values)
+                decksByArenaId[d.ArenaId.Trim()] = (d.Name.Trim(), "", d.NativeId);
+            // The persistent mapping is only usable if its native target
+            // still exists in the latest verified saved-deck library.
+            var byNative = rows.Where(x => x.NativeId.Length > 0)
+                .GroupBy(x => x.NativeId, StringComparer.Ordinal)
+                .Where(g => g.Count() == 1)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+            foreach (var saved in history.Mappings())
             {
-                decksByArenaId[deck.Id] = (deck.Name, "");
-                history.AssignUnassignedByDeckId(deck.Id, deck.Name);
+                if (blockedArenaIds.Contains(saved.ArenaId)) continue;
+                if (!byNative.TryGetValue(saved.NativeId, out var deck)) continue;
+                // Conflicting association to a native library Arena ID is
+                // ambiguous; never override the authoritative deck property.
+                if (verified.TryGetValue(saved.ArenaId, out var existing) &&
+                    existing.NativeId != deck.NativeId)
+                {
+                    blockedArenaIds.Add(saved.ArenaId);
+                    decksByArenaId.Remove(saved.ArenaId);
+                    continue;
+                }
+                decksByArenaId[saved.ArenaId] = (deck.Name, "", deck.NativeId);
+            }
+            foreach (var pair in decksByArenaId)
+            {
+                if (!string.IsNullOrWhiteSpace(pair.Value.NativeId))
+                    history.BackfillExactArenaId(pair.Key, pair.Value.NativeId,
+                        pair.Value.Name);
+                else
+                    history.AssignUnassignedByDeckId(pair.Key, pair.Value.Name);
             }
         }
     }
@@ -262,7 +298,12 @@ internal sealed class ArenaMatchTracker : IDisposable
             {
                 info.DeckId = explicitDeck;
                 if (decksByArenaId.TryGetValue(explicitDeck, out var known))
-                { info.DeckName = known.Name; info.DeckVersion = known.Version; info.Assignment = "arena_deck_id"; }
+                {
+                    info.DeckName = known.Name;
+                    info.NativeDeckId = known.NativeId;
+                    info.DeckVersion = known.Version;
+                    info.Assignment = "verified_arena_deck_id";
+                }
                 else if (explicitDeck.Equals(currentDeckId, StringComparison.OrdinalIgnoreCase) &&
                          latestLogDeckSelection.HasValue && timestamp.HasValue &&
                          (timestamp.Value - latestLogDeckSelection.Value).Duration() <= TimeSpan.FromMinutes(30))
@@ -307,7 +348,12 @@ internal sealed class ArenaMatchTracker : IDisposable
         }
         string outcome = winningTeam.HasValue && info.PlayerTeam.HasValue ? (winningTeam==info.PlayerTeam ? "win" : "loss") : "unknown";
         if (info.DeckName.Length == 0 && info.DeckId.Length > 0 && decksByArenaId.TryGetValue(info.DeckId, out var mapped))
-        { info.DeckName = mapped.Name; info.DeckVersion = mapped.Version; info.Assignment = "arena_deck_id"; }
+        {
+            info.DeckName = mapped.Name;
+            info.NativeDeckId = mapped.NativeId;
+            info.DeckVersion = mapped.Version;
+            info.Assignment = "verified_arena_deck_id";
+        }
         if (info.DeckName.Length == 0 && userChoseActiveDeck)
         { info.DeckName = currentDeckName ?? ""; info.DeckVersion = currentDeckVersion ?? ""; info.Assignment = "manual_active_deck"; }
         var occurred = timestamp ?? info.Started ?? DateTimeOffset.UtcNow;
@@ -316,7 +362,7 @@ internal sealed class ArenaMatchTracker : IDisposable
             "Deck assignment: " + info.Assignment;
         history.Add(new MatchHistory.MatchRow(idMatch, occurred.ToUniversalTime().ToString("O"),outcome,
             outcome=="unknown"?"unverified":"arena_match_result",info.Format,info.DeckId,info.DeckName,info.DeckVersion,
-            Path.GetFileName(source),note,gw,gl));
+            Path.GetFileName(source),note,gw,gl,info.NativeDeckId));
         sessions.Remove(idMatch);
         if (sessions.Count > 300) sessions.Clear();
     }
@@ -328,9 +374,12 @@ internal sealed class ArenaMatchTracker : IDisposable
         var name = Str(deck,"Name"); if (name.Length == 0) name = Str(deck,"name");
         if (name.Length == 0) name = Str(deck,"deckName");
         if (id.Length is < 1 or > 180 || name.Length is < 1 or > 150) return;
-        decksByArenaId[id] = (name, "");
-        history.AssignUnassignedByDeckId(id, name);
-        if (decksByArenaId.Count > 1000) decksByArenaId.Clear();
+        // Arena's summary may reference unrelated decks; it must not
+        // override verified native or user-confirmed persistent mappings.
+        if (!blockedArenaIds.Contains(id) && !decksByArenaId.ContainsKey(id))
+            decksByArenaId[id] = (name, "", "");
+        if (!blockedArenaIds.Contains(id))
+            history.AssignUnassignedByDeckId(id, name);
         // Do not replace an intentionally selected deck label until we observe the exact deck ID in match data.
         if (isSelection && !userChoseActiveDeck && timestamp.HasValue)
         { currentDeckId = id; currentDeckName = name; latestLogDeckSelection = timestamp; }
