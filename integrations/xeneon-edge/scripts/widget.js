@@ -14,7 +14,55 @@
   let listening = false;
   let retryImage = false;
 
-  try { selectedId = localStorage.getItem(selectionKey) || ""; } catch (_) {}
+  const layoutKey = "arcanevault.edge.layout.v1";
+  const setKey = "arcanevault.edge.setCode.v1";
+  const layoutDefaults = {history:true, latest:true, collection:true, sets:true};
+  let layout = {...layoutDefaults};
+  let selectedSetCode = "";
+  let setListIdentity = "";
+  try {
+    selectedId = localStorage.getItem(selectionKey) || "";
+    selectedSetCode = localStorage.getItem(setKey) || "";
+    const saved = JSON.parse(localStorage.getItem(layoutKey) || "{}");
+    for (const key of Object.keys(layoutDefaults))
+      if (typeof saved[key] === "boolean") layout[key] = saved[key];
+  } catch (_) {}
+
+  function applyLayout() {
+    for (const [key, element] of Object.entries({
+      history:"historyPanel", latest:"latestPanel",
+      collection:"collectionPanel", sets:"setPanel"
+    })) {
+      $(element).hidden = !layout[key];
+      $("show" + key[0].toUpperCase() + key.slice(1)).checked = layout[key];
+    }
+    $("dashboardShell").classList.toggle("no-history", !layout.history);
+    $("dashboardShell").classList.toggle("no-side",
+      !layout.latest && !layout.collection && !layout.sets);
+  }
+
+  function setLayout(key, enabled) {
+    layout[key] = enabled;
+    try { localStorage.setItem(layoutKey, JSON.stringify(layout)); } catch (_) {}
+    applyLayout();
+  }
+
+  function currentSetChoices() {
+    const summary = lastSnapshot?.setProgress;
+    return Array.isArray(summary?.sets) ?
+      summary.sets.filter(x => x && typeof x.code === "string" &&
+        Number(x.total) > 0).slice(0,2000) : [];
+  }
+
+  function changeSet(direction) {
+    const codes = ["", ...currentSetChoices().map(x => x.code)];
+    let index = codes.findIndex(x => x.toLowerCase() === selectedSetCode.toLowerCase());
+    if (index < 0) index = 0;
+    selectedSetCode = codes[(index + direction + codes.length) % codes.length];
+    try { localStorage.setItem(setKey, selectedSetCode); } catch (_) {}
+    if (lastSnapshot) renderSetProgress(lastSnapshot);
+  }
+
 
   function status(message, alert) {
     const node = $("status");
@@ -80,23 +128,56 @@
     const summary = snapshot.setProgress;
     const rows = $("setRows");
     rows.replaceChildren();
+    const select = $("setSelect");
     if (!summary || !Number.isFinite(Number(summary.totalSlots))) {
       $("setOverall").textContent = "—";
       $("setDescription").textContent = "Verified set progress not yet available";
+      if (select.options.length !== 1) {
+        select.replaceChildren(new Option("Top owned sets", ""));
+      }
+      setListIdentity = "";
       return;
     }
-    const total = Math.max(0,Number(summary.totalSlots) || 0);
-    const owned = Math.max(0,Number(summary.ownedSlots) || 0);
-    $("setOverall").textContent = owned.toLocaleString() + " / " + total.toLocaleString();
-    $("setDescription").textContent = total ?
-      (100 * owned / total).toFixed(1) + "% of catalog paper collector slots" :
-      "No verified paper collector slots";
-    for (const set of (Array.isArray(summary.topSets) ? summary.topSets : []).slice(0,4)) {
+    const total = Math.max(0, Number(summary.totalSlots) || 0);
+    const owned = Math.max(0, Number(summary.ownedSlots) || 0);
+    const choices = currentSetChoices();
+    // Options are rebuilt only when the catalog's set roster changes.
+    const identity = choices.map(x => x.code + ":" + x.owned + ":" + x.total).join("|");
+    if (identity !== setListIdentity) {
+      setListIdentity = identity;
+      select.replaceChildren(new Option("Top owned sets", ""));
+      for (const set of choices) select.add(new Option(
+        String(set.name || set.code) + " (" + String(set.code).toUpperCase() + ")",
+        String(set.code)));
+    }
+    const selected = selectedSetCode ?
+      choices.find(x => x.code.toLowerCase() === selectedSetCode.toLowerCase()) : null;
+    if (selectedSetCode && !selected && choices.length) {
+      // An old selection can outlive a downloaded set catalog.
+      selectedSetCode = "";
+      try { localStorage.removeItem(setKey); } catch (_) {}
+    }
+    select.value = selected ? selected.code : "";
+    if (selected) {
+      const num = Math.max(0, Number(selected.owned) || 0);
+      const denom = Math.max(1, Number(selected.total) || 0);
+      $("setOverall").textContent = num.toLocaleString() + " / " + denom.toLocaleString();
+      $("setDescription").textContent =
+        (100 * num / denom).toFixed(1) + "% · " + String(selected.name || selected.code);
+    } else {
+      $("setOverall").textContent = owned.toLocaleString() + " / " + total.toLocaleString();
+      $("setDescription").textContent = total ?
+        (100 * owned / total).toFixed(1) + "% of catalog paper collector slots" :
+        "No verified paper collector slots";
+    }
+    const visible = selected ? [selected] :
+      (Array.isArray(summary.topSets) ? summary.topSets : []).slice(0,4);
+    for (const set of visible) {
       if (!set || typeof set !== "object") continue;
       const count = Number(set.owned) || 0, maximum = Number(set.total) || 0;
       if (maximum <= 0) continue;
       const item = document.createElement("div");
-      item.className = "set-row";
+      item.className = "set-row" + (selected ? " selected" : "");
       const name = document.createElement("span");
       name.className = "set-name";
       name.textContent = String(set.name || set.code || "Unknown set");
@@ -107,11 +188,16 @@
       track.className = "set-track";
       const fill = document.createElement("div");
       fill.className = "set-fill";
-      fill.style.width = Math.max(0,Math.min(100,100 * count / maximum)) + "%";
+      fill.style.width = Math.max(0, Math.min(100, 100 * count / maximum)) + "%";
       track.appendChild(fill);
-      item.append(name,qty,track);
+      item.append(name, qty, track);
       rows.appendChild(item);
     }
+    // Older Windows snapshots provide topSets but not the expanded selectable
+    // roster. The default view remains functional without invented options.
+    select.disabled = !choices.length;
+    $("previousSet").disabled = !choices.length;
+    $("nextSet").disabled = !choices.length;
   }
 
   function render(snapshot) {
@@ -247,6 +333,28 @@
   window.pluginFilesystemproviderEvents = { onInitialized: watcherReady };
   $("prev").addEventListener("click", () => cycle(-1));
   $("next").addEventListener("click", () => cycle(1));
+  $("previousSet").addEventListener("click", () => changeSet(-1));
+  $("nextSet").addEventListener("click", () => changeSet(1));
+  $("setSelect").addEventListener("change", event => {
+    selectedSetCode = String(event.target.value || "");
+    try { localStorage.setItem(setKey, selectedSetCode); } catch (_) {}
+    if (lastSnapshot) renderSetProgress(lastSnapshot);
+  });
+  for (const key of Object.keys(layoutDefaults)) {
+    $("show" + key[0].toUpperCase() + key.slice(1))
+      .addEventListener("change", event => setLayout(key, !!event.target.checked));
+  }
+  $("resetLayout").addEventListener("click", () => {
+    layout = {...layoutDefaults};
+    try { localStorage.removeItem(layoutKey); } catch (_) {}
+    applyLayout();
+  });
+  $("settingsToggle").addEventListener("click", () => {
+    const panel = $("settingsPanel");
+    panel.hidden = !panel.hidden;
+    $("settingsToggle").setAttribute("aria-expanded", String(!panel.hidden));
+  });
+  applyLayout();
   if (typeof pluginFilesystemprovider_initialized !== "undefined" && pluginFilesystemprovider_initialized)
     watcherReady();
   else if (typeof iCUE_initialized !== "undefined" && iCUE_initialized)
