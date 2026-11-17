@@ -133,6 +133,35 @@ internal sealed class MatchHistory : IDisposable
         string format, string deckId, string deckName, string deckVersion, string sourceLog,
         string note, int gameWins, int gameLosses, string nativeDeckId = "");
 
+    // Repair an existing imported match by its exact Arena match ID, without
+    // changing the result, counts, or a manually/previously assigned deck.
+    // This also lets a second log pass supply a deck ID that arrived late.
+    public bool EnrichUnassignedMatch(string matchId, string arenaDeckId,
+        string nativeDeckId, string deckName, string deckVersion, string note)
+    {
+        if (string.IsNullOrWhiteSpace(matchId) || string.IsNullOrWhiteSpace(arenaDeckId) ||
+            arenaDeckId.Length > 180 || nativeDeckId.Length > 180 ||
+            deckName.Length > 150 || deckVersion.Length > 100 || note.Length > 500)
+            return false;
+        lock (gate)
+        {
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = @"UPDATE matches
+                SET deck_id=$arena, native_deck_id=$native, deck_name=$name,
+                    deck_version=$version, note=$note
+                WHERE match_id=$match
+                  AND TRIM(deck_id)='' AND TRIM(deck_name)=''
+                  AND TRIM(native_deck_id)=''";
+            cmd.Parameters.AddWithValue("$match", matchId);
+            cmd.Parameters.AddWithValue("$arena", arenaDeckId);
+            cmd.Parameters.AddWithValue("$native", nativeDeckId);
+            cmd.Parameters.AddWithValue("$name", deckName);
+            cmd.Parameters.AddWithValue("$version", deckVersion);
+            cmd.Parameters.AddWithValue("$note", note);
+            return cmd.ExecuteNonQuery() == 1;
+        }
+    }
+
     public bool Add(MatchRow row)
     {
         lock (gate)
