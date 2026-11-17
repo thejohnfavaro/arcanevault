@@ -16,7 +16,7 @@ internal sealed class NativeMatchHistoryView : UserControl
 {
     private sealed record MatchItem(string Database, string MatchId, string Played,
         string Result, string DeckName, string DeckId, string Source, string Note,
-        int GameWins, int GameLosses)
+        int GameWins, int GameLosses, string Format)
     {
         public string Date => DateTimeOffset.TryParse(Played, out var date)
             ? date.ToLocalTime().ToString("g") : Played;
@@ -62,6 +62,7 @@ internal sealed class NativeMatchHistoryView : UserControl
         Padding = new Thickness(14, 9, 14, 9),
         ToolTip = "Assign only exact Arena deck IDs already linked to one saved deck; never guess missing IDs" };
     private IReadOnlyList<MatchItem> loaded = Array.Empty<MatchItem>();
+    private readonly NativeMatchPerformancePanel performance = new();
     private bool busy;
 
     public NativeMatchHistoryView()
@@ -84,6 +85,11 @@ internal sealed class NativeMatchHistoryView : UserControl
         toolbar.Children.Add(resolveVerified);
         header.Children.Add(toolbar);
         header.Children.Add(status);
+        header.Children.Add(new Expander {
+            Header = "Deck performance dashboard", IsExpanded = false,
+            Foreground = Brushes.White, Content = performance,
+            Margin = new Thickness(0,4,0,8)
+        });
 
         var footer = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
         DockPanel.SetDock(footer, Dock.Bottom);
@@ -150,7 +156,7 @@ internal sealed class NativeMatchHistoryView : UserControl
             }.ToString());
             db.Open();
             using var cmd = db.CreateCommand();
-            cmd.CommandText = "SELECT match_id,played_utc,result,deck_name,deck_id,result_source,note,game_wins,game_losses "+
+            cmd.CommandText = "SELECT match_id,played_utc,result,deck_name,deck_id,result_source,note,game_wins,game_losses,format "+
                 "FROM matches ORDER BY played_utc DESC LIMIT 2000";
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
@@ -165,11 +171,21 @@ internal sealed class NativeMatchHistoryView : UserControl
                     rd.IsDBNull(5) ? "" : rd.GetString(5),
                     rd.IsDBNull(6) ? "" : rd.GetString(6),
                     rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
-                    rd.IsDBNull(8) ? 0 : rd.GetInt32(8)));
+                    rd.IsDBNull(8) ? 0 : rd.GetInt32(8),
+                    rd.IsDBNull(9) ? "" : rd.GetString(9)));
             }
         }
         return result.OrderByDescending(x => x.Played, StringComparer.Ordinal)
             .Take(2000).ToArray();
+    }
+
+    private void RefreshPerformance()
+    {
+        performance.SetMatches(loaded
+            .Where(x => DateTimeOffset.TryParse(x.Played, out _))
+            .Select(x => new MatchPerformanceAnalytics.Entry(
+                x.MatchId, DateTimeOffset.Parse(x.Played),
+                x.DeckName, "", x.Format, x.Result)));
     }
 
     private void FilterRows()
@@ -230,6 +246,7 @@ internal sealed class NativeMatchHistoryView : UserControl
                 return (matches, decks);
             });
             loaded = data.matches;
+            RefreshPerformance();
             deckPicker.ItemsSource = data.decks;
             if (data.decks.Length > 0) deckPicker.SelectedIndex = 0;
             FilterRows();
@@ -323,6 +340,7 @@ internal sealed class NativeMatchHistoryView : UserControl
     private async Task ReloadAsyncAfterBulk(int changed)
     {
         loaded = await Task.Run(ReadMatches);
+        RefreshPerformance();
         FilterRows();
         status.Text = changed == 0
             ? "No additional matches could be safely assigned by exact Arena ID. " +
