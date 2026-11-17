@@ -353,6 +353,23 @@ internal sealed class ArenaMatchTracker : IDisposable
         if (idMatch.Length == 0) idMatch = Str(final,"matchId");
         if (idMatch.Length == 0 || idMatch.Length > 180) return;
         if (!sessions.TryGetValue(idMatch,out var info)) sessions[idMatch] = info = new SessionMatch {Id=idMatch};
+        // Arena match-room events usually omit a deckId. A recent,
+        // explicit submission to Arena's queue is the trustworthy link.
+        // Do not use mere deck inventory or an indefinite "last deck".
+        if (info.DeckId.Length == 0 && currentDeckId is { Length: > 0 } &&
+            latestLogDeckSelection.HasValue && timestamp.HasValue &&
+            (timestamp.Value - latestLogDeckSelection.Value).TotalMinutes is >= 0 and <= 20)
+        {
+            info.DeckId = currentDeckId;
+            if (decksByArenaId.TryGetValue(currentDeckId, out var queued))
+            {
+                info.DeckName = queued.Name;
+                info.NativeDeckId = queued.NativeId;
+                info.DeckVersion = queued.Version;
+                info.Assignment = "recent_arena_deck_submission";
+            }
+            else info.Assignment = "unmapped_arena_deck_submission";
+        }
         if (config.ValueKind == JsonValueKind.Object)
         {
             if (info.Started == null) info.Started = timestamp;
@@ -443,10 +460,15 @@ internal sealed class ArenaMatchTracker : IDisposable
         var id = Str(deck,"DeckId"); if (id.Length == 0) id = Str(deck,"deckId");
         var name = Str(deck,"Name"); if (name.Length == 0) name = Str(deck,"name");
         if (name.Length == 0) name = Str(deck,"deckName");
-        if (id.Length is < 1 or > 180 || name.Length is < 1 or > 150) return;
+        if (id.Length is < 1 or > 180 || name.Length > 150) return;
+        // Queue submissions can include only the Arena ID and format.
+        // A name is optional when an exact persisted mapping exists.
+        if (name.Length == 0 && decksByArenaId.TryGetValue(id, out var linked))
+            name = linked.Name;
         // Arena's summary may reference unrelated decks; it must not
         // override verified native or user-confirmed persistent mappings.
-        if (!blockedArenaIds.Contains(id) && !decksByArenaId.ContainsKey(id))
+        if (name.Length > 0 && !blockedArenaIds.Contains(id) &&
+            !decksByArenaId.ContainsKey(id))
             decksByArenaId[id] = (name, "", "");
         if (!blockedArenaIds.Contains(id) &&
             decksByArenaId.TryGetValue(id, out var knownDeck))
@@ -457,8 +479,15 @@ internal sealed class ArenaMatchTracker : IDisposable
                 history.AssignUnassignedByDeckId(id, name);
         }
         // Do not replace an intentionally selected deck label until we observe the exact deck ID in match data.
-        if (isSelection && !userChoseActiveDeck && timestamp.HasValue)
-        { currentDeckId = id; currentDeckName = name; latestLogDeckSelection = timestamp; }
+        if (isSelection && timestamp.HasValue)
+        {
+            currentDeckId = id;
+            latestLogDeckSelection = timestamp;
+            // Do not claim a saved deck unless a verified ID resolves.
+            if (!userChoseActiveDeck)
+                currentDeckName = decksByArenaId.TryGetValue(id, out var selected)
+                    ? selected.Name : "";
+        }
     }
     public void Dispose() => history.Dispose();
 }
