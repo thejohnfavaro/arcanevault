@@ -502,6 +502,10 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 InvalidOperationException or UnauthorizedAccessException)
             { Log("Verified Stream Deck deck mappings unavailable", ex); }
         }
+        var resolvedDecks = decks.Select(d =>
+            new MatchDeckAttribution.Deck(d.id, d.name, d.arenaDeckId)).ToArray();
+        var arenaMap = uniqueArenaIds.ToDictionary(x => x.Key, x => x.Value.id,
+            StringComparer.OrdinalIgnoreCase);
         var knownMatches = new HashSet<string>(StringComparer.Ordinal);
         RecentMatch? recent = null;
         DateTimeOffset? latest = null;
@@ -528,7 +532,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                             hasNativeDeckId = true;
                 cmd.CommandText = "SELECT match_id,result,deck_name,played_utc,deck_id," +
                     (hasNativeDeckId ? "native_deck_id" : "''") +
-                    " FROM matches WHERE result IN ('win','loss') " +
+                    ",note FROM matches WHERE result IN ('win','loss') " +
                     "ORDER BY played_utc DESC LIMIT 25000";
                 using var reader = cmd.ExecuteReader();
                 bool used = false;
@@ -539,18 +543,16 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     string name = reader.IsDBNull(2) ? "" : reader.GetString(2).Trim();
                     string arenaId = reader.IsDBNull(4) ? "" : reader.GetString(4).Trim();
                     string nativeId = reader.IsDBNull(5) ? "" : reader.GetString(5).Trim();
-                    Deck? deck = null;
-                    if (nativeId.Length > 0)
-                        byNativeId.TryGetValue(nativeId, out deck);
-                    else if (arenaId.Length > 0 && !blockedArenaIds.Contains(arenaId))
-                        uniqueArenaIds.TryGetValue(arenaId, out deck);
-                    // Legacy records may have a manually assigned name but no
-                    // stable IDs. Do not let a same-name fallback override a
-                    // conflicting or unknown explicit identifier.
-                    if (deck is null && nativeId.Length == 0 && arenaId.Length == 0 &&
-                        name.Length > 0)
-                        unique.TryGetValue(name, out deck);
-                    if (deck is null || id.Length == 0 || !knownMatches.Add(id)) continue;
+                    // Match History displays the native database first.
+                    // Deduplicate BEFORE attribution so a stale legacy copy
+                    // cannot replace the same match with different evidence.
+                    if (id.Length == 0 || !knownMatches.Add(id)) continue;
+                    string note = reader.IsDBNull(6) ? "" : reader.GetString(6);
+                    string? resolvedId = MatchDeckAttribution.Resolve(
+                        new MatchDeckAttribution.Match(id, name, arenaId, nativeId, note),
+                        resolvedDecks, arenaMap, blockedArenaIds);
+                    if (resolvedId is null || !byNativeId.TryGetValue(resolvedId, out var deck))
+                        continue;
                     used = true;
                     if (result == "win") deck.wins++; else deck.losses++;
                     if (!histories.TryGetValue(deck.id, out var history))
