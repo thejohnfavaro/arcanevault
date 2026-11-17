@@ -78,8 +78,9 @@ internal sealed class ArenaMatchTracker : IDisposable
                         !string.IsNullOrWhiteSpace(x.Name) &&
                         x.ArenaId.Length <= 180 && x.Name.Length <= 150)
             .GroupBy(x => x.ArenaId.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Where(x => x.Select(d => d.Name.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1)
+            // An Arena ID linked to two saved deck records is ambiguous,
+            // even when those records happen to share the same display name.
+            .Where(x => x.Count() == 1)
             .Select(x => (Id: x.Key, Name: x.First().Name.Trim()))
             .Take(1000).ToArray();
         lock (gate)
