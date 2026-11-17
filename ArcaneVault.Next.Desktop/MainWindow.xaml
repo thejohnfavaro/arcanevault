@@ -351,6 +351,12 @@
                                 Style="{StaticResource VaultNavButtonDepth}"
                                 ToolTip="Browse and edit saved decks in the main workspace"
                                 Margin="0,0,0,5"/>
+                        <Button x:Name="DeckAnalyticsNavigationButton"
+                                Content="▥   Deck Analytics"
+                                Click="OnOpenDeckAnalyticsClicked"
+                                Style="{StaticResource VaultNavButtonDepth}"
+                                ToolTip="Compare confirmed Arena deck performance and trends"
+                                Margin="0,0,0,5"/>
                         <Button x:Name="MatchHistoryNavigationButton"
                                 Content="▤   Match History"
                                 Click="OnOpenMatchHistoryClicked"
@@ -1182,6 +1188,8 @@
         <!-- Arena match reconciliation is a separate main-window workspace.
              Its corrections only update existing local match-history rows. -->
         <ContentControl x:Name="MatchHistoryWorkspaceHost" Grid.Column="1"
+                        Margin="10,12,10,12" Visibility="Collapsed"/>
+        <ContentControl x:Name="DeckAnalyticsWorkspaceHost" Grid.Column="1"
                         Margin="10,12,10,12" Visibility="Collapsed"/>
 
         <!-- Update decisions remain inside Arcane Vault, not Windows dialogs. -->
