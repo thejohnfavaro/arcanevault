@@ -190,35 +190,62 @@ internal sealed class ArenaMatchTracker : IDisposable
         var builder = new StringBuilder();
         DateTimeOffset? timestamp = null;
         DateTimeOffset? lastHeaderTime = null;
-        bool relevant = false;
         int balance = 0;
         bool quoted = false, escaped = false;
         string eventLabel = "";
+        string pendingEventLabel = "";
+        DateTimeOffset? pendingEventTime = null;
+        int pendingLines = 0;
         while ((line = reader.ReadLine()) != null)
         {
-            // Stop on a partial trailing line; it will be read on the next scan.
+            // Preserve the last complete line; never consume partially
+            // written Arena JSON on a live shared file.
             if (fs.Position == fs.Length && !EndsWithNewline(fs)) break;
+            var lineTime = HeaderTime(line);
             if (line.StartsWith("[UnityCrossThreadLogger]", StringComparison.OrdinalIgnoreCase))
-                lastHeaderTime = HeaderTime(line) ?? lastHeaderTime;
+                lastHeaderTime = lineTime ?? lastHeaderTime;
             if (builder.Length == 0)
             {
-                // Deck submissions are frequently logged as an RPC prefix
-                // with a JSON-encoded "request", not an EventSetDeckV2
-                // property inside the JSON. Capture the prefix as evidence.
-                relevant = line.Contains("matchGameRoomStateChangedEvent", StringComparison.OrdinalIgnoreCase)
-                    || line.Contains("EventSetDeckV", StringComparison.OrdinalIgnoreCase)
-                    || line.Contains("CourseDeckSummary", StringComparison.OrdinalIgnoreCase)
-                    || line.Contains("CourseDeck", StringComparison.OrdinalIgnoreCase)
-                    || line.Contains("authenticateResponse", StringComparison.OrdinalIgnoreCase);
-                eventLabel = line.Contains("EventSetDeckV", StringComparison.OrdinalIgnoreCase)
-                    ? "deck_submission"
-                    : line.Contains("==> CourseDeck", StringComparison.OrdinalIgnoreCase) ||
-                      line.Contains("\"CourseDeck\"", StringComparison.OrdinalIgnoreCase)
-                    ? "course_deck" : "";
-                if (!relevant) continue;
-                timestamp = HeaderTime(line) ?? lastHeaderTime;
+                // Arena writes some event labels on their own line, with
+                // the associated JSON envelope on the following line.
+                // Older versions discarded that JSON because it no longer
+                // contained the event name. Keep a short, bounded pending
+                // header and reset it on the next unrelated event.
+                bool hasRoom = line.Contains("matchGameRoomStateChangedEvent", StringComparison.OrdinalIgnoreCase);
+                bool hasSet = line.Contains("EventSetDeckV", StringComparison.OrdinalIgnoreCase);
+                bool hasCourse = line.Contains("CourseDeck", StringComparison.OrdinalIgnoreCase);
+                bool hasAuth = line.Contains("authenticateResponse", StringComparison.OrdinalIgnoreCase);
+                bool relevant = hasRoom || hasSet || hasCourse || hasAuth;
+                string detected = hasSet ? "deck_submission" :
+                    line.Contains("==> CourseDeck", StringComparison.OrdinalIgnoreCase) ||
+                    line.Contains("\\"CourseDeck\\"", StringComparison.OrdinalIgnoreCase)
+                        ? "course_deck" : hasRoom ? "match_room" :
+                        hasAuth ? "auth" : "deck_inventory";
+
+                // New headers replace prior unfinished headers. An
+                // inventory summary must not be mistaken for a submission.
+                if (relevant)
+                {
+                    pendingEventLabel = detected;
+                    pendingEventTime = lineTime ?? lastHeaderTime;
+                    pendingLines = 0;
+                }
+                else if (pendingEventLabel.Length > 0)
+                {
+                    if (++pendingLines > 8)
+                    {
+                        pendingEventLabel = "";
+                        pendingEventTime = null;
+                    }
+                }
+                else continue;
                 var brace = line.IndexOf('{');
                 if (brace < 0) continue;
+                eventLabel = pendingEventLabel;
+                timestamp = pendingEventTime ?? lineTime ?? lastHeaderTime;
+                pendingEventLabel = "";
+                pendingEventTime = null;
+                pendingLines = 0;
                 line = line[brace..];
             }
             if (builder.Length + line.Length > MaxEventBytes)
