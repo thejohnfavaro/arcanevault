@@ -8,7 +8,19 @@
   <link rel="stylesheet" href="styles/widget.css" />
 </head>
 <body>
-  <main class="shell" aria-label="Arcane Vault Deck Dashboard">
+  <div class="settings-anchor">
+    <button id="settingsToggle" class="settings-toggle" type="button"
+      aria-controls="settingsPanel" aria-expanded="false" aria-label="Dashboard settings">⚙ Settings</button>
+    <section id="settingsPanel" class="settings-panel" hidden aria-label="Dashboard layout settings">
+      <div class="settings-title">DASHBOARD PANELS</div>
+      <label><input type="checkbox" id="showHistory" checked /> Match history</label>
+      <label><input type="checkbox" id="showLatest" checked /> Latest match</label>
+      <label><input type="checkbox" id="showCollection" checked /> Collection value</label>
+      <label><input type="checkbox" id="showSets" checked /> Set progress</label>
+      <button type="button" id="resetLayout" class="settings-reset">Restore defaults</button>
+    </section>
+  </div>
+  <main class="shell" id="dashboardShell" aria-label="Arcane Vault Deck Dashboard">
     <section class="panel art-panel">
       <img class="art" id="art" alt="" />
       <div class="brand">ARCANE VAULT <span id="previewLabel"></span></div>
@@ -35,7 +47,7 @@
         <div><div class="eyebrow">WIN RATE</div><div class="rate" id="rate">—</div></div>
         <div class="bar" aria-label="Win percentage"><span id="rateFill"></span></div>
       </div>
-      <section class="history" aria-label="Recent verified match outcomes">
+      <section class="history" id="historyPanel" aria-label="Recent verified match outcomes">
         <div class="history-heading">
           <span class="eyebrow">RECENT MATCHES</span>
           <span class="quiet" id="historyCoverage">Last 20 confirmed results</span>
@@ -52,20 +64,25 @@
       </section>
     </section>
     <section class="panel side">
-      <div class="feature">
+      <div class="feature" id="latestPanel">
         <div class="feature-title">LATEST MATCH</div>
         <div class="feature-data latest" id="recent">—</div>
         <div class="feature-small" id="recentDescription">No recent match</div>
       </div>
-      <div class="feature">
+      <div class="feature" id="collectionPanel">
         <div class="feature-title">PHYSICAL COLLECTION</div>
         <div class="feature-data" id="collectionValue">—</div>
         <div class="feature-small" id="valuationAge">Waiting for valuation</div>
       </div>
-      <div class="feature set-feature">
+      <div class="feature set-feature" id="setPanel">
         <div class="feature-title">PHYSICAL SET PROGRESS</div>
         <div class="set-overall" id="setOverall">—</div>
         <div class="feature-small" id="setDescription">Waiting for verified set progress</div>
+        <div class="set-picker" aria-label="Selected physical set">
+          <button id="previousSet" type="button" aria-label="Previous set">‹</button>
+          <select id="setSelect" aria-label="Choose set"><option value="">Top owned sets</option></select>
+          <button id="nextSet" type="button" aria-label="Next set">›</button>
+        </div>
         <div class="set-rows" id="setRows"></div>
       </div>
       <div class="feature">
