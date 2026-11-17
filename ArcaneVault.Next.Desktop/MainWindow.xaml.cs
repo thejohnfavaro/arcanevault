@@ -1021,7 +1021,7 @@ public partial class MainWindow : Window
                     using(var phoneDoc=System.Text.Json.JsonDocument.Parse(phoneBytes))
                         expectedPhoneRevision=phoneDoc.RootElement.GetProperty("revision").GetString();
                     selectedAuthority="matched";
-                    byte[] latest=NativePeerSync.Export(
+                    byte[] latest=NativePeerWithAnalytics.Export(
                         NativeWorkspace.DefaultPath,NativePeerSync.DeviceId());
                     if(comparison.HasChanges) {
                         try {
@@ -1083,7 +1083,7 @@ public partial class MainWindow : Window
                     throw new InvalidDataException("Devices remain different; baseline not saved.");
                 string checkpoint=await Task.Run(()=>NativePeerCheckpoint.SaveIdentical(
                     NativeWorkspace.DefaultPath,phoneBytes));
-                byte[] authoritative=NativePeerSync.Export(NativeWorkspace.DefaultPath,
+                byte[] authoritative=NativePeerWithAnalytics.Export(NativeWorkspace.DefaultPath,
                     NativePeerSync.DeviceId());
                 _=Dispatcher.BeginInvoke(new Action(async ()=>{
                     if(closing)return;
@@ -1125,7 +1125,7 @@ public partial class MainWindow : Window
         try {
             await StopPeerUsbAsync();
             byte[] bytes=await Task.Run(()=>
-                NativePeerSync.Export(NativeWorkspace.DefaultPath,NativePeerSync.DeviceId()));
+                NativePeerWithAnalytics.Export(NativeWorkspace.DefaultPath,NativePeerSync.DeviceId()));
             var offer=wirelessPeer.ShareUsb(bytes);
             activeUsbBridge=await UsbPeerBridge.OpenAsync(offer.Url,false);
             FilterStatus.Text="USB peer share ready. Confirm Receive on Android; link expires in 5 minutes.";
@@ -1207,7 +1207,7 @@ public partial class MainWindow : Window
         try
         {
             var bytes=await Task.Run(()=>
-                NativePeerSync.Export(NativeWorkspace.DefaultPath,NativePeerSync.DeviceId()));
+                NativePeerWithAnalytics.Export(NativeWorkspace.DefaultPath,NativePeerSync.DeviceId()));
             var link=wirelessPeer.Share(bytes);
             Clipboard.SetText(link.Url);
             FilterStatus.Text="One-time Wi-Fi link copied. Expires in five minutes.";
@@ -1422,7 +1422,7 @@ public partial class MainWindow : Window
         {
             string savedPath = await Task.Run(() =>
             {
-                byte[] bytes = NativePeerSync.Export(
+                byte[] bytes = NativePeerWithAnalytics.Export(
                     NativeWorkspace.DefaultPath, NativePeerSync.DeviceId());
                 string folder = Path.Combine(NativeWorkspace.RootDirectory, "sync-snapshots");
                 Directory.CreateDirectory(folder);
@@ -1494,7 +1494,7 @@ public partial class MainWindow : Window
         try
         {
             byte[] bytes = await Task.Run(() =>
-                NativePeerSync.Export(NativeWorkspace.DefaultPath, NativePeerSync.DeviceId()));
+                NativePeerWithAnalytics.Export(NativeWorkspace.DefaultPath, NativePeerSync.DeviceId()));
             using (var stream = new FileStream(picker.FileName,
                 FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
