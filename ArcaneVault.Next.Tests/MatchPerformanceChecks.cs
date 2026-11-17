@@ -29,6 +29,26 @@ internal static class MatchPerformanceChecks
         var all = MatchPerformanceAnalytics.Build(rows,null,0,now);
         Assert(all.Wins == 2 && all.Losses == 3 && all.Unresolved == 1,
             "All time totals must remain deduplicated and exclude unassigned matches.");
+        var brawl = MatchPerformanceAnalytics.Build(rows,"Deck A",30,now,"Brawl");
+        Assert(brawl.Wins == 1 && brawl.Losses == 1 && brawl.Unresolved == 0,
+            "Format filtering must apply to primary statistics and unresolved count.");
+        Assert(brawl.Formats.Count == 1 && brawl.Formats[0].Format == "Brawl" &&
+            brawl.Timeline.Count == 2, "Format-specific timeline should exclude other queues.");
+        Assert(brawl.Timeline[0].Result == "WIN" && brawl.Timeline[1].Result == "LOSS",
+            "Timeline must show newest confirmed matches first.");
+        Assert(brawl.Timeline[0].RollingRate == "50%",
+            "Recent timeline must use its own filtered rolling win rate.");
+        var historic = MatchPerformanceAnalytics.Build(rows,"Deck A",0,now,"Historic");
+        Assert(historic.Wins == 1 && historic.Losses == 0 && historic.Unresolved == 1,
+            "Unknown outcomes must not count as losses within an individual format.");
+        var compare = MatchPerformanceAnalytics.Build(rows,"Deck B",30,now,"Brawl");
+        Assert(compare.Wins == 0 && compare.Losses == 1 && compare.Rate == 0,
+            "The comparison deck must have independent, filtered metrics.");
+        var unclassified = MatchPerformanceAnalytics.Build(new [] {
+            new MatchPerformanceAnalytics.Entry("blank-format",now,"Deck A","","","win")
+        },"Deck A",30,now,"Unknown format");
+        Assert(unclassified.Wins == 1 && unclassified.Formats.Single().Format == "Unknown format",
+            "Unlabeled queues must be selectable as Unknown format.");
         var shortRange = MatchPerformanceAnalytics.Build(rows,"Deck A",1,now);
         Assert(shortRange.Matches == 1, "Date range should not include older results.");
     }
