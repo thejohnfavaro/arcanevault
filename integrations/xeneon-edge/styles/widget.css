@@ -42,3 +42,36 @@
 .set-fill{height:100%;background:linear-gradient(90deg,#c57d3e,#f3bc78)}
 @media(max-width:1100px){.history{padding-top:6px}.wl .number{font-size:clamp(55px,8vw,108px)}}
 @media(max-width:600px){.history-heading .quiet{display:none}.match-strip{min-height:20px}.history-bottom{display:none}}
+
+/* v0.3 — customizable dashboard and touch set navigation. */
+[hidden]{display:none!important}
+.settings-anchor{position:fixed;top:9px;right:14px;z-index:50}
+.settings-toggle{min-height:48px;border:1px solid #5d6a77;border-radius:12px;
+ background:#162332ed;color:#f2e3d2;padding:8px 16px;font:700 16px "Segoe UI",sans-serif;
+ cursor:pointer;box-shadow:0 4px 15px #0007}
+.settings-panel{position:absolute;right:0;top:55px;min-width:255px;max-height:calc(100vh - 65px);
+ overflow-y:auto;background:#162331;border:1px solid #647489;border-radius:16px;
+ padding:18px;box-shadow:0 12px 30px #000b;display:flex;flex-direction:column;gap:15px}
+.settings-title{font-size:13px;font-weight:800;letter-spacing:.12em;color:#efb780}
+.settings-panel label{font:600 16px "Segoe UI",sans-serif;display:flex;align-items:center;gap:12px;min-height:36px}
+.settings-panel input{appearance:auto;width:24px;height:24px;accent-color:#edac62}
+.settings-reset{min-height:48px;background:#28394a;color:white;border:1px solid #78899a;
+ border-radius:12px;font-size:15px;font-weight:700}
+.set-picker{display:flex;align-items:center;gap:6px;margin-top:10px}
+.set-picker button{min-width:44px;min-height:44px;border-radius:10px;border:1px solid #667788;
+ background:#273b4c;color:#fff;font-size:25px}
+.set-picker select{min-width:0;flex:1;height:44px;border:1px solid #64788c;
+ border-radius:10px;background:#1e3041;color:#f0f4f7;padding:4px 8px;font-size:clamp(12px,.83vw,18px)}
+.set-picker button:active,.settings-reset:active{background:#b8803b}
+.set-row.selected{border:1px solid #91673e;border-radius:10px;padding:8px;background:#2c2a2a}
+.shell.no-history .stats{justify-content:space-around}
+.shell.no-side{grid-template-columns:minmax(0,1fr) minmax(0,1.7fr)}
+.shell.no-side .side{display:none}
+.shell.no-history .wl .number{font-size:clamp(80px,9vw,185px)}
+.side .feature:last-child{border:0}
+@media(max-width:1100px){
+ .settings-anchor{top:4px;right:6px}
+ .settings-toggle{font-size:12px;min-height:40px}
+ .shell:not(.no-side){grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+ .shell:not(.no-side) .side{display:flex;grid-column:1/-1}
+}
