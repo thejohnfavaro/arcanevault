@@ -81,13 +81,16 @@ internal sealed class ArenaMatchTracker : IDisposable
         IEnumerable<(string ArenaId, string Name, string NativeId)> savedDecks)
     {
         ArgumentNullException.ThrowIfNull(savedDecks);
-        var rows = savedDecks.Where(x => !string.IsNullOrWhiteSpace(x.ArenaId) &&
-            !string.IsNullOrWhiteSpace(x.Name) && x.ArenaId.Length <= 180 &&
-            x.Name.Length <= 150).ToArray();
-        var collisions = rows.GroupBy(x => x.ArenaId.Trim(),
+        // Native saved decks without an embedded Arena ID still need to
+        // participate: a user-confirmed persistent mapping can target them.
+        var rows = savedDecks.Where(x => !string.IsNullOrWhiteSpace(x.Name) &&
+            x.Name.Length <= 150 && x.NativeId.Length <= 180).ToArray();
+        var direct = rows.Where(x => !string.IsNullOrWhiteSpace(x.ArenaId) &&
+            x.ArenaId.Length <= 180).ToArray();
+        var collisions = direct.GroupBy(x => x.ArenaId.Trim(),
             StringComparer.OrdinalIgnoreCase).Where(g => g.Count() != 1)
             .Select(g => g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var verified = rows.Where(x => !collisions.Contains(x.ArenaId.Trim()))
+        var verified = direct.Where(x => !collisions.Contains(x.ArenaId.Trim()))
             .ToDictionary(x => x.ArenaId.Trim(), x => x,
                 StringComparer.OrdinalIgnoreCase);
         lock (gate)
