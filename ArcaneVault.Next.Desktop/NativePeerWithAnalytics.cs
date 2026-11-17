@@ -18,7 +18,20 @@ internal static class NativePeerWithAnalytics
         byte[] original = NativePeerSync.Export(workspacePath, deviceId);
         var root = JsonNode.Parse(original) as JsonObject ??
             throw new InvalidDataException("Peer envelope unavailable.");
-        var rows = NativeMatchHistoryView.ReadPerformance()
+        // Analytics are optional. A locked, corrupted, or inaccessible history
+        // must never prevent inventory sync, backup or a verified baseline.
+        MatchPerformanceAnalytics.Entry[] source;
+        try
+        {
+            source = NativeMatchHistoryView.ReadPerformance().ToArray();
+        }
+        catch (Exception error) when (error is IOException or
+            Microsoft.Data.Sqlite.SqliteException or UnauthorizedAccessException or
+            InvalidOperationException or ArgumentException)
+        {
+            return original;
+        }
+        var rows = source
             .Where(x => x.Result is "win" or "loss" &&
                 !string.IsNullOrWhiteSpace(x.DeckName))
             .OrderByDescending(x => x.Played)
@@ -36,8 +49,8 @@ internal static class NativePeerWithAnalytics
             records = rows
         });
         byte[] result = JsonSerializer.SerializeToUtf8Bytes(root);
-        if (result.Length > NativePeerSync.MaxBytes)
-            throw new InvalidDataException("Peer export with analytics exceeds size limit.");
-        return result;
+        // Prefer the original fully verified inventory envelope if the
+        // optional presentation metadata would exceed the peer size limit.
+        return result.Length <= NativePeerSync.MaxBytes ? result : original;
     }
 }
