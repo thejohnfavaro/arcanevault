@@ -250,22 +250,6 @@
   else if (typeof iCUE_initialized !== "undefined" && iCUE_initialized)
     watcherReady();
 
-  // Browser-only preview with unmistakable sample data. Never claim demo
-  // numbers are read from a real user's saved collection.
-  if (typeof window.iCUE === "undefined" && typeof window.plugins === "undefined") {
-    $("previewLabel").textContent = "SAMPLE PREVIEW";
-    readSnapshot(JSON.stringify({
-      decks:[{id:"sample",name:"Demo Commander Deck",commander:"Sample commander",wins:12,losses:7,artUrl:"",
-        matchHistory:Array.from({length:19},(_,i)=>({result:i%3===0?"loss":"win",
-          playedUtc:new Date(Date.UTC(2026,10,1+i)).toISOString()})).reverse()}],
-      collection:{value:0,currency:"USD",asOf:"example"},
-      recentMatch:{result:"win",deckName:"Demo Commander Deck"},
-      setProgress:{ownedSlots:834,totalSlots:6842,topSets:[
-        {code:"dmo",name:"Demo Set Alpha",owned:124,total:260},
-        {code:"dm1",name:"Demo Set Beta",owned:92,total:180},
-        {code:"dm2",name:"Demo Set Gamma",owned:47,total:200}
-      ]}
-    }));
-    status("SAMPLE PREVIEW · iCUE not connected", true);
-  }
+  // Never render synthetic deck or collection values in the released widget.
+  // A missing iCUE provider remains a clearly labeled unavailable state.
 }());
