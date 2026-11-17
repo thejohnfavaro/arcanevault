@@ -84,6 +84,46 @@ internal static class ArenaLogAssignmentChecks
             Assert(found["match-after-inventory"] == ("course-deck-002","native-course-002","win"),
                 "Passive CourseDeckSummary must not replace the actual submitted deck.");
         }
+        // The user's live Arena event-shape report includes V3 messages
+        // with the label on one line and a JSON envelope on the next.
+        // This is distinct from the inline synthetic fixture above.
+        var splitDirectory = Path.Combine(local, "split-envelope");
+        Directory.CreateDirectory(splitDirectory);
+        var splitLog = Path.Combine(splitDirectory, "Player.log");
+        var splitDb = Path.Combine(splitDirectory, "match.sqlite3");
+        var splitId = "live-shape-verified-id";
+        File.WriteAllLines(splitLog, new [] {
+            Event(t, "Auth", auth),
+            "[UnityCrossThreadLogger] 11/17/2026 09:01:00 AM ==> EventSetDeckV3",
+            JsonSerializer.Serialize(new { request = JsonSerializer.Serialize(new {
+                Summary = new { DeckId = splitId, Name = "Verified Deck" },
+                Deck = new { MainDeck = new int[] { 1,2,3 } }
+            })}),
+            "[UnityCrossThreadLogger] 11/17/2026 09:02:00 AM ==> matchGameRoomStateChangedEvent",
+            JsonSerializer.Serialize(Match("match-from-split-1",
+                "MatchGameRoomStateType_Playing","self-id")),
+            "[UnityCrossThreadLogger] 11/17/2026 09:03:00 AM ==> matchGameRoomStateChangedEvent",
+            JsonSerializer.Serialize(Match("match-from-split-1",
+                "MatchGameRoomStateType_MatchCompleted","self-id"))
+        });
+        using (var tracker = new ArenaMatchTracker(splitDb))
+        {
+            tracker.SetKnownSavedDecks(new [] {
+                (ArenaId: splitId, Name: "Verified Deck", NativeId: "native-split")
+            });
+            tracker.Configure(true, splitLog);
+            tracker.Tick();
+        }
+        using (var db = new SqliteConnection("Data Source=" + splitDb))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT deck_id,native_deck_id,result FROM matches WHERE match_id='match-from-split-1'";
+            using var r = cmd.ExecuteReader();
+            Assert(r.Read() && r.GetString(0) == splitId &&
+                r.GetString(1) == "native-split" && r.GetString(2) == "win",
+                "Separated Arena V3 header and escaped JSON request must carry the deck ID into the match.");
+        }
         // A real submission without a saved mapping must STILL preserve the
         // Arena ID, allowing a reusable mapping to be created by the user.
         var unknownLog = Path.Combine(local,"unmapped","Player.log");
