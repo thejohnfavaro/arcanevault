@@ -24,6 +24,8 @@ internal sealed class NativeMatchHistoryView : UserControl
             ? (Result == "unknown" ? "Review result & deck" : "Needs deck assignment")
             : (Result == "unknown" ? "Review result" : "Assigned");
         public string Deck => string.IsNullOrWhiteSpace(DeckName) ? "Unassigned" : DeckName;
+        public string ArenaIdStatus => string.IsNullOrWhiteSpace(DeckId)
+            ? "Not captured" : "Captured";
         public string GameRecord => GameWins + GameLosses > 0
             ? GameWins + "–" + GameLosses : "—";
         public string Origin => System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(Database));
@@ -100,6 +102,8 @@ internal sealed class NativeMatchHistoryView : UserControl
             DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.GameRecord)) });
         grid.Columns.Add(new GridViewColumn { Header = "Deck", Width = 225,
             DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.Deck)) });
+        grid.Columns.Add(new GridViewColumn { Header = "Arena ID", Width = 115,
+            DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.ArenaIdStatus)) });
         grid.Columns.Add(new GridViewColumn { Header = "Status", Width = 170,
             DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.Status)) });
         grid.Columns.Add(new GridViewColumn { Header = "Origin", Width = 125,
@@ -208,7 +212,9 @@ internal sealed class NativeMatchHistoryView : UserControl
             status.Text = loaded.Count == 0 ? "No Arena matches recorded yet. Enable Detailed Logs in MTG Arena." :
                 loaded.Count(x => string.IsNullOrWhiteSpace(x.DeckName) || x.Result == "unknown") +
                 " matches need assignment or result review; " + loaded.Count +
-                " recorded locally. Select a row to see its detection note.";
+                " recorded locally. " +
+                loaded.Count(x => !string.IsNullOrWhiteSpace(x.DeckId)) +
+                " contain Arena deck IDs. Select a row to see its detection note.";
         }
         catch (Exception ex) when (ex is IOException or SqliteException or
             UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
