@@ -351,6 +351,12 @@
                                 Style="{StaticResource VaultNavButtonDepth}"
                                 ToolTip="Browse and edit saved decks in the main workspace"
                                 Margin="0,0,0,5"/>
+                        <Button x:Name="MatchHistoryNavigationButton"
+                                Content="▤   Match History"
+                                Click="OnOpenMatchHistoryClicked"
+                                Style="{StaticResource VaultNavButtonDepth}"
+                                ToolTip="Review Arena match results and assign unidentified matches to a saved deck"
+                                Margin="0,0,0,5"/>
                         <Button x:Name="EdhLabButton"
                                 Content="♜   EDH Lab"
                                 Click="OnEdhLabClicked" IsEnabled="False"
@@ -1172,6 +1178,10 @@
                         Margin="10,12,10,12" Visibility="Collapsed"/>
         <!-- Bookmarks occupy the main content workspace, not a popup. -->
         <ContentControl x:Name="ShortlistWorkspaceHost" Grid.Column="1"
+                        Margin="10,12,10,12" Visibility="Collapsed"/>
+        <!-- Arena match reconciliation is a separate main-window workspace.
+             Its corrections only update existing local match-history rows. -->
+        <ContentControl x:Name="MatchHistoryWorkspaceHost" Grid.Column="1"
                         Margin="10,12,10,12" Visibility="Collapsed"/>
 
         <!-- Update decisions remain inside Arcane Vault, not Windows dialogs. -->
