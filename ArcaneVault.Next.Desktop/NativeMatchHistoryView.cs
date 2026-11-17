@@ -169,7 +169,8 @@ internal sealed class NativeMatchHistoryView : UserControl
             ? Visibility.Visible : Visibility.Collapsed;
         if (rows.SelectedItem is MatchItem item)
         {
-            status.Text = item.Status + " · " +
+            status.Text = item.Status + (string.IsNullOrWhiteSpace(item.DeckId) ?
+                " · Arena deck ID absent" : " · Arena deck ID: " + item.DeckId) + " · " +
                 (string.IsNullOrWhiteSpace(item.Note) ? "No diagnostic note" : item.Note);
         }
     }
@@ -227,10 +228,32 @@ internal sealed class NativeMatchHistoryView : UserControl
             "\"? No new match will be created.",
             "Confirm Arena match assignment", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer != MessageBoxResult.Yes) return;
+        bool saveMapping = rememberMapping.IsChecked == true &&
+            !string.IsNullOrWhiteSpace(item.DeckId);
+        bool replaceMapping = false;
+        if (saveMapping)
+        {
+            var existing = await Task.Run(() => {
+                using var history = new MatchHistory(item.Database);
+                return history.Mappings().FirstOrDefault(m =>
+                    m.ArenaId.Equals(item.DeckId, StringComparison.OrdinalIgnoreCase));
+            });
+            if (existing is not null && existing.NativeId != deck.Id)
+            {
+                var decision = MessageBox.Show(
+                    "Arena deck ID " + item.DeckId + " is already remembered for " +
+                    existing.DeckName + ".\n\nYes: replace its future mapping with " +
+                    deck.Name + ".\nNo: correct only this match.\nCancel: make no change.",
+                    "Existing Arena deck mapping", MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Warning);
+                if (decision == MessageBoxResult.Cancel) return;
+                replaceMapping = decision == MessageBoxResult.Yes;
+                saveMapping = replaceMapping;
+            }
+        }
         busy = true; assign.IsEnabled = false;
         try
         {
-            bool saveMapping = rememberMapping.IsChecked == true;
             var assignment = await Task.Run(() => {
                 using var history = new MatchHistory(item.Database);
                 bool changed = history.Update(item.MatchId, corrected, deck.Name, null,
@@ -241,7 +264,7 @@ internal sealed class NativeMatchHistoryView : UserControl
                 {
                     // Only the user's confirmed Arena ID is remembered. Any
                     // previously conflicting association remains unchanged.
-                    if (!history.RememberDeckMapping(item.DeckId, deck.Id, deck.Name))
+                    if (!history.RememberDeckMapping(item.DeckId, deck.Id, deck.Name, replaceExisting: replaceMapping))
                         return (changed, conflict: true, backfilled: 0);
                     return (changed, conflict: false,
                         backfilled: history.BackfillExactArenaId(item.DeckId, deck.Id, deck.Name));
