@@ -35,6 +35,21 @@
         <div><div class="eyebrow">WIN RATE</div><div class="rate" id="rate">—</div></div>
         <div class="bar" aria-label="Win percentage"><span id="rateFill"></span></div>
       </div>
+      <section class="history" aria-label="Recent verified match outcomes">
+        <div class="history-heading">
+          <span class="eyebrow">RECENT MATCHES</span>
+          <span class="quiet" id="historyCoverage">Last 20 confirmed results</span>
+        </div>
+        <div class="match-strip" id="matchStrip" aria-label="Match outcomes"></div>
+        <div class="history-bottom">
+          <span class="quiet" id="trendDescription">Rolling form (latest 10)</span>
+          <svg id="trendChart" class="trend-chart" viewBox="0 0 300 70"
+            role="img" aria-label="Rolling win-rate trend" preserveAspectRatio="none">
+            <path id="trendPath" d="" fill="none" stroke="#a8e7bd"
+              stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </div>
+      </section>
     </section>
     <section class="panel side">
       <div class="feature">
@@ -46,6 +61,12 @@
         <div class="feature-title">PHYSICAL COLLECTION</div>
         <div class="feature-data" id="collectionValue">—</div>
         <div class="feature-small" id="valuationAge">Waiting for valuation</div>
+      </div>
+      <div class="feature set-feature">
+        <div class="feature-title">PHYSICAL SET PROGRESS</div>
+        <div class="set-overall" id="setOverall">—</div>
+        <div class="feature-small" id="setDescription">Waiting for verified set progress</div>
+        <div class="set-rows" id="setRows"></div>
       </div>
       <div class="feature">
         <div class="feature-title">CONNECTION</div>
