@@ -218,7 +218,7 @@ internal sealed class ArenaMatchTracker : IDisposable
                 bool relevant = hasRoom || hasSet || hasCourse || hasAuth;
                 string detected = hasSet ? "deck_submission" :
                     line.Contains("==> CourseDeck", StringComparison.OrdinalIgnoreCase) ||
-                    line.Contains("\\"CourseDeck\\"", StringComparison.OrdinalIgnoreCase)
+                    line.Contains("\"CourseDeck\"", StringComparison.OrdinalIgnoreCase)
                         ? "course_deck" : hasRoom ? "match_room" :
                         hasAuth ? "auth" : "deck_inventory";
 
