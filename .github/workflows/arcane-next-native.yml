@@ -31,7 +31,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   net10-wpf-spike:
@@ -221,7 +221,7 @@ jobs:
       - name: Publish versioned native preview release (main branch only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           [xml]$project = Get-Content "ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj"
