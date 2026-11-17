@@ -62,6 +62,36 @@ internal sealed class ArenaMatchTracker : IDisposable
             error = null;
         }
     }
+    /// <summary>
+    /// Register stable Arena deck IDs from the verified native saved-deck
+    /// library. This is authoritative ID matching, not a best-guess name
+    /// lookup. Ambiguous IDs are refused rather than silently attributed.
+    /// Also repairs previously unassigned records that already include
+    /// the matching Arena deck ID.
+    /// </summary>
+    public void SetKnownSavedDecks(
+        IEnumerable<(string ArenaId, string Name)> savedDecks)
+    {
+        ArgumentNullException.ThrowIfNull(savedDecks);
+        var verified = savedDecks
+            .Where(x => !string.IsNullOrWhiteSpace(x.ArenaId) &&
+                        !string.IsNullOrWhiteSpace(x.Name) &&
+                        x.ArenaId.Length <= 180 && x.Name.Length <= 150)
+            .GroupBy(x => x.ArenaId.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.Select(d => d.Name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1)
+            .Select(x => (Id: x.Key, Name: x.First().Name.Trim()))
+            .Take(1000).ToArray();
+        lock (gate)
+        {
+            foreach (var deck in verified)
+            {
+                decksByArenaId[deck.Id] = (deck.Name, "");
+                history.AssignUnassignedByDeckId(deck.Id, deck.Name);
+            }
+        }
+    }
+
     public void SetCurrentDeck(string? deckName, string? version)
     {
         if (deckName?.Length > 150 || version?.Length > 100) throw new ArgumentException("Deck name or version too long.");
