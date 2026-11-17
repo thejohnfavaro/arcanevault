@@ -18,6 +18,8 @@
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCardRoles.cs" Link="NativeCardRoles.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCatalogOwnership.cs" Link="NativeCatalogOwnership.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\NativeCardArtwork.cs" Link="NativeCardArtwork.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\MatchHistory.cs" Link="MatchHistory.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\ArenaMatchTracker.cs" Link="ArenaMatchTracker.cs" />
     <ProjectReference Include="..\ArcaneVault.Next.Domain\ArcaneVault.Next.Domain.csproj" />
     <ProjectReference Include="..\ArcaneVault.Next.Collection\ArcaneVault.Next.Collection.csproj" />
     <ProjectReference Include="..\ArcaneVault.Next.Migration\ArcaneVault.Next.Migration.csproj" />
