@@ -237,8 +237,10 @@
       if (String(path).toLowerCase().endsWith("streamdeck.json"))
         readSnapshot(content);
     });
+    // The provider may deliver a snapshot synchronously. Set the waiting
+    // status first so it cannot overwrite the live connection status.
+    status("Waiting for live Arcane Vault snapshot · open Native if data is missing", false);
     provider.watchPath(SNAPSHOT_PATH);
-    status("Watching Arcane Vault's local snapshot · open Native if data is missing", false);
   }
 
   window.icueEvents = { onICUEInitialized: watcherReady };
