@@ -212,7 +212,8 @@ internal sealed class ArenaMatchTracker : IDisposable
                     || line.Contains("authenticateResponse", StringComparison.OrdinalIgnoreCase);
                 eventLabel = line.Contains("EventSetDeckV", StringComparison.OrdinalIgnoreCase)
                     ? "deck_submission"
-                    : line.Contains("CourseDeck", StringComparison.OrdinalIgnoreCase)
+                    : line.Contains("==> CourseDeck", StringComparison.OrdinalIgnoreCase) ||
+                      line.Contains("\"CourseDeck\"", StringComparison.OrdinalIgnoreCase)
                     ? "course_deck" : "";
                 if (!relevant) continue;
                 timestamp = HeaderTime(line) ?? lastHeaderTime;
