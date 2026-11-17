@@ -27,6 +27,9 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         Background = new SolidColorBrush(Color.FromRgb(25,32,40)) };
     private readonly ListView formats = new() { Height = 145, Margin = new Thickness(0,6,0,10) };
     private readonly ListView timeline = new() { Height = 190, Margin = new Thickness(0,6,0,0) };
+    private readonly ListView weeks = new() { Height = 154, Margin = new Thickness(0,6,0,10) };
+    private readonly TextBlock streaks = new() { Foreground = Brushes.LightGray,
+        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,2,0,8) };
     private IReadOnlyList<MatchPerformanceAnalytics.Entry> records =
         Array.Empty<MatchPerformanceAnalytics.Entry>();
     private IReadOnlyList<MatchPerformanceAnalytics.Point> primaryTrend =
@@ -55,6 +58,7 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         root.Children.Add(headline);
         root.Children.Add(comparison);
         root.Children.Add(recent);
+        root.Children.Add(streaks);
         root.Children.Add(new TextBlock {
             Text = "Rolling 10-match win rate • last 20 confirmed matches per deck",
             Foreground = Brushes.LightGray, Margin = new Thickness(0,0,0,5) });
@@ -72,6 +76,15 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         formatView.Columns.Add(Column("Win %", "WinRate", 80));
         formats.View = formatView;
         root.Children.Add(formats);
+        root.Children.Add(new TextBlock { Text = "WEEKLY PERFORMANCE (UTC)", FontSize = 13,
+            FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+        var weekView = new GridView();
+        weekView.Columns.Add(Column("Week of", "Week", 140));
+        weekView.Columns.Add(Column("Matches", "Matches", 80));
+        weekView.Columns.Add(Column("W–L", "Record", 80));
+        weekView.Columns.Add(Column("Win %", "WinRate", 90));
+        weeks.View = weekView;
+        root.Children.Add(weeks);
         root.Children.Add(new TextBlock { Text = "RECENT CONFIRMED MATCHES",
             FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var timelineView = new GridView();
@@ -153,6 +166,9 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             (other is null ? "" : $" Comparison: {other.Unresolved} excluded.") +
             " Unassigned matches are never included.";
         formats.ItemsSource = report.Formats;
+        weeks.ItemsSource = report.Weeks;
+        streaks.Text = $"Longest winning streak: {report.BestWinStreak}    •    Longest losing streak: {report.WorstLossStreak}" +
+            (report.Matches < 10 ? $"    •    Small sample ({report.Matches} confirmed matches)" : "");
         timeline.ItemsSource = report.Timeline;
         primaryTrend = report.Trend;
         secondaryTrend = other?.Trend ?? Array.Empty<MatchPerformanceAnalytics.Point>();
