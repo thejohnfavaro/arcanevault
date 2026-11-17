@@ -216,39 +216,6 @@ jobs:
           path: preview/ArcaneVaultNextNative/**
           retention-days: 14
           if-no-files-found: error
-      # Publish only after the native regression suite and ZIP identity checks.
-      # Preview releases cannot silently replace existing versions.
-      - name: Publish versioned native preview release (main branch only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: pwsh
-        run: |
-          [xml]$project = Get-Content "ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj"
-          $version = [string]$project.Project.PropertyGroup.Version
-          if ($version -notmatch '^\d+\.\d+\.\d+$') {
-            throw "Invalid native version $version"
-          }
-          $tag = "native-v$version"
-          $existingTarget = gh release view $tag --repo "$env:GITHUB_REPOSITORY" --json targetCommitish --jq '.targetCommitish' 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            if ($existingTarget.Trim() -ne $env:GITHUB_SHA) {
-              throw "Native release $tag already belongs to $existingTarget, not this commit. Bump the native version before publishing changes."
-            }
-            Write-Host "Native preview $tag is already published from this exact commit."
-            exit 0
-          }
-          $notes = "releases/native-v$version.md"
-          if (-not (Test-Path $notes)) {
-            throw "Missing native preview release notes $notes"
-          }
-          $content = Get-Content $notes -Raw
-          foreach ($section in @('Added','Changed','Fixed','Removed')) {
-            if ($content -notmatch "(?m)^## $section\s*$") {
-              throw "Native preview notes are missing ## $section"
-            }
-          }
-          gh release create $tag native-package/ArcaneVaultNative-win-x64.zip native-package/ArcaneVaultNative-win-x64.zip.sha256 native-installer/ArcaneVaultSetup-win-x64.exe native-installer/ArcaneVaultSetup-win-x64.exe.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "Arcane Vault Native Windows v$version (Preview)" --notes-file $notes --prerelease
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to publish native preview $tag"
-          }
+      # Artifacts are published by native-release-publisher.yml, a separate
+      # workflow with its own contents-write token. Keep the build workflow
+      # read-only: some integration-scoped tokens reject release creation.
