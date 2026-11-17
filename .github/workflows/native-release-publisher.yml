@@ -1,13 +1,7 @@
 name: Arcane Vault Native Release Publisher
 
+# Emergency-only fallback. Normal releases publish from the verified build.
 on:
-  workflow_run:
-    workflows: ["Arcane Vault Next - .NET 10 Native Compatibility Spike"]
-    types: [completed]
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/native-release-publisher.yml'
   workflow_dispatch:
 
 permissions:
