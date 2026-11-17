@@ -15,7 +15,8 @@ namespace ArcaneVault.Next.Desktop;
 internal sealed class NativeMatchHistoryView : UserControl
 {
     private sealed record MatchItem(string Database, string MatchId, string Played,
-        string Result, string DeckName, string DeckId, string Source, string Note)
+        string Result, string DeckName, string DeckId, string Source, string Note,
+        int GameWins, int GameLosses)
     {
         public string Date => DateTimeOffset.TryParse(Played, out var date)
             ? date.ToLocalTime().ToString("g") : Played;
@@ -23,6 +24,8 @@ internal sealed class NativeMatchHistoryView : UserControl
             ? (Result == "unknown" ? "Review result & deck" : "Needs deck assignment")
             : (Result == "unknown" ? "Review result" : "Assigned");
         public string Deck => string.IsNullOrWhiteSpace(DeckName) ? "Unassigned" : DeckName;
+        public string GameRecord => GameWins + GameLosses > 0
+            ? GameWins + "–" + GameLosses : "—";
         public string Origin => System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(Database));
     }
 
@@ -93,6 +96,8 @@ internal sealed class NativeMatchHistoryView : UserControl
             DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.Date)) });
         grid.Columns.Add(new GridViewColumn { Header = "Result", Width = 90,
             DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.Result)) });
+        grid.Columns.Add(new GridViewColumn { Header = "Games W–L", Width = 95,
+            DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.GameRecord)) });
         grid.Columns.Add(new GridViewColumn { Header = "Deck", Width = 225,
             DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.Deck)) });
         grid.Columns.Add(new GridViewColumn { Header = "Status", Width = 170,
@@ -131,7 +136,7 @@ internal sealed class NativeMatchHistoryView : UserControl
             }.ToString());
             db.Open();
             using var cmd = db.CreateCommand();
-            cmd.CommandText = "SELECT match_id,played_utc,result,deck_name,deck_id,result_source,note "+
+            cmd.CommandText = "SELECT match_id,played_utc,result,deck_name,deck_id,result_source,note,game_wins,game_losses "+
                 "FROM matches ORDER BY played_utc DESC LIMIT 2000";
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
@@ -144,7 +149,9 @@ internal sealed class NativeMatchHistoryView : UserControl
                     rd.IsDBNull(3) ? "" : rd.GetString(3),
                     rd.IsDBNull(4) ? "" : rd.GetString(4),
                     rd.IsDBNull(5) ? "" : rd.GetString(5),
-                    rd.IsDBNull(6) ? "" : rd.GetString(6)));
+                    rd.IsDBNull(6) ? "" : rd.GetString(6),
+                    rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
+                    rd.IsDBNull(8) ? 0 : rd.GetInt32(8)));
             }
         }
         return result.OrderByDescending(x => x.Played, StringComparer.Ordinal)
