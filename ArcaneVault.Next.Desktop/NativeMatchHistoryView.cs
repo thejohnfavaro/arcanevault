@@ -234,7 +234,7 @@ internal sealed class NativeMatchHistoryView : UserControl
         if (saveMapping)
         {
             var existing = await Task.Run(() => {
-                using var history = new MatchHistory(item.Database);
+                using var history = new MatchHistory();
                 return history.Mappings().FirstOrDefault(m =>
                     m.ArenaId.Equals(item.DeckId, StringComparison.OrdinalIgnoreCase));
             });
@@ -264,10 +264,18 @@ internal sealed class NativeMatchHistoryView : UserControl
                 {
                     // Only the user's confirmed Arena ID is remembered. Any
                     // previously conflicting association remains unchanged.
-                    if (!history.RememberDeckMapping(item.DeckId, deck.Id, deck.Name, replaceExisting: replaceMapping))
+                    // The running Arena tracker reads the primary native
+                    // match-history database. Persist there even when this
+                    // particular match was found in legacy compatibility data.
+                    using var mappings = new MatchHistory();
+                    if (!mappings.RememberDeckMapping(item.DeckId, deck.Id,
+                        deck.Name, replaceExisting: replaceMapping))
                         return (changed, conflict: true, backfilled: 0);
-                    return (changed, conflict: false,
-                        backfilled: history.BackfillExactArenaId(item.DeckId, deck.Id, deck.Name));
+                    int count = history.BackfillExactArenaId(item.DeckId, deck.Id, deck.Name);
+                    // Also reconcile newer native matches if correcting a
+                    // historical record in the legacy database.
+                    count += mappings.BackfillExactArenaId(item.DeckId, deck.Id, deck.Name);
+                    return (changed, conflict: false, backfilled: count);
                 }
                 return (changed, conflict: false, backfilled: 0);
             });
