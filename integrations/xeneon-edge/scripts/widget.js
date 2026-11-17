@@ -40,6 +40,79 @@
     } catch (_) { return ""; }
   }
 
+  function renderMatchHistory(deck) {
+    const events = Array.isArray(deck.matchHistory) ?
+      deck.matchHistory.filter(x => x && (x.result === "win" || x.result === "loss") &&
+        typeof x.playedUtc === "string" && !Number.isNaN(Date.parse(x.playedUtc))).slice(0,20) : [];
+    // The native snapshot orders newest first; the visual strip shows oldest to newest.
+    const chronological = events.slice().reverse();
+    const strip = $("matchStrip");
+    strip.replaceChildren();
+    for (let i = 0; i < 20; i++) {
+      const block = document.createElement("span");
+      const item = chronological[i - Math.max(0,20-chronological.length)];
+      block.className = "match-result " + (item ? item.result : "blank");
+      block.title = item ? item.result.toUpperCase() + " · " +
+        new Date(item.playedUtc).toLocaleDateString() : "No match";
+      strip.appendChild(block);
+    }
+    $("historyCoverage").textContent = events.length ?
+      "Latest " + events.length + " confirmed matches" : "No verified match history";
+    const path = $("trendPath");
+    if (chronological.length < 2) {
+      path.setAttribute("d", "");
+      $("trendDescription").textContent = "Trend appears after two confirmed games";
+      return;
+    }
+    const rate = chronological.map((_, i) => {
+      const start = Math.max(0,i-9);
+      const recent = chronological.slice(start,i+1);
+      return 100 * recent.filter(m => m.result === "win").length / recent.length;
+    });
+    path.setAttribute("d", rate.map((r,i) =>
+      (i === 0 ? "M " : "L ") +
+      (10 + 280 * i / (rate.length-1)).toFixed(1) + " " +
+      (62 - r * .52).toFixed(1)).join(" "));
+    $("trendDescription").textContent = "Rolling win rate · last 10 games";
+  }
+
+  function renderSetProgress(snapshot) {
+    const summary = snapshot.setProgress;
+    const rows = $("setRows");
+    rows.replaceChildren();
+    if (!summary || !Number.isFinite(Number(summary.totalSlots))) {
+      $("setOverall").textContent = "—";
+      $("setDescription").textContent = "Verified set progress not yet available";
+      return;
+    }
+    const total = Math.max(0,Number(summary.totalSlots) || 0);
+    const owned = Math.max(0,Number(summary.ownedSlots) || 0);
+    $("setOverall").textContent = owned.toLocaleString() + " / " + total.toLocaleString();
+    $("setDescription").textContent = total ?
+      (100 * owned / total).toFixed(1) + "% of catalog paper collector slots" :
+      "No verified paper collector slots";
+    for (const set of (Array.isArray(summary.topSets) ? summary.topSets : []).slice(0,4)) {
+      const count = Number(set.owned) || 0, maximum = Number(set.total) || 0;
+      if (!set || maximum <= 0) continue;
+      const item = document.createElement("div");
+      item.className = "set-row";
+      const name = document.createElement("span");
+      name.className = "set-name";
+      name.textContent = String(set.name || set.code || "Unknown set");
+      const qty = document.createElement("span");
+      qty.className = "set-number";
+      qty.textContent = count + " / " + maximum;
+      const track = document.createElement("div");
+      track.className = "set-track";
+      const fill = document.createElement("div");
+      fill.className = "set-fill";
+      fill.style.width = Math.max(0,Math.min(100,100 * count / maximum)) + "%";
+      track.appendChild(fill);
+      item.append(name,qty,track);
+      rows.appendChild(item);
+    }
+  }
+
   function render(snapshot) {
     const decks = Array.isArray(snapshot?.decks) ? snapshot.decks.filter(d => d && d.id) : [];
     if (!decks.length) {
@@ -48,6 +121,8 @@
       $("deckCount").textContent = "0 / 0";
       $("wins").textContent = "—"; $("losses").textContent = "—";
       $("rate").textContent = "—"; $("rateFill").style.width = "0%";
+      $("matchStrip").replaceChildren(); $("trendPath").setAttribute("d","");
+      renderSetProgress(snapshot);
       $("art").removeAttribute("src"); $("art").classList.remove("ready");
       status("Connected, but no saved decks are available.", true);
       return;
@@ -69,6 +144,8 @@
     $("rate").textContent = total ? rate + "%" : "—";
     $("rateFill").style.width = (total ? rate : 0) + "%";
     $("recordSummary").textContent = total ? "Confirmed Arena matches" : "No associated matches";
+    renderMatchHistory(deck);
+    renderSetProgress(snapshot);
     const recent = snapshot.recentMatch;
     const recentIsSelected = recent && String(recent.deckName || "").trim().toLowerCase() ===
       String(deck.name || "").trim().toLowerCase();
@@ -91,6 +168,11 @@
       "Valuation: " + snapshot.collection.asOf : "No recent valuation";
     const image = $("art");
     const url = artworkUrl(deck.artUrl);
+    // Do not blank and re-fetch the same image on every 15s snapshot update.
+    if (image.dataset.selectedDeck === selectedId && image.dataset.artUrl === url &&
+        image.classList.contains("ready")) return;
+    image.dataset.selectedDeck = selectedId;
+    image.dataset.artUrl = url;
     retryImage = false;
     image.classList.remove("ready");
     image.onload = () => { image.classList.add("ready"); status("Arcane Vault connected · artwork loaded", false); };
