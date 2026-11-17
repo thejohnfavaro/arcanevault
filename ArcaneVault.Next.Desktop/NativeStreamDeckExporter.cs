@@ -27,6 +27,9 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private string? lastRefreshNonce;
     private string? selectedRefreshDeckId;
     private DateTimeOffset nextScheduledRefresh = DateTimeOffset.MinValue;
+    private DateTimeOffset nextSetProgressRetry = DateTimeOffset.MinValue;
+    private string? setProgressStamp;
+    private SetProgressSummary? setProgress;
 
     private sealed class Deck
     {
@@ -40,7 +43,13 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         public string artStatus { get; set; } = "Pending artwork lookup";
         public int wins { get; set; }
         public int losses { get; set; }
+        public IReadOnlyList<MatchEvent> matchHistory { get; set; } = Array.Empty<MatchEvent>();
     }
+    private sealed record MatchEvent(string result, string playedUtc);
+    private sealed record SetProgressSummary(int ownedSlots, int totalSlots,
+        IReadOnlyList<SetProgressItem> topSets, string? asOf = null);
+    private sealed record SetProgressItem(string code, string name,
+        int owned, int total, double percent);
     private sealed record CollectionValue(decimal? value, string currency = "USD",
         string? asOf = null);
     private sealed record SyncInfo(string status, string? lastSync = null);
@@ -49,7 +58,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         int schemaVersion, string appPath, string? activeDeckId,
         IReadOnlyList<Deck> decks, CollectionValue collection,
         SyncInfo sync, RecentMatch? recentMatch,
-        string? matchSource = null);
+        string? matchSource = null,
+        SetProgressSummary? setProgress = null);
 
     public NativeStreamDeckExporter()
     {
@@ -157,7 +167,53 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             cancel.ThrowIfCancellationRequested();
             await RenderDeckAsync(deck, cancel);
         }
+        // Optional set summary work follows the populated snapshot, so a slow
+        // catalog read cannot delay the deck list or first rendered key.
+        RefreshSetSummary(cancel);
         Publish(recent, source, "Native app connected", active);
+    }
+
+    private void RefreshSetSummary(CancellationToken cancel)
+    {
+        string catalog = NativeWorkspace.CatalogPath;
+        if (!File.Exists(catalog))
+        {
+            setProgress = null;
+            setProgressStamp = null;
+            return;
+        }
+        try
+        {
+            var workspace = new FileInfo(NativeWorkspace.DefaultPath);
+            var info = new FileInfo(catalog);
+            string stamp = workspace.Length + ":" + workspace.LastWriteTimeUtc.Ticks
+                + ":" + info.Length + ":" + info.LastWriteTimeUtc.Ticks;
+            if (stamp == setProgressStamp && setProgress is not null) return;
+            if (DateTimeOffset.UtcNow < nextSetProgressRetry) return;
+            nextSetProgressRetry = DateTimeOffset.UtcNow.AddMinutes(5);
+            var verified = NativeWorkspace.Open(NativeWorkspace.DefaultPath, cancel);
+            var reviewed = CollectionCatalogReview.Examine(
+                verified.Collection, catalog, cancel);
+            var summary = NativeSetProgressCache.Physical(
+                reviewed, catalog, verified.BackupSha256, cancellation: cancel);
+            var top = summary.Sets.Where(x => x.OwnedSlots > 0)
+                .OrderByDescending(x => x.OwnedSlots)
+                .ThenBy(x => x.SetName, StringComparer.OrdinalIgnoreCase)
+                .Take(4)
+                .Select(x => new SetProgressItem(x.SetCode, x.SetName,
+                    x.OwnedSlots, x.TotalSlots,
+                    Math.Round(x.Percent, 1)))
+                .ToArray();
+            setProgress = new SetProgressSummary(
+                summary.ConfirmedOwnedSlots, summary.CatalogPaperSlots,
+                top, DateTimeOffset.UtcNow.ToString("O"));
+            setProgressStamp = stamp;
+        }
+        catch (OperationCanceledException) when (cancel.IsCancellationRequested)
+        { throw; }
+        catch (Exception ex) when (ex is IOException or SqliteException or
+            InvalidDataException or UnauthorizedAccessException or ArgumentException)
+        { Log("Optional Stream Deck set progress unavailable", ex); }
     }
 
     private void RefreshCommanderArtwork(CancellationToken cancel)
@@ -348,7 +404,13 @@ internal sealed class NativeStreamDeckExporter : IDisposable
 
     private (RecentMatch? Recent, string? Source, string? ActiveDeck) ApplyMatches()
     {
-        foreach (var deck in decks) { deck.wins = 0; deck.losses = 0; }
+        foreach (var deck in decks)
+        {
+            deck.wins = 0;
+            deck.losses = 0;
+            deck.matchHistory = Array.Empty<MatchEvent>();
+        }
+        var histories = new Dictionary<string, List<MatchEvent>>(StringComparer.Ordinal);
         string native = Path.Combine(NativeWorkspace.RootDirectory, "match-history.sqlite3");
         string legacy = Path.Combine(exportDirectory, "match-history.sqlite3");
         var files = new[] { native, legacy }.Where(File.Exists).ToArray();
@@ -389,6 +451,15 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     if (deck is null || id.Length == 0 || !knownMatches.Add(id)) continue;
                     used = true;
                     if (result == "win") deck.wins++; else deck.losses++;
+                    if (!histories.TryGetValue(deck.id, out var history))
+                    {
+                        history = new List<MatchEvent>();
+                        histories[deck.id] = history;
+                    }
+                    // Date and outcome only. No match identifiers, names,
+                    // opponents, tokens or Arena logs are exported.
+                    if (DateTimeOffset.TryParse(reader.GetString(3), out var played))
+                        history.Add(new MatchEvent(result, played.ToUniversalTime().ToString("O")));
                     if (DateTimeOffset.TryParse(reader.GetString(3), out var when) &&
                         (!latest.HasValue || when > latest.Value))
                     {
@@ -402,6 +473,11 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 InvalidOperationException or UnauthorizedAccessException)
             { Log("Optional Arena match history unavailable", ex); }
         }
+        foreach (var deck in decks)
+            if (histories.TryGetValue(deck.id, out var history))
+                deck.matchHistory = history
+                    .OrderByDescending(x => x.playedUtc, StringComparer.Ordinal)
+                    .Take(20).ToArray();
         string? chosen = arenaTracker?.CurrentDeckName;
         string? chosenId = arenaTracker?.CurrentDeckId;
         Deck? selected = null;
@@ -423,7 +499,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             Environment.ProcessPath ?? "",
             activeDeckId, decks.ToArray(),
             new CollectionValue(value, "USD", asOf),
-            new SyncInfo(status, asOf), recent, source);
+            new SyncInfo(status, asOf), recent, source, setProgress);
         Directory.CreateDirectory(exportDirectory);
         string destination = Path.Combine(exportDirectory, "streamdeck.json");
         string stage = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
