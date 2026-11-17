@@ -36,6 +36,13 @@ jobs:
           if ($build.event -ne 'push' -or $build.head_branch -ne 'main') {
             throw "Only main-branch push builds may be published"
           }
+          # The release must contain every current native-source change,
+          # not an earlier build carrying the same assembly version.
+          $latestNative = (git log -1 --format=%H -- ArcaneVault.Next.Desktop ArcaneVault.Next.Collection releases/native-v*.md).Trim()
+          git merge-base --is-ancestor $latestNative $build.head_sha
+          if ($LASTEXITCODE -ne 0) {
+            throw "Build $runId predates native source $latestNative. Wait for the latest native CI run."
+          }
           New-Item -ItemType Directory -Force native-installer,native-package | Out-Null
           gh run download $runId --repo "${{ github.repository }}" --name ArcaneVaultNative-Installer-Preview --dir native-installer
           if ($LASTEXITCODE -ne 0) { throw "Cannot retrieve verified native installer" }
