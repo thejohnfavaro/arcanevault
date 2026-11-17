@@ -1,0 +1,135 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "UUID": "com.rngesus.arcanevault",
+  "Name": "Arcane Vault Companion",
+  "Description": "Persistent Deck W/L selection with verified Arena match stats and reliable snapshot refresh",
+  "Author": "RNGesus",
+  "Version": "0.9.2.0",
+  "SDKVersion": 2,
+  "CodePath": "bin/plugin.js",
+  "Category": "Arcane Vault",
+  "CategoryIcon": "imgs/category",
+  "Icon": "imgs/plugin",
+  "Software": {
+    "MinimumVersion": "7.1"
+  },
+  "Nodejs": {
+    "Version": "24",
+    "Debug": "disabled"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Actions": [
+    {
+      "UUID": "com.rngesus.arcanevault.deck",
+      "Name": "Deck W/L",
+      "Tooltip": "Press to select the next deck and save it. Uses native commander art and win/loss stats.",
+      "Icon": "imgs/deck",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "ui/settings.html",
+      "States": [
+        {
+          "Image": "imgs/deck",
+          "TitleAlignment": "bottom",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "UUID": "com.rngesus.arcanevault.current",
+      "Name": "Current Deck",
+      "Tooltip": "Track the currently active Arena deck",
+      "Icon": "imgs/deck",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/deck",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "UUID": "com.rngesus.arcanevault.refresh",
+      "Name": "Refresh Deck Stats",
+      "Tooltip": "Request a live deck and match stats refresh from Arcane Vault Native",
+      "Icon": "imgs/sync",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/sync",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "UUID": "com.rngesus.arcanevault.value",
+      "Name": "Collection Value",
+      "Tooltip": "Total physical collection value",
+      "Icon": "imgs/value",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/value",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "UUID": "com.rngesus.arcanevault.sync",
+      "Name": "Sync Status",
+      "Tooltip": "Show Arcane Vault sync status",
+      "Icon": "imgs/sync",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/sync",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "UUID": "com.rngesus.arcanevault.recent",
+      "Name": "Recent Match",
+      "Tooltip": "Latest match result",
+      "Icon": "imgs/recent",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/recent",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "UUID": "com.rngesus.arcanevault.open",
+      "Name": "Open Arcane Vault",
+      "Tooltip": "Launch Arcane Vault Windows application",
+      "Icon": "imgs/plugin",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/plugin",
+          "ShowTitle": false
+        }
+      ]
+    }
+  ]
+}

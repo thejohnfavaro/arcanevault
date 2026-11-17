@@ -1,0 +1,88 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:13px Arial,sans-serif;background:#292929;color:#eee;margin:16px}label{display:block;margin:0 0 8px}select,button{width:100%;background:#393939;border:1px solid #555;border-radius:4px;color:white;padding:9px}button{margin-top:12px;cursor:pointer}small{display:block;color:#bbb;margin-top:9px;line-height:1.45}</style></head><body><label for="deck">Arcane Vault Deck</label><select id="deck"><option value="">Loading decks...</option></select><small>Tip: Press the Deck W/L key on your Stream Deck to cycle through and SAVE decks directly. This also works if the selector fails to persist.</small><button id="refresh">Refresh deck list</button><button id="refreshStats">Refresh deck stats now</button><small id="info">Decks are read from Arcane Vault's local Stream Deck snapshot. A missing list means the Arcane Vault integration hasn't exported data yet.</small><script>
+let ws,uuid,context,actionId="com.rngesus.arcanevault.deck",settings={},editing=false,awaitingConfirmation=false,confirmedByHost=false,lastReply="none";
+const sel=document.getElementById('deck'),info=document.getElementById('info');
+function send(event,payload){
+  if(ws?.readyState!==1){ info.textContent='Companion v0.9.2: inspector websocket disconnected';return; }
+  ws.send(JSON.stringify({event,action:actionId,context,payload}));
+}
+function diagnostic(text){
+  send('logMessage',{message:'ArcaneVault Companion v0.9.2: '+text});
+}
+
+function applySettings(next){
+  if(!next || typeof next!=='object') return;
+  // Once a selection was changed in this inspector, do not apply a stale
+  // response that was queued before Stream Deck saved the new setting.
+  if((editing || settings.deckId) && !next.deckId) return;
+  if(editing && String(next.deckId||'')!==String(settings.deckId||'')) return;
+  settings={...settings,...next};
+  if([...sel.options].some(o=>o.value===String(settings.deckId||'')))
+    sel.value=String(settings.deckId||'');
+}
+window.connectElgatoStreamDeckSocket=function(port,inUUID,registerEvent,inInfo,inAction){
+  uuid=inUUID;let ai={};try{ai=JSON.parse(inAction)}catch{}
+  context=ai.context;actionId=ai.action||actionId;settings=ai.payload?.settings||{};
+  ws=new WebSocket('ws://127.0.0.1:'+port);
+  ws.onopen=()=>{
+    ws.send(JSON.stringify({event:registerEvent,uuid}));
+    // The host's saved settings are authoritative when reopening the PI.
+    info.textContent='Companion v0.9 connected; requesting saved selection…';
+    diagnostic('inspector connected action='+actionId+' contextPresent='+Boolean(context));
+    send('getSettings');
+    send('sendToPlugin',{type:'getDecks'});
+  };
+  ws.onmessage=e=>{
+    let m;try{m=JSON.parse(e.data)}catch{return};
+    if(m.event==='didReceiveSettings') {
+      applySettings(m.payload?.settings);
+      confirmedByHost=Boolean(m.payload?.settings?.deckId);
+      lastReply='host settings';
+      if(confirmedByHost && String(m.payload.settings.deckId)===String(settings.deckId)) {
+        awaitingConfirmation=false;
+        info.textContent='Companion v0.9.2: Stream Deck saved '+(settings.deckName||'deck')+' (host confirmed)';
+      }
+      return;
+    }
+    if(m.event==='sendToPropertyInspector' && m.payload?.type==='selectionAck') {
+      if(String(m.payload.deckId||'')===String(settings.deckId||'')) {
+        awaitingConfirmation=false;editing=false;
+        lastReply='plugin '+String(m.payload.via||'ack');
+        info.textContent='Companion v0.9.2: '+settings.deckName+' confirmed ('+lastReply+')';
+      }
+      return;
+    }
+    if(m.event!=='sendToPropertyInspector'||m.payload?.type!=='decks')return;
+    // The plugin supplies its locally restored settings even if Stream Deck
+    // hasn't returned a host settings response yet.
+    applySettings(m.payload.settings);
+    const decks=m.payload.decks||[];
+    const previous=String(settings.deckId||m.payload.selectedDeckId||sel.value||'');
+    sel.innerHTML='';
+    const empty=document.createElement('option');empty.value='';empty.textContent='Choose a deck';sel.appendChild(empty);
+    for(const d of decks){const o=document.createElement('option');o.value=d.id;o.textContent=d.name;sel.appendChild(o)}
+    const matching=[...sel.options].find(o=>o.value===previous) ||
+      [...sel.options].find(o=>o.textContent===settings.deckName);
+    if(matching) {sel.value=matching.value;settings.deckId=matching.value;}
+    if(!awaitingConfirmation) info.textContent=m.payload.error?m.payload.error:
+      ('Companion v0.9.2: '+decks.length+' decks available. '+(m.payload.selected||'Select a deck to display its record.'));
+  };
+};
+sel.onchange=()=>{
+  const option=sel.selectedOptions[0];editing=true;awaitingConfirmation=true;
+  settings={...settings,deckId:sel.value,deckName:option?.textContent||''};
+  // Save both via PI and plugin, to survive PI close/reopen across SDK versions.
+  send('setSettings',settings);
+  send('sendToPlugin',{type:'deckSelected',deckId:settings.deckId,deckName:settings.deckName});
+  info.textContent='Companion v0.9.2: saving '+settings.deckName+'… awaiting Stream Deck or plugin reply.';
+  diagnostic('selection sent deckId='+settings.deckId+' action='+actionId+' contextPresent='+Boolean(context));
+  setTimeout(()=>{
+    if(awaitingConfirmation)
+      info.textContent='Companion v0.9.2: NO CONFIRMATION. Last reply: '+lastReply+'. Check Stream Deck logs.';
+  },4000);
+};
+document.getElementById('refresh').onclick=()=>send('sendToPlugin',{type:'getDecks'});
+document.getElementById('refreshStats').onclick=()=>{
+  send('sendToPlugin',{type:'refreshStats',deckId:settings.deckId||sel.value});
+  info.textContent='Requested fresh stats from Arcane Vault Native.';
+};
+</script></body></html>

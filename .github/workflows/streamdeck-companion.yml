@@ -1,0 +1,76 @@
+name: Arcane Vault Stream Deck Companion
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'integrations/streamdeck/**'
+      - '.github/workflows/streamdeck-companion.yml'
+  pull_request:
+    paths:
+      - 'integrations/streamdeck/**'
+      - '.github/workflows/streamdeck-companion.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  companion:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check recovered plugin scripts
+        shell: pwsh
+        run: |
+          node --check integrations/streamdeck/com.rngesus.arcanevault.sdPlugin/bin/plugin.js
+          node --check integrations/streamdeck/test-streamdeck.js
+      - name: Test deck selection, restart, and native snapshot refresh
+        run: node integrations/streamdeck/test-streamdeck.js
+      - name: Check manifest and required assets
+        shell: pwsh
+        run: |
+          $root = 'integrations/streamdeck/com.rngesus.arcanevault.sdPlugin'
+          $manifest = Get-Content -Raw "$root/manifest.json" | ConvertFrom-Json
+          if ($manifest.UUID -ne 'com.rngesus.arcanevault') { throw 'Incorrect plugin UUID' }
+          if ($manifest.Version -ne '0.9.2.0') { throw 'Incorrect plugin version' }
+          foreach ($file in @('bin/plugin.js','ui/settings.html','imgs/plugin.png','imgs/plugin@2x.png','imgs/deck.png','imgs/deck@2x.png')) {
+            if (-not (Test-Path "$root/$file")) { throw "Missing plugin asset $file" }
+          }
+      - name: Package Stream Deck plugin folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path streamdeck-dist | Out-Null
+          Compress-Archive -Path 'integrations/streamdeck/com.rngesus.arcanevault.sdPlugin' -DestinationPath 'streamdeck-dist/companion.zip' -CompressionLevel Optimal
+          Rename-Item 'streamdeck-dist/companion.zip' 'ArcaneVault-Companion-v0.9.2.streamDeckPlugin'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $package = 'streamdeck-dist/ArcaneVault-Companion-v0.9.2.streamDeckPlugin'
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $package))
+          try {
+            $entry = $zip.Entries | Where-Object FullName -eq 'com.rngesus.arcanevault.sdPlugin/manifest.json'
+            if (-not $entry) { throw 'Installer missing root manifest' }
+          } finally { $zip.Dispose() }
+          (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant() | Set-Content "$package.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArcaneVault-StreamDeck-Companion-v0.9.2
+          path: |
+            streamdeck-dist/ArcaneVault-Companion-v0.9.2.streamDeckPlugin
+            streamdeck-dist/ArcaneVault-Companion-v0.9.2.streamDeckPlugin.sha256
+          if-no-files-found: error
+      - name: Publish versioned Companion preview
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'streamdeck-companion-v0.9.2'
+          gh release view $tag --repo "$env:GITHUB_REPOSITORY" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "$tag already exists; not replacing an immutable release"
+            exit 0
+          }
+          gh release create $tag streamdeck-dist/ArcaneVault-Companion-v0.9.2.streamDeckPlugin streamdeck-dist/ArcaneVault-Companion-v0.9.2.streamDeckPlugin.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title 'Arcane Vault Stream Deck Companion v0.9.2 (Preview)' --notes 'Recovered Companion source integrated with native verified Arena match W/L snapshots; fixes stable deck ID selection, persists Stream Deck preferences and retains data on transient snapshot errors.' --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Stream Deck preview release failed' }
