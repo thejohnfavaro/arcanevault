@@ -43,6 +43,11 @@ internal sealed class NativeMatchHistoryView : UserControl
         MinWidth = 170, Padding = new Thickness(14, 9, 14, 9), IsEnabled = false };
     private readonly Button refresh = new() { Content = "Refresh",
         Padding = new Thickness(14, 9, 14, 9), Margin = new Thickness(0, 0, 10, 0) };
+    private readonly CheckBox rememberMapping = new() {
+        Content = "Remember this Arena deck ID for future matches",
+        IsChecked = true, Margin = new Thickness(0, 8, 0, 0),
+        Foreground = Brushes.LightGray
+    };
     private readonly CheckBox needsReview = new() { Content = "Needs assignment / review only",
         IsChecked = true, VerticalAlignment = VerticalAlignment.Center };
     private IReadOnlyList<MatchItem> loaded = Array.Empty<MatchItem>();
@@ -81,6 +86,7 @@ internal sealed class NativeMatchHistoryView : UserControl
         actions.Children.Add(resultPicker);
         actions.Children.Add(assign);
         footer.Children.Add(actions);
+        footer.Children.Add(rememberMapping);
 
         var grid = new GridView();
         grid.Columns.Add(new GridViewColumn { Header = "When", Width = 145,
@@ -97,6 +103,7 @@ internal sealed class NativeMatchHistoryView : UserControl
         root.Children.Add(rows);
 
         rows.SelectionChanged += (_, _) => UpdateSelection();
+        deckPicker.SelectionChanged += (_, _) => UpdateSelection();
         needsReview.Checked += (_, _) => FilterRows();
         needsReview.Unchecked += (_, _) => FilterRows();
         refresh.Click += async (_, _) => await ReloadAsync();
@@ -156,6 +163,10 @@ internal sealed class NativeMatchHistoryView : UserControl
     {
         assign.IsEnabled = !busy && rows.SelectedItem is MatchItem &&
             deckPicker.SelectedItem is SavedDeck;
+        rememberMapping.IsEnabled = !busy && rows.SelectedItem is MatchItem selected &&
+            !string.IsNullOrWhiteSpace(selected.DeckId);
+        rememberMapping.Visibility = rememberMapping.IsEnabled
+            ? Visibility.Visible : Visibility.Collapsed;
         if (rows.SelectedItem is MatchItem item)
         {
             status.Text = item.Status + " · " +
@@ -219,18 +230,34 @@ internal sealed class NativeMatchHistoryView : UserControl
         busy = true; assign.IsEnabled = false;
         try
         {
-            bool changed = await Task.Run(() => {
+            bool saveMapping = rememberMapping.IsChecked == true;
+            var assignment = await Task.Run(() => {
                 using var history = new MatchHistory(item.Database);
-                return history.Update(item.MatchId, corrected, deck.Name, null,
+                bool changed = history.Update(item.MatchId, corrected, deck.Name, null,
                     "Deck assignment: manually confirmed in Arcane Vault Match History",
                     deck.Id);
+                if (changed && saveMapping &&
+                    !string.IsNullOrWhiteSpace(item.DeckId))
+                {
+                    // Only the user's confirmed Arena ID is remembered. Any
+                    // previously conflicting association remains unchanged.
+                    if (!history.RememberDeckMapping(item.DeckId, deck.Id, deck.Name))
+                        return (changed, conflict: true, backfilled: 0);
+                    return (changed, conflict: false,
+                        backfilled: history.BackfillExactArenaId(item.DeckId, deck.Id, deck.Name));
+                }
+                return (changed, conflict: false, backfilled: 0);
             });
-            if (!changed)
+            if (!assignment.changed)
             {
                 status.Text = "Match not updated. It may have been removed by another process.";
                 return;
             }
             await ReloadAfterAssignmentAsync(deck.Name);
+            if (assignment.conflict)
+                status.Text += " Existing Arena ID mapping points to another deck and was NOT overwritten. Review that mapping before applying it to future matches.";
+            else if (assignment.backfilled > 0)
+                status.Text += " Linked " + assignment.backfilled + " older unassigned match(es) using that confirmed Arena ID.";
         }
         catch (Exception ex) when (ex is SqliteException or IOException or
             UnauthorizedAccessException or InvalidOperationException)
