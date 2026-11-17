@@ -18,6 +18,7 @@ var invalidPath = Path.Combine(work, "not-a-catalog.sqlite");
 
 try
 {
+    MatchAssignmentChecks.Run(work);
     // Create exactly the schema columns consumed by the readonly snapshot,
     // plus a separate ownership table whose contents must remain untouched.
     using (var source = new SqliteConnection(new SqliteConnectionStringBuilder
