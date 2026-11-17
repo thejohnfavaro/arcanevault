@@ -22,6 +22,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private ArenaMatchTracker? arenaTracker;
     private string? lastWorkspaceStamp;
     private string? lastKnownArenaDeckStamp;
+    private DateTimeOffset nextDeckMappingRefresh = DateTimeOffset.MinValue;
     private List<Deck> decks = new();
     private int artworkCursor;
     private DateTimeOffset nextCoverRetry = DateTimeOffset.MinValue;
@@ -140,11 +141,18 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         // Prefer exact Arena IDs already saved with native decks. This also
         // safely backfills older unassigned results that carry the exact ID.
         // Never guess a deck from a result's timestamp or deck similarity.
-        if (arenaTracker is not null && lastKnownArenaDeckStamp != stamp)
+        // Manual match mapping is stored in the separate match-history
+        // database. Refresh it periodically even if the collection's deck
+        // library has not changed, so the EDGE updates without restart.
+        if (arenaTracker is not null &&
+            (lastKnownArenaDeckStamp != stamp ||
+             DateTimeOffset.UtcNow >= nextDeckMappingRefresh))
         {
             arenaTracker.SetKnownSavedDecks(decks
-                .Select(d => (ArenaId: d.arenaDeckId, Name: d.name)));
+                .Select(d => (ArenaId: d.arenaDeckId, Name: d.name,
+                    NativeId: d.id)));
             lastKnownArenaDeckStamp = stamp;
+            nextDeckMappingRefresh = DateTimeOffset.UtcNow.AddSeconds(15);
         }
 
         // Card metadata can become available after a catalog sync, without
