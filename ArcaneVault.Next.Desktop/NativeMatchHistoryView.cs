@@ -55,6 +55,12 @@ internal sealed class NativeMatchHistoryView : UserControl
     };
     private readonly CheckBox needsReview = new() { Content = "Needs assignment / review only",
         IsChecked = true, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBox search = new() { Width = 220, MinHeight = 30,
+        Margin = new Thickness(10, 0, 10, 0),
+        ToolTip = "Filter by deck name, date, result, Arena ID, status, or note" };
+    private readonly Button resolveVerified = new() { Content = "Resolve verified IDs",
+        Padding = new Thickness(14, 9, 14, 9),
+        ToolTip = "Assign only exact Arena deck IDs already linked to one saved deck; never guess missing IDs" };
     private IReadOnlyList<MatchItem> loaded = Array.Empty<MatchItem>();
     private bool busy;
 
@@ -74,6 +80,8 @@ internal sealed class NativeMatchHistoryView : UserControl
         var toolbar = new WrapPanel { Margin = new Thickness(0, 6, 0, 5) };
         toolbar.Children.Add(refresh);
         toolbar.Children.Add(needsReview);
+        toolbar.Children.Add(search);
+        toolbar.Children.Add(resolveVerified);
         header.Children.Add(toolbar);
         header.Children.Add(status);
 
@@ -115,6 +123,8 @@ internal sealed class NativeMatchHistoryView : UserControl
         deckPicker.SelectionChanged += (_, _) => UpdateSelection();
         needsReview.Checked += (_, _) => FilterRows();
         needsReview.Unchecked += (_, _) => FilterRows();
+        search.TextChanged += (_, _) => FilterRows();
+        resolveVerified.Click += async (_, _) => await ResolveVerifiedAsync();
         refresh.Click += async (_, _) => await ReloadAsync();
         assign.Click += async (_, _) => await AssignAsync();
         Loaded += async (_, _) => { if (loaded.Count == 0) await ReloadAsync(); };
@@ -164,9 +174,19 @@ internal sealed class NativeMatchHistoryView : UserControl
 
     private void FilterRows()
     {
-        rows.ItemsSource = needsReview.IsChecked == true
-            ? loaded.Where(x => string.IsNullOrWhiteSpace(x.DeckName) || x.Result == "unknown").ToArray()
+        IEnumerable<MatchItem> filtered = needsReview.IsChecked == true
+            ? loaded.Where(x => string.IsNullOrWhiteSpace(x.DeckName) || x.Result == "unknown")
             : loaded;
+        var term = search.Text.Trim();
+        if (term.Length > 0)
+            filtered = filtered.Where(x =>
+                x.Date.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                x.Result.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                x.Deck.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                x.DeckId.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                x.Status.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                x.Note.Contains(term, StringComparison.OrdinalIgnoreCase));
+        rows.ItemsSource = filtered.ToArray();
         UpdateSelection();
     }
 
@@ -174,6 +194,9 @@ internal sealed class NativeMatchHistoryView : UserControl
     {
         assign.IsEnabled = !busy && rows.SelectedItem is MatchItem &&
             deckPicker.SelectedItem is SavedDeck;
+        resolveVerified.IsEnabled = !busy && loaded.Any(x =>
+            string.IsNullOrWhiteSpace(x.DeckName) &&
+            !string.IsNullOrWhiteSpace(x.DeckId));
         rememberMapping.IsEnabled = !busy && rows.SelectedItem is MatchItem selected &&
             !string.IsNullOrWhiteSpace(selected.DeckId);
         rememberMapping.Visibility = rememberMapping.IsEnabled
@@ -191,6 +214,7 @@ internal sealed class NativeMatchHistoryView : UserControl
         if (busy) return;
         busy = true;
         assign.IsEnabled = false;
+        resolveVerified.IsEnabled = false;
         status.Text = "Reading local Arena match history and saved decks…";
         try
         {
@@ -220,6 +244,91 @@ internal sealed class NativeMatchHistoryView : UserControl
             UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
         { status.Text = "Match history unavailable: " + ex.Message; }
         finally { busy = false; UpdateSelection(); }
+    }
+
+    // Exact-ID-only recovery. Never infer a deck from matching names or
+    // nearby match timestamps. The update methods already refuse assigned rows.
+    private async Task ResolveVerifiedAsync()
+    {
+        if (busy) return;
+        var answer = MessageBox.Show(
+            "Resolve older unassigned matches only when their captured Arena deck ID " +
+            "uniquely identifies a saved deck or an explicitly remembered mapping?\\n\\n" +
+            "Matches without Arena IDs remain untouched. Results, game totals and " +
+            "manual assignments are never changed.",
+            "Resolve verified Arena deck IDs", MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes) return;
+        busy = true;
+        assign.IsEnabled = false;
+        resolveVerified.IsEnabled = false;
+        status.Text = "Reconciling verified Arena IDs…";
+        try
+        {
+            int count = await Task.Run(() => {
+                var decks = File.Exists(NativeWorkspace.DefaultPath)
+                    ? NativeWorkspaceSafety.ListDecks(NativeWorkspace.DefaultPath)
+                        .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+                        .Select(x => new SavedDeck(x.Id, x.Name, x.ArenaDeckId))
+                        .ToArray()
+                    : Array.Empty<SavedDeck>();
+                var uniqueNative = decks.GroupBy(x => x.Id, StringComparer.Ordinal)
+                    .Where(g => g.Count() == 1)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+                var arenaGroups = decks.Where(x => !string.IsNullOrWhiteSpace(x.ArenaId))
+                    .GroupBy(x => x.ArenaId.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var ambiguous = arenaGroups.Where(g => g.Count() != 1)
+                    .Select(g => g.Key)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var verified = arenaGroups.Where(g => g.Count() == 1)
+                    .ToDictionary(g => g.Key, g => g.First(),
+                        StringComparer.OrdinalIgnoreCase);
+                using (var mappingStore = new MatchHistory())
+                {
+                    foreach (var mapping in mappingStore.Mappings())
+                    {
+                        if (ambiguous.Contains(mapping.ArenaId) ||
+                            !uniqueNative.TryGetValue(mapping.NativeId, out var deck))
+                            continue;
+                        if (verified.TryGetValue(mapping.ArenaId, out var direct) &&
+                            direct.Id != deck.Id)
+                        {
+                            // Conflicting evidence is not an automatic choice.
+                            verified.Remove(mapping.ArenaId);
+                            ambiguous.Add(mapping.ArenaId);
+                            continue;
+                        }
+                        verified[mapping.ArenaId] = deck;
+                    }
+                }
+                int changed = 0;
+                foreach (var file in HistoryFiles())
+                {
+                    using var history = new MatchHistory(file);
+                    foreach (var pair in verified)
+                        changed += history.BackfillExactArenaId(
+                            pair.Key, pair.Value.Id, pair.Value.Name);
+                }
+                return changed;
+            });
+            await ReloadAsyncAfterBulk(count);
+        }
+        catch (Exception ex) when (ex is SqliteException or IOException or
+            UnauthorizedAccessException or InvalidOperationException)
+        { status.Text = "Could not reconcile verified IDs: " + ex.Message; }
+        finally { busy = false; UpdateSelection(); }
+    }
+
+    private async Task ReloadAsyncAfterBulk(int changed)
+    {
+        loaded = await Task.Run(ReadMatches);
+        FilterRows();
+        status.Text = changed == 0
+            ? "No additional matches could be safely assigned by exact Arena ID. " +
+              "Older matches with no ID still require manual review."
+            : "Safely assigned " + changed + " existing match(es) using verified Arena IDs. " +
+              "No match results or game totals were changed.";
     }
 
     private async Task AssignAsync()
