@@ -455,10 +455,53 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             .Where(g => g.Count() == 1)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var byNativeId = decks.ToDictionary(d => d.id, StringComparer.Ordinal);
-        var uniqueArenaIds = decks.Where(d => !string.IsNullOrWhiteSpace(d.arenaDeckId))
+        // Build exactly the same verified Arena-ID relationships used by
+        // Match History. Saved mappings are persisted in the native history DB,
+        // not necessarily embedded in the saved-deck workspace.
+        var arenaGroups = decks.Where(d => !string.IsNullOrWhiteSpace(d.arenaDeckId))
             .GroupBy(d => d.arenaDeckId.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() == 1)
+            .ToArray();
+        var blockedArenaIds = arenaGroups.Where(g => g.Count() != 1)
+            .Select(g => g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var uniqueArenaIds = arenaGroups.Where(g => g.Count() == 1)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        if (File.Exists(native))
+        {
+            try
+            {
+                using var mappingDb = new SqliteConnection(new SqliteConnectionStringBuilder {
+                    DataSource = native, Mode = SqliteOpenMode.ReadOnly, Pooling = false
+                }.ToString());
+                mappingDb.Open();
+                using var query = mappingDb.CreateCommand();
+                query.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='deck_mappings'";
+                if (query.ExecuteScalar() is not null)
+                {
+                    query.CommandText = "SELECT arena_deck_id,native_deck_id FROM deck_mappings";
+                    using var mappingRows = query.ExecuteReader();
+                    while (mappingRows.Read())
+                    {
+                        string arenaId = mappingRows.GetString(0).Trim();
+                        string nativeId = mappingRows.GetString(1).Trim();
+                        if (arenaId.Length == 0 || blockedArenaIds.Contains(arenaId) ||
+                            !byNativeId.TryGetValue(nativeId, out var mapped)) continue;
+                        if (uniqueArenaIds.TryGetValue(arenaId, out var existing) &&
+                            existing.id != mapped.id)
+                        {
+                            // A conflict is never resolved by choosing whichever
+                            // source happened to be read last.
+                            blockedArenaIds.Add(arenaId);
+                            uniqueArenaIds.Remove(arenaId);
+                            continue;
+                        }
+                        uniqueArenaIds[arenaId] = mapped;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or SqliteException or
+                InvalidOperationException or UnauthorizedAccessException)
+            { Log("Verified Stream Deck deck mappings unavailable", ex); }
+        }
         var knownMatches = new HashSet<string>(StringComparer.Ordinal);
         RecentMatch? recent = null;
         DateTimeOffset? latest = null;
@@ -497,10 +540,16 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     string arenaId = reader.IsDBNull(4) ? "" : reader.GetString(4).Trim();
                     string nativeId = reader.IsDBNull(5) ? "" : reader.GetString(5).Trim();
                     Deck? deck = null;
-                    if (nativeId.Length > 0) byNativeId.TryGetValue(nativeId, out deck);
-                    if (deck is null && arenaId.Length > 0)
+                    if (nativeId.Length > 0)
+                        byNativeId.TryGetValue(nativeId, out deck);
+                    else if (arenaId.Length > 0 && !blockedArenaIds.Contains(arenaId))
                         uniqueArenaIds.TryGetValue(arenaId, out deck);
-                    if (deck is null && name.Length > 0) unique.TryGetValue(name, out deck);
+                    // Legacy records may have a manually assigned name but no
+                    // stable IDs. Do not let a same-name fallback override a
+                    // conflicting or unknown explicit identifier.
+                    if (deck is null && nativeId.Length == 0 && arenaId.Length == 0 &&
+                        name.Length > 0)
+                        unique.TryGetValue(name, out deck);
                     if (deck is null || id.Length == 0 || !knownMatches.Add(id)) continue;
                     used = true;
                     if (result == "win") deck.wins++; else deck.losses++;
@@ -536,7 +585,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         Deck? selected = null;
         if (!string.IsNullOrWhiteSpace(chosenId))
             uniqueArenaIds.TryGetValue(chosenId.Trim(), out selected);
-        if (selected is null && !string.IsNullOrWhiteSpace(chosen))
+        if (selected is null && string.IsNullOrWhiteSpace(chosenId) &&
+            !string.IsNullOrWhiteSpace(chosen))
             unique.TryGetValue(chosen.Trim(), out selected);
         string? active = selected?.id;
         return (recent, sources.Count == 0 ? null : string.Join("+", sources), active);
