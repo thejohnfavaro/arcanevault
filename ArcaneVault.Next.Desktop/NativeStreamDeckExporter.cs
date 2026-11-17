@@ -21,6 +21,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private Task? worker;
     private ArenaMatchTracker? arenaTracker;
     private string? lastWorkspaceStamp;
+    private string? lastKnownArenaDeckStamp;
     private List<Deck> decks = new();
     private int artworkCursor;
     private DateTimeOffset nextCoverRetry = DateTimeOffset.MinValue;
@@ -132,14 +133,19 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             decks = read;
             artworkCursor = 0;
             lastWorkspaceStamp = stamp;
+            lastKnownArenaDeckStamp = null;
             nextCoverRetry = DateTimeOffset.MinValue;
         }
 
         // Prefer exact Arena IDs already saved with native decks. This also
         // safely backfills older unassigned results that carry the exact ID.
         // Never guess a deck from a result's timestamp or deck similarity.
-        arenaTracker?.SetKnownSavedDecks(decks
-            .Select(d => (ArenaId: d.arenaDeckId, Name: d.name)));
+        if (arenaTracker is not null && lastKnownArenaDeckStamp != stamp)
+        {
+            arenaTracker.SetKnownSavedDecks(decks
+                .Select(d => (ArenaId: d.arenaDeckId, Name: d.name)));
+            lastKnownArenaDeckStamp = stamp;
+        }
 
         // Card metadata can become available after a catalog sync, without
         // any deck library change. Retry missing artwork independently.
@@ -440,6 +446,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         var unique = decks.GroupBy(x => x.name.Trim(), StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() == 1)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var byNativeId = decks.ToDictionary(d => d.id, StringComparer.Ordinal);
         var uniqueArenaIds = decks.Where(d => !string.IsNullOrWhiteSpace(d.arenaDeckId))
             .GroupBy(d => d.arenaDeckId.Trim(), StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() == 1)
@@ -458,8 +465,20 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 }.ToString());
                 db.Open();
                 using var cmd = db.CreateCommand();
-                cmd.CommandText = "SELECT match_id,result,deck_name,played_utc,deck_id FROM matches " +
-                    "WHERE result IN ('win','loss') ORDER BY played_utc DESC LIMIT 25000";
+                // Legacy match-history databases may not yet include the
+                // optional stable Arcane Vault deck identity column.
+                using var schema = db.CreateCommand();
+                schema.CommandText = "PRAGMA table_info(matches)";
+                bool hasNativeDeckId = false;
+                using (var cols = schema.ExecuteReader())
+                    while (cols.Read())
+                        if (cols.GetString(1).Equals("native_deck_id",
+                            StringComparison.OrdinalIgnoreCase))
+                            hasNativeDeckId = true;
+                cmd.CommandText = "SELECT match_id,result,deck_name,played_utc,deck_id," +
+                    (hasNativeDeckId ? "native_deck_id" : "''") +
+                    " FROM matches WHERE result IN ('win','loss') " +
+                    "ORDER BY played_utc DESC LIMIT 25000";
                 using var reader = cmd.ExecuteReader();
                 bool used = false;
                 while (reader.Read())
@@ -468,8 +487,11 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     string result = reader.GetString(1);
                     string name = reader.IsDBNull(2) ? "" : reader.GetString(2).Trim();
                     string arenaId = reader.IsDBNull(4) ? "" : reader.GetString(4).Trim();
+                    string nativeId = reader.IsDBNull(5) ? "" : reader.GetString(5).Trim();
                     Deck? deck = null;
-                    if (arenaId.Length > 0) uniqueArenaIds.TryGetValue(arenaId, out deck);
+                    if (nativeId.Length > 0) byNativeId.TryGetValue(nativeId, out deck);
+                    if (deck is null && arenaId.Length > 0)
+                        uniqueArenaIds.TryGetValue(arenaId, out deck);
                     if (deck is null && name.Length > 0) unique.TryGetValue(name, out deck);
                     if (deck is null || id.Length == 0 || !knownMatches.Add(id)) continue;
                     used = true;
