@@ -53,7 +53,7 @@ jobs:
             if (-not (Test-Path "$p.sha256")) { throw "Missing SHA256 for $p" }
             $actual = (Get-FileHash -Algorithm SHA256 $p).Hash.ToLowerInvariant()
             $text = Get-Content "$p.sha256" -Raw
-            if ($text -notmatch "(?i)\\b$actual\\b") { throw "SHA256 mismatch: $p" }
+            if (-not $text.ToLowerInvariant().Contains($actual)) { throw "SHA256 mismatch: $p" }
           }
       - name: Publish checked native release
         shell: pwsh
