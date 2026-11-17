@@ -14,13 +14,20 @@ internal static class MatchPerformanceAnalytics
         public string WinRate => $"{Rate:0.#}%";
     }
     internal sealed record Point(int Index, double Rate, string Result);
+    internal sealed record WeekRow(string Week, int Wins, int Losses)
+    {
+        public int Matches => Wins + Losses;
+        public string Record => $"{Wins}–{Losses}";
+        public string WinRate => Matches == 0 ? "—" : $"{100d * Wins / Matches:0.#}%";
+    }
     internal sealed record TimelineRow(string When, string Deck, string Format,
         string Result, string RollingRate);
     internal sealed record Report(int Wins, int Losses, int Unresolved,
         int LastTenWins, int LastTenLosses, int CurrentStreak,
         string StreakResult, IReadOnlyList<FormatRow> Formats,
         IReadOnlyList<Point> Trend, IReadOnlyList<Entry> Recent,
-        IReadOnlyList<TimelineRow> Timeline)
+        IReadOnlyList<TimelineRow> Timeline, IReadOnlyList<WeekRow> Weeks,
+        int BestWinStreak, int WorstLossStreak)
     {
         public int Matches => Wins + Losses;
         public double Rate => Matches == 0 ? 0 : 100d * Wins / Matches;
@@ -59,6 +66,32 @@ internal static class MatchPerformanceAnalytics
                 g.Count(x => x.Result == "loss")))
             .OrderByDescending(x => x.Matches).ThenBy(x => x.Format).ToArray();
         var recent = confirmed.TakeLast(20).Reverse().ToArray();
+        int currentWins = 0, currentLosses = 0, bestWins = 0, worstLosses = 0;
+        foreach (var match in confirmed)
+        {
+            if (match.Result == "win")
+            {
+                currentWins++;
+                currentLosses = 0;
+                bestWins = Math.Max(bestWins, currentWins);
+            }
+            else
+            {
+                currentLosses++;
+                currentWins = 0;
+                worstLosses = Math.Max(worstLosses, currentLosses);
+            }
+        }
+        // ISO week keys prevent regional calendar defaults from shifting results.
+        var weekly = confirmed.GroupBy(x => {
+                var day = x.Played.UtcDateTime.Date;
+                int offset = ((int)day.DayOfWeek + 6) % 7;
+                return day.AddDays(-offset).ToString("yyyy-MM-dd");
+            })
+            .Select(g => new WeekRow(g.Key, g.Count(x => x.Result == "win"),
+                g.Count(x => x.Result == "loss")))
+            .OrderByDescending(x => x.Week, StringComparer.Ordinal)
+            .Take(12).ToArray();
         // Moving 10-match win rate; every point uses only confirmed games.
         var trend = new List<Point>();
         var timeline = new List<TimelineRow>();
@@ -76,6 +109,7 @@ internal static class MatchPerformanceAnalytics
         return new Report(wins, losses, filtered.Length - confirmed.Length,
             lastTen.Count(x => x.Result == "win"),
             lastTen.Count(x => x.Result == "loss"),
-            streak, lastResult, formats, trend, recent, timeline.AsEnumerable().Reverse().ToArray());
+            streak, lastResult, formats, trend, recent,
+            timeline.AsEnumerable().Reverse().ToArray(), weekly, bestWins, worstLosses);
     }
 }
