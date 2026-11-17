@@ -14,23 +14,29 @@ internal static class MatchPerformanceAnalytics
         public string WinRate => $"{Rate:0.#}%";
     }
     internal sealed record Point(int Index, double Rate, string Result);
+    internal sealed record TimelineRow(string When, string Deck, string Format,
+        string Result, string RollingRate);
     internal sealed record Report(int Wins, int Losses, int Unresolved,
         int LastTenWins, int LastTenLosses, int CurrentStreak,
         string StreakResult, IReadOnlyList<FormatRow> Formats,
-        IReadOnlyList<Point> Trend, IReadOnlyList<Entry> Recent)
+        IReadOnlyList<Point> Trend, IReadOnlyList<Entry> Recent,
+        IReadOnlyList<TimelineRow> Timeline)
     {
         public int Matches => Wins + Losses;
         public double Rate => Matches == 0 ? 0 : 100d * Wins / Matches;
     }
 
     internal static Report Build(IEnumerable<Entry> source, string? deckName,
-        int days, DateTimeOffset now)
+        int days, DateTimeOffset now, string? format = null)
     {
         var cutoff = days > 0 ? now.AddDays(-days) : DateTimeOffset.MinValue;
         var filtered = source
             .Where(x => !string.IsNullOrWhiteSpace(x.MatchId) &&
                 x.Played >= cutoff && x.Played <= now &&
                 !string.IsNullOrWhiteSpace(x.DeckName) &&
+                (string.IsNullOrWhiteSpace(format) ||
+                    (string.IsNullOrWhiteSpace(x.Format) ? "Unknown format" : x.Format.Trim())
+                        .Equals(format.Trim(), StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrWhiteSpace(deckName) ||
                     x.DeckName.Trim().Equals(deckName.Trim(),
                         StringComparison.OrdinalIgnoreCase)))
@@ -55,17 +61,21 @@ internal static class MatchPerformanceAnalytics
         var recent = confirmed.TakeLast(20).Reverse().ToArray();
         // Moving 10-match win rate; every point uses only confirmed games.
         var trend = new List<Point>();
+        var timeline = new List<TimelineRow>();
         for (int i = 0; i < confirmed.Length; i++)
         {
             if (i < confirmed.Length - 20) continue;
             var window = confirmed.Skip(Math.Max(0, i - 9)).Take(Math.Min(i + 1, 10)).ToArray();
-            trend.Add(new Point(i + 1,
-                100d * window.Count(x => x.Result == "win") / window.Length,
-                confirmed[i].Result));
+            double rolling = 100d * window.Count(x => x.Result == "win") / window.Length;
+            trend.Add(new Point(i + 1, rolling, confirmed[i].Result));
+            timeline.Add(new TimelineRow(confirmed[i].Played.ToLocalTime().ToString("g"),
+                confirmed[i].DeckName,
+                string.IsNullOrWhiteSpace(confirmed[i].Format) ? "Unknown format" : confirmed[i].Format,
+                confirmed[i].Result.ToUpperInvariant(), $"{rolling:0.#}%"));
         }
         return new Report(wins, losses, filtered.Length - confirmed.Length,
             lastTen.Count(x => x.Result == "win"),
             lastTen.Count(x => x.Result == "loss"),
-            streak, lastResult, formats, trend, recent);
+            streak, lastResult, formats, trend, recent, timeline.AsEnumerable().Reverse().ToArray());
     }
 }
