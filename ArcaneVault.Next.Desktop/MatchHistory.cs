@@ -23,6 +23,7 @@ internal sealed class MatchHistory : IDisposable
             result_source TEXT NOT NULL,
             format TEXT NOT NULL DEFAULT '',
             deck_id TEXT NOT NULL DEFAULT '',
+            native_deck_id TEXT NOT NULL DEFAULT '',
             deck_name TEXT NOT NULL DEFAULT '',
             deck_version TEXT NOT NULL DEFAULT '',
             source_log TEXT NOT NULL DEFAULT '',
@@ -33,6 +34,23 @@ internal sealed class MatchHistory : IDisposable
         CREATE INDEX IF NOT EXISTS idx_matches_deck ON matches(deck_name, deck_version);
         CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(played_utc);";
         command.ExecuteNonQuery();
+        // Existing match databases predate stable native-deck assignments.
+        // Extend only the optional match-history database; never the native
+        // collection or its immutable physical ownership records.
+        using var columns = db.CreateCommand();
+        columns.CommandText = "PRAGMA table_info(matches)";
+        using var rows = columns.ExecuteReader();
+        bool hasNativeDeckId = false;
+        while (rows.Read())
+            if (rows.GetString(1).Equals("native_deck_id", StringComparison.OrdinalIgnoreCase))
+                hasNativeDeckId = true;
+        rows.Close();
+        if (!hasNativeDeckId)
+        {
+            using var migrate = db.CreateCommand();
+            migrate.CommandText = "ALTER TABLE matches ADD COLUMN native_deck_id TEXT NOT NULL DEFAULT ''";
+            migrate.ExecuteNonQuery();
+        }
     }
 
     internal record MatchRow(string matchId, string playedUtc, string result, string resultSource,
@@ -109,25 +127,29 @@ internal sealed class MatchHistory : IDisposable
     }
 
     // Only allow manual corrections; never infer a win from an unknown result.
-    public bool Update(string id, string? result, string? deckName, string? deckVersion, string? note)
+    public bool Update(string id, string? result, string? deckName, string? deckVersion, string? note,
+        string? nativeDeckId = null)
     {
         lock (gate)
         {
             if (result != null && result is not ("win" or "loss" or "draw" or "unknown"))
                 throw new ArgumentException("Invalid match result.");
-            if (deckName?.Length > 150 || deckVersion?.Length > 100 || note?.Length > 500)
+            if (deckName?.Length > 150 || deckVersion?.Length > 100 || note?.Length > 500 ||
+                nativeDeckId?.Length > 180)
                 throw new ArgumentException("Text field too long.");
             using var cmd = db.CreateCommand();
             cmd.CommandText = @"UPDATE matches SET
               result = COALESCE($result,result),
               result_source = CASE WHEN $result IS NULL THEN result_source ELSE 'manual' END,
               deck_name = COALESCE($name,deck_name), deck_version = COALESCE($version,deck_version),
+              native_deck_id = COALESCE($native,native_deck_id),
               note = CASE WHEN $note IS NOT NULL THEN $note
                           WHEN $name IS NOT NULL THEN 'Deck assignment: manual'
                           ELSE note END WHERE match_id=$id";
             cmd.Parameters.AddWithValue("$id", id);
             cmd.Parameters.AddWithValue("$result", (object?)result ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$name", (object?)deckName ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$native", (object?)nativeDeckId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$version", (object?)deckVersion ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$note", (object?)note ?? DBNull.Value);
             return cmd.ExecuteNonQuery() > 0;
