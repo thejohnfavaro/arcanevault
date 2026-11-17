@@ -36,7 +36,7 @@ internal sealed class NativeMatchHistoryView : UserControl
         TextWrapping = TextWrapping.Wrap, Foreground = Brushes.LightGray };
     private readonly ListView rows = new() { MinHeight = 260, Margin = new Thickness(0, 6, 0, 14) };
     private readonly ComboBox deckPicker = new() { MinWidth = 260, Margin = new Thickness(0, 0, 10, 0),
-        MaxWidth = 420, DisplayMemberPath = "Name" };
+        MaxWidth = 420 };
     private readonly ComboBox resultPicker = new() { MinWidth = 150,
         Margin = new Thickness(0, 0, 10, 0) };
     private readonly Button assign = new() { Content = "Assign selected match",
@@ -222,7 +222,8 @@ internal sealed class NativeMatchHistoryView : UserControl
             bool changed = await Task.Run(() => {
                 using var history = new MatchHistory(item.Database);
                 return history.Update(item.MatchId, corrected, deck.Name, null,
-                    "Deck assignment: manually confirmed in Arcane Vault Match History");
+                    "Deck assignment: manually confirmed in Arcane Vault Match History",
+                    deck.Id);
             });
             if (!changed)
             {
