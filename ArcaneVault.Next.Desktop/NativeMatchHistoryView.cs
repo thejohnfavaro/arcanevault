@@ -253,7 +253,7 @@ internal sealed class NativeMatchHistoryView : UserControl
         if (busy) return;
         var answer = MessageBox.Show(
             "Resolve older unassigned matches only when their captured Arena deck ID " +
-            "uniquely identifies a saved deck or an explicitly remembered mapping?\\n\\n" +
+            "uniquely identifies a saved deck or an explicitly remembered mapping?\n\n" +
             "Matches without Arena IDs remain untouched. Results, game totals and " +
             "manual assignments are never changed.",
             "Resolve verified Arena deck IDs", MessageBoxButton.YesNo,
