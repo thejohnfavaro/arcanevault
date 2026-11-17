@@ -3,7 +3,7 @@
   "id": "com.rngesus.arcanevault.edge",
   "name": "Arcane Vault — Deck Dashboard",
   "description": "A glanceable commander art, deck win/loss and collection dashboard for XENEON EDGE.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "preview_icon": "resources/icon.svg",
   "min_app_version": "5.52",
   "min_framework_version": "1.9.0",
