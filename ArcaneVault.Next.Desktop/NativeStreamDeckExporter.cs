@@ -47,7 +47,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     }
     private sealed record MatchEvent(string result, string playedUtc);
     private sealed record SetProgressSummary(int ownedSlots, int totalSlots,
-        IReadOnlyList<SetProgressItem> topSets, string? asOf = null);
+        IReadOnlyList<SetProgressItem> topSets, string? asOf = null,
+        IReadOnlyList<SetProgressItem>? sets = null);
     private sealed record SetProgressItem(string code, string name,
         int owned, int total, double percent);
     private sealed record CollectionValue(decimal? value, string currency = "USD",
@@ -204,9 +205,20 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     x.OwnedSlots, x.TotalSlots,
                     Math.Round(x.Percent, 1)))
                 .ToArray();
+            // All verified set summaries are exported for EDGE touch selection.
+            // Only counts and set identifiers are exposed, never the
+            // underlying individual owned cards or database records.
+            var allSets = summary.Sets
+                .Where(x => x.TotalSlots > 0)
+                .OrderBy(x => x.SetName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.SetCode, StringComparer.OrdinalIgnoreCase)
+                .Take(2000)
+                .Select(x => new SetProgressItem(x.SetCode, x.SetName,
+                    x.OwnedSlots, x.TotalSlots, Math.Round(x.Percent, 1)))
+                .ToArray();
             setProgress = new SetProgressSummary(
                 summary.ConfirmedOwnedSlots, summary.CatalogPaperSlots,
-                top, DateTimeOffset.UtcNow.ToString("O"));
+                top, DateTimeOffset.UtcNow.ToString("O"), allSets);
             setProgressStamp = stamp;
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
