@@ -147,14 +147,23 @@
     $("recordSummary").textContent = total ? "Confirmed Arena matches" : "No associated matches";
     renderMatchHistory(deck);
     renderSetProgress(snapshot);
-    const recent = snapshot.recentMatch;
-    const recentIsSelected = recent && String(recent.deckName || "").trim().toLowerCase() ===
+    // Prefer the selected deck's own confirmed history; the v0.1 global
+    // recentMatch is retained for compatibility with older native snapshots.
+    const ownRecent = Array.isArray(deck.matchHistory) && deck.matchHistory.length ?
+      deck.matchHistory[0] : null;
+    const globalRecent = snapshot.recentMatch;
+    const globalMatchesDeck = globalRecent &&
+      String(globalRecent.deckName || "").trim().toLowerCase() ===
       String(deck.name || "").trim().toLowerCase();
-    $("recent").textContent = recentIsSelected ? String(recent.result || "—").toUpperCase() : "—";
-    $("recent").className = "feature-data latest" +
-      (recentIsSelected && recent.result === "win" ? " win" :
-       recentIsSelected && recent.result === "loss" ? " loss" : "");
-    $("recentDescription").textContent = recentIsSelected ? "Latest confirmed result for selected deck" :
+    const recent = ownRecent || (globalMatchesDeck ? globalRecent : null);
+    const recentResult = recent && (recent.result === "win" || recent.result === "loss") ?
+      recent.result : "";
+    $("recent").textContent = recentResult ? recentResult.toUpperCase() : "—";
+    $("recent").className = "feature-data latest" + (recentResult ? " " + recentResult : "");
+    $("recentDescription").textContent = recentResult ?
+      (ownRecent && ownRecent.playedUtc ?
+       "Confirmed on " + new Date(ownRecent.playedUtc).toLocaleDateString() :
+       "Latest confirmed result for selected deck") :
       "No recent match linked to this deck";
     const value = snapshot.collection?.value;
     const currency = snapshot.collection?.currency || "USD";
@@ -246,9 +255,16 @@
   if (typeof window.iCUE === "undefined" && typeof window.plugins === "undefined") {
     $("previewLabel").textContent = "SAMPLE PREVIEW";
     readSnapshot(JSON.stringify({
-      decks:[{id:"sample",name:"Demo Commander Deck",commander:"Sample commander",wins:12,losses:7,artUrl:""}],
+      decks:[{id:"sample",name:"Demo Commander Deck",commander:"Sample commander",wins:12,losses:7,artUrl:"",
+        matchHistory:Array.from({length:19},(_,i)=>({result:i%3===0?"loss":"win",
+          playedUtc:new Date(Date.UTC(2026,10,1+i)).toISOString()})).reverse()}],
       collection:{value:0,currency:"USD",asOf:"example"},
-      recentMatch:{result:"win",deckName:"Demo Commander Deck"}
+      recentMatch:{result:"win",deckName:"Demo Commander Deck"},
+      setProgress:{ownedSlots:834,totalSlots:6842,topSets:[
+        {code:"dmo",name:"Demo Set Alpha",owned:124,total:260},
+        {code:"dm1",name:"Demo Set Beta",owned:92,total:180},
+        {code:"dm2",name:"Demo Set Gamma",owned:47,total:200}
+      ]}
     }));
     status("SAMPLE PREVIEW · iCUE not connected", true);
   }
