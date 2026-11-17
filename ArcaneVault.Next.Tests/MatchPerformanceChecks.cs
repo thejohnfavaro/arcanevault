@@ -49,6 +49,22 @@ internal static class MatchPerformanceChecks
         },"Deck A",30,now,"Unknown format");
         Assert(unclassified.Wins == 1 && unclassified.Formats.Single().Format == "Unknown format",
             "Unlabeled queues must be selectable as Unknown format.");
+        Assert(a.BestWinStreak == 1 && a.WorstLossStreak == 1,
+            "Longest streak must use confirmed chronological outcomes only.");
+        Assert(a.Weeks.Count > 0 && a.Weeks.Sum(x => x.Matches) == a.Matches,
+            "Weekly buckets must sum exactly to confirmed matches.");
+        var streakRows = new[] {
+            new MatchPerformanceAnalytics.Entry("s1",now.AddMinutes(-4),"Deck C","","Brawl","loss"),
+            new MatchPerformanceAnalytics.Entry("s2",now.AddMinutes(-3),"Deck C","","Brawl","loss"),
+            new MatchPerformanceAnalytics.Entry("s3",now.AddMinutes(-2),"Deck C","","Brawl","win"),
+            new MatchPerformanceAnalytics.Entry("s4",now.AddMinutes(-1),"Deck C","","Brawl","win"),
+            new MatchPerformanceAnalytics.Entry("s5",now,"Deck C","","Brawl","win")
+        };
+        var streakReport = MatchPerformanceAnalytics.Build(streakRows,"Deck C",0,now);
+        Assert(streakReport.BestWinStreak == 3 && streakReport.WorstLossStreak == 2,
+            "Streak extremes must not be confused with the active streak.");
+        Assert(streakReport.CurrentStreak == 3,
+            "Latest win streak must reflect the chronological last match.");
         var shortRange = MatchPerformanceAnalytics.Build(rows,"Deck A",1,now);
         Assert(shortRange.Matches == 1, "Date range should not include older results.");
     }
