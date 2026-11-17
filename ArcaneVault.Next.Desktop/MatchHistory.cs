@@ -34,6 +34,15 @@ internal sealed class MatchHistory : IDisposable
         CREATE INDEX IF NOT EXISTS idx_matches_deck ON matches(deck_name, deck_version);
         CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(played_utc);";
         command.ExecuteNonQuery();
+        using (var mappingSchema = db.CreateCommand())
+        {
+            mappingSchema.CommandText = @"CREATE TABLE IF NOT EXISTS deck_mappings (
+                arena_deck_id TEXT PRIMARY KEY COLLATE NOCASE,
+                native_deck_id TEXT NOT NULL,
+                deck_name TEXT NOT NULL
+            );";
+            mappingSchema.ExecuteNonQuery();
+        }
         // Existing match databases predate stable native-deck assignments.
         // Extend only the optional match-history database; never the native
         // collection or its immutable physical ownership records.
@@ -50,6 +59,73 @@ internal sealed class MatchHistory : IDisposable
             using var migrate = db.CreateCommand();
             migrate.CommandText = "ALTER TABLE matches ADD COLUMN native_deck_id TEXT NOT NULL DEFAULT ''";
             migrate.ExecuteNonQuery();
+        }
+    }
+
+    // Explicitly approved, persistent Arena-ID to native-deck relationships.
+    // Stored separately from the collection to avoid editing card/deck data.
+    internal sealed record DeckMapping(string ArenaId, string NativeId, string DeckName);
+    public IReadOnlyList<DeckMapping> Mappings()
+    {
+        lock (gate)
+        {
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT arena_deck_id,native_deck_id,deck_name FROM deck_mappings";
+            using var reader = cmd.ExecuteReader();
+            var mappings = new List<DeckMapping>();
+            while (reader.Read())
+                mappings.Add(new DeckMapping(reader.GetString(0),reader.GetString(1),reader.GetString(2)));
+            return mappings;
+        }
+    }
+
+    /// <summary>Save an explicitly confirmed exact Arena ID mapping.
+    /// Replacing an existing conflicting mapping requires separate user consent.</summary>
+    public bool RememberDeckMapping(string arenaId, string nativeId, string deckName,
+        bool replaceExisting = false)
+    {
+        arenaId = arenaId?.Trim() ?? "";
+        nativeId = nativeId?.Trim() ?? "";
+        deckName = deckName?.Trim() ?? "";
+        if (arenaId.Length is < 1 or > 180 || nativeId.Length is < 1 or > 180 ||
+            deckName.Length is < 1 or > 150)
+            throw new ArgumentException("Invalid Arena deck ID or native saved-deck identity.");
+        lock (gate)
+        {
+            using var read = db.CreateCommand();
+            read.CommandText = "SELECT native_deck_id FROM deck_mappings WHERE arena_deck_id=$arena";
+            read.Parameters.AddWithValue("$arena",arenaId);
+            string? existing = read.ExecuteScalar() as string;
+            if (existing is not null && existing != nativeId && !replaceExisting)
+                return false;
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = @"INSERT INTO deck_mappings (arena_deck_id,native_deck_id,deck_name)
+                VALUES ($arena,$native,$name)
+                ON CONFLICT(arena_deck_id) DO UPDATE SET
+                native_deck_id=excluded.native_deck_id,deck_name=excluded.deck_name";
+            cmd.Parameters.AddWithValue("$arena",arenaId);
+            cmd.Parameters.AddWithValue("$native",nativeId);
+            cmd.Parameters.AddWithValue("$name",deckName);
+            return cmd.ExecuteNonQuery() > 0;
+        }
+    }
+
+    /// <summary>Backfill only unassigned matches with a verified stable deck.
+    /// Existing manual and automatic assignments are never overwritten.</summary>
+    public int BackfillExactArenaId(string arenaId, string nativeId, string deckName)
+    {
+        if (string.IsNullOrWhiteSpace(arenaId) || string.IsNullOrWhiteSpace(nativeId) ||
+            string.IsNullOrWhiteSpace(deckName)) return 0;
+        lock (gate)
+        {
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = @"UPDATE matches SET native_deck_id=$native,
+                deck_name=$name, note='Deck assignment: verified persistent Arena ID'
+                WHERE deck_id=$arena AND TRIM(deck_name)='' AND TRIM(native_deck_id)=''";
+            cmd.Parameters.AddWithValue("$arena",arenaId);
+            cmd.Parameters.AddWithValue("$native",nativeId);
+            cmd.Parameters.AddWithValue("$name",deckName);
+            return cmd.ExecuteNonQuery();
         }
     }
 
