@@ -21,6 +21,9 @@ jobs:
       - name: Check standalone widget JavaScript
         shell: pwsh
         run: node --check integrations/xeneon-edge/scripts/widget.js
+      - name: Test first snapshot, ranks and stale watcher recovery
+        shell: pwsh
+        run: node tests/xeneon-edge-snapshot-watch.mjs
       - name: Reject sample or debug deck fixtures in publishable widget
         shell: pwsh
         run: |
@@ -54,7 +57,7 @@ jobs:
           $packages | ForEach-Object { Copy-Item $_.FullName -Destination 'widget-dist/' }
       - uses: actions/upload-artifact@v4
         with:
-          name: ArcaneVault-XeneonEdge-Widget-0.6-preview
+          name: ArcaneVault-XeneonEdge-Widget-0.7-preview
           path: widget-dist/*.icuewidget
           if-no-files-found: error
       - name: Publish independent EDGE widget preview release
@@ -63,12 +66,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'edge-widget-v0.6.0'
+          $tag = 'edge-widget-v0.7.0'
           gh release view $tag --repo ${{ github.repository }} *> $null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "EDGE widget $tag is already published; leaving existing immutable version intact."
           } else {
             $files = @(Get-ChildItem 'widget-dist/*.icuewidget' -File | ForEach-Object { $_.FullName })
-            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.6.0 (Preview)' --notes 'Replaces custom icons with the distinct MTG Arena badge artwork for each Constructed/Limited division, Mythic and Unranked. Source: Draftsim MTG Arena ranking guide. Keeps all W/L and collection data unchanged. Requires Arcane Vault Native v0.9.148.' --prerelease
+            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.7.0 (Preview)' --notes 'Repairs the file watcher handshake with a periodic Windows snapshot heartbeat, stale subscription recovery, and visible permission diagnostics. Keeps MTGA rank art, W/L, collection, and deck controls. Pair with Windows Native v0.9.149.' --prerelease
             if ($LASTEXITCODE -ne 0) { throw 'Could not publish XENEON EDGE release.' }
           }
