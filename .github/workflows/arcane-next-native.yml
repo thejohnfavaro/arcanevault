@@ -53,6 +53,28 @@ jobs:
           dotnet-version: 10.0.x
       - name: Verify SDK
         run: dotnet --version
+      - name: Install asset generator
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build approved Windows icon and installer brand assets
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pillow==11.3.0
+          if ($LASTEXITCODE -ne 0) { throw "Pillow install failed" }
+          python tools/build_windows_brand.py
+          if ($LASTEXITCODE -ne 0) { throw "Brand asset generation failed" }
+          foreach ($file in @(
+            "ArcaneVault.Next.Desktop/Assets/ArcaneVault.ico",
+            "ArcaneVault.Next.Desktop/Assets/ArcaneVaultIcon.png",
+            "installer/brand/ArcaneVaultWizard.bmp",
+            "installer/brand/ArcaneVaultWizardSmall.bmp",
+            "installer/brand/ArcaneVaultWizardHeader.bmp"
+          )) {
+            if (-not (Test-Path $file) -or (Get-Item $file).Length -lt 1000) {
+              throw "Missing generated brand artwork: $file"
+            }
+          }
       - name: Restore WPF prototype
         run: dotnet restore ArcaneVault.Next.Desktop/ArcaneVault.Next.Desktop.csproj
       - name: Compile WPF prototype
