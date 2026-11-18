@@ -72,6 +72,23 @@ internal static class NativePeerSyncChecks
             checkpointRoot),"Checkpoint should be discoverable by peer UUID.");
         Check(NativePeerCheckpoint.Load("00000000-0000-4000-8000-000000000366",
             checkpointRoot).SequenceEqual(peerBytes),"Persisted peer snapshot must remain lossless.");
+        // A checkpoint file might survive a crash but contain the wrong
+        // device or an incomplete JSON envelope. Reject it without repair
+        // or changing the authoritative collection.
+        var invalidCheckpoint=JsonNode.Parse(peerBytes)!.AsObject();
+        invalidCheckpoint["deviceId"]="00000000-0000-4000-8000-000000000367";
+        File.WriteAllBytes(checkpoint,JsonSerializer.SerializeToUtf8Bytes(invalidCheckpoint));
+        Reject(()=>NativePeerCheckpoint.Load(
+            "00000000-0000-4000-8000-000000000366",checkpointRoot));
+        invalidCheckpoint["deviceId"]="00000000-0000-4000-8000-000000000366";
+        invalidCheckpoint["format"]="not-a-peer-envelope";
+        File.WriteAllBytes(checkpoint,JsonSerializer.SerializeToUtf8Bytes(invalidCheckpoint));
+        Reject(()=>NativePeerCheckpoint.Load(
+            "00000000-0000-4000-8000-000000000366",checkpointRoot));
+        File.WriteAllBytes(checkpoint,peerBytes);
+        Check(NativePeerCheckpoint.Load(
+            "00000000-0000-4000-8000-000000000366",checkpointRoot)
+            .SequenceEqual(peerBytes),"Restored checkpoint must remain usable.");
         NativePeerCheckpoint.SaveIdentical(path,peerBytes,checkpointRoot);
         Check(Directory.GetFiles(checkpointRoot,"*.history-*.json").Length==1,
             "Refreshing a peer checkpoint must preserve one earlier snapshot.");
