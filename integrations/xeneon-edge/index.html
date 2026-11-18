@@ -76,18 +76,24 @@
             <div class="rank-display"><img id="limitedRankIcon" class="rank-icon" alt="" hidden /><div class="rank-value" id="limitedRank">—</div></div>
           </div>
         </div>
-        <div class="feature-small" id="rankAge">Waiting for Arena rank data</div>
-        <div class="season-summary" aria-label="Rank season reset">
-          <div class="rank-label">SEASON RESET</div>
-          <div class="season-countdown" id="seasonCountdown">Checking Wizards schedule…</div>
+        <details class="rank-meta">
+          <summary id="rankAge">Waiting for Arena rank data</summary>
           <div class="feature-small" id="seasonPrediction">Projected next ranks appear when verified.</div>
           <div class="season-checked" id="seasonChecked">Updates automatically through Arcane Vault</div>
+        </details>
+        <div class="season-summary" aria-label="Rank season reset">
+          <div class="rank-label">RESET IN</div>
+          <div class="season-countdown" id="seasonCountdown">Checking Wizards schedule…</div>
         </div>
       </div>
       <div class="feature" id="collectionPanel">
-        <div class="feature-title">PHYSICAL COLLECTION</div>
-        <div class="feature-data" id="collectionValue">—</div>
-        <div class="feature-small" id="valuationAge">Waiting for valuation</div>
+        <div class="collection-inline">
+          <div class="collection-heading">
+            <div class="feature-title">PHYSICAL COLLECTION</div>
+            <div class="feature-small" id="valuationAge">Waiting for valuation</div>
+          </div>
+          <div class="feature-data" id="collectionValue">—</div>
+        </div>
       </div>
       <div class="feature set-feature" id="setPanel">
         <div class="feature-title">PHYSICAL SET PROGRESS</div>
@@ -100,8 +106,8 @@
         </div>
         <div class="set-rows" id="setRows"></div>
       </div>
-      <div class="feature">
-        <div class="feature-title">CONNECTION</div>
+      <div class="feature connection-feature">
+        <span class="connection-dot" aria-hidden="true"></span>
         <div class="status" id="status" role="status" aria-live="polite">Watching the native Arcane Vault snapshot…</div>
       </div>
     </section>
