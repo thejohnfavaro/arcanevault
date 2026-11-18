@@ -70,3 +70,23 @@ with brand marks: those belong to card metadata, not app brand identity.
   high-contrast/theme variants are inspected on an actual Windows desktop.
 - User workspace, deck collection, data synchronization and Stream Deck
   statistics are not modified by this purely visual release.
+
+## Taskbar/Explorer icon repair (v0.9.147)
+
+The permanent Start Menu/taskbar target is `{app}\\ArcaneVault.exe`, while the
+normal in-app updater only installs `{app}\\versions\\vX.Y.Z`. Therefore a
+version-only update **cannot** refresh the embedded icon in the permanent
+launcher executable. To apply the new taskbar/Explorer/Installed Apps branding,
+**run the v0.9.147 Windows installer over the existing installation, choosing
+the same directory**. Inno Setup replaces the permanent launcher and standalone
+`ArcaneVault.ico` without touching user data. After reinstall, exit Arcane
+Vault and relaunch from the Start Menu shortcut. If a previously pinned taskbar
+shortcut still displays the cached icon, unpin it and repin the newly installed
+Start Menu shortcut. Do not clear the entire Explorer icon cache or delete
+collection folders.
+
+The WPF window now references the compiled multi-frame ICO rather than scaling
+`ArcaneVaultIcon.png` to a tiny title bar. Icon generation explicitly writes
+distinct high-contrast 16/20/24px frames, and a separate 128px mark is rendered
+at 52px inside the enlarged 56px sidebar identity tile. These changes do not
+require updating the Stream Deck or Xeneon Edge software.
