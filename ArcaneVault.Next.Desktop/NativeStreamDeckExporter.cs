@@ -57,12 +57,15 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         string? asOf = null);
     private sealed record SyncInfo(string status, string? lastSync = null);
     private sealed record RecentMatch(string result, string deckName);
+    private sealed record RankDisplay(string constructedClass, int constructedLevel,
+        string limitedClass, int limitedLevel, string asOfUtc);
     private sealed record Snapshot(
         int schemaVersion, string appPath, string? activeDeckId,
         IReadOnlyList<Deck> decks, CollectionValue collection,
         SyncInfo sync, RecentMatch? recentMatch,
         string? matchSource = null,
-        SetProgressSummary? setProgress = null);
+        SetProgressSummary? setProgress = null,
+        RankDisplay? rank = null);
 
     public NativeStreamDeckExporter()
     {
@@ -600,11 +603,26 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         var last = NativeValueHistory.Read().LastOrDefault();
         decimal? value = last is not null ? last.Usd : null;
         string? asOf = last?.Day.ToString("yyyy-MM-dd");
+        RankDisplay? rank = null;
+        try
+        {
+            // Separate account-level rank snapshot, never inferred from the
+            // selected deck's results or a match's format.
+            using var history = new MatchHistory();
+            var recentRank = history.LatestRank();
+            if (recentRank is not null)
+                rank = new RankDisplay(recentRank.ConstructedClass,
+                    recentRank.ConstructedLevel, recentRank.LimitedClass,
+                    recentRank.LimitedLevel, recentRank.WhenUtc);
+        }
+        catch (Exception ex) when (ex is IOException or SqliteException or
+            InvalidOperationException or UnauthorizedAccessException)
+        { Log("Arena rank snapshot unavailable", ex); }
         var snapshot = new Snapshot(1,
             Environment.ProcessPath ?? "",
             activeDeckId, decks.ToArray(),
             new CollectionValue(value, "USD", asOf),
-            new SyncInfo(status, asOf), recent, source, setProgress);
+            new SyncInfo(status, asOf), recent, source, setProgress, rank);
         Directory.CreateDirectory(exportDirectory);
         string destination = Path.Combine(exportDirectory, "streamdeck.json");
         string stage = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
