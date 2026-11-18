@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Platinum rank">
+  <!-- Original Arcane Vault rank emblem; no proprietary Arena artwork. -->
+  <defs><linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e5ffff"/><stop offset=".52" stop-color="#8acfd2"/><stop offset="1" stop-color="#354151"/></linearGradient></defs>
+  <path d="M32 3 55 16v31L32 61 9 47V16Z" fill="#172432" stroke="#8acfd2" stroke-width="2"/>
+  <path d="M32 7 51 18v27L32 56 13 45V18Z" fill="none" stroke="#e5ffff" stroke-opacity=".4"/>
+  <path d="m14 28 11-8 7 10 7-10 11 8-5 19H19Z" fill="url(#metal)" stroke="#eaffff" stroke-width="2"/><path d="M20 38h24M32 30v12" stroke="#4b8c96" stroke-width="2"/><circle cx="32" cy="33" r="4" fill="#e6ffff"/>
+</svg>
