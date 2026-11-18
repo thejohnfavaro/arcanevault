@@ -81,7 +81,7 @@ public static class NativePeerSync
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         Directory.CreateDirectory(rootDirectory);
         string location = Path.Combine(rootDirectory,"peer-device-id.txt");
-        if (File.Exists(location)) return ReadVerifiedDeviceId(location);
+        if (File.Exists(location)) return WaitForVerifiedDeviceId(location);
 
         string created = Guid.NewGuid().ToString("D");
         try
@@ -101,17 +101,21 @@ public static class NativePeerSync
         }
         catch(IOException) when(File.Exists(location))
         {
-            // The other process may still be writing. Never regenerate the ID.
-            for (int attempt=0; attempt<10; attempt++)
-            {
-                try { return ReadVerifiedDeviceId(location); }
-                catch(IOException) when(attempt<9)
-                { Thread.Sleep(25); }
-                catch(UnauthorizedAccessException) when(attempt<9)
-                { Thread.Sleep(25); }
-            }
-            return ReadVerifiedDeviceId(location);
+            // Another launcher has already won CreateNew. Wait for it to close
+            // the file instead of generating a second peer identity.
+            return WaitForVerifiedDeviceId(location);
         }
+    }
+
+    private static string WaitForVerifiedDeviceId(string location)
+    {
+        for (int attempt=0; attempt<10; attempt++)
+        {
+            try { return ReadVerifiedDeviceId(location); }
+            catch(IOException) when(attempt<9) { Thread.Sleep(25); }
+            catch(UnauthorizedAccessException) when(attempt<9) { Thread.Sleep(25); }
+        }
+        return ReadVerifiedDeviceId(location);
     }
 
     private static string ReadVerifiedDeviceId(string location)
