@@ -1,8 +1,8 @@
-# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.5)
+# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.6)
 
 Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for the working Companion v0.9. Built for XENEON EDGE `dashboard_lcd` in 2560×720, responsive down to 840×344. No full-screen window or localhost server is required.
 
-## Features in 0.5
+## Features in 0.6
 - Read-only live monitoring of `%LOCALAPPDATA%\\ArcaneVault\\streamdeck.json`, the same native snapshot used by the Stream Deck Companion. iCUE's **File System Provider 1.0** delivers changes; the native app already publishes periodically.
 - Touch previous/next deck selection with persistent widget-local deck ID; changes here do not alter Stream Deck's separate selected key.
 - Commander art prefers Scryfall `art_crop`, then falls back to the full card, with explicit offline status.
@@ -13,11 +13,16 @@ Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for
 - Empty, unavailable, stale and denied-access paths show non-blocking status text; previous valid snapshot stays visible.
 - No synthetic preview fixtures are present in the installed widget. Missing native data is shown as unavailable.
 
-## New in 0.5
-- Six **original Arcane Vault rank emblems** bundled offline for Bronze, Silver, Gold, Platinum, Diamond, and Mythic. These are not official MTG Arena badge files.
-- Constructed and Limited each show a colored icon beside their verified tier and division; Mythic displays no division.
-- Unknown rank values keep their existing text but display no emblem. Rank update time still indicates the last verified Arena snapshot.
-- Requires Windows Native v0.9.148+ for rank data; the existing Stream Deck integration is unchanged.
+## New in 0.6
+- The Current Rank panel now uses **actual MTG Arena rank badge images** from the [Draftsim Arena ranking guide](https://draftsim.com/mtg-arena-ranking-system/) instead of the v0.5 custom Arcane Vault tier shields.
+- Separately mapped Constructed and Limited PNGs for each division (Bronze–Diamond, Tier 4 through Tier 1), plus Mythic and Unranked: **44 distinct rank icons**.
+- Badge art is included in the packaged widget for offline display. Text remains next to each icon and unknown or incomplete rank information never selects an arbitrary division.
+- The build retrieves the source images from Draftsim with PNG-signature and size verification. **These are third-party MTGA images, not original Arcane Vault assets.** The public page does not itself establish a redistribution license; verify appropriate permissions before publishing more broadly.
+- Windows Native v0.9.148+ continues to provide the account rank snapshot; no new Windows app version or Stream Deck plugin update is required.
+
+## Previous 0.5 features
+- The v0.5 custom icon set is superseded and excluded from the packaged v0.6 widget.
+- The Current Rank panel preserves its captured timestamp and independent Constructed/Limited data.
 
 ## Earlier 0.3 improvements\n- Touch **Settings** opens panel visibility toggles for match history, current rank, collection valuation, and set progress. Visibility is retained on this Edge locally. **Restore defaults** re-enables all four.\n- The **Physical Set Progress** panel has a full set dropdown and previous/next set buttons. Selected set code is persisted locally; the default view still displays the top four sets.\n- Native v0.9.133 provides a bounded set roster of up to 2,000 physical sets; older snapshots gracefully retain only the existing top-four display.\n- The Edge remains strictly read-only: navigation and layout change only widget-local preferences, never the native ownership ledger.\n\n## Install (once packaged by the official CLI)
 1. Have iCUE **5.52+**, XENEON EDGE, and Arcane Vault Native Windows **0.9.132+** running.
