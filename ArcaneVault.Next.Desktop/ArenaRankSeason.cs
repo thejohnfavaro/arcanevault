@@ -88,6 +88,8 @@ internal static class ArenaRankSeason
         if(response.Content.Headers.ContentLength is >2_000_000)
             throw new InvalidDataException("Official season page is unexpectedly large.");
         string body=await response.Content.ReadAsStringAsync(token);
+        if(body.Length>2_000_000)
+            throw new InvalidDataException("Official season page is unexpectedly large.");
         var current=ParseOfficial(body,now);
         if(current is null)return Read(path,now);
         string? directory=Path.GetDirectoryName(path);
@@ -109,6 +111,7 @@ internal static class ArenaRankSeason
             end<=now || string.IsNullOrWhiteSpace(tier))return null;
         string name=char.ToUpperInvariant(tier.Trim()[0])+tier.Trim()[1..].ToLowerInvariant();
         string key=name=="Mythic"?"Mythic":name+" Tier "+level;
-        return schedule.resetTable.TryGetValue(key,out var result)?result:null;
+        return schedule.resetTable is not null &&
+            schedule.resetTable.TryGetValue(key,out var result)?result:null;
     }
 }
