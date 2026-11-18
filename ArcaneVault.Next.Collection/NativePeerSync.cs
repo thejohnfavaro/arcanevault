@@ -206,6 +206,11 @@ public static class NativePeerSync
         return (id.ToString("D"), revision, data);
     }
 
+    /// <summary>Validate a stored peer checkpoint's envelope, schema and
+    /// device identity before offering it as a common baseline. A fingerprint
+    /// remains metadata, not cryptographic proof of pairing.</summary>
+    public static string VerifiedPeerDevice(byte[] bytes) => ParsePeer(bytes).Device;
+
     private static string Key(string group, JsonNode? row)
     {
         var obj = row as JsonObject ??
