@@ -166,7 +166,7 @@ internal sealed class NativeMatchHistoryView : UserControl
                     rd.IsDBNull(6) ? "" : rd.GetString(6),
                     rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
                     rd.IsDBNull(8) ? 0 : rd.GetInt32(8),
-                    rd.IsDBNull(9) ? "" : rd.GetString(9)));
+                    rd.IsDBNull(9) ? "" : ArenaQueueInfo.Label(rd.GetString(9))));
             }
         }
         return result.OrderByDescending(x => x.Played, StringComparer.Ordinal)
