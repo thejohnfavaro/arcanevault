@@ -44,13 +44,22 @@ assert.match(document.getElementById("status").textContent,/Waiting for Arcane V
 listener("C:\\Users\\Test\\AppData\\Local\\ArcaneVault\\streamdeck.json",
   JSON.stringify({decks:[],schemaVersion:1,rank:{constructedClass:"Gold",
     constructedLevel:2,limitedClass:"Platinum",limitedLevel:3,
-    asOfUtc:"2026-11-18T13:00:00Z"}}));
+    asOfUtc:"2026-11-18T13:00:00Z"},
+    season:{season:"November 2026",endsUtc:new Date(now+3*86400000).toISOString(),
+      checkedUtc:new Date(now).toISOString()},
+    predictedConstructed:"Silver Tier 3",predictedLimited:"Gold Tier 4"}));
 assert.match(document.getElementById("status").textContent,/Connected, but no saved decks/);
 assert.equal(document.getElementById("constructedRank").textContent,"Gold 2");
 assert.equal(document.getElementById("limitedRank").textContent,"Platinum 3");
 assert.match(document.getElementById("constructedRankIcon").getAttribute("src"),/constructed_gold_t2\.png$/);
+assert.match(document.getElementById("seasonCountdown").textContent,/3d 0h 0m/);
+assert.match(document.getElementById("seasonPrediction").textContent,/Silver Tier 3/);
 now+=50000;tick();
 assert.equal(unwatches,1,"Stale watcher must rearm after no file signals");
 assert.equal(watches,2);
 assert.match(document.getElementById("status").textContent,/Snapshot not updating/);
+now+=4*86400000;
+tick();
+assert.match(document.getElementById("seasonCountdown").textContent,/Awaiting official date/,
+  "Expired schedule must not display a negative countdown");
 console.log("Edge snapshot startup, rank rendering and stale rewatch checks passed.");
