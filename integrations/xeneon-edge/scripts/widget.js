@@ -200,6 +200,28 @@
     $("nextSet").disabled = !choices.length;
   }
 
+  function renderRanks(snapshot) {
+    const rank = snapshot?.rank;
+    const format = (tier, level) => {
+      if (typeof tier !== "string" || !/^[a-z ]{1,32}$/i.test(tier.trim()))
+        return "Not captured";
+      const safeTier = tier.trim();
+      if (!safeTier || safeTier.toLowerCase() === "invalid") return "Not captured";
+      const number = Number(level);
+      return Number.isInteger(number) && number >= 1 && number <= 4 ?
+        safeTier + " " + number : safeTier;
+    };
+    $("constructedRank").textContent = rank ?
+      format(rank.constructedClass, rank.constructedLevel) : "Not captured";
+    $("limitedRank").textContent = rank ?
+      format(rank.limitedClass, rank.limitedLevel) : "Not captured";
+    const asOf = rank && typeof rank.asOfUtc === "string" ?
+      Date.parse(rank.asOfUtc) : NaN;
+    $("rankAge").textContent = Number.isFinite(asOf) ?
+      "Arena rank last observed " + new Date(asOf).toLocaleString() :
+      "No verified Arena rank response captured yet";
+  }
+
   function render(snapshot) {
     const decks = Array.isArray(snapshot?.decks) ? snapshot.decks.filter(d => d && d.id) : [];
     if (!decks.length) {
@@ -210,6 +232,7 @@
       $("rate").textContent = "—"; $("rateFill").style.width = "0%";
       $("matchStrip").replaceChildren(); $("trendPath").setAttribute("d","");
       renderSetProgress(snapshot);
+      renderRanks(snapshot);
       $("art").removeAttribute("src"); $("art").classList.remove("ready");
       status("Connected, but no saved decks are available.", true);
       return;
@@ -233,24 +256,7 @@
     $("recordSummary").textContent = total ? "Confirmed Arena matches" : "No associated matches";
     renderMatchHistory(deck);
     renderSetProgress(snapshot);
-    // Prefer the selected deck's own confirmed history; the v0.1 global
-    // recentMatch is retained for compatibility with older native snapshots.
-    const ownRecent = Array.isArray(deck.matchHistory) && deck.matchHistory.length ?
-      deck.matchHistory[0] : null;
-    const globalRecent = snapshot.recentMatch;
-    const globalMatchesDeck = globalRecent &&
-      String(globalRecent.deckName || "").trim().toLowerCase() ===
-      String(deck.name || "").trim().toLowerCase();
-    const recent = ownRecent || (globalMatchesDeck ? globalRecent : null);
-    const recentResult = recent && (recent.result === "win" || recent.result === "loss") ?
-      recent.result : "";
-    $("recent").textContent = recentResult ? recentResult.toUpperCase() : "—";
-    $("recent").className = "feature-data latest" + (recentResult ? " " + recentResult : "");
-    $("recentDescription").textContent = recentResult ?
-      (ownRecent && ownRecent.playedUtc ?
-       "Confirmed on " + new Date(ownRecent.playedUtc).toLocaleDateString() :
-       "Latest confirmed result for selected deck") :
-      "No recent match linked to this deck";
+    renderRanks(snapshot);
     const value = snapshot.collection?.value;
     const currency = snapshot.collection?.currency || "USD";
     const numericValue = value === null || value === undefined || value === "" ? NaN : Number(value);
