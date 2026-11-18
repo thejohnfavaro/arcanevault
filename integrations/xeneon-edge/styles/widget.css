@@ -93,3 +93,75 @@
 .season-countdown{font-weight:800;color:#f4c591;font-size:clamp(14px,1.1vw,23px);line-height:1.22;margin:3px 0 5px;font-variant-numeric:tabular-nums}
 .season-checked{font-size:clamp(10px,.65vw,14px);color:var(--muted);margin-top:5px;line-height:1.25}
 .season-summary .feature-small{line-height:1.25}
+
+
+/* v0.9 — Set Progress first: the side column must allocate its available
+   *height* rather than allowing earlier sections to push the set list offscreen.
+   Native details stay one-tap accessible; no data is discarded. */
+.side{
+  height:100%;min-height:0;overflow:hidden;
+  padding:clamp(10px,.95vw,20px);
+  gap:clamp(5px,.55vw,11px);
+}
+.side .feature{min-width:0;padding-bottom:clamp(5px,.48vw,9px)}
+.side #latestPanel{order:0;flex:0 0 auto}
+.side #setPanel{
+  order:1;flex:1 1 0;min-height:130px;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.side #collectionPanel{order:2;flex:0 0 auto}
+.side .connection-feature{
+  order:3;flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  padding:0;min-height:17px;border:0;
+}
+.side .connection-feature .status{
+  font-size:clamp(10px,.63vw,14px);line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.connection-dot{width:8px;height:8px;border-radius:50%;flex:none;background:#6eb992;box-shadow:0 0 0 2px #6eb99233}
+.connection-feature:has(.status.alert) .connection-dot{background:#f2ad62;box-shadow:0 0 0 2px #f2ad6233}
+.side .rank-grid{gap:clamp(7px,.65vw,12px);margin:clamp(6px,.55vw,11px) 0}
+.side .rank-slot{padding:clamp(6px,.6vw,12px)}
+.side .rank-display{gap:clamp(4px,.4vw,8px);min-height:clamp(32px,2.2vw,48px)}
+.side .rank-icon{width:clamp(32px,2.2vw,48px);height:clamp(32px,2.2vw,48px)}
+.side .rank-value{font-size:clamp(15px,1.15vw,25px)}
+.side .rank-label{font-size:clamp(10px,.72vw,16px)}
+.rank-meta{color:var(--muted);font-size:clamp(10px,.73vw,16px);line-height:1.25}
+.rank-meta summary{cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank-meta[open]{margin:5px 0 0;padding:6px 8px;border:1px solid var(--line);border-radius:9px}
+.rank-meta .feature-small{margin-top:7px}
+.season-summary{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin-top:6px;padding-top:6px;
+}
+.season-summary .season-countdown{
+  margin:0;text-align:right;font-size:clamp(11px,.81vw,17px);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.collection-inline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.collection-heading{min-width:0}
+.side #collectionPanel .feature-data{
+  margin:0;flex:none;font-size:clamp(21px,1.55vw,36px);white-space:nowrap;
+}
+.collection-heading .feature-small{font-size:clamp(10px,.67vw,14px);margin-top:4px}
+.side #setPanel .set-overall{margin-top:3px;font-size:clamp(19px,1.3vw,28px)}
+.side #setPanel .feature-small{font-size:clamp(10px,.75vw,16px)}
+.side #setPanel .set-picker{margin-top:6px}
+.side #setPanel .set-picker button{
+  min-width:36px;min-height:36px;max-height:42px;font-size:23px;
+}
+.side #setPanel .set-picker select{height:36px}
+.side #setPanel .set-rows{
+  flex:1 1 auto;min-height:0;overflow-y:auto;
+  overflow-x:hidden;margin-top:9px;padding-right:3px;
+  overscroll-behavior:contain;
+  scrollbar-color:#5b7587 #1c2936;scrollbar-width:thin;
+}
+.side #setPanel .set-row{flex:none;padding:4px 2px}
+.side #setPanel .set-row .set-track{height:clamp(5px,.35vw,8px)}
+/* When portrait previews use the 2-column fallback, the actual remaining
+   height can be much smaller. Preserve at least one full, scrollable set row. */
+@media(max-width:1100px){
+  .shell:not(.no-side) .side{min-height:0;overflow:auto}
+  .shell:not(.no-side) #setPanel{min-height:135px}
+}
