@@ -57,7 +57,7 @@ jobs:
           $packages | ForEach-Object { Copy-Item $_.FullName -Destination 'widget-dist/' }
       - uses: actions/upload-artifact@v4
         with:
-          name: ArcaneVault-XeneonEdge-Widget-0.8-preview
+          name: ArcaneVault-XeneonEdge-Widget-0.9-preview
           path: widget-dist/*.icuewidget
           if-no-files-found: error
       - name: Publish independent EDGE widget preview release
@@ -66,12 +66,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'edge-widget-v0.8.0'
+          $tag = 'edge-widget-v0.9.0'
           gh release view $tag --repo ${{ github.repository }} *> $null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "EDGE widget $tag is already published; leaving existing immutable version intact."
           } else {
             $files = @(Get-ChildItem 'widget-dist/*.icuewidget' -File | ForEach-Object { $_.FullName })
-            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.8.0 (Preview)' --notes 'Adds a verified Wizards ranked-season countdown, independent constructed/limited reset projections, and freshness details. Retains MTGA tier badges and working file watcher. Pair with Windows Native v0.9.151.' --prerelease
+            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.9.0 (Preview)' --notes 'Prioritizes Physical Set Progress with an expandable, scrollable set list; compacts rank metadata, collection value and connection status. Preserves MTGA badges, countdown, W/L and all existing data. Compatible with Windows Native v0.9.151.' --prerelease
             if ($LASTEXITCODE -ne 0) { throw 'Could not publish XENEON EDGE release.' }
           }
