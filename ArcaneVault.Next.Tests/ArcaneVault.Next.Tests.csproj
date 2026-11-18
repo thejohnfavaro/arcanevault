@@ -22,6 +22,8 @@
     <Compile Include="..\ArcaneVault.Next.Desktop\MatchPerformanceAnalytics.cs" Link="MatchPerformanceAnalytics.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\MatchDeckAttribution.cs" Link="MatchDeckAttribution.cs" />
     <Compile Include="..\ArcaneVault.Next.Desktop\ArenaMatchTracker.cs" Link="ArenaMatchTracker.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\ArenaQueueInfo.cs" Link="ArenaQueueInfo.cs" />
+    <Compile Include="..\ArcaneVault.Next.Desktop\ArenaRankInfo.cs" Link="ArenaRankInfo.cs" />
     <ProjectReference Include="..\ArcaneVault.Next.Domain\ArcaneVault.Next.Domain.csproj" />
     <ProjectReference Include="..\ArcaneVault.Next.Collection\ArcaneVault.Next.Collection.csproj" />
     <ProjectReference Include="..\ArcaneVault.Next.Migration\ArcaneVault.Next.Migration.csproj" />
