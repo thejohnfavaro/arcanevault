@@ -18,6 +18,22 @@ internal static class NativePeerSyncChecks
     }
     public static void Run(string work)
     {
+        // A permanently paired device must never change identity because two
+        // app/launcher instances start together or its file is truncated.
+        string identityRoot=Path.Combine(work,"peer-id-race");
+        var ids=new string[16];
+        Parallel.For(0,ids.Length,i=>ids[i]=NativePeerSync.DeviceIdIn(identityRoot));
+        Check(ids.All(x=>x==ids[0]) && Guid.TryParse(ids[0],out _),
+            "Concurrent peer startup must retain one durable device UUID.");
+        Check(NativePeerSync.DeviceIdIn(identityRoot)==ids[0],
+            "Stable peer identity must survive subsequent opens.");
+        string damagedRoot=Path.Combine(work,"peer-id-damaged");
+        Directory.CreateDirectory(damagedRoot);
+        File.WriteAllText(Path.Combine(damagedRoot,"peer-device-id.txt"),"incomplete");
+        Reject(()=>NativePeerSync.DeviceIdIn(damagedRoot));
+        Check(File.ReadAllText(Path.Combine(damagedRoot,"peer-device-id.txt"))=="incomplete",
+            "A corrupted peer device ID must never be regenerated or overwritten.");
+
         string path=Path.Combine(work,"peer-fixture-native.sqlite");
         var raw=JsonSerializer.SerializeToUtf8Bytes(new {
             schema=2,
