@@ -68,27 +68,64 @@ public static class NativePeerSync
         }
     }
 
-    public static string DeviceId()
+    public static string DeviceId() => DeviceIdIn(NativeWorkspace.RootDirectory);
+
+    /// <summary>
+    /// Create the stable device identity exactly once, even when the launcher,
+    /// app, or sync helper start concurrently. A malformed or truncated saved
+    /// identity must never be silently replaced: doing so would invalidate
+    /// existing peer checkpoints.
+    /// </summary>
+    public static string DeviceIdIn(string rootDirectory)
     {
-        string location=Path.Combine(NativeWorkspace.RootDirectory,"peer-device-id.txt");
-        Directory.CreateDirectory(NativeWorkspace.RootDirectory);
-        if(File.Exists(location))
+        ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
+        Directory.CreateDirectory(rootDirectory);
+        string location = Path.Combine(rootDirectory,"peer-device-id.txt");
+        if (File.Exists(location)) return ReadVerifiedDeviceId(location);
+
+        string created = Guid.NewGuid().ToString("D");
+        try
         {
-            string existing=File.ReadAllText(location).Trim();
-            if(Guid.TryParse(existing,out Guid valid) && valid!=Guid.Empty)
-                return valid.ToString("D");
-            throw new InvalidDataException("Saved peer identity is invalid; do not silently replace it.");
+            // CreateNew provides an atomic winner for competing processes.
+            // File.WriteAllText/Create would truncate an existing UUID.
+            using var stream = new FileStream(location,FileMode.CreateNew,
+                FileAccess.Write,FileShare.None);
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(false),
+                       bufferSize: 128, leaveOpen: true))
+            {
+                writer.Write(created);
+                writer.Flush();
+            }
+            stream.Flush(flushToDisk:true);
+            return created;
         }
-        string created=Guid.NewGuid().ToString("D");
-        try { File.WriteAllText(location,created); }
         catch(IOException) when(File.Exists(location))
         {
-            string saved=File.ReadAllText(location).Trim();
-            if(Guid.TryParse(saved,out Guid parsed)&&parsed!=Guid.Empty)
-                return parsed.ToString("D");
-            throw;
+            // The other process may still be writing. Never regenerate the ID.
+            for (int attempt=0; attempt<10; attempt++)
+            {
+                try { return ReadVerifiedDeviceId(location); }
+                catch(IOException) when(attempt<9)
+                { Thread.Sleep(25); }
+                catch(UnauthorizedAccessException) when(attempt<9)
+                { Thread.Sleep(25); }
+            }
+            return ReadVerifiedDeviceId(location);
         }
-        return created;
+    }
+
+    private static string ReadVerifiedDeviceId(string location)
+    {
+        using var stream = new FileStream(location,FileMode.Open,FileAccess.Read,FileShare.Read);
+        if(stream.Length is < 36 or > 64)
+            throw new InvalidDataException(
+                "Saved peer identity is incomplete or invalid; restore it rather than replacing it.");
+        using var reader = new StreamReader(stream);
+        string existing = reader.ReadToEnd().Trim();
+        if(Guid.TryParse(existing,out Guid valid) && valid!=Guid.Empty)
+            return valid.ToString("D");
+        throw new InvalidDataException(
+            "Saved peer identity is invalid; do not silently replace it.");
     }
 
     private static string Digest(byte[] bytes) =>
