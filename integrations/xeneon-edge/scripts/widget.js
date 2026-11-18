@@ -13,6 +13,9 @@
   let currentIndex = 0;
   let listening = false;
   let retryImage = false;
+  let lastSnapshotSignal = 0;
+  let watchStartedAt = 0;
+  let lastWatchRetry = 0;
 
   const layoutKey = "arcanevault.edge.layout.v1";
   const setKey = "arcanevault.edge.setCode.v1";
@@ -331,6 +334,7 @@
       const data = JSON.parse(content);
       if (!data || !Array.isArray(data.decks)) throw Error("Invalid deck list");
       lastSnapshot = data;
+      lastSnapshotSignal = Date.now();
       status("Arcane Vault connected", false);
       render(lastSnapshot);
     } catch (error) {
@@ -339,25 +343,67 @@
     }
   }
 
+  function watchFile(provider) {
+    try {
+      provider.watchPath(SNAPSHOT_PATH);
+      watchStartedAt = Date.now();
+      return true;
+    } catch (error) {
+      status("Cannot watch Arcane Vault snapshot: " + String(error?.message || error), true);
+      return false;
+    }
+  }
+
   function watcherReady() {
     if (listening) return;
     const provider = window.plugins?.Filesystemprovider;
     if (!provider || !provider.fileChanged || !provider.watchPath) {
-      status("iCUE File System Provider is unavailable.", true);
+      status("File System Provider not ready; check iCUE widget permissions.", true);
       return;
     }
-    listening = true;
-    provider.fileChanged.connect((path, content) => {
-      if (String(path).toLowerCase().endsWith("streamdeck.json"))
-        readSnapshot(content);
-    });
-    // The provider may deliver a snapshot synchronously. Set the waiting
-    // status first so it cannot overwrite the live connection status.
-    status("Waiting for live Arcane Vault snapshot · open Native if data is missing", false);
-    provider.watchPath(SNAPSHOT_PATH);
+    try {
+      // iCUE emits fileChanged on *content changes*, not necessarily when
+      // subscribing. Native v0.9.149 adds a 15-second heartbeat so freshly
+      // imported widgets don't get stranded waiting for another match.
+      provider.fileChanged.connect((path, content) => {
+        if (String(path).toLowerCase().replace(/\\/g, "/").endsWith("/streamdeck.json"))
+          readSnapshot(content);
+      });
+      listening = true;
+      status("Waiting for Arcane Vault heartbeat (about 15 seconds)…", false);
+      watchFile(provider);
+    } catch (error) {
+      listening = false;
+      status("iCUE snapshot listener failed: " + String(error?.message || error), true);
+    }
   }
 
-  window.icueEvents = { onICUEInitialized: watcherReady };
+  function verifyConnection() {
+    if (!listening) {
+      watcherReady();
+      return;
+    }
+    // Avoid reporting "connected" when the only data came from a stale
+    // cached event; provide a precise user-actionable status instead.
+    const now = Date.now();
+    if (lastSnapshotSignal && now - lastSnapshotSignal < 45000) return;
+    if (now - watchStartedAt < 26000) return;
+    status(lastSnapshot ?
+      "Snapshot not updating · check Arcane Vault is open and iCUE file access." :
+      "No snapshot event · check Arcane Vault is open and grant iCUE access to streamdeck.json.", true);
+    if (now - lastWatchRetry < 30000) return;
+    lastWatchRetry = now;
+    const provider = window.plugins?.Filesystemprovider;
+    if (!provider) return;
+    try {
+      if (typeof provider.unwatchPath === "function") provider.unwatchPath(SNAPSHOT_PATH);
+      watchFile(provider);
+    } catch (error) {
+      status("iCUE snapshot rewatch failed: " + String(error?.message || error), true);
+    }
+  }
+
+  window.icueEvents = { onICUEInitialized: watcherReady, onDataUpdated: watcherReady };
   window.pluginFilesystemproviderEvents = { onInitialized: watcherReady };
   $("prev").addEventListener("click", () => cycle(-1));
   $("next").addEventListener("click", () => cycle(1));
@@ -383,6 +429,9 @@
     $("settingsToggle").setAttribute("aria-expanded", String(!panel.hidden));
   });
   applyLayout();
+  // Re-check the file watcher if iCUE loads the provider late or the file
+  // handle changes after Arcane Vault's atomic snapshot replacement.
+  setInterval(verifyConnection, 5000);
   if (typeof pluginFilesystemprovider_initialized !== "undefined" && pluginFilesystemprovider_initialized)
     watcherReady();
   else if (typeof iCUE_initialized !== "undefined" && iCUE_initialized)
