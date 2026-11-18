@@ -75,3 +75,9 @@
  .shell:not(.no-side){grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
  .shell:not(.no-side) .side{display:flex;grid-column:1/-1}
 }
+
+/* Latest Match replacement: account-level Arena rank snapshots. */
+.rank-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(10px,1.15vw,22px);margin:clamp(8px,1vw,18px) 0}
+.rank-slot{min-width:0;padding:clamp(8px,.85vw,16px);background:rgba(24,33,43,.65);border:1px solid var(--line);border-radius:12px}
+.rank-label{color:#d5a268;font-size:clamp(10px,.78vw,17px);font-weight:800;letter-spacing:.08em}
+.rank-value{color:#e6ebed;font-size:clamp(16px,1.35vw,31px);font-weight:800;line-height:1.25;margin-top:6px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
