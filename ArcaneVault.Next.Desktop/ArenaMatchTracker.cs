@@ -219,7 +219,9 @@ internal sealed class ArenaMatchTracker : IDisposable
                 bool hasAuth = line.Contains("authenticateResponse", StringComparison.OrdinalIgnoreCase);
                 bool hasQueue = line.Contains("EventJoin", StringComparison.OrdinalIgnoreCase) ||
                     line.Contains("EventEnterPairing", StringComparison.OrdinalIgnoreCase);
-                bool hasRank = line.Contains("RankGetCombinedRankInfo", StringComparison.OrdinalIgnoreCase);
+                bool hasRank = line.Contains("RankGetCombinedRankInfo", StringComparison.OrdinalIgnoreCase) ||
+                    (line.Contains("\"constructedLevel\"", StringComparison.OrdinalIgnoreCase) &&
+                     line.Contains("\"limitedLevel\"", StringComparison.OrdinalIgnoreCase));
                 bool relevant = hasRoom || hasSet || hasCourse || hasAuth || hasQueue || hasRank;
                 string detected = hasRank ? "rank_response" : hasQueue ? "queue_join" :
                     hasSet ? "deck_submission" :
