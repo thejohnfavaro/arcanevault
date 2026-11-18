@@ -364,11 +364,14 @@ internal sealed class ArenaMatchTracker : IDisposable
                 }
                 catch (JsonException) { }
             }
-            if (queue.Length == 0 && eventLabel == "deck_submission")
+            if (queue.Length == 0)
             {
                 var payload = Locate(root, "params");
                 queue = ArenaQueueInfo.EventId(payload);
             }
+            if (queue.Length == 0 && Property(root, "request", out var requestObject) &&
+                requestObject.ValueKind == JsonValueKind.Object)
+                queue = ArenaQueueInfo.EventId(requestObject);
             if (queue.Length > 0 && timestamp.HasValue)
             {
                 recentQueueId = queue;
