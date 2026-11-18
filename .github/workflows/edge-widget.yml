@@ -46,7 +46,7 @@ jobs:
           $packages | ForEach-Object { Copy-Item $_.FullName -Destination 'widget-dist/' }
       - uses: actions/upload-artifact@v4
         with:
-          name: ArcaneVault-XeneonEdge-Widget-0.3-preview
+          name: ArcaneVault-XeneonEdge-Widget-0.4-preview
           path: widget-dist/*.icuewidget
           if-no-files-found: error
       - name: Publish independent EDGE widget preview release
@@ -55,12 +55,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'edge-widget-v0.3.0'
+          $tag = 'edge-widget-v0.4.0'
           gh release view $tag --repo ${{ github.repository }} *> $null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "EDGE widget $tag is already published; leaving existing immutable version intact."
           } else {
             $files = @(Get-ChildItem 'widget-dist/*.icuewidget' -File | ForEach-Object { $_.FullName })
-            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.3.0 (Preview)' --notes 'Touch dashboard panel settings and persistent verified physical set selector; keeps art, deck cycling, match history, and no-demo-data release check. Requires Arcane Vault Native v0.9.133 for full set roster.' --prerelease
+            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.4.0 (Preview)' --notes 'Replaces Latest Match with verified Constructed and Limited Current Rank, with captured time and no-data state. Keeps W/L, deck selection, set progress and collection value. Requires Arcane Vault Native v0.9.148 for rank data.' --prerelease
             if ($LASTEXITCODE -ne 0) { throw 'Could not publish XENEON EDGE release.' }
           }
