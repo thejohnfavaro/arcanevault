@@ -81,3 +81,9 @@
 .rank-slot{min-width:0;padding:clamp(8px,.85vw,16px);background:rgba(24,33,43,.65);border:1px solid var(--line);border-radius:12px}
 .rank-label{color:#d5a268;font-size:clamp(10px,.78vw,17px);font-weight:800;letter-spacing:.08em}
 .rank-value{color:#e6ebed;font-size:clamp(16px,1.35vw,31px);font-weight:800;line-height:1.25;margin-top:6px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+
+/* Original tier emblems are local assets: no network or official Arena sprites. */
+.rank-display{display:flex;align-items:center;gap:clamp(5px,.55vw,12px);min-height:clamp(36px,3vw,62px);margin-top:4px}
+.rank-icon{flex:none;width:clamp(36px,3.1vw,62px);height:clamp(36px,3.1vw,62px);object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
+.rank-icon[hidden]{display:none}
+.rank-display .rank-value{margin:0;min-width:0}
