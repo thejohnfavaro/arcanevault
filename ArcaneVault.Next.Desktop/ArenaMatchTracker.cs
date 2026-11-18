@@ -21,6 +21,8 @@ internal sealed class ArenaMatchTracker : IDisposable
     private string? currentDeckName;
     private string? currentDeckVersion;
     private DateTimeOffset? latestLogDeckSelection;
+    private string recentQueueId = "";
+    private DateTimeOffset? recentQueueAt;
     private readonly Dictionary<string, (string Name, string Version, string NativeId)> decksByArenaId =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> blockedArenaIds = new(StringComparer.OrdinalIgnoreCase);
@@ -215,8 +217,12 @@ internal sealed class ArenaMatchTracker : IDisposable
                 bool hasSet = line.Contains("EventSetDeckV", StringComparison.OrdinalIgnoreCase);
                 bool hasCourse = line.Contains("CourseDeck", StringComparison.OrdinalIgnoreCase);
                 bool hasAuth = line.Contains("authenticateResponse", StringComparison.OrdinalIgnoreCase);
-                bool relevant = hasRoom || hasSet || hasCourse || hasAuth;
-                string detected = hasSet ? "deck_submission" :
+                bool hasQueue = line.Contains("EventJoin", StringComparison.OrdinalIgnoreCase) ||
+                    line.Contains("EventEnterPairing", StringComparison.OrdinalIgnoreCase);
+                bool hasRank = line.Contains("RankGetCombinedRankInfo", StringComparison.OrdinalIgnoreCase);
+                bool relevant = hasRoom || hasSet || hasCourse || hasAuth || hasQueue || hasRank;
+                string detected = hasRank ? "rank_response" : hasQueue ? "queue_join" :
+                    hasSet ? "deck_submission" :
                     line.Contains("==> CourseDeck", StringComparison.OrdinalIgnoreCase) ||
                     line.Contains("\"CourseDeck\"", StringComparison.OrdinalIgnoreCase)
                         ? "course_deck" : hasRoom ? "match_room" :
@@ -334,6 +340,37 @@ internal sealed class ArenaMatchTracker : IDisposable
     private void ParseEvent(JsonElement root, DateTimeOffset? timestamp, string source,
         string eventLabel = "")
     {
+        if (eventLabel == "rank_response")
+        {
+            var observed = ArenaRankInfo.TryRead(root, eventLabel);
+            if (observed is not null && timestamp.HasValue)
+                history.AddRankSnapshot(timestamp.Value, observed);
+        }
+        if (eventLabel is "queue_join" or "deck_submission")
+        {
+            string queue = ArenaQueueInfo.EventId(root);
+            if (queue.Length == 0 && Property(root, "request", out var wrapped) &&
+                wrapped.ValueKind == JsonValueKind.String &&
+                wrapped.GetString() is string encoded && encoded.Length < 100_000)
+            {
+                try
+                {
+                    using var decoded = JsonDocument.Parse(encoded);
+                    queue = ArenaQueueInfo.EventId(decoded.RootElement);
+                }
+                catch (JsonException) { }
+            }
+            if (queue.Length == 0 && eventLabel == "deck_submission")
+            {
+                var payload = Locate(root, "params");
+                queue = ArenaQueueInfo.EventId(payload);
+            }
+            if (queue.Length > 0 && timestamp.HasValue)
+            {
+                recentQueueId = queue;
+                recentQueueAt = timestamp;
+            }
+        }
         var auth = Locate(root,"authenticateResponse");
         if (auth.ValueKind == JsonValueKind.Object)
         {
@@ -415,7 +452,13 @@ internal sealed class ArenaMatchTracker : IDisposable
         if (config.ValueKind == JsonValueKind.Object)
         {
             if (info.Started == null) info.Started = timestamp;
-            var queue = Str(config,"eventId"); if (queue.Length > 0) info.Format = queue;
+            string queue = ArenaQueueInfo.FromMatchConfig(config);
+            if (queue.Length > 0)
+                info.Format = queue;
+            else if (info.Format.Length == 0 && recentQueueAt.HasValue &&
+                timestamp.HasValue &&
+                (timestamp.Value - recentQueueAt.Value).TotalMinutes is >= 0 and <= 20)
+                info.Format = recentQueueId;
             var explicitDeck = Str(config,"deckId");
             if (explicitDeck.Length == 0) explicitDeck = Str(config,"DeckId");
             if (explicitDeck.Length > 0)
@@ -448,6 +491,9 @@ internal sealed class ArenaMatchTracker : IDisposable
                     info.PlayerTeam = Number(p,"teamId");
             }
         }
+        if (info.Format.Length == 0 && recentQueueAt.HasValue && timestamp.HasValue &&
+            (timestamp.Value - recentQueueAt.Value).TotalMinutes is >= 0 and <= 20)
+            info.Format = recentQueueId;
         if (state == "MatchGameRoomStateType_Playing")
         {
             info.Started ??= timestamp;
