@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Mythic rank">
+  <!-- Original Arcane Vault rank emblem; no proprietary Arena artwork. -->
+  <defs><linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffdfb3"/><stop offset=".52" stop-color="#d873b5"/><stop offset="1" stop-color="#354151"/></linearGradient></defs>
+  <path d="M32 3 55 16v31L32 61 9 47V16Z" fill="#172432" stroke="#d873b5" stroke-width="2"/>
+  <path d="M32 7 51 18v27L32 56 13 45V18Z" fill="none" stroke="#ffdfb3" stroke-opacity=".4"/>
+  <path d="M32 9c6 14 17 16 14 29-2 9-8 15-14 17-10-2-18-9-18-19 0-8 7-13 9-20 2 7 5 11 9 14 4-6 4-14 0-21Z" fill="url(#metal)" stroke="#ffd6b0" stroke-width="2"/><path d="M32 28c-2 7-8 10-8 16 0 4 4 7 8 7s8-4 8-9c0-5-5-8-8-14Z" fill="#ffdbac" stroke="#fff2d7" stroke-width="1"/>
+</svg>
