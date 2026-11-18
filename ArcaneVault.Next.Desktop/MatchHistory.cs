@@ -32,7 +32,15 @@ internal sealed class MatchHistory : IDisposable
             game_losses INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_matches_deck ON matches(deck_name, deck_version);
-        CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(played_utc);";
+        CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(played_utc);
+        CREATE TABLE IF NOT EXISTS rank_snapshots (
+            captured_utc TEXT PRIMARY KEY,
+            constructed_class TEXT NOT NULL DEFAULT '',
+            constructed_level INTEGER NOT NULL DEFAULT 0,
+            limited_class TEXT NOT NULL DEFAULT '',
+            limited_level INTEGER NOT NULL DEFAULT 0,
+            source TEXT NOT NULL DEFAULT 'Arena'
+        );";
         command.ExecuteNonQuery();
         using (var mappingSchema = db.CreateCommand())
         {
@@ -59,6 +67,42 @@ internal sealed class MatchHistory : IDisposable
             using var migrate = db.CreateCommand();
             migrate.CommandText = "ALTER TABLE matches ADD COLUMN native_deck_id TEXT NOT NULL DEFAULT ''";
             migrate.ExecuteNonQuery();
+        }
+    }
+
+    internal sealed record RankSnapshot(string WhenUtc, string ConstructedClass,
+        int ConstructedLevel, string LimitedClass, int LimitedLevel);
+
+    public bool AddRankSnapshot(DateTimeOffset time, ArenaRankInfo.Snapshot rank)
+    {
+        lock (gate)
+        {
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = @"INSERT OR IGNORE INTO rank_snapshots
+                (captured_utc,constructed_class,constructed_level,limited_class,limited_level,source)
+                VALUES($at,$c,$cl,$l,$ll,$source)";
+            cmd.Parameters.AddWithValue("$at", time.ToUniversalTime().ToString("O"));
+            cmd.Parameters.AddWithValue("$c", rank.ConstructedClass);
+            cmd.Parameters.AddWithValue("$cl", rank.ConstructedLevel);
+            cmd.Parameters.AddWithValue("$l", rank.LimitedClass);
+            cmd.Parameters.AddWithValue("$ll", rank.LimitedLevel);
+            cmd.Parameters.AddWithValue("$source", rank.Source);
+            return cmd.ExecuteNonQuery() == 1;
+        }
+    }
+
+    public RankSnapshot? LatestRank()
+    {
+        lock (gate)
+        {
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = @"SELECT captured_utc,constructed_class,constructed_level,
+                limited_class,limited_level FROM rank_snapshots
+                ORDER BY captured_utc DESC LIMIT 1";
+            using var reader = cmd.ExecuteReader();
+            return reader.Read()
+                ? new RankSnapshot(reader.GetString(0),reader.GetString(1),reader.GetInt32(2),
+                    reader.GetString(3),reader.GetInt32(4)) : null;
         }
     }
 
