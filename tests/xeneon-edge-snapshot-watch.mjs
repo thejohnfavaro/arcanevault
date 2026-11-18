@@ -2,6 +2,19 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 const source=fs.readFileSync("integrations/xeneon-edge/scripts/widget.js","utf8");
+const markup=fs.readFileSync("integrations/xeneon-edge/index.html","utf8");
+const stylesheet=fs.readFileSync("integrations/xeneon-edge/styles/widget.css","utf8");
+assert.match(markup,/<details class="rank-meta">[\s\S]*?<summary id="rankAge">/,
+  "Rank timestamp/prediction detail must remain available in expandable row");
+assert.match(markup,/<div class="collection-inline">/,
+  "Collection total should remain visible in compact single-line layout");
+assert.match(markup, /id="setRows"[^>]+tabindex="0"/,
+  "Set list remains reachable by keyboard");
+assert.match(stylesheet,/\.side #setPanel\{[\s\S]*?flex:1 1 0;min-height:130px/,
+  "Set Progress must receive flexible remaining column height");
+assert.match(stylesheet,/\.side #setPanel \.set-rows\{[\s\S]*?overflow-y:auto/,
+  "Set list must be vertically scrollable when many rows are present");
+
 const elements=new Map();
 const make=(id="")=>{
   const attrs=new Map(), classes=new Set();
