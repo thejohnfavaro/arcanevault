@@ -65,7 +65,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         SyncInfo sync, RecentMatch? recentMatch,
         string? matchSource = null,
         SetProgressSummary? setProgress = null,
-        RankDisplay? rank = null);
+        RankDisplay? rank = null,
+        string? publishedUtc = null);
 
     public NativeStreamDeckExporter()
     {
@@ -622,7 +623,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             Environment.ProcessPath ?? "",
             activeDeckId, decks.ToArray(),
             new CollectionValue(value, "USD", asOf),
-            new SyncInfo(status, asOf), recent, source, setProgress, rank);
+            new SyncInfo(status, asOf), recent, source, setProgress, rank,
+            DateTimeOffset.UtcNow.ToString("O"));
         Directory.CreateDirectory(exportDirectory);
         string destination = Path.Combine(exportDirectory, "streamdeck.json");
         string stage = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
