@@ -87,3 +87,9 @@
 .rank-icon{flex:none;width:clamp(36px,3.1vw,62px);height:clamp(36px,3.1vw,62px);object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
 .rank-icon[hidden]{display:none}
 .rank-display .rank-value{margin:0;min-width:0}
+
+/* Compact season information lives within the existing Current Rank tile. */
+.season-summary{margin-top:clamp(8px,.65vw,12px);padding-top:clamp(7px,.6vw,10px);border-top:1px solid var(--line)}
+.season-countdown{font-weight:800;color:#f4c591;font-size:clamp(14px,1.1vw,23px);line-height:1.22;margin:3px 0 5px;font-variant-numeric:tabular-nums}
+.season-checked{font-size:clamp(10px,.65vw,14px);color:var(--muted);margin-top:5px;line-height:1.25}
+.season-summary .feature-small{line-height:1.25}
