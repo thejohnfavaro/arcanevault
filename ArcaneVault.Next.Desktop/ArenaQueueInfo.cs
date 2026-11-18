@@ -18,9 +18,16 @@ internal static class ArenaQueueInfo
             normalized.Contains("competitive_brawl") ||
             normalized.Contains("rankedbrawl") ||
             normalized.Contains("ranked_brawl") ||
-            normalized.Contains("brawl_ladder"))
+            normalized.Contains("brawl_ladder") ||
+            normalized.Contains("brawl_competitive") ||
+            normalized.Contains("brawl_ranked"))
             return "Competitive Brawl";
-        if (normalized.Contains("brawl")) return "Brawl";
+        if (normalized is "brawl" or "brawl_play" or "unranked_brawl" or
+            "brawl_unranked") return "Brawl";
+        // An unfamiliar Brawl event could be Competitive, an event or
+        // a custom queue. Preserve the raw identifier rather than merging it
+        // into normal Brawl without evidence.
+        if (normalized.Contains("brawl")) return value;
         // Preserve ranked and play distinctly; Arena has many changing IDs.
         bool ranked = normalized.Contains("ladder") || normalized.Contains("ranked");
         string[] known = {"standard","historic","timeless","explorer","pioneer","alchemy",
