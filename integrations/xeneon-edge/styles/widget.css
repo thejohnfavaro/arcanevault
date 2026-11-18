@@ -165,3 +165,10 @@
   .shell:not(.no-side) .side{min-height:0;overflow:auto}
   .shell:not(.no-side) #setPanel{min-height:135px}
 }
+
+/* Errors should remain readable rather than being silently ellipsized. */
+.connection-feature:has(.status.alert) .status{
+  white-space:normal;overflow-wrap:anywhere;overflow:visible;
+  max-height:3.6em;line-height:1.2;
+}
+.side #setPanel .set-rows:focus-visible{outline:2px solid #f0b57c;outline-offset:-2px}
