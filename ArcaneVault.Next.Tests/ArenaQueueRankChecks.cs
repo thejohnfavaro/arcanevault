@@ -30,6 +30,63 @@ internal static class ArenaQueueRankChecks
         Directory.CreateDirectory(local);
         var db=Path.Combine(local,"rank-history.sqlite3");
         var time=new DateTimeOffset(2026,11,18,12,0,0,TimeSpan.Zero);
+        // Exercise the real text scanner and the event-correlation path,
+        // not only isolated rank/format parsing utilities.
+        var log=Path.Combine(local, "Player.log");
+        static string Event(DateTimeOffset time, string name, object data) =>
+            "[UnityCrossThreadLogger] " +
+            time.ToString("MM/dd/yyyy hh:mm:ss tt",
+                System.Globalization.CultureInfo.GetCultureInfo("en-US")) +
+            " ==> " + name + " " + JsonSerializer.Serialize(data);
+        var submit=JsonSerializer.Serialize(new {
+            @params=new {DeckId="competitive-brawl-deck",EventName="Brawl_Ladder"}
+        });
+        var match=new {
+            matchGameRoomStateChangedEvent=new {
+                gameRoomInfo=new {
+                    stateType="MatchGameRoomStateType_MatchCompleted",
+                    gameRoomConfig=new {
+                        matchId="queue-rank-real-match",
+                        reservedPlayers=new[] {new {userId="me",playerName="Tester",teamId=1}}
+                    },
+                    finalMatchResult=new {
+                        matchId="queue-rank-real-match",
+                        resultList=new[] {new {
+                            result="ResultType_WinLoss",
+                            scope="MatchScope_Match",winningTeamId=1
+                        }}
+                    }
+                }
+            }
+        };
+        File.WriteAllLines(log, new []{
+            Event(time,"Auth",new {authenticateResponse=new {
+                clientId="me",screenName="Tester"}}),
+            Event(time.AddMinutes(1),"RankGetCombinedRankInfo",new {
+                constructedClass="Gold",constructedLevel=2,
+                limitedClass="Platinum",limitedLevel=3
+            }),
+            Event(time.AddMinutes(2),"EventSetDeckV3",new {request=submit}),
+            Event(time.AddMinutes(3),"matchGameRoomStateChangedEvent",match)
+        });
+        using(var tracker=new ArenaMatchTracker(db))
+        {
+            tracker.SetKnownSavedDecks(new [] {
+                (ArenaId:"competitive-brawl-deck", Name:"Borg", NativeId:"native-borg")
+            });
+            tracker.Configure(true,log);
+            tracker.Tick();
+        }
+        using(var checkDb=new SqliteConnection("Data Source="+db))
+        {
+            checkDb.Open();
+            using var cmd=checkDb.CreateCommand();
+            cmd.CommandText="SELECT format,result FROM matches WHERE match_id='queue-rank-real-match'";
+            using var reader=cmd.ExecuteReader();
+            Assert(reader.Read() && reader.GetString(0)=="Brawl_Ladder" &&
+                reader.GetString(1)=="win",
+                "Escaped queue submission must preserve competitive Brawl mode and correct win.");
+        }
         using(var store=new MatchHistory(db))
         {
             Assert(store.AddRankSnapshot(time,snap!),"Rank snapshot should save.");
