@@ -10,6 +10,20 @@
 - Arena match tracking: read-only player-log ingestion into a separate match-history database. The desktop exporter supplies Stream Deck and XENEON EDGE.
 - Deck Analytics: independent Windows workspace reading native-first confirmed results; Android reads a separate, explicitly imported match-summary attached to peer exports. Android does not directly parse Windows Arena logs and does not create matches.
 
+## Sync resilience milestone — November 18, 2026
+
+Implemented in **Windows v0.9.150** and **Android v2.1.62**:
+
+- Windows peer UUID is created once using exclusive atomic file creation. Concurrent app/launcher startup is regression-tested; invalid persisted identities are not silently regenerated.
+- Android peer ID is validated as a complete nonzero UUID, and identity creation is synchronized across peer actions. Invalid saved values fail closed instead of breaking the established relationship.
+- Stored peer checkpoints are structurally verified before they are considered usable baselines: expected peer identity, valid peer envelope, schema, revision metadata and required inventory groups.
+- Android now enforces the 30 MiB maximum against the **whole** peer envelope on export and review, matching Windows.
+- Existing inventory merge and conflict safety gates are intentionally untouched: no implicit deletions, no automatic sync authority, and no changes to the Windows match-history or Xeneon Edge integration.
+
+**Evidence:** Repository regression checks are added for concurrent Windows peer ID creation, checkpoint tampering, Android malformed IDs, optional analytics isolation and malformed baselines. CI success demonstrates build and automated regression coverage only, not real-device persistence or interrupted-transfer recovery.
+
+**Still open:** Full Android two-store (native inventories plus WebView decks/artwork) transactionality, signed production upgrade validation, end-to-end recovery from interruption, authenticated peer pairing, and mobile analytics freshness/automatic differential match sync. These remain 1.0 readiness gates.
+
 ## Priority 0 — must verify before 1.0
 
 | Area | Current safeguard | Remaining acceptance test |
