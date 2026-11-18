@@ -49,7 +49,7 @@ def fit_icon(source: Image.Image, size: int) -> Image.Image:
                    (cx+int(size*scale*.15),cy+int(size*scale*.19)),
                    (cx-int(size*scale*.15),cy+int(size*scale*.19))], fill=GOLD)
         return drawing.resize((size, size), Image.Resampling.LANCZOS)
-    max_size = int(size * .98)
+    max_size = size
     icon.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
     canvas.alpha_composite(icon, ((size-icon.width)//2, (size-icon.height)//2))
     return canvas
@@ -63,13 +63,20 @@ def make_assets() -> None:
     art = Image.open(wizard_path).convert("RGB")
     icon = fit_icon(source_icon, 256)
     icon.save(ASSETS / "ArcaneVaultIcon.png")
+    # Larger 2x display-sized mark avoids shrinking an already tiny raster
+    # in the app sidebar. Preserve transparency for every theme.
+    fit_icon(source_icon, 128).save(ASSETS / "ArcaneVaultSidebar.png")
     # Pillow assembles a Windows .ico with PNG frames at multiple Windows
     # shell sizes. Explicitly verify its directory before using in CI.
-    icons = [fit_icon(source_icon, n) for n in (16, 24, 32, 48, 64, 128, 256)]
-    icon.save(ASSETS / "ArcaneVault.ico", format="ICO",
-              sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
+    # Explicit independent ICO frames: Pillow otherwise downsamples the
+    # detailed 256px image and ignores our clean 16/24px geometry entirely.
+    sizes = (16, 20, 24, 32, 40, 48, 64, 128, 256)
+    frames = {n: fit_icon(source_icon, n) for n in sizes}
+    frames[256].save(ASSETS / "ArcaneVault.ico", format="ICO",
+        sizes=[(n,n) for n in sizes],
+        append_images=[frames[n] for n in sizes if n != 256])
     with Image.open(ASSETS / "ArcaneVault.ico") as check:
-        if not {16,32,48,256}.issubset({n[0] for n in check.info.get("sizes", set())}):
+        if not set(sizes).issubset({n[0] for n in check.info.get("sizes", set())}):
             raise RuntimeError("Windows icon is missing required icon frames.")
     # Installer accepts Windows BMP wizard graphics. The asset is a preserved
     # crop of the approved installation artwork, not an unrelated new logo.
