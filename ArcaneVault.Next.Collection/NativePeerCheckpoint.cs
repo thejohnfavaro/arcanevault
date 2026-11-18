@@ -23,7 +23,13 @@ public static class NativePeerCheckpoint
         var length=new FileInfo(path).Length;
         if(length is <=20 or > NativePeerSync.MaxBytes)
             throw new InvalidDataException("Stored peer baseline is invalid or exceeds 30 MiB.");
-        return File.ReadAllBytes(path);
+        byte[] bytes=File.ReadAllBytes(path);
+        string storedDevice=NativePeerSync.VerifiedPeerDevice(bytes);
+        if(!string.Equals(storedDevice,Guid.Parse(device).ToString("D"),
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException(
+                "Stored peer checkpoint belongs to a different device; choose a trusted baseline.");
+        return bytes;
     }
     public static string SaveIdentical(string nativePath,byte[] remote,string? directory=null)
     {
