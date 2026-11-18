@@ -35,9 +35,12 @@
                         BorderThickness="1" CornerRadius="18"
                         HorizontalAlignment="Right"
                         Padding="12,7" Margin="0,5,0,7">
-                    <TextBlock Text="✦  ARCANE VAULT"
-                               FontSize="11" FontWeight="Bold"
-                               Foreground="{DynamicResource VaultAccent}"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Image Source="/ArcaneVault.Next.Desktop;component/Assets/ArcaneVaultIcon.png"
+                               Width="20" Height="20" Stretch="Uniform" Margin="0,0,6,0"/>
+                        <TextBlock Text="ARCANE VAULT" FontSize="11" FontWeight="Bold"
+                                   VerticalAlignment="Center" Foreground="{DynamicResource VaultAccent}"/>
+                    </StackPanel>
                 </Border>
                 <Button x:Name="ClearInventoryButton"
                         Content="Clear inventory…"
@@ -436,9 +439,10 @@
                                                 <Ellipse Width="64" Height="64" Margin="0,0,0,10"
                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
                                                          Stroke="{DynamicResource VaultAccent}" StrokeThickness="2"/>
-                                                <TextBlock Text="✦" FontSize="35" FontWeight="Bold"
-                                                           Foreground="{DynamicResource VaultAccent}" HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"/>
+                                                <Path Data="M16,3 A13,13 0 1 1 15.99,3 M16,9 A3,3 0 1 1 15.99,9 M16,12 L20,23 L12,23 Z"
+                                                      Width="45" Height="45" Stretch="Uniform" StrokeThickness="1.9"
+                                                      Stroke="{DynamicResource VaultAccent}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 <local:NativeCardArtImage
                                                     ArtUrl="{Binding CoverArtworkUrl}" DecodeWidth="260"
                                                     Stretch="UniformToFill"
