@@ -28,15 +28,13 @@ jobs:
           foreach ($forbidden in @('Demo Commander Deck', 'SAMPLE PREVIEW', 'Demo Set Alpha', 'setProgress:{ownedSlots:834')) {
             if ($js.Contains($forbidden)) { throw "Publishable widget contains synthetic data fixture: $forbidden" }
           }
-      - name: Verify original offline rank emblems
+      - name: Retrieve authentic MTGA tier icons for Constructed and Limited
         shell: pwsh
         run: |
-          $ranks = @('bronze','silver','gold','platinum','diamond','mythic')
-          foreach ($rank in $ranks) {
-            $icon = "integrations/xeneon-edge/resources/ranks/$rank.svg"
-            if (!(Test-Path $icon)) { throw "Rank icon missing: $icon" }
-            [xml]$svg = Get-Content $icon -Raw
-            if ($svg.DocumentElement.LocalName -ne 'svg') { throw "Invalid SVG rank icon: $icon" }
+          ./integrations/xeneon-edge/tools/fetch-mtga-ranks.ps1
+          # The previous custom emblems are superseded and not packaged.
+          if (Test-Path integrations/xeneon-edge/resources/ranks) {
+            Remove-Item integrations/xeneon-edge/resources/ranks -Recurse -Force
           }
       - name: Install official iCUE Widget CLI
         shell: pwsh
@@ -56,7 +54,7 @@ jobs:
           $packages | ForEach-Object { Copy-Item $_.FullName -Destination 'widget-dist/' }
       - uses: actions/upload-artifact@v4
         with:
-          name: ArcaneVault-XeneonEdge-Widget-0.5-preview
+          name: ArcaneVault-XeneonEdge-Widget-0.6-preview
           path: widget-dist/*.icuewidget
           if-no-files-found: error
       - name: Publish independent EDGE widget preview release
@@ -65,12 +63,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'edge-widget-v0.5.0'
+          $tag = 'edge-widget-v0.6.0'
           gh release view $tag --repo ${{ github.repository }} *> $null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "EDGE widget $tag is already published; leaving existing immutable version intact."
           } else {
             $files = @(Get-ChildItem 'widget-dist/*.icuewidget' -File | ForEach-Object { $_.FullName })
-            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.5.0 (Preview)' --notes 'Adds six original offline rank emblems (Bronze through Mythic) alongside Constructed and Limited rank snapshots. Retains W/L and existing dashboard preferences. Requires Arcane Vault Native v0.9.148 for rank data.' --prerelease
+            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.6.0 (Preview)' --notes 'Replaces custom icons with the distinct MTG Arena badge artwork for each Constructed/Limited division, Mythic and Unranked. Source: Draftsim MTG Arena ranking guide. Keeps all W/L and collection data unchanged. Requires Arcane Vault Native v0.9.148.' --prerelease
             if ($LASTEXITCODE -ne 0) { throw 'Could not publish XENEON EDGE release.' }
           }
