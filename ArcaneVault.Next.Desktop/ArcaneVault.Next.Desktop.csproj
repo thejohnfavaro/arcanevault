@@ -9,12 +9,16 @@
     <AssemblyName>ArcaneVault.Next.Desktop</AssemblyName>
     <RootNamespace>ArcaneVault.Next.Desktop</RootNamespace>
     <ApplicationTitle>Arcane Vault — Native Windows</ApplicationTitle>
-    <Version>0.9.146</Version>
+    <Version>0.9.147</Version>
     <ApplicationIcon>Assets\ArcaneVault.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\ArcaneVaultIcon.png"
               Link="Assets\ArcaneVaultIcon.png"/>
+    <Resource Include="Assets\ArcaneVaultSidebar.png"
+              Link="Assets\ArcaneVaultSidebar.png"/>
+    <Resource Include="Assets\ArcaneVault.ico"
+              Link="Assets\ArcaneVault.ico"/>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
