@@ -67,6 +67,7 @@ jobs:
           foreach ($file in @(
             "ArcaneVault.Next.Desktop/Assets/ArcaneVault.ico",
             "ArcaneVault.Next.Desktop/Assets/ArcaneVaultIcon.png",
+            "ArcaneVault.Next.Desktop/Assets/ArcaneVaultSidebar.png",
             "installer/brand/ArcaneVaultWizard.bmp",
             "installer/brand/ArcaneVaultWizardSmall.bmp",
             "installer/brand/ArcaneVaultWizardHeader.bmp"
