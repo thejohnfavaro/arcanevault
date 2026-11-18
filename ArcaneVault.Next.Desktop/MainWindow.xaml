@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
-        Title="Arcane Vault" Icon="/ArcaneVault.Next.Desktop;component/Assets/ArcaneVaultIcon.png"
+        Title="Arcane Vault" Icon="/ArcaneVault.Next.Desktop;component/Assets/ArcaneVault.ico"
         Width="1330" Height="850"
         MinWidth="965" MinHeight="655"
         Background="{DynamicResource VaultBackground}"
@@ -294,13 +294,13 @@
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="3,0,0,28">
-                            <Border Width="43" Height="43" CornerRadius="11"
+                            <Border Width="56" Height="56" CornerRadius="12"
                                     Background="{DynamicResource VaultHeroWash}"
                                     BorderBrush="{DynamicResource VaultEdgeLift}"
-                                    BorderThickness="1" Margin="0,0,10,0"
+                                    BorderThickness="1" Margin="0,0,12,0"
                                     Effect="{StaticResource VaultPanelShadow}">
-                                <Image Source="/ArcaneVault.Next.Desktop;component/Assets/ArcaneVaultIcon.png"
-                                       Width="36" Height="36"
+                                <Image Source="/ArcaneVault.Next.Desktop;component/Assets/ArcaneVaultSidebar.png"
+                                       Width="52" Height="52"
                                        Stretch="Uniform"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"/>
