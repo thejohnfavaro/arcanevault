@@ -402,8 +402,8 @@
                                   Background="Transparent" Margin="0,0,0,10"
                                   ToolTip="Collection reset and local application settings">
                             <StackPanel Margin="11,9,0,4">
-                                <Button x:Name="OpenAppearanceButton"
-                                        Content="◈   Appearance &amp; Themes"
+                                <Button Tag="M12,2 L15,7 L21,12 L15,17 L12,22 L9,17 L3,12 L9,7 Z M12,8 L16,12 L12,16 L8,12 Z" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="OpenAppearanceButton"
+                                        Content="Appearance &amp; Themes"
                                         Click="OnOpenAppearanceClicked"
                                         Style="{StaticResource VaultNavPrimary}"
                                         ToolTip="Choose a classic or Magic color-identity application palette"
@@ -461,8 +461,8 @@
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"
                         ToolTip="One-use LAN address for the phone to upload a peer snapshot for read-only review"/>
-                        <Button x:Name="ReceiveAndApplyPeerLanButton"
-                        Content="⇄   Receive &amp; Apply Phone Sync (Wi-Fi)"
+                        <Button Tag="M4,7 L19,7 M15,3 L19,7 L15,11 M20,17 L5,17 M9,13 L5,17 L9,21" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="ReceiveAndApplyPeerLanButton"
+                        Content="Receive &amp; Apply Phone Sync (Wi-Fi)"
                         Click="OnReceiveAndApplyPeerLanClicked"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"
@@ -471,18 +471,18 @@
                             Foreground="{DynamicResource VaultAccent}" Margin="0,12,0,7"/>
                         <TextBlock Text="Connect one authorized Android phone by USB with debugging enabled. No Wi-Fi or QR code required. The same reviewed peer merge and recovery rules apply."
                             TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,9"/>
-                        <Button x:Name="CreateSharedBaselineUsbButton"
-                            Content="⇄   First USB Sync / Create Shared Baseline"
+                        <Button Tag="M4,7 L19,7 M15,3 L19,7 L15,11 M20,17 L5,17 M9,13 L5,17 L9,21" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="CreateSharedBaselineUsbButton"
+                            Content="First USB Sync / Create Shared Baseline"
                             Click="OnCreateSharedBaselineUsbClicked"
                             Style="{StaticResource VaultNavButtonDepth}" Margin="0,0,0,5"
                             ToolTip="Compare both collections, review differences, synchronize the chosen source, and verify matching checkpoints on both devices"/>
-                        <Button x:Name="SharePeerUsbButton"
-                            Content="⇄   Share Sync to Phone (USB)"
+                        <Button Tag="M4,7 L19,7 M15,3 L19,7 L15,11 M20,17 L5,17 M9,13 L5,17 L9,21" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="SharePeerUsbButton"
+                            Content="Share Sync to Phone (USB)"
                             Click="OnSharePeerUsbClicked"
                             Style="{StaticResource VaultNavButtonDepth}" Margin="0,0,0,5"
                             ToolTip="ADB reverse on USB only; launches Arcane Vault on the phone for reviewed Windows-to-Android sync"/>
-                        <Button x:Name="ReceiveAndApplyPeerUsbButton"
-                            Content="⇄   Receive &amp; Review Phone Sync (USB)"
+                        <Button Tag="M4,7 L19,7 M15,3 L19,7 L15,11 M20,17 L5,17 M9,13 L5,17 L9,21" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="ReceiveAndApplyPeerUsbButton"
+                            Content="Receive &amp; Review Phone Sync (USB)"
                             Click="OnReceiveAndApplyPeerUsbClicked"
                             Style="{StaticResource VaultNavButtonDepth}" Margin="0,0,0,5"
                             ToolTip="Receive Android peer snapshot by USB, then review a three-way merge before applying on Windows"/>
@@ -497,14 +497,14 @@
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"
                         ToolTip="Immediately closes any pending peer transfer link"/>
-                        <Button x:Name="ExportPeerSyncButton"
-                        Content="⇄   Export PC / Android Sync"
+                        <Button Tag="M4,7 L19,7 M15,3 L19,7 L15,11 M20,17 L5,17 M9,13 L5,17 L9,21" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="ExportPeerSyncButton"
+                        Content="Export PC / Android Sync"
                         Click="OnExportPeerSyncClicked"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"
                         ToolTip="Export a lossless schema-2 peer snapshot from the verified native workspace; no cloud or overwrite"/>
-                        <Button x:Name="PreviewPeerSyncButton"
-                        Content="◷   Preview Incoming Peer Sync"
+                        <Button Tag="M12,3 A9,9 0 1 1 11.99,3 M12,7 L12,12 L16,14" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="PreviewPeerSyncButton"
+                        Content="Preview Incoming Peer Sync"
                         Click="OnPreviewPeerSyncClicked"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"
@@ -515,8 +515,8 @@
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"
                         ToolTip="Select the incoming peer file and a verified previously shared baseline. Preview independent edits versus real conflicts; no data is written."/>
-                        <Button x:Name="ApplyPeerMergeButton"
-                        Content="✓   Review &amp; Apply Peer Changes"
+                        <Button Tag="M4,13 L9,18 L20,6" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="ApplyPeerMergeButton"
+                        Content="Review &amp; Apply Peer Changes"
                         Click="OnApplyPeerMergeClicked"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"
@@ -530,14 +530,14 @@
                     <StackPanel>
                         <TextBlock Text="SNAPSHOTS &amp; RECOVERY" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
                         <TextBlock Text="Create a verified local snapshot before syncing. Recovery actions require confirmation." TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,12"/>
-                        <Button x:Name="CreateSyncSnapshotButton"
-                        Content="◷   Save Sync Snapshot (One Click)"
+                        <Button Tag="M12,3 A9,9 0 1 1 11.99,3 M12,7 L12,12 L16,14" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="CreateSyncSnapshotButton"
+                        Content="Save Sync Snapshot (One Click)"
                         Click="OnCreateSyncSnapshotClicked"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"
                         ToolTip="Immediately save a verified, timestamped local peer snapshot before Wi-Fi syncing. No file picker and no collection changes. This is not automatically a verified shared-device baseline."/>
-                        <Button x:Name="RestoreRecoveryButton"
-                        Content="↶   Restore Recovery Point"
+                        <Button Tag="M9,5 L4,10 L9,15 M4,10 L14,10 C19,10 21,13 21,18" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="RestoreRecoveryButton"
+                        Content="Restore Recovery Point"
                         Click="OnRestoreRecoveryClicked" IsEnabled="False"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"/>
@@ -550,24 +550,24 @@
                     <StackPanel>
                         <TextBlock Text="IMPORT &amp; EXPORT" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
                         <TextBlock Text="Move backups and legacy data without silently replacing your collection." TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,12"/>
-                        <Button x:Name="ImportNativeButton"
-                        Content="↓   Import Full Backup"
+                        <Button Tag="M12,3 L12,17 M7,12 L12,17 L17,12 M5,21 L19,21" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="ImportNativeButton"
+                        Content="Import Full Backup"
                         Click="OnImportNativeClicked"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"/>
-                        <Button x:Name="ExportFullBackupButton"
-                        Content="↑   Export Full Backup"
+                        <Button Tag="M12,20 L12,5 M7,10 L12,5 L17,10 M5,2 L19,2" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="ExportFullBackupButton"
+                        Content="Export Full Backup"
                         Click="OnExportFullBackupClicked" IsEnabled="False"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"/>
-                        <Button x:Name="MigrateLegacyButton"
-                        Content="⇄   Inspect / Refresh Old Data"
+                        <Button Tag="M4,7 L19,7 M15,3 L19,7 L15,11 M20,17 L5,17 M9,13 L5,17 L9,21" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="MigrateLegacyButton"
+                        Content="Inspect / Refresh Old Data"
                         Click="OnMigrateLegacyClicked"
                         Style="{StaticResource VaultNavButtonDepth}"
                         ToolTip="Import or compare against the installed legacy app without altering its data"
                         Margin="0,0,0,5"/>
-                        <Button x:Name="CollectionBackupButton"
-                        Content="◷   Preview External Backup"
+                        <Button Tag="M12,3 A9,9 0 1 1 11.99,3 M12,7 L12,12 L16,14" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="CollectionBackupButton"
+                        Content="Preview External Backup"
                         Click="OnCollectionBackupClicked"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"/>
@@ -580,8 +580,8 @@
                     <StackPanel>
                         <TextBlock Text="APP &amp; CATALOG UPDATES" Style="{StaticResource VaultEyebrow}" Foreground="{DynamicResource VaultAccent}" Margin="0,0,0,7"/>
                         <TextBlock Text="Manage your local Scryfall catalog and install verified native versions." TextWrapping="Wrap" Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,12"/>
-                        <Button x:Name="SyncCatalogButton"
-                        Content="⟳   Sync Scryfall Catalog"
+                        <Button Tag="M20,12 A8,8 0 1 1 12,4 M12,4 L17,4 L17,9" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="SyncCatalogButton"
+                        Content="Sync Scryfall Catalog"
                         Click="OnSyncCatalogClicked"
                         Style="{StaticResource VaultNavPrimary}"
                         ToolTip="Download or refresh official Scryfall bulk printing data"
@@ -591,14 +591,14 @@
                         Click="OnCancelCatalogClicked" IsEnabled="False"
                         Style="{StaticResource VaultDangerButton}"
                         Margin="0,0,0,6"/>
-                        <Button x:Name="OpenCatalogButton"
-                        Content="◫   Open Local Catalog"
+                        <Button Tag="M3,7 L9,7 L11,5 L21,5 L21,19 L3,19 Z M3,9 L21,9" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="OpenCatalogButton"
+                        Content="Open Local Catalog"
                         Click="OnOpenCatalogClicked"
                         Style="{StaticResource VaultNavButtonDepth}"
                         ToolTip="Open an existing catalog using a private SQLite snapshot"
                         Margin="0,0,0,5"/>
-                        <Button x:Name="SaveNativeCatalogButton"
-                        Content="↓   Keep Catalog Natively"
+                        <Button Tag="M12,3 L12,17 M7,12 L12,17 L17,12 M5,21 L19,21" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="SaveNativeCatalogButton"
+                        Content="Keep Catalog Natively"
                         Click="OnSaveNativeCatalogClicked" IsEnabled="False"
                         Style="{StaticResource VaultNavButtonDepth}"
                         Margin="0,0,0,5"/>
@@ -647,8 +647,8 @@
                     <TextBlock Text="Find cards, explore printings, and manage your own vault."
                                Style="{StaticResource VaultMutedText}" Margin="0,5,0,0"/>
                 </StackPanel>
-                <Button x:Name="ActivityHistoryButton" Grid.Column="1"
-                        Content="◉  Activity (0)" Click="OnActivityHistoryClicked"
+                <Button Tag="M12,3 A9,9 0 1 1 11.99,3 M12,7 L12,12 L16,14" ContentTemplate="{StaticResource VaultBrandedNavContent}" x:Name="ActivityHistoryButton" Grid.Column="1"
+                        Content="Activity (0)" Click="OnActivityHistoryClicked"
                         FontSize="11" FontWeight="SemiBold"
                         Padding="13,7" Margin="10,6,0,0"
                         VerticalAlignment="Top"
