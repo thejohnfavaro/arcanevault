@@ -1,8 +1,8 @@
-# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.7)
+# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.8)
 
 Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for the working Companion v0.9. Built for XENEON EDGE `dashboard_lcd` in 2560×720, responsive down to 840×344. No full-screen window or localhost server is required.
 
-## Features in 0.7
+## Features in 0.8
 - Read-only live monitoring of `%LOCALAPPDATA%\\ArcaneVault\\streamdeck.json`, the same native snapshot used by the Stream Deck Companion. iCUE's **File System Provider 1.0** delivers changes; the native app already publishes periodically.
 - Touch previous/next deck selection with persistent widget-local deck ID; changes here do not alter Stream Deck's separate selected key.
 - Commander art prefers Scryfall `art_crop`, then falls back to the full card, with explicit offline status.
@@ -13,7 +13,14 @@ Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for
 - Empty, unavailable, stale and denied-access paths show non-blocking status text; previous valid snapshot stays visible.
 - No synthetic preview fixtures are present in the installed widget. Missing native data is shown as unavailable.
 
-## New in 0.7
+## New in 0.8
+- The Current Rank panel now displays the **verified next Arena ranked season end** and a countdown that advances locally between snapshots.
+- When the official reset table explicitly contains the current Constructed or Limited tier, the panel shows the **conditional** post-reset rank (only if the current rank is also the final season rank).
+- Windows Native v0.9.151 checks Wizards' [ranked-season page](https://magic.wizards.com/en/news/mtg-arena/ranked-season) on startup and every 12 hours while running (retrying network failures hourly), and saves its last verified future schedule locally for offline use.
+- When the schedule expires, the widget says **Awaiting official date** rather than assuming a monthly date, showing a negative countdown, or inventing next season's reset rules.
+- The UI displays when the official schedule was last verified, including its underlying source; no separate widget network permission is needed.
+
+## Previous 0.7 improvements
 - Fixed widgets remaining stuck at **Waiting for Arcane Vault** after installation, even while the Windows app was running. The iCUE File System Provider notifies consumers of actual content changes; it does not guarantee an initial read when subscribing. Windows v0.9.149 adds a changing `publishedUtc` heartbeat every ~15 seconds, making a real file-change notification possible without needing a new match.
 - The widget retries a stalled file subscription and clearly reports a lack of file events or missing iCUE file permissions. These changes do not alter the collection or match history.
 - The official CLI build includes an automated simulated watcher regression: first snapshot, account rank rendering, stale watcher recovery.
