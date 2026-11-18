@@ -203,6 +203,37 @@
     $("nextSet").disabled = !choices.length;
   }
 
+  function renderSeason(snapshot) {
+    const season=snapshot?.season;
+    const end=season && typeof season.endsUtc==="string" ?
+      Date.parse(season.endsUtc) : NaN;
+    const now=Date.now();
+    if (!Number.isFinite(end) || end<=now || end>now+65*24*3600*1000) {
+      $("seasonCountdown").textContent="Awaiting official date";
+      $("seasonPrediction").textContent="No confirmed future season schedule.";
+      $("seasonChecked").textContent="Windows checks Wizards automatically every 12 hours while running";
+      return;
+    }
+    const remaining=end-now;
+    const days=Math.floor(remaining/86400000);
+    const hours=Math.floor(remaining%86400000/3600000);
+    const minutes=Math.floor(remaining%3600000/60000);
+    $("seasonCountdown").textContent=days+"d "+hours+"h "+minutes+"m · "+
+      new Date(end).toLocaleString();
+    const constructed=typeof snapshot.predictedConstructed==="string" &&
+      snapshot.predictedConstructed.length<45 ? snapshot.predictedConstructed : null;
+    const limited=typeof snapshot.predictedLimited==="string" &&
+      snapshot.predictedLimited.length<45 ? snapshot.predictedLimited : null;
+    $("seasonPrediction").textContent=(constructed||limited) ?
+      "If ranks stay the same: Constructed → "+(constructed||"not verified")+
+      " · Limited → "+(limited||"not verified") :
+      "Post-reset rank prediction unavailable for these tiers.";
+    const checked=typeof season.checkedUtc==="string" ? Date.parse(season.checkedUtc) : NaN;
+    $("seasonChecked").textContent=Number.isFinite(checked) ?
+      "Wizards schedule checked "+new Date(checked).toLocaleString() :
+      "Wizards schedule · waiting for verified refresh";
+  }
+
   function renderRanks(snapshot) {
     const rank = snapshot?.rank;
     // Actual MTG Arena division artwork (separate Constructed and Limited).
@@ -245,6 +276,7 @@
     $("rankAge").textContent = Number.isFinite(asOf) ?
       "Arena rank last observed " + new Date(asOf).toLocaleString() :
       "No verified Arena rank response captured yet";
+    renderSeason(snapshot);
   }
 
   function render(snapshot) {
@@ -379,6 +411,8 @@
   }
 
   function verifyConnection() {
+    // Keep the countdown advancing even if no new match or rank events arrive.
+    if (lastSnapshot) renderSeason(lastSnapshot);
     if (!listening) {
       watcherReady();
       return;
