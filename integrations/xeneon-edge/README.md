@@ -1,19 +1,19 @@
-# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.3)
+# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.4)
 
 Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for the working Companion v0.9. Built for XENEON EDGE `dashboard_lcd` in 2560×720, responsive down to 840×344. No full-screen window or localhost server is required.
 
-## Features in 0.3
+## Features in 0.4
 - Read-only live monitoring of `%LOCALAPPDATA%\\ArcaneVault\\streamdeck.json`, the same native snapshot used by the Stream Deck Companion. iCUE's **File System Provider 1.0** delivers changes; the native app already publishes periodically.
 - Touch previous/next deck selection with persistent widget-local deck ID; changes here do not alter Stream Deck's separate selected key.
 - Commander art prefers Scryfall `art_crop`, then falls back to the full card, with explicit offline status.
-- Confirmed Arena deck wins, losses and win percentage; latest match shown only when associated with selected deck; physical collection valuation.
+- Confirmed Arena deck wins, losses and win percentage; account-level Constructed and Limited rank snapshots in place of the old Latest Match panel; physical collection valuation.
 - Last 20 confirmed match outcomes for the selected deck, with touch-friendly W/L timeline and rolling up-to-ten-game win-rate sparkline (requires native v0.9.133+).
 - Read-only physical Set Progress based on independently verified catalog collector-number slots, with up to four highest-owned sets (requires native v0.9.132+). Missing data displays unavailable, not invented numbers.
 - Polished wide-screen panels, reduced unnecessary image redraw when only statistics change.
 - Empty, unavailable, stale and denied-access paths show non-blocking status text; previous valid snapshot stays visible.
 - No synthetic preview fixtures are present in the installed widget. Missing native data is shown as unavailable.
 
-## New in 0.3\n- Touch **Settings** opens panel visibility toggles for match history, latest match, collection valuation, and set progress. Visibility is retained on this Edge locally. **Restore defaults** re-enables all four.\n- The **Physical Set Progress** panel has a full set dropdown and previous/next set buttons. Selected set code is persisted locally; the default view still displays the top four sets.\n- Native v0.9.133 provides a bounded set roster of up to 2,000 physical sets; older snapshots gracefully retain only the existing top-four display.\n- The Edge remains strictly read-only: navigation and layout change only widget-local preferences, never the native ownership ledger.\n\n## Install (once packaged by the official CLI)
+## New in 0.3\n- Touch **Settings** opens panel visibility toggles for match history, current rank, collection valuation, and set progress. Visibility is retained on this Edge locally. **Restore defaults** re-enables all four.\n- The **Physical Set Progress** panel has a full set dropdown and previous/next set buttons. Selected set code is persisted locally; the default view still displays the top four sets.\n- Native v0.9.133 provides a bounded set roster of up to 2,000 physical sets; older snapshots gracefully retain only the existing top-four display.\n- The Edge remains strictly read-only: navigation and layout change only widget-local preferences, never the native ownership ledger.\n\n## Install (once packaged by the official CLI)
 1. Have iCUE **5.52+**, XENEON EDGE, and Arcane Vault Native Windows **0.9.132+** running.
 2. Use the CI widget packaging artifact or install the official CLI: `npm install -g icuewidget-cli`.
 3. From the repo root: `icuewidget validate integrations/xeneon-edge` and `icuewidget package integrations/xeneon-edge`.
