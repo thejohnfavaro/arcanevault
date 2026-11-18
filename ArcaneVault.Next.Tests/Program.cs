@@ -23,6 +23,7 @@ try
     MatchDeckAttributionChecks.Run();
     ArenaLogAssignmentChecks.Run(work);
     ArenaQueueRankChecks.Run(work);
+    ArenaRankSeasonChecks.Run(work);
     // Create exactly the schema columns consumed by the readonly snapshot,
     // plus a separate ownership table whose contents must remain untouched.
     using (var source = new SqliteConnection(new SqliteConnectionStringBuilder
