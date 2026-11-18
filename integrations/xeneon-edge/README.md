@@ -1,8 +1,8 @@
-# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.8)
+# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.9)
 
 Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for the working Companion v0.9. Built for XENEON EDGE `dashboard_lcd` in 2560×720, responsive down to 840×344. No full-screen window or localhost server is required.
 
-## Features in 0.8
+## Features in 0.9
 - Read-only live monitoring of `%LOCALAPPDATA%\\ArcaneVault\\streamdeck.json`, the same native snapshot used by the Stream Deck Companion. iCUE's **File System Provider 1.0** delivers changes; the native app already publishes periodically.
 - Touch previous/next deck selection with persistent widget-local deck ID; changes here do not alter Stream Deck's separate selected key.
 - Commander art prefers Scryfall `art_crop`, then falls back to the full card, with explicit offline status.
@@ -13,7 +13,15 @@ Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for
 - Empty, unavailable, stale and denied-access paths show non-blocking status text; previous valid snapshot stays visible.
 - No synthetic preview fixtures are present in the installed widget. Missing native data is shown as unavailable.
 
-## New in 0.8
+## New in 0.9
+- **Physical Set Progress now owns the remaining height** of the right-side column and its set rows scroll independently. The set selector stays visible even when many sets are displayed.
+- Current Rank badge cards have less wasted padding. The observed rank timestamp remains available as an expandable disclosure; reset predictions and Wizards verification details remain one tap away.
+- The rank reset countdown remains always visible, with the official MTGA tier badges preserved.
+- Collection value moves into a compact single-line summary below Set Progress, and Connection becomes a slim bottom status with readable errors.
+- The new list can receive keyboard focus for scroll navigation, and hidden-panel layout preferences remain compatible.
+- No changes to the Windows exporter, saved data, deck W/L or Arena rank sources. Compatible with Native v0.9.151+.
+
+## Previous 0.8 improvements
 - The Current Rank panel now displays the **verified next Arena ranked season end** and a countdown that advances locally between snapshots.
 - When the official reset table explicitly contains the current Constructed or Limited tier, the panel shows the **conditional** post-reset rank (only if the current rank is also the final season rank).
 - Windows Native v0.9.151 checks Wizards' [ranked-season page](https://magic.wizards.com/en/news/mtg-arena/ranked-season) on startup and every 12 hours while running (retrying network failures hourly), and saves its last verified future schedule locally for offline use.
