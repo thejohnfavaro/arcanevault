@@ -1,8 +1,8 @@
-# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.4)
+# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.5)
 
 Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for the working Companion v0.9. Built for XENEON EDGE `dashboard_lcd` in 2560×720, responsive down to 840×344. No full-screen window or localhost server is required.
 
-## Features in 0.4
+## Features in 0.5
 - Read-only live monitoring of `%LOCALAPPDATA%\\ArcaneVault\\streamdeck.json`, the same native snapshot used by the Stream Deck Companion. iCUE's **File System Provider 1.0** delivers changes; the native app already publishes periodically.
 - Touch previous/next deck selection with persistent widget-local deck ID; changes here do not alter Stream Deck's separate selected key.
 - Commander art prefers Scryfall `art_crop`, then falls back to the full card, with explicit offline status.
@@ -13,7 +13,13 @@ Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for
 - Empty, unavailable, stale and denied-access paths show non-blocking status text; previous valid snapshot stays visible.
 - No synthetic preview fixtures are present in the installed widget. Missing native data is shown as unavailable.
 
-## New in 0.3\n- Touch **Settings** opens panel visibility toggles for match history, current rank, collection valuation, and set progress. Visibility is retained on this Edge locally. **Restore defaults** re-enables all four.\n- The **Physical Set Progress** panel has a full set dropdown and previous/next set buttons. Selected set code is persisted locally; the default view still displays the top four sets.\n- Native v0.9.133 provides a bounded set roster of up to 2,000 physical sets; older snapshots gracefully retain only the existing top-four display.\n- The Edge remains strictly read-only: navigation and layout change only widget-local preferences, never the native ownership ledger.\n\n## Install (once packaged by the official CLI)
+## New in 0.5
+- Six **original Arcane Vault rank emblems** bundled offline for Bronze, Silver, Gold, Platinum, Diamond, and Mythic. These are not official MTG Arena badge files.
+- Constructed and Limited each show a colored icon beside their verified tier and division; Mythic displays no division.
+- Unknown rank values keep their existing text but display no emblem. Rank update time still indicates the last verified Arena snapshot.
+- Requires Windows Native v0.9.148+ for rank data; the existing Stream Deck integration is unchanged.
+
+## Earlier 0.3 improvements\n- Touch **Settings** opens panel visibility toggles for match history, current rank, collection valuation, and set progress. Visibility is retained on this Edge locally. **Restore defaults** re-enables all four.\n- The **Physical Set Progress** panel has a full set dropdown and previous/next set buttons. Selected set code is persisted locally; the default view still displays the top four sets.\n- Native v0.9.133 provides a bounded set roster of up to 2,000 physical sets; older snapshots gracefully retain only the existing top-four display.\n- The Edge remains strictly read-only: navigation and layout change only widget-local preferences, never the native ownership ledger.\n\n## Install (once packaged by the official CLI)
 1. Have iCUE **5.52+**, XENEON EDGE, and Arcane Vault Native Windows **0.9.132+** running.
 2. Use the CI widget packaging artifact or install the official CLI: `npm install -g icuewidget-cli`.
 3. From the repo root: `icuewidget validate integrations/xeneon-edge` and `icuewidget package integrations/xeneon-edge`.
