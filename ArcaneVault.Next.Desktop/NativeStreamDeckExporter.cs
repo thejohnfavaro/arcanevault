@@ -32,6 +32,10 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private DateTimeOffset nextSetProgressRetry = DateTimeOffset.MinValue;
     private string? setProgressStamp;
     private SetProgressSummary? setProgress;
+    private readonly HttpClient seasonClient = new() { Timeout = TimeSpan.FromSeconds(12) };
+    private ArenaRankSeason.Schedule? seasonSchedule;
+    private DateTimeOffset nextSeasonCheck = DateTimeOffset.MinValue;
+    private Task? ongoingSeasonCheck;
 
     private sealed class Deck
     {
@@ -66,11 +70,15 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         string? matchSource = null,
         SetProgressSummary? setProgress = null,
         RankDisplay? rank = null,
-        string? publishedUtc = null);
+        string? publishedUtc = null,
+        ArenaRankSeason.Schedule? season = null,
+        string? predictedConstructed = null,
+        string? predictedLimited = null);
 
     public NativeStreamDeckExporter()
     {
         diagnosticPath = Path.Combine(exportDirectory, "Diagnostics", "streamdeck-export.log");
+        seasonSchedule = ArenaRankSeason.Read(ArenaRankSeason.CachePath, DateTimeOffset.UtcNow);
     }
     public void Start() => worker ??= Task.Run(RunAsync);
     private async Task RunAsync()
@@ -92,6 +100,15 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             {
                 // A Stream Deck key requests a new snapshot immediately.
                 // Automatic refresh still occurs every fifteen seconds.
+                // Schedule checks are independent of deck/match exporting, run
+                // on startup and every 12 hours while the application is open.
+                // Network errors are nonfatal and retried in one hour.
+                if (DateTimeOffset.UtcNow >= nextSeasonCheck &&
+                    (ongoingSeasonCheck is null || ongoingSeasonCheck.IsCompleted))
+                {
+                    nextSeasonCheck = DateTimeOffset.UtcNow.AddHours(12);
+                    ongoingSeasonCheck = RefreshSeasonAsync(stopped.Token);
+                }
                 bool pressed = ConsumeRefreshRequest();
                 if (pressed || DateTimeOffset.UtcNow >= nextScheduledRefresh)
                 {
@@ -107,6 +124,25 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         }
         arenaTracker?.Dispose();
         stopped.Dispose();
+    }
+
+    private async Task RefreshSeasonAsync(CancellationToken cancel)
+    {
+        try
+        {
+            var newSchedule = await ArenaRankSeason.CheckAsync(
+                ArenaRankSeason.CachePath, DateTimeOffset.UtcNow, seasonClient, cancel);
+            seasonSchedule = newSchedule;
+            if(newSchedule is null)
+                nextSeasonCheck = DateTimeOffset.UtcNow.AddHours(1);
+        }
+        catch(OperationCanceledException) when(cancel.IsCancellationRequested) { }
+        catch(Exception error) when(error is IOException or HttpRequestException or
+            TaskCanceledException or InvalidDataException or UnauthorizedAccessException)
+        {
+            nextSeasonCheck = DateTimeOffset.UtcNow.AddHours(1);
+            Log("Official Arena ranked season refresh unavailable",error);
+        }
     }
 
     private async Task RefreshAsync(CancellationToken cancel)
@@ -619,12 +655,22 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         catch (Exception ex) when (ex is IOException or SqliteException or
             InvalidOperationException or UnauthorizedAccessException)
         { Log("Arena rank snapshot unavailable", ex); }
+        var schedule = seasonSchedule;
+        if(schedule is not null &&
+            (!DateTimeOffset.TryParse(schedule.endsUtc,out var end) ||
+             end <= DateTimeOffset.UtcNow))
+            schedule = null;
+        var predictedConstructed = ArenaRankSeason.Predicted(schedule,
+            rank?.constructedClass,rank?.constructedLevel ?? 0,DateTimeOffset.UtcNow);
+        var predictedLimited = ArenaRankSeason.Predicted(schedule,
+            rank?.limitedClass,rank?.limitedLevel ?? 0,DateTimeOffset.UtcNow);
         var snapshot = new Snapshot(1,
             Environment.ProcessPath ?? "",
             activeDeckId, decks.ToArray(),
             new CollectionValue(value, "USD", asOf),
             new SyncInfo(status, asOf), recent, source, setProgress, rank,
-            DateTimeOffset.UtcNow.ToString("O"));
+            DateTimeOffset.UtcNow.ToString("O"),schedule,
+            predictedConstructed,predictedLimited);
         Directory.CreateDirectory(exportDirectory);
         string destination = Path.Combine(exportDirectory, "streamdeck.json");
         string stage = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -652,6 +698,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     public void Dispose()
     {
         stopped.Cancel();
+        seasonClient.Dispose();
         // The worker reads immutable snapshots and is canceled cooperatively.
         // Do not block WPF shutdown waiting for a log file read.
         // Native match tracker is disposed by the background loop.
