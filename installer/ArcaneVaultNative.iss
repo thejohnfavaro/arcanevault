@@ -30,6 +30,9 @@ ArchitecturesAllowed=x64compatible
 CloseApplications=yes
 RestartApplications=no
 WizardStyle=modern
+; CI generates these Windows BMPs from approved, repository-tracked art.
+WizardImageFile=brand\ArcaneVaultWizard.bmp
+WizardSmallImageFile=brand\ArcaneVaultWizardSmall.bmp
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
