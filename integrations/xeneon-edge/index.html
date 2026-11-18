@@ -14,7 +14,7 @@
     <section id="settingsPanel" class="settings-panel" hidden aria-label="Dashboard layout settings">
       <div class="settings-title">DASHBOARD PANELS</div>
       <label><input type="checkbox" id="showHistory" checked /> Match history</label>
-      <label><input type="checkbox" id="showLatest" checked /> Latest match</label>
+      <label><input type="checkbox" id="showLatest" checked /> Current rank</label>
       <label><input type="checkbox" id="showCollection" checked /> Collection value</label>
       <label><input type="checkbox" id="showSets" checked /> Set progress</label>
       <button type="button" id="resetLayout" class="settings-reset">Restore defaults</button>
@@ -64,10 +64,19 @@
       </section>
     </section>
     <section class="panel side">
-      <div class="feature" id="latestPanel">
-        <div class="feature-title">LATEST MATCH</div>
-        <div class="feature-data latest" id="recent">—</div>
-        <div class="feature-small" id="recentDescription">No recent match</div>
+      <div class="feature" id="latestPanel" aria-label="Current Arena rank">
+        <div class="feature-title">CURRENT RANK</div>
+        <div class="rank-grid">
+          <div class="rank-slot">
+            <div class="rank-label">CONSTRUCTED</div>
+            <div class="rank-value" id="constructedRank">—</div>
+          </div>
+          <div class="rank-slot">
+            <div class="rank-label">LIMITED</div>
+            <div class="rank-value" id="limitedRank">—</div>
+          </div>
+        </div>
+        <div class="feature-small" id="rankAge">Waiting for Arena rank data</div>
       </div>
       <div class="feature" id="collectionPanel">
         <div class="feature-title">PHYSICAL COLLECTION</div>
