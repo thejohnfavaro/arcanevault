@@ -202,19 +202,31 @@
 
   function renderRanks(snapshot) {
     const rank = snapshot?.rank;
-    const format = (tier, level) => {
-      if (typeof tier !== "string" || !/^[a-z ]{1,32}$/i.test(tier.trim()))
-        return "Not captured";
-      const safeTier = tier.trim();
-      if (!safeTier || safeTier.toLowerCase() === "invalid") return "Not captured";
-      const number = Number(level);
-      return Number.isInteger(number) && number >= 1 && number <= 4 ?
-        safeTier + " " + number : safeTier;
+    // Never derive icons from arbitrary paths or unknown snapshot strings.
+    // All six rank illustrations are original, bundled offline assets.
+    const tiers = new Set(["bronze","silver","gold","platinum","diamond","mythic"]);
+    const showRank = (name, rawTier, rawLevel) => {
+      const label = $(name + "Rank");
+      const badge = $(name + "RankIcon");
+      const tier = typeof rawTier === "string" ? rawTier.trim() : "";
+      const canonical = tier.toLowerCase();
+      const validText = /^[a-z ]{1,32}$/i.test(tier) && canonical !== "invalid";
+      const knownTier = validText && tiers.has(canonical);
+      const numeric = Number(rawLevel);
+      const division = Number.isInteger(numeric) && numeric >= 1 && numeric <= 4 &&
+        canonical !== "mythic" ? " " + numeric : "";
+      label.textContent = validText ? tier + division : "Not captured";
+      if (knownTier) {
+        const src = "resources/ranks/" + canonical + ".svg";
+        if (badge.getAttribute("src") !== src) badge.setAttribute("src", src);
+        badge.hidden = false;
+      } else {
+        badge.hidden = true;
+        badge.removeAttribute("src");
+      }
     };
-    $("constructedRank").textContent = rank ?
-      format(rank.constructedClass, rank.constructedLevel) : "Not captured";
-    $("limitedRank").textContent = rank ?
-      format(rank.limitedClass, rank.limitedLevel) : "Not captured";
+    showRank("constructed", rank?.constructedClass, rank?.constructedLevel);
+    showRank("limited", rank?.limitedClass, rank?.limitedLevel);
     const asOf = rank && typeof rank.asOfUtc === "string" ?
       Date.parse(rank.asOfUtc) : NaN;
     $("rankAge").textContent = Number.isFinite(asOf) ?
