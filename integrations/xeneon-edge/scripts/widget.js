@@ -202,27 +202,37 @@
 
   function renderRanks(snapshot) {
     const rank = snapshot?.rank;
-    // Never derive icons from arbitrary paths or unknown snapshot strings.
-    // All six rank illustrations are original, bundled offline assets.
-    const tiers = new Set(["bronze","silver","gold","platinum","diamond","mythic"]);
-    const showRank = (name, rawTier, rawLevel) => {
-      const label = $(name + "Rank");
-      const badge = $(name + "RankIcon");
+    // Actual MTG Arena division artwork (separate Constructed and Limited).
+    // This list is fixed: never interpolate arbitrary data into file paths.
+    const ranked = new Set(["bronze", "silver", "gold", "platinum", "diamond"]);
+    const showRank = (lane, rawTier, rawLevel) => {
+      const label = $(lane + "Rank");
+      const badge = $(lane + "RankIcon");
       const tier = typeof rawTier === "string" ? rawTier.trim() : "";
-      const canonical = tier.toLowerCase();
-      const validText = /^[a-z ]{1,32}$/i.test(tier) && canonical !== "invalid";
-      const knownTier = validText && tiers.has(canonical);
-      const numeric = Number(rawLevel);
-      const division = Number.isInteger(numeric) && numeric >= 1 && numeric <= 4 &&
-        canonical !== "mythic" ? " " + numeric : "";
-      label.textContent = validText ? tier + division : "Not captured";
-      if (knownTier) {
-        const src = "resources/ranks/" + canonical + ".svg";
+      const key = tier.toLowerCase();
+      const level = Number(rawLevel);
+      const division = Number.isInteger(level) && level >= 1 && level <= 4 ? level : null;
+      const validText = /^[a-z ]{1,32}$/i.test(tier) && key !== "invalid";
+      let imageName = "";
+      if (ranked.has(key) && division !== null) {
+        imageName = "rank_" + lane + "_" + key + "_t" + division + ".png";
+      } else if (key === "mythic" || key === "unranked") {
+        imageName = "rank_" + lane + "_" + key + ".png";
+      }
+      // A missing division cannot safely select one of four different badges.
+      label.textContent = validText ?
+        tier + (ranked.has(key) && division !== null ? " " + division : "") :
+        "Not captured";
+      if (imageName) {
+        const src = "resources/mtga-ranks/" + imageName;
         if (badge.getAttribute("src") !== src) badge.setAttribute("src", src);
         badge.hidden = false;
+        badge.alt = tier + (division !== null && ranked.has(key) ? " tier " + division : "") +
+          " " + lane + " Arena rank";
       } else {
         badge.hidden = true;
         badge.removeAttribute("src");
+        badge.alt = "";
       }
     };
     showRank("constructed", rank?.constructedClass, rank?.constructedLevel);
