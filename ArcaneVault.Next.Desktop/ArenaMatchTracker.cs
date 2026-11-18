@@ -357,6 +357,8 @@ internal sealed class ArenaMatchTracker : IDisposable
                 {
                     using var decoded = JsonDocument.Parse(encoded);
                     queue = ArenaQueueInfo.EventId(decoded.RootElement);
+                    if (queue.Length == 0)
+                        queue = ArenaQueueInfo.EventId(Locate(decoded.RootElement, "params"));
                 }
                 catch (JsonException) { }
             }
