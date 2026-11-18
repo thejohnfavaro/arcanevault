@@ -28,6 +28,16 @@ jobs:
           foreach ($forbidden in @('Demo Commander Deck', 'SAMPLE PREVIEW', 'Demo Set Alpha', 'setProgress:{ownedSlots:834')) {
             if ($js.Contains($forbidden)) { throw "Publishable widget contains synthetic data fixture: $forbidden" }
           }
+      - name: Verify original offline rank emblems
+        shell: pwsh
+        run: |
+          $ranks = @('bronze','silver','gold','platinum','diamond','mythic')
+          foreach ($rank in $ranks) {
+            $icon = "integrations/xeneon-edge/resources/ranks/$rank.svg"
+            if (!(Test-Path $icon)) { throw "Rank icon missing: $icon" }
+            [xml]$svg = Get-Content $icon -Raw
+            if ($svg.DocumentElement.LocalName -ne 'svg') { throw "Invalid SVG rank icon: $icon" }
+          }
       - name: Install official iCUE Widget CLI
         shell: pwsh
         run: npm install -g icuewidget-cli@latest
@@ -46,7 +56,7 @@ jobs:
           $packages | ForEach-Object { Copy-Item $_.FullName -Destination 'widget-dist/' }
       - uses: actions/upload-artifact@v4
         with:
-          name: ArcaneVault-XeneonEdge-Widget-0.4-preview
+          name: ArcaneVault-XeneonEdge-Widget-0.5-preview
           path: widget-dist/*.icuewidget
           if-no-files-found: error
       - name: Publish independent EDGE widget preview release
@@ -55,12 +65,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'edge-widget-v0.4.0'
+          $tag = 'edge-widget-v0.5.0'
           gh release view $tag --repo ${{ github.repository }} *> $null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "EDGE widget $tag is already published; leaving existing immutable version intact."
           } else {
             $files = @(Get-ChildItem 'widget-dist/*.icuewidget' -File | ForEach-Object { $_.FullName })
-            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.4.0 (Preview)' --notes 'Replaces Latest Match with verified Constructed and Limited Current Rank, with captured time and no-data state. Keeps W/L, deck selection, set progress and collection value. Requires Arcane Vault Native v0.9.148 for rank data.' --prerelease
+            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.5.0 (Preview)' --notes 'Adds six original offline rank emblems (Bronze through Mythic) alongside Constructed and Limited rank snapshots. Retains W/L and existing dashboard preferences. Requires Arcane Vault Native v0.9.148 for rank data.' --prerelease
             if ($LASTEXITCODE -ne 0) { throw 'Could not publish XENEON EDGE release.' }
           }
