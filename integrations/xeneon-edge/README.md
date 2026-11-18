@@ -1,8 +1,8 @@
-# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.6)
+# Arcane Vault — CORSAIR XENEON EDGE Dashboard (Preview 0.7)
 
 Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for the working Companion v0.9. Built for XENEON EDGE `dashboard_lcd` in 2560×720, responsive down to 840×344. No full-screen window or localhost server is required.
 
-## Features in 0.6
+## Features in 0.7
 - Read-only live monitoring of `%LOCALAPPDATA%\\ArcaneVault\\streamdeck.json`, the same native snapshot used by the Stream Deck Companion. iCUE's **File System Provider 1.0** delivers changes; the native app already publishes periodically.
 - Touch previous/next deck selection with persistent widget-local deck ID; changes here do not alter Stream Deck's separate selected key.
 - Commander art prefers Scryfall `art_crop`, then falls back to the full card, with explicit offline status.
@@ -13,7 +13,14 @@ Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for
 - Empty, unavailable, stale and denied-access paths show non-blocking status text; previous valid snapshot stays visible.
 - No synthetic preview fixtures are present in the installed widget. Missing native data is shown as unavailable.
 
-## New in 0.6
+## New in 0.7
+- Fixed widgets remaining stuck at **Waiting for Arcane Vault** after installation, even while the Windows app was running. The iCUE File System Provider notifies consumers of actual content changes; it does not guarantee an initial read when subscribing. Windows v0.9.149 adds a changing `publishedUtc` heartbeat every ~15 seconds, making a real file-change notification possible without needing a new match.
+- The widget retries a stalled file subscription and clearly reports a lack of file events or missing iCUE file permissions. These changes do not alter the collection or match history.
+- The official CLI build includes an automated simulated watcher regression: first snapshot, account rank rendering, stale watcher recovery.
+- To diagnose on Windows: check that `%LOCALAPPDATA%\\ArcaneVault\\streamdeck.json` exists and its modified timestamp advances after Arcane Vault opens. In iCUE check that the widget is granted read access to that file.
+- This release requires **Windows Native v0.9.149+** for reliable first-paint heartbeat delivery. The v0.6 MTGA PNG badges are retained without change.
+
+## Previous 0.6 badge improvements
 - The Current Rank panel now uses **actual MTG Arena rank badge images** from the [Draftsim Arena ranking guide](https://draftsim.com/mtg-arena-ranking-system/) instead of the v0.5 custom Arcane Vault tier shields.
 - Separately mapped Constructed and Limited PNGs for each division (Bronze–Diamond, Tier 4 through Tier 1), plus Mythic and Unranked: **44 distinct rank icons**.
 - Badge art is included in the packaged widget for offline display. Text remains next to each icon and unknown or incomplete rank information never selects an arbitrary division.
