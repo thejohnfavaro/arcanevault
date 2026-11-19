@@ -2385,16 +2385,43 @@ public partial class NativeDeckEditorView : UserControl
                     StringComparison.OrdinalIgnoreCase)))
                 .ToDictionary(x => x.Key, x => x.Value,
                     StringComparer.OrdinalIgnoreCase);
-            var saved = await Task.Run(() =>
-                NativeWorkspaceSafety.SaveDeck(nativePath, name, commander,
+            var saveResult = await Task.Run(() =>
+            {
+                // Name-only historical matches must be pinned while we still
+                // know the pre-rename name and can prove it identified one deck.
+                bool uniqueOldName = original is not null &&
+                    !original.Name.Equals(name, StringComparison.OrdinalIgnoreCase) &&
+                    NativeWorkspaceSafety.ListDecks(nativePath).Count(d =>
+                        d.Name.Equals(original.Name, StringComparison.OrdinalIgnoreCase)) == 1;
+                var replacement = NativeWorkspaceSafety.SaveDeck(nativePath, name, commander,
                     mainboard, original, expectedSha, format: format,
                     folder: folder, favorite: favorite,
-                    displayPrintIds: savedPrintingChoices));
+                    displayPrintIds: savedPrintingChoices);
+                string? matchWarning = null;
+                if (uniqueOldName)
+                {
+                    try
+                    {
+                        using var matchHistory = new MatchHistory();
+                        matchHistory.PinLegacyMatchesForRename(original!.Name, original.Id);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                        or Microsoft.Data.Sqlite.SqliteException)
+                    {
+                        // The deck was already saved; never misreport a successful
+                        // native save as failed if optional history is inaccessible.
+                        matchWarning = "Older match associations could not be secured: " + ex.Message;
+                    }
+                }
+                return (replacement, matchWarning);
+            });
+            var saved = saveResult.replacement;
             NativeInAppDialog.Show(Window.GetWindow(this),
                 $"Deck saved. Library now contains {saved.Current.Collection.Decks:N0} decks " +
                 $"and {saved.Current.Collection.DeckRevisions:N0} revisions.\n\n" +
                 "The complete prior native collection is preserved at:\n" +
-                saved.RecoveryPath,
+                saved.RecoveryPath + (saveResult.matchWarning is null ? "" :
+                    "\\n\\nWarning: " + saveResult.matchWarning),
                 "Saved deck verified", MessageBoxButton.OK, MessageBoxImage.Information);
             SavedReplacement = saved;
             Saved?.Invoke(this, saved);
