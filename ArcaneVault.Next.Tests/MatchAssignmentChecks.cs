@@ -163,6 +163,48 @@ internal static class MatchAssignmentChecks
                 "Ambiguous Arena IDs must remain unassigned");
         }
 
+
+        // Renaming a uniquely named saved deck pins previously name-only
+        // matches to its immutable identity. No result or match count changes.
+        Assert(history.Add(new MatchHistory.MatchRow("rename-legacy-1", played, "win",
+            "arena_match_result", "Historic", "", "Old Borg", "",
+            "Player.log", "Older name-only match", 1, 0)), "Rename fixture failed.");
+        Assert(history.Add(new MatchHistory.MatchRow("rename-verified-2", played, "loss",
+            "arena_match_result", "Historic", "arena-unmapped", "Old Borg", "",
+            "Player.log", "Deck assignment: manually confirmed in Arcane Vault Match History",
+            0, 1)), "Verified rename fixture failed.");
+        Assert(history.Add(new MatchHistory.MatchRow("rename-passive-3", played, "win",
+            "arena_match_result", "Historic", "arena-unknown", "Old Borg", "",
+            "Player.log", "Passive inventory label", 1, 0)), "Passive fixture failed.");
+        Assert(history.Add(new MatchHistory.MatchRow("rename-other-4", played, "win",
+            "arena_match_result", "Historic", "arena-conflict", "Old Borg", "",
+            "Player.log", "Deck assignment: manual", 1, 0)), "Conflict fixture failed.");
+        Assert(history.RememberDeckMapping("arena-conflict", "another-native", "Different Deck"),
+            "Conflicting Arena ID mapping fixture failed.");
+        int pinned = history.PinLegacyMatchesForRename("Old Borg", "native-borg");
+        Assert(pinned == 2, "Only uniquely eligible historical matches may be pinned.");
+        Assert(history.PinLegacyMatchesForRename("Old Borg", "native-borg") == 0,
+            "Repeated rename reconciliation must be idempotent.");
+        using (var db = new SqliteConnection("Data Source=" + path))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = @"SELECT match_id,result,deck_name,native_deck_id
+                FROM matches WHERE match_id LIKE 'rename-%' ORDER BY match_id";
+            using var reader = cmd.ExecuteReader();
+            var actual = new Dictionary<string, (string Result, string Name, string NativeId)>();
+            while (reader.Read())
+                actual[reader.GetString(0)] = (reader.GetString(1),
+                    reader.GetString(2), reader.GetString(3));
+            Assert(actual.Count == 4, "Renaming must never delete or duplicate matches.");
+            Assert(actual["rename-legacy-1"] == ("win", "Old Borg", "native-borg") &&
+                   actual["rename-verified-2"] == ("loss", "Old Borg", "native-borg"),
+                "Historical results must retain their original names and stable attribution.");
+            Assert(actual["rename-passive-3"].NativeId == "" &&
+                   actual["rename-other-4"].NativeId == "",
+                "Unverified or conflicting Arena evidence must not be reassigned.");
+        }
+
     }
 
     private static void Assert(bool ok, string message)
