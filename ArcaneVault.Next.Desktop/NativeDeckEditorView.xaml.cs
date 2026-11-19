@@ -2421,7 +2421,7 @@ public partial class NativeDeckEditorView : UserControl
                 $"and {saved.Current.Collection.DeckRevisions:N0} revisions.\n\n" +
                 "The complete prior native collection is preserved at:\n" +
                 saved.RecoveryPath + (saveResult.matchWarning is null ? "" :
-                    "\\n\\nWarning: " + saveResult.matchWarning),
+                    "\n\nWarning: " + saveResult.matchWarning),
                 "Saved deck verified", MessageBoxButton.OK, MessageBoxImage.Information);
             SavedReplacement = saved;
             Saved?.Invoke(this, saved);
