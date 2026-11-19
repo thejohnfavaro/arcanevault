@@ -173,6 +173,45 @@ internal sealed class MatchHistory : IDisposable
         }
     }
 
+    /// <summary>
+    /// Pin historical name-attributed matches to their immutable native deck ID
+    /// after a uniquely named saved deck is renamed. Never change match results,
+    /// names, manual assignments, or Arena IDs. Entries with conflicting verified
+    /// Arena mappings are excluded; uncertain records remain for manual review.
+    /// The caller must establish that the old name was unique before the save.
+    /// </summary>
+    public int PinLegacyMatchesForRename(string oldName, string nativeId)
+    {
+        oldName = oldName?.Trim() ?? "";
+        nativeId = nativeId?.Trim() ?? "";
+        if (oldName.Length is < 1 or > 150 || nativeId.Length is < 1 or > 180)
+            throw new ArgumentException("Invalid saved deck rename identity.");
+        lock (gate)
+        {
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = @"UPDATE matches SET native_deck_id=$native
+                WHERE TRIM(native_deck_id)=''
+                  AND deck_name=$old COLLATE NOCASE
+                  AND (
+                    TRIM(deck_id)=''
+                    OR (
+                      (note LIKE 'Deck assignment: manually confirmed%'
+                       OR note='Deck assignment: manual'
+                       OR note LIKE 'Deck assignment: recent_arena_%'
+                       OR note LIKE 'Deck assignment: verified_arena_%'
+                       OR note LIKE 'Deck assignment: match_deck_name%')
+                      AND NOT EXISTS (
+                        SELECT 1 FROM deck_mappings m
+                        WHERE m.arena_deck_id=matches.deck_id
+                          AND m.native_deck_id<>$native)
+                    )
+                  )";
+            cmd.Parameters.AddWithValue("$native", nativeId);
+            cmd.Parameters.AddWithValue("$old", oldName);
+            return cmd.ExecuteNonQuery();
+        }
+    }
+
     internal record MatchRow(string matchId, string playedUtc, string result, string resultSource,
         string format, string deckId, string deckName, string deckVersion, string sourceLog,
         string note, int gameWins, int gameLosses, string nativeDeckId = "");
