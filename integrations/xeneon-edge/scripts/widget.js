@@ -54,7 +54,7 @@
     const summary = lastSnapshot?.setProgress;
     return Array.isArray(summary?.sets) ?
       summary.sets.filter(x => x && typeof x.code === "string" &&
-        Number(x.total) > 0).slice(0,2000) : [];
+        Number(x.total) > 0 && Number(x.owned) > 0).slice(0,2000) : [];
   }
 
   function changeSet(direction) {
@@ -155,8 +155,8 @@
     }
     const selected = selectedSetCode ?
       choices.find(x => x.code.toLowerCase() === selectedSetCode.toLowerCase()) : null;
-    if (selectedSetCode && !selected && choices.length) {
-      // An old selection can outlive a downloaded set catalog.
+    if (selectedSetCode && !selected) {
+      // Clear selections that are no longer eligible (including sets with zero progress).
       selectedSetCode = "";
       try { localStorage.removeItem(setKey); } catch (_) {}
     }
