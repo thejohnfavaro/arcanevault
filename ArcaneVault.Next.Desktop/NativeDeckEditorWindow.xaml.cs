@@ -145,7 +145,9 @@ public partial class NativeDeckEditorWindow : Window
             try
             {
                 counts = NativeDeckEditing.ParseMainboard(MainboardBox.Text)
-                    .ToDictionary(x => x.Name, x => x.Quantity,
+                    .GroupBy(x => ArenaDeckCardName.Identity(x.Name),
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(x => x.Key, x => x.Sum(card => card.Quantity),
                         StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex) when (ex is InvalidDataException or
