@@ -352,7 +352,7 @@
                                                            Margin="7,0,0,0"/>
                                             </DockPanel>
                                         </Border>
-                                        <Button x:Name="CardShortlistStar"
+                                        <Button 
                                                 Content="{Binding ShortlistStar}"
                                                 Tag="{Binding}"
                                                 ToolTip="{Binding ShortlistTooltip}"
