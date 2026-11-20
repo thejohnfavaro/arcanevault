@@ -41,7 +41,7 @@ internal static class ArenaMatchTelemetry
         "id", "affectorId", "affectedIds", "type", "details"
     };
     private static readonly string[] DetailFields = {
-        "key", "type", "valueInt32", "valueUint32", "valueString", "valueBool",
+        "key", "type", "valueInt32", "valueUint32", "valueBool",
         "valueFloat", "valueInt64"
     };
     private static readonly string[] ResultFields = {
@@ -90,9 +90,9 @@ internal static class ArenaMatchTelemetry
         {
             var header = Pick(annotation, AnnotationFields);
             if (header is null) return null;
-            // Annotation detail values have a fixed and well-understood
-            // mechanics vocabulary. Retain keys and numeric values, but
-            // discard any string value that could be a user-supplied name.
+            // Annotation detail values have a fixed mechanics vocabulary.
+            // Retain keys, types and numeric values, but never string-value
+            // arrays that could contain user-supplied names or chat text.
             var fields = new Dictionary<string, object?>();
             foreach (var property in header.Value.EnumerateObject())
                 if (property.Name != "details") fields[property.Name] = property.Value.Clone();
