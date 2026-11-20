@@ -1523,7 +1523,15 @@ internal static class NativeVisualShellChecks
              main.Contains("CatalogPageLabel") &&
              main.Contains("OnPreviousCatalogPageClicked") &&
              main.Contains("OnNextCatalogPageClicked") &&
-             mainCode.Contains("private const int CatalogPageSize = 200;") &&
+             mainCode.Contains("private const int MaximumCatalogPageSize = 200;") &&
+             mainCode.Contains("private int CatalogPageSize =>") &&
+             mainCode.Contains("CatalogPageSizeBox") &&
+             mainCode.Contains("limit: CatalogPageSize") &&
+             main.Contains("CatalogSmallTileRowTemplate") &&
+             main.Contains("OnCatalogPageSizeChanged") &&
+             main.Contains("Big Art") &&
+             main.Contains("Small Art") &&
+             main.Contains("Text Only") &&
              mainCode.Contains("offset: checked(catalogPageIndex * CatalogPageSize)") &&
              mainCode.Contains("FilterAsync(debounce: false, resetPage: false)") &&
              mainCode.Contains("if (resetPage) catalogPageIndex = 0;") &&
@@ -1664,6 +1672,11 @@ internal static class NativeVisualShellChecks
 
         // v0.9.61: resizing must change ONLY the column count, not the
         // intrinsic size of a card. No hard five-column limit on wide screens.
+        Must(CatalogTileLayout.SmallTileWidth == 148 &&
+             CatalogTileLayout.ColumnsForWidth(950, smallArt: true) >
+                CatalogTileLayout.ColumnsForWidth(950) &&
+             CatalogTileLayout.ColumnsForWidth(450, smallArt: true) >= 2,
+             "Small-art catalog tiles must fit more fixed-width columns without stretching.");
         Must(CatalogTileLayout.TileWidth == 218 &&
              CatalogTileLayout.SlotWidth == 224 &&
              CatalogTileLayout.ColumnsForWidth(365) == 1 &&
