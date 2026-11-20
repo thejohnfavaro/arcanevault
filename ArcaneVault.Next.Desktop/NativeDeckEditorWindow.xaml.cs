@@ -400,7 +400,12 @@ public partial class NativeDeckEditorWindow : Window
             var preview = await Task.Run(() =>
             {
                 token.ThrowIfCancellationRequested();
-                var info = CollectionCatalogReview.ReadDetails(catalogPath!, card.Name);
+                // The saved draft may still contain an Arena "(SET) number"
+                // suffix. Preview by verified catalog identity, never by the
+                // presentation label; do not modify the saved deck text.
+                string identity = edhCatalog?.Find(card.Name)?.Name ??
+                    ArenaDeckCardName.Identity(card.Name);
+                var info = CollectionCatalogReview.ReadDetails(catalogPath!, identity);
                 string imageUrl = arena ? "" : info?.ArtworkUrl ?? "";
                 if (!arena && deckPrintingChoices.TryGetValue(card.Name, out var chosenId) &&
                     Guid.TryParse(chosenId, out var exactPrintId))
@@ -410,7 +415,7 @@ public partial class NativeDeckEditorWindow : Window
                     try
                     {
                         var choice = NativePrintingArtwork.Require(catalogPath!,
-                            card.Name, exactPrintId);
+                            identity, exactPrintId);
                         imageUrl = choice.ImageUrl;
                     }
                     catch (Exception ex) when (ex is InvalidDataException or
@@ -427,7 +432,7 @@ public partial class NativeDeckEditorWindow : Window
                     try
                     {
                         imageUrl = NativePrintingArtwork.Read(catalogPath!,
-                            card.Name, limit: 1, cancellation: token,
+                            identity, limit: 1, cancellation: token,
                             arenaOnly: true).Printings.FirstOrDefault()?.ImageUrl ?? "";
                     }
                     catch (Exception ex) when (ex is InvalidDataException or
