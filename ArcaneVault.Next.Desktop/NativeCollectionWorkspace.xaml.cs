@@ -100,6 +100,10 @@ public partial class NativeCollectionWorkspace : UserControl
         AdjustPhysicalButton.IsEnabled = nativeWorkspace &&
             !string.IsNullOrWhiteSpace(nativePath) &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
+        MovePhysicalToProxyButton.IsEnabled = nativeWorkspace &&
+            !string.IsNullOrWhiteSpace(nativePath) &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha) &&
+            !string.IsNullOrWhiteSpace(catalogPath);
         ImportExcelButton.IsEnabled = nativeWorkspace &&
             !string.IsNullOrWhiteSpace(nativePath) &&
             !string.IsNullOrWhiteSpace(expectedBackupSha);
