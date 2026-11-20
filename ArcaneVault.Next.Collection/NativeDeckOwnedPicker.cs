@@ -51,19 +51,20 @@ public static class NativeDeckOwnedPicker
     {
         ArgumentNullException.ThrowIfNull(ownership);
         if (string.IsNullOrWhiteSpace(cardName)) return 0;
+        string identity = ArenaDeckCardName.Identity(cardName);
         long copies = 0;
         if (pool == Pool.Physical)
         {
             foreach (var row in ownership.PhysicalCards)
                 if (row.Quantity > 0 &&
-                    row.Name.Equals(cardName, StringComparison.OrdinalIgnoreCase))
+                    ArenaDeckCardName.Identity(row.Name).Equals(identity, StringComparison.OrdinalIgnoreCase))
                     copies = checked(copies + row.Quantity);
         }
         else
         {
             foreach (var row in ownership.ArenaCards)
                 if (row.Quantity > 0 &&
-                    row.Name.Equals(cardName, StringComparison.OrdinalIgnoreCase))
+                    ArenaDeckCardName.Identity(row.Name).Equals(identity, StringComparison.OrdinalIgnoreCase))
                     copies = checked(copies + row.Quantity);
         }
         return copies;
@@ -105,26 +106,31 @@ public static class NativeDeckOwnedPicker
         string leader = commanderFormat ? (commander ?? "").Trim() : "";
         var required = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var card in entries)
-            required[card.Name] = checked(required.GetValueOrDefault(card.Name) + card.Quantity);
+            required[ArenaDeckCardName.Identity(card.Name)] = checked(
+                required.GetValueOrDefault(ArenaDeckCardName.Identity(card.Name)) + card.Quantity);
         if (leader.Length > 0)
-            required[leader] = checked(required.GetValueOrDefault(leader) + 1);
+            required[ArenaDeckCardName.Identity(leader)] = checked(
+                required.GetValueOrDefault(ArenaDeckCardName.Identity(leader)) + 1);
         // Unlike bounded picker results, accounting must cover every owned name.
         var owned = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         if (pool == Pool.Physical)
             foreach (var card in ownership.PhysicalCards)
                 if (card.Quantity > 0)
-                    owned[card.Name] = checked(owned.GetValueOrDefault(card.Name) + card.Quantity);
+                    owned[ArenaDeckCardName.Identity(card.Name)] = checked(
+                        owned.GetValueOrDefault(ArenaDeckCardName.Identity(card.Name)) + card.Quantity);
         if (pool == Pool.Arena)
             foreach (var card in ownership.ArenaCards)
                 if (card.Quantity > 0)
-                    owned[card.Name] = checked(owned.GetValueOrDefault(card.Name) + card.Quantity);
+                    owned[ArenaDeckCardName.Identity(card.Name)] = checked(
+                        owned.GetValueOrDefault(ArenaDeckCardName.Identity(card.Name)) + card.Quantity);
         // Proxy copies support paper deck coverage but NEVER become owned
         // printings, or Arena cards. Missing is computed from both pools
         // without merging their identities or their valuation.
         var proxied = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         if (pool == Pool.Physical && proxies is not null)
             foreach (var proxy in proxies)
-                proxied[proxy.Name] = checked(proxied.GetValueOrDefault(proxy.Name)
+                proxied[ArenaDeckCardName.Identity(proxy.Name)] = checked(
+                    proxied.GetValueOrDefault(ArenaDeckCardName.Identity(proxy.Name))
                     + proxy.Quantity);
         var coverage = required.Select(x => new Shortage(
                 x.Key, x.Value, owned.GetValueOrDefault(x.Key),
