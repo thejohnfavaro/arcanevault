@@ -1,3 +1,4 @@
+using ArcaneVault.Next.Domain;
 using ArcaneVault.Next.Collection;
 using Microsoft.Data.Sqlite;
 using System.IO;
@@ -17,7 +18,7 @@ public partial class NativeDeckEditorWindow
     private bool proxyCoverageClosed;
 
     private long CountProxy(string name) => OwnedPoolBox?.SelectedIndex == 1
-        ? 0 : proxyCounts.GetValueOrDefault(name);
+        ? 0 : proxyCounts.GetValueOrDefault(ArenaDeckCardName.Identity(name));
 
     private async Task LoadProxyCoverageAsync()
     {
@@ -30,8 +31,9 @@ public partial class NativeDeckEditorWindow
             proxyLedger = rows;
             proxyCounts.Clear();
             foreach (var row in rows)
-                proxyCounts[row.Name] = checked(
-                    proxyCounts.GetValueOrDefault(row.Name) + row.Quantity);
+                proxyCounts[ArenaDeckCardName.Identity(row.Name)] = checked(
+                    proxyCounts.GetValueOrDefault(ArenaDeckCardName.Identity(row.Name)) +
+                    row.Quantity);
             // The existing draft text is still authoritative. Re-render only
             // read-only coverage, labels, and candidate search—not the deck.
             RefreshDraftSummary();
