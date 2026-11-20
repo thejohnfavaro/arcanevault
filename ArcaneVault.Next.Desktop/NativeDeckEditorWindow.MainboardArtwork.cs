@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using ArcaneVault.Next.Domain;
 using ArcaneVault.Next.EDHLab;
 using Microsoft.Data.Sqlite;
 using System.IO;
@@ -114,12 +115,16 @@ public partial class NativeDeckEditorWindow
                 string url = await Task.Run(() =>
                 {
                     token.ThrowIfCancellationRequested();
-                    var info = CollectionCatalogReview.ReadDetails(catalogPath!, name);
+                    // Legacy Arena saves retain (SET) collector-number in
+                    // their display names. Resolve artwork by card identity,
+                    // never by the annotated saved text.
+                    string identity = ArenaDeckCardName.Identity(name);
+                    var info = CollectionCatalogReview.ReadDetails(catalogPath!, identity);
                     if (info is null) return "";
                     if (!arena) return info.ArtworkUrl;
                     // Arena rows require Arena-eligible art, rather than
                     // claiming the physical image is an owned digital style.
-                    return NativePrintingArtwork.Read(catalogPath!, name,
+                    return NativePrintingArtwork.Read(catalogPath!, identity,
                         limit: 1, cancellation: token, arenaOnly: true)
                         .Printings.FirstOrDefault()?.ImageUrl ?? "";
                 }, token);
