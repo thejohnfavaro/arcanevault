@@ -183,6 +183,80 @@ internal static class ArenaLogAssignmentChecks
             Assert((string?)cmd.ExecuteScalar() == "24h-deck",
                 "24-hour event headers must preserve deck submission timestamps");
         }
+        // Detailed GRE batches carry high-value mechanics while the match
+        // result schema and native collection remain unchanged. No usernames,
+        // authentication material, chat, or unknown log data may be archived.
+        var telemetryLog = Path.Combine(local, "telemetry", "Player.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(telemetryLog)!);
+        var telemetryDb = Path.Combine(local, "telemetry.sqlite3");
+        var stateOne = new {
+            turnInfo = new { turnNumber = 1, phase = "Phase_Main1", activePlayer = 1 },
+            gameInfo = new { gameNumber = 1, stage = "GameStage_Play" },
+            players = new[] { new { systemSeatId = 1, lifeTotal = 20,
+                screenName = "PRIVATE_NAME", token = "PRIVATE_TOKEN" } },
+            zones = new[] { new { zoneId = 7, type = "ZoneType_Hand", ownerSeatId = 1,
+                objectInstanceIds = new[] { 22 } } },
+            gameObjects = new[] { new { instanceId = 22, grpId = 12345,
+                zoneId = 7, ownerSeatId = 1, controllerSeatId = 1,
+                privateNote = "PRIVATE_TOKEN" } },
+            annotations = new[] { new { id = 8, type = new[] { "AnnotationType_ZoneTransfer" },
+                affectedIds = new[] { 22 }, details = new[] {
+                    new { key = "category", valueString = new[] { "PlayLand" } }
+                } } }
+        };
+        var stateTwo = new {
+            turnInfo = new { turnNumber = 2, phase = "Phase_Beginning", activePlayer = 2 },
+            gameInfo = new { gameNumber = 1, stage = "GameStage_Play" },
+            annotations = new[] { new { id = 9, type = new[] { "AnnotationType_DamageDealt" },
+                affectedIds = new[] { 40 }, details = new object[0] } }
+        };
+        var greBatch = new { greToClientEvent = new { greToClientMessages = new object[] {
+            new { type = "GREMessageType_GameStateMessage", gameStateMessage = (object)stateOne },
+            new { type = "GREMessageType_GameStateMessage", gameStateMessage = (object)stateTwo }
+        } } };
+        File.WriteAllLines(telemetryLog, new[] {
+            Event(t, "greToClientEvent", greBatch), // outside match: ignore
+            Event(t.AddSeconds(10), "matchGameRoomStateChangedEvent",
+                Match("telemetry-match", "MatchGameRoomStateType_Playing", "self-id")),
+            Event(t.AddSeconds(15), "greToClientEvent", greBatch),
+            Event(t.AddSeconds(16), "greToClientEvent", greBatch), // replay: deduplicate
+            Event(t.AddSeconds(20), "matchGameRoomStateChangedEvent",
+                Match("telemetry-match", "MatchGameRoomStateType_MatchCompleted", "self-id")),
+            Event(t.AddSeconds(21), "greToClientEvent", greBatch) // after match: ignore
+        });
+        using (var tracker = new ArenaMatchTracker(telemetryDb))
+        {
+            tracker.Configure(true, telemetryLog);
+            tracker.Tick();
+            tracker.Tick();
+            Assert(JsonSerializer.Serialize(tracker.Snapshot()).Contains(
+                "\"archivedTelemetryEvents\":2"),
+                "Batched GRE telemetry should be counted exactly once.");
+        }
+        using (var db = new SqliteConnection("Data Source=" + telemetryDb))
+        {
+            db.Open();
+            using var count = db.CreateCommand();
+            count.CommandText = "SELECT COUNT(*), MIN(turn_number), MAX(turn_number) " +
+                "FROM arena_match_telemetry WHERE match_id='telemetry-match'";
+            using (var row = count.ExecuteReader())
+            {
+                Assert(row.Read() && row.GetInt32(0) == 2 &&
+                    row.GetInt32(1) == 1 && row.GetInt32(2) == 2,
+                    "Both GRE messages must be stored, with no duplicates outside match bounds.");
+            }
+            using var payload = db.CreateCommand();
+            payload.CommandText = "SELECT payload_json FROM arena_match_telemetry " +
+                "WHERE turn_number=1";
+            var json = (string?)payload.ExecuteScalar() ?? "";
+            Assert(json.Contains("ZoneType_Hand") && json.Contains("12345") &&
+                json.Contains("AnnotationType_ZoneTransfer") &&
+                !json.Contains("PRIVATE_NAME") &&
+                !json.Contains("PRIVATE_TOKEN") &&
+                !json.Contains("screenName") && !json.Contains("privateNote"),
+                "Persist useful game mechanics without any personally identifying log data.");
+        }
+
         // A real submission without a saved mapping must STILL preserve the
         // Arena ID, allowing a reusable mapping to be created by the user.
         var unknownLog = Path.Combine(local,"unmapped","Player.log");
