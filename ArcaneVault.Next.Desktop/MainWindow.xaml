@@ -257,6 +257,162 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </DataTemplate>
+        <DataTemplate x:Key="CatalogSmallTileRowTemplate">
+            <ItemsControl ItemsSource="{Binding Cards}" HorizontalAlignment="Stretch">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="3,4" Padding="5"
+                                Width="148" HorizontalAlignment="Center"
+                                Height="264" Style="{StaticResource VaultCatalogTileStyle}"
+                                Tag="{Binding}"
+                                PreviewMouseLeftButtonDown="OnCatalogTileMouseDown"
+                                ToolTip="Single-click to inspect; double-click for full details and printings">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" HorizontalAlignment="Center"
+                                        Width="134" Height="187" CornerRadius="9"
+                                        Background="{DynamicResource VaultBackground}"
+                                        BorderBrush="{DynamicResource VaultLine}"
+                                        BorderThickness="1" ClipToBounds="True">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ImageUrl}" Value="">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ImageUrl}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <local:NativeCardArtImage ArtUrl="{Binding ImageUrl}"
+                                                                  Width="130" Height="183"
+                                                                  DecodeWidth="200"/>
+                                        <Button Content="⟳"
+                                                Tag="{Binding}" Width="25" Height="23"
+                                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                Margin="0,0,3,27" Padding="0" FontSize="15" Cursor="Hand"
+                                                Click="OnCatalogTileFaceFlipClicked"
+                                                Background="#E017202E"
+                                                Foreground="{DynamicResource VaultText}"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                                ToolTip="Tap to show alternate card face">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding BackImageUrl}" Value="">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Border VerticalAlignment="Bottom" Height="25"
+                                                Background="#DA10151F">
+                                            <DockPanel Margin="7,0" LastChildFill="True">
+                                                <TextBlock Text="{Binding RarityLabel}"
+                                                           DockPanel.Dock="Left"
+                                                           FontWeight="Bold" FontSize="9"
+                                                           VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground"
+                                                                    Value="{DynamicResource VaultMuted}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Rarity}" Value="uncommon">
+                                                                    <Setter Property="Foreground" Value="#C9D1DD"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Rarity}" Value="rare">
+                                                                    <Setter Property="Foreground" Value="#EDC875"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Rarity}" Value="mythic">
+                                                                    <Setter Property="Foreground" Value="#FFAD79"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding DisplaySetCode}"
+                                                           FontSize="10" TextAlignment="Right"
+                                                           Foreground="White"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Margin="7,0,0,0"/>
+                                            </DockPanel>
+                                        </Border>
+                                        <Button x:Name="CardShortlistStar"
+                                                Content="{Binding ShortlistStar}"
+                                                Tag="{Binding}"
+                                                ToolTip="{Binding ShortlistTooltip}"
+                                                Click="OnCatalogShortlistStarClicked"
+                                                HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                Width="26" Height="26" Margin="0,3,3,0" Padding="0"
+                                                HorizontalContentAlignment="Center"
+                                                VerticalContentAlignment="Center"
+                                                FontSize="18" FontWeight="Bold"
+                                                Background="#E017202E"
+                                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                                Foreground="{DynamicResource VaultWarning}"
+                                                Cursor="Hand"
+                                                ToolTipService.ShowDuration="15000">
+                                            <Button.ContentTemplate>
+                                                <!-- Glyph metrics have uneven optical bounds;
+                                                     center inside the square explicitly instead
+                                                     of using the default button text baseline. -->
+                                                <DataTemplate>
+                                                    <Grid Width="24" Height="24">
+                                                        <TextBlock Text="{Binding}" FontFamily="Segoe UI Symbol"
+                                                                   FontSize="23" FontWeight="Normal"
+                                                                   TextAlignment="Center"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"
+                                                                   LineStackingStrategy="BlockLineHeight"
+                                                                   LineHeight="24">
+                                                            <TextBlock.RenderTransform>
+                                                                <TranslateTransform X="0" Y="-1.5"/>
+                                                            </TextBlock.RenderTransform>
+                                                        </TextBlock>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </Button.ContentTemplate>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                                <StackPanel Grid.Row="1" Margin="5,6,5,0">
+                                    <TextBlock Text="{Binding Name}" FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource VaultText}"
+                                               TextWrapping="Wrap" TextAlignment="Center"
+                                               MaxHeight="30" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding RolesLabel}" FontSize="10.5"
+                                               Foreground="{DynamicResource VaultGood}"
+                                               TextAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding RolesLabel}" Margin="0,2,0,0"/>
+                                    <TextBlock Text="{Binding OwnershipLabel}" FontSize="10.5"
+                                               Foreground="{DynamicResource VaultAccent}"
+                                               TextAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </DataTemplate>
         <ItemsPanelTemplate x:Key="CatalogVirtualPanel">
             <VirtualizingStackPanel/>
         </ItemsPanelTemplate>
@@ -894,15 +1050,28 @@
                     <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
                         <TextBlock Text="CATALOG VIEW" Style="{StaticResource VaultEyebrow}"
                                    VerticalAlignment="Center" Margin="0,0,12,0"/>
-                        <ComboBox x:Name="CatalogViewMode" Width="225" SelectedIndex="2"
+                        <ComboBox x:Name="CatalogViewMode" Width="178" SelectedIndex="0"
                                   SelectionChanged="OnCatalogViewModeChanged"
                                   Background="{DynamicResource VaultPanelRaised}"
                                   Foreground="{DynamicResource VaultText}"
                                   Padding="6,4" Height="32"
-                                  ToolTip="Switch between detailed, dense and tile layouts">
-                            <ComboBoxItem Content="Detailed list"/>
-                            <ComboBoxItem Content="Compact list"/>
-                            <ComboBoxItem Content="Card art"/>
+                                  ToolTip="Choose large card artwork, small card artwork or a text-only list">
+                            <ComboBoxItem Content="Big Art"/>
+                            <ComboBoxItem Content="Small Art"/>
+                            <ComboBoxItem Content="Text Only"/>
+                        </ComboBox>
+                        <TextBlock Text="CARDS / PAGE" Style="{StaticResource VaultEyebrow}"
+                                   VerticalAlignment="Center" Margin="20,0,10,0"/>
+                        <ComboBox x:Name="CatalogPageSizeBox" Width="100" Height="32"
+                                  SelectedIndex="3" Padding="6,4"
+                                  SelectionChanged="OnCatalogPageSizeChanged"
+                                  Background="{DynamicResource VaultPanelRaised}"
+                                  Foreground="{DynamicResource VaultText}"
+                                  ToolTip="Show 25, 50, 100 or 200 cards per page">
+                            <ComboBoxItem Content="25" Tag="25"/>
+                            <ComboBoxItem Content="50" Tag="50"/>
+                            <ComboBoxItem Content="100" Tag="100"/>
+                            <ComboBoxItem Content="200" Tag="200"/>
                         </ComboBox>
                     </StackPanel>
                 </StackPanel>
