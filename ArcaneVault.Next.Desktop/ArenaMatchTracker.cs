@@ -13,6 +13,8 @@ internal sealed class ArenaMatchTracker : IDisposable
     private readonly object gate = new();
     private readonly Dictionary<string, long> offsets = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SessionMatch> sessions = new(StringComparer.Ordinal);
+    private string? activeTelemetryMatchId;
+    private int archivedTelemetryEvents;
     private string? selectedLog;
     private bool enabled;
     private string? authenticatedId;
@@ -63,6 +65,7 @@ internal sealed class ArenaMatchTracker : IDisposable
                 selectedLog = full;
             }
             if (enable && !enabled) offsets.Clear();
+            if (!enable) activeTelemetryMatchId = null;
             enabled = enable;
             error = null;
         }
@@ -173,7 +176,7 @@ internal sealed class ArenaMatchTracker : IDisposable
     {
         lock (gate)
             return new { enabled, path = selectedLog, error, lastScan, processedEvents, skippedEvents,
-                currentDeckName, currentDeckVersion, userChoseActiveDeck, history = history.Snapshot(),
+                currentDeckName, currentDeckVersion, userChoseActiveDeck, archivedTelemetryEvents, history = history.Snapshot(),
                 note = "When Arena logs include deck IDs or a recent explicit deck selection, decks are assigned automatically. Otherwise choose a deck manually." };
     }
     public bool Correct(string matchId, string? result, string? deck, string? version, string? note) =>
@@ -214,6 +217,7 @@ internal sealed class ArenaMatchTracker : IDisposable
                 // contained the event name. Keep a short, bounded pending
                 // header and reset it on the next unrelated event.
                 bool hasRoom = line.Contains("matchGameRoomStateChangedEvent", StringComparison.OrdinalIgnoreCase);
+                bool hasGre = line.Contains("greToClientEvent", StringComparison.OrdinalIgnoreCase);
                 bool hasSet = line.Contains("EventSetDeckV", StringComparison.OrdinalIgnoreCase);
                 bool hasCourse = line.Contains("CourseDeck", StringComparison.OrdinalIgnoreCase);
                 bool hasAuth = line.Contains("authenticateResponse", StringComparison.OrdinalIgnoreCase);
@@ -222,8 +226,8 @@ internal sealed class ArenaMatchTracker : IDisposable
                 bool hasRank = line.Contains("RankGetCombinedRankInfo", StringComparison.OrdinalIgnoreCase) ||
                     (line.Contains("\"constructedLevel\"", StringComparison.OrdinalIgnoreCase) &&
                      line.Contains("\"limitedLevel\"", StringComparison.OrdinalIgnoreCase));
-                bool relevant = hasRoom || hasSet || hasCourse || hasAuth || hasQueue || hasRank;
-                string detected = hasRank ? "rank_response" : hasQueue ? "queue_join" :
+                bool relevant = hasRoom || hasGre || hasSet || hasCourse || hasAuth || hasQueue || hasRank;
+                string detected = hasGre ? "gre_telemetry" : hasRank ? "rank_response" : hasQueue ? "queue_join" :
                     hasSet ? "deck_submission" :
                     line.Contains("==> CourseDeck", StringComparison.OrdinalIgnoreCase) ||
                     line.Contains("\"CourseDeck\"", StringComparison.OrdinalIgnoreCase)
@@ -342,6 +346,21 @@ internal sealed class ArenaMatchTracker : IDisposable
     private void ParseEvent(JsonElement root, DateTimeOffset? timestamp, string source,
         string eventLabel = "")
     {
+        if (eventLabel == "gre_telemetry")
+        {
+            // GRE envelopes usually omit matchId; attach only to a match
+            // explicitly opened by a room Playing event. No seat/name/last
+            // deck heuristic may establish this correlation.
+            if (activeTelemetryMatchId is { Length: > 0 } match)
+            {
+                var observed = ArenaMatchTelemetry.Extract(root, match);
+                if (observed.Count > 0)
+                    archivedTelemetryEvents += history.AddTelemetry(observed,
+                        timestamp ?? DateTimeOffset.UtcNow);
+            }
+            return;
+        }
+
         if (eventLabel == "rank_response")
         {
             var observed = ArenaRankInfo.TryRead(root, eventLabel);
@@ -503,6 +522,9 @@ internal sealed class ArenaMatchTracker : IDisposable
             info.Format = recentQueueId;
         if (state == "MatchGameRoomStateType_Playing")
         {
+            // An explicit new Playing room is the only safe point to begin
+            // associating otherwise anonymous GRE game state with a match.
+            activeTelemetryMatchId = idMatch;
             info.Started ??= timestamp;
             if (info.DeckName.Length == 0 && !userChoseActiveDeck &&
                 latestLogDeckSelection.HasValue && timestamp.HasValue &&
@@ -548,6 +570,8 @@ internal sealed class ArenaMatchTracker : IDisposable
         if (!inserted && info.DeckId.Length > 0)
             history.EnrichUnassignedMatch(idMatch, info.DeckId, info.NativeDeckId,
                 info.DeckName, info.DeckVersion, note);
+        if (string.Equals(activeTelemetryMatchId, idMatch, StringComparison.Ordinal))
+            activeTelemetryMatchId = null;
         sessions.Remove(idMatch);
         if (sessions.Count > 300) sessions.Clear();
     }
