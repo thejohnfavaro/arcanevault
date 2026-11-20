@@ -145,6 +145,20 @@
                                 Click="OnAdjustPhysicalClicked" IsEnabled="False"
                                 Style="{StaticResource VaultDangerButton}"
                                 Padding="14,9" Margin="0,0,12,0"/>
+                        <TextBlock Text="Copies per selected printing:"
+                                   Foreground="{DynamicResource VaultMuted}"
+                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox x:Name="PhysicalToProxyCopiesBox" Width="54" Height="36"
+                                 Text="1" MaxLength="5" Padding="8,6"
+                                 Background="{DynamicResource VaultPanel}"
+                                 Foreground="{DynamicResource VaultText}"
+                                 BorderBrush="{DynamicResource VaultEdgeLift}"
+                                 ToolTip="Number of owned copies to transfer from each selected printing"/>
+                        <Button x:Name="MovePhysicalToProxyButton" Content="Move selected to Proxy"
+                                Click="OnMovePhysicalToProxyClicked" IsEnabled="False"
+                                Style="{StaticResource VaultPrimaryButton}"
+                                Padding="14,9" Margin="8,0,12,0"
+                                ToolTip="Ctrl/Shift-select one or more confirmed physical printing rows. Moves the entered quantity from each row into the unpriced proxy ledger."/>
                         <Button x:Name="ImportExcelButton" Content="Import CSV / Excel"
                                 Click="OnImportExcelClicked" IsEnabled="False"
                                 Style="{StaticResource VaultPrimaryButton}"
@@ -205,7 +219,7 @@
                                    Foreground="{DynamicResource VaultMuted}"
                                    VerticalAlignment="Center" FontSize="11"/>
                     </WrapPanel>
-                <ListView Grid.Row="3" x:Name="PhysicalList" MouseDoubleClick="OnCardRowDoubleClick"
+                <ListView Grid.Row="3" x:Name="PhysicalList" SelectionMode="Extended" MouseDoubleClick="OnCardRowDoubleClick"
                           Background="{DynamicResource VaultPanel}" Foreground="{DynamicResource VaultText}"
                           AlternationCount="2"
                           VirtualizingStackPanel.IsVirtualizing="True"
