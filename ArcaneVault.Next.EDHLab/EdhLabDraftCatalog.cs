@@ -292,8 +292,25 @@ public sealed class EdhLabDraftCatalog
         return matches.Take(limit).ToArray();
     }
 
-    public bool Contains(string name) => eligibleByName.ContainsKey(name);
+    // Legacy saved decklists sometimes retain the MTG Arena export suffix
+    // "(SET) 123" as part of a card name. Match catalog identity using the
+    // base name only; the underlying saved text and printing stay untouched.
+    // Exact name matches always take precedence, and malformed suffixes are
+    // never treated as printing identities.
+    private static readonly System.Text.RegularExpressions.Regex ArenaPrintingSuffix =
+        new(@"^(?<name>.+?)\s+\([a-zA-Z0-9]{2,8}\)\s+[0-9]{1,6}[a-zA-Z]?$",
+            System.Text.RegularExpressions.RegexOptions.Compiled |
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
-    public Card? Find(string name) =>
-        eligibleByName.TryGetValue(name, out var card) ? card : null;
+    public Card? Find(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        if (eligibleByName.TryGetValue(name, out var exact)) return exact;
+        var match = ArenaPrintingSuffix.Match(name);
+        return match.Success &&
+            eligibleByName.TryGetValue(match.Groups["name"].Value.Trim(), out var card)
+                ? card : null;
+    }
+
+    public bool Contains(string name) => Find(name) is not null;
 }
