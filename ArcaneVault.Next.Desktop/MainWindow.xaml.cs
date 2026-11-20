@@ -2988,6 +2988,9 @@ public partial class MainWindow : Window
         var ownership = catalogOwnership;
         var active = catalogSnapshot;
         var version = modeVersion;
+        // WPF selectors are UI-thread-affine. Snapshot the chosen page size
+        // before passing any query into Task.Run, including synthetic mode.
+        int pageSize = CatalogPageSize;
         try
         {
             if (debounce) await Task.Delay(140, token);
@@ -3007,25 +3010,25 @@ public partial class MainWindow : Window
                     c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     c.SetCode.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     c.CollectorNumber.Contains(filter, StringComparison.OrdinalIgnoreCase))
-                    .Skip(checked(catalogPageIndex * CatalogPageSize))
-                    .Take(CatalogPageSize + 1).ToArray(), token);
+                    .Skip(checked(catalogPageIndex * pageSize))
+                    .Take(pageSize + 1).ToArray(), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
-                bool more = list.Length > CatalogPageSize;
-                SetCatalogResults(list.Take(CatalogPageSize).Cast<object>());
-                SetCatalogPageState(Math.Min(list.Length, CatalogPageSize), more);
+                bool more = list.Length > pageSize;
+                SetCatalogResults(list.Take(pageSize).Cast<object>());
+                SetCatalogPageState(Math.Min(list.Length, pageSize), more);
                 FilterStatus.Text = $"Synthetic catalog · Page {catalogPageIndex + 1:N0} · {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F1} ms";
             }
             else
             {
                 var cacheKey = new CatalogCacheKey(active, ownership,
-                    filter, filters, catalogPageIndex, CatalogPageSize);
+                    filter, filters, catalogPageIndex, pageSize);
                 bool cached = TryGetCachedCatalogPage(cacheKey, out var results);
                 if (!cached)
                     results = await Task.Run(() =>
-                        active.SearchFiltered(filter, filters, limit: CatalogPageSize, cancellationToken: token,
+                        active.SearchFiltered(filter, filters, limit: pageSize, cancellationToken: token,
                             ownership: ownership,
-                            offset: checked(catalogPageIndex * CatalogPageSize)), token);
+                            offset: checked(catalogPageIndex * pageSize)), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
                 if (!cached) RememberCatalogPage(cacheKey, results);
