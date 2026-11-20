@@ -158,8 +158,10 @@ public static class NativeDeckOwnedPicker
             name.Any(char.IsControl))
             throw new ArgumentException("Invalid selected card name.", nameof(name));
         var entries = NativeDeckEditing.ParseMainboard(mainboard);
+        string identity = ArenaDeckCardName.Identity(name);
         var current = entries.FirstOrDefault(e =>
-            e.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            ArenaDeckCardName.Identity(e.Name).Equals(identity,
+                StringComparison.OrdinalIgnoreCase));
         if (current is not null && current.Quantity >= 250)
             throw new InvalidDataException("This card is already at the editor's per-card limit.");
         if (entries.Sum(e => e.Quantity) >= 1_000)
@@ -167,7 +169,7 @@ public static class NativeDeckOwnedPicker
         if (current is null && entries.Count >= 500)
             throw new InvalidDataException("The deck editor supports at most 500 distinct cards.");
         var lines = entries.Select(e =>
-            (e.Name.Equals(name, StringComparison.OrdinalIgnoreCase)
+            (current is not null && e.Name.Equals(current.Name, StringComparison.OrdinalIgnoreCase)
                 ? e.Quantity + 1 : e.Quantity) + " " + e.Name).ToList();
         if (current is null) lines.Add("1 " + name.Trim());
         return string.Join("\n", lines);
