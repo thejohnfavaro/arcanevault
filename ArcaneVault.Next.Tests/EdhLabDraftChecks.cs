@@ -136,6 +136,30 @@ internal static class EdhLabDraftChecks
         var arena = EdhLabDraftCatalog.OpenReadOnly(catalog, ownership,
             "Selected Leader", "WU", EdhLabFormat.ArenaBrawl);
 
+        // Regression: older Arena-deck saves can retain "(SET) collector#"
+        // inside a mainboard name. The UI must resolve catalog identity for
+        // grouping without modifying saved names, counts or printing metadata.
+        var annotated = NativeDeckEditing.ParseMainboard(
+            "1 Arcane Signet (ANB) 117\\n4 Island (TMT) 316\\n1 Lightning Bolt (M11) 149");
+        Must(paper.Find("Arcane Signet (ANB) 117")?.Name == "Arcane Signet" &&
+             paper.Contains("Island (TMT) 316") &&
+             paper.Find("Lightning Bolt (M11) 149") is null &&
+             paper.Find("Arcane Signet (ANB)") is null,
+             "Arena annotation fallback must resolve only eligible exact card identities.");
+        var annotatedRows = EdhLabMainboardView.Build(paper,
+            annotated.Select(x => (x.Name, x.Quantity)).ToArray());
+        Must(annotatedRows.Any(x => !x.IsHeader &&
+                x.Name == "Arcane Signet (ANB) 117" &&
+                x.Category == "Artifacts" && x.IsVerified) &&
+             annotatedRows.Any(x => !x.IsHeader &&
+                x.Name == "Island (TMT) 316" &&
+                x.Category == "Lands" && x.Quantity == 4 && x.IsVerified) &&
+             annotatedRows.Any(x => !x.IsHeader &&
+                x.Name == "Lightning Bolt (M11) 149" &&
+                x.Category == "Unverified" && !x.IsVerified) &&
+             annotated.Sum(x => x.Quantity) == 6,
+             "Arena annotations must not turn legal cards unverified or alter saved entry text.");
+
         // v0.9.73: Visual mainboard grouping uses the plain-text entries,
         // preserves every original name/count, and never hides unknown cards.
         var managedEntries = NativeDeckEditing.ParseMainboard(
