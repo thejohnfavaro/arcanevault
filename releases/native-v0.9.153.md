@@ -10,6 +10,7 @@
 - The entire transfer is verified and committed as one native workspace update, with one complete pre-change recovery point.
 
 ## Fixed
+- EDH Lab mainboard now recognizes saved cards with MTG Arena printing annotations (such as `Arcane Signet (ANB) 117`) by catalog card name, instead of classifying an entire imported deck as Unverified. Original saved labels and quantities are preserved.
 - Physical set progress and collection value no longer mistakenly include cards deliberately transferred to Proxy. Saved decks, Arena inventory, match history and original printing metadata of remaining owned copies are preserved.
 
 ## Removed
