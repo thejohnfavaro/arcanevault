@@ -45,6 +45,34 @@ internal static class NativeDeckOwnedPickerChecks
              NativeDeckOwnedPicker.CountOwned(owned, NativeDeckOwnedPicker.Pool.Physical,
                  "Unowned Card") == 0,
              "Mainboard preview must count exact card-name copies in the selected pool, including unowned names outside the picker.");
+        // Regression: original saved Arena printing suffixes must not hide
+        // owned copies or fabricate shortages; neither inventory is modified.
+        Must(ArenaDeckCardName.Identity("Sol Ring (CMM) 401") == "Sol Ring" &&
+             ArenaDeckCardName.Identity("Arcane Signet (ANB) 117") == "Arcane Signet" &&
+             ArenaDeckCardName.Identity("Sol Ring") == "Sol Ring" &&
+             ArenaDeckCardName.Identity("Sol Ring (CMM)") == "Sol Ring (CMM)",
+             "Only complete Arena printing annotations should normalize.");
+        Must(NativeDeckOwnedPicker.CountOwned(owned,
+                NativeDeckOwnedPicker.Pool.Physical, "Sol Ring (CMM) 401") == 5 &&
+             NativeDeckOwnedPicker.CountOwned(owned,
+                NativeDeckOwnedPicker.Pool.Arena, "Sol Ring (CMM) 401") == 1,
+             "Arena-annotated saved deck entries must resolve their exact owned card-name totals.");
+        var annotatedArena = NativeDeckOwnedPicker.Review(owned,
+            NativeDeckOwnedPicker.Pool.Arena,
+            "1 Sol Ring (CMM) 401\n2 Arena Exclusive (TST) 88",
+            "", "Arena Brawl");
+        Must(annotatedArena.MissingCopies == 0 &&
+             annotatedArena.CoveredCopies == 3 &&
+             annotatedArena.MainboardCopies == 3,
+             "Arena printing annotations must not cause false W/L-independent missing-card counts.");
+        var annotatedProxy = NativeDeckOwnedPicker.Review(owned,
+            NativeDeckOwnedPicker.Pool.Physical, "2 Proxy Sample (TST) 10",
+            "", "Commander",
+            new[] { new NativeProxyEditing.ProxyRow("Proxy Sample", 2) });
+        Must(annotatedProxy.MissingCopies == 0 &&
+             annotatedProxy.ProxyCoveredCopies == 2,
+             "Legacy annotated deck names must also find separately declared paper proxies.");
+
         Must(NativeDeckOwnedPicker.Search(owned, NativeDeckOwnedPicker.Pool.Arena, "")
             .All(x => x.Name != "Unused"), "Zero-count cards must not appear.");
         Must(NativeDeckOwnedPicker.Search(owned, NativeDeckOwnedPicker.Pool.Physical, "forest")
