@@ -594,6 +594,19 @@ internal static class NativeVisualShellChecks
         // manager rows only, with official CDN/cache and offscreen cancellation.
         string mainboardArtworkCode = File.ReadAllText(Path.Combine(
             dir, "NativeDeckEditorWindow.MainboardArtwork.cs"));
+        // Annotated Arena deck entries have a separate thumbnail lookup path
+        // from the full-size preview. Both editor surfaces must resolve card
+        // identity before querying catalog details or Arena-only printings.
+        string embeddedMainboardArtworkCode = File.ReadAllText(Path.Combine(
+            dir, "NativeDeckEditorView.MainboardArtwork.cs"));
+        foreach (string thumbnailSource in new[] {
+            mainboardArtworkCode, embeddedMainboardArtworkCode })
+            Must(thumbnailSource.Contains("ArenaDeckCardName.Identity(name)") &&
+                 thumbnailSource.Contains("ReadDetails(catalogPath!, identity)") &&
+                 thumbnailSource.Contains("NativePrintingArtwork.Read(catalogPath!, identity,") &&
+                 !thumbnailSource.Contains("ReadDetails(catalogPath!, name)") &&
+                 !thumbnailSource.Contains("NativePrintingArtwork.Read(catalogPath!, name,"),
+                 "EDH mainboard thumbnail loader must normalize Arena printing annotations in both editors.");
         var managerListElement = NamedEditor("MainboardManagerList");
         Must(managerListElement.Attribute(
                 XName.Get("IsVirtualizing", "http://schemas.microsoft.com/winfx/2006/xaml/presentation"))?.Value == "True" ||
