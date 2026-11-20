@@ -77,6 +77,13 @@ internal static class NativeDeckOwnedPickerChecks
             .All(x => x.Name != "Unused"), "Zero-count cards must not appear.");
         Must(NativeDeckOwnedPicker.Search(owned, NativeDeckOwnedPicker.Pool.Physical, "forest")
             .Single().Owned == 10, "Case-insensitive search failed.");
+        Must(NativeDeckOwnedPicker.AddIfAbsent(
+                "1 Sol Ring (CMM) 401", "Sol Ring") ==
+                "1 Sol Ring (CMM) 401" &&
+             NativeDeckOwnedPicker.AddOne(
+                "1 Sol Ring (CMM) 401", "Sol Ring") ==
+                "2 Sol Ring (CMM) 401",
+             "Arena-annotated existing deck entries must not be duplicated by quick add or manual add.");
         Must(NativeDeckOwnedPicker.AddOne("", "Sol Ring") == "1 Sol Ring",
             "New draft card was not appended.");
         Must(NativeDeckOwnedPicker.AddOne("2 Sol Ring\n1 Island", "sol ring") ==
