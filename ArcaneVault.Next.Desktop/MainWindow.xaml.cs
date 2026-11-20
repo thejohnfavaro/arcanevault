@@ -57,14 +57,17 @@ public partial class MainWindow : Window
     private readonly HashSet<string> bookmarkedCatalogNames = new(StringComparer.OrdinalIgnoreCase);
     private bool shortlistStarBusy;
     private int activeTileColumns;
-    private const int CatalogPageSize = 200;
+    private const int MaximumCatalogPageSize = 200;
+    private int CatalogPageSize => CatalogPageSizeBox?.SelectedItem is ComboBoxItem { Tag: string tag } &&
+        int.TryParse(tag, out int size) && size is 25 or 50 or 100 or 200
+            ? size : MaximumCatalogPageSize;
     private int catalogPageIndex;
     private bool catalogPageMayHaveMore;
     private bool catalogPageBusy;
     private bool catalogPagingMove;
     private sealed record CatalogCacheKey(CatalogSnapshot Snapshot,
         NativeCatalogOwnership? Ownership, string Search,
-        CatalogSnapshot.SearchOptions Filters, int Page);
+        CatalogSnapshot.SearchOptions Filters, int Page, int PageSize);
     private readonly LinkedList<(CatalogCacheKey Key, CatalogSnapshot.SearchResult Data)>
         catalogPageCache = new();
     private CancellationTokenSource? catalogArtworkPrefetch;
@@ -175,7 +178,7 @@ public partial class MainWindow : Window
     }
 
     private CatalogSnapshot.PrintingRow? SelectedCatalogPrinting()
-        => CatalogViewMode.SelectedIndex == 2
+        => CatalogViewMode.SelectedIndex != 2
             ? selectedTilePrinting
             : CardsList.SelectedItem as CatalogSnapshot.PrintingRow;
 
@@ -198,12 +201,13 @@ public partial class MainWindow : Window
     private void ApplyCatalogLayout()
     {
         if (CardsList is null || CatalogViewMode is null) return;
-        if (CatalogViewMode.SelectedIndex != 2)
+        if (CatalogViewMode.SelectedIndex == 2)
         {
             CardsList.ItemsSource = catalogFlatCards;
             return;
         }
-        int columns = CatalogTileLayout.ColumnsForWidth(CardsList.ActualWidth);
+        int columns = CatalogTileLayout.ColumnsForWidth(CardsList.ActualWidth,
+            smallArt: CatalogViewMode.SelectedIndex == 1);
         if (columns == activeTileColumns &&
             CardsList.ItemsSource is IReadOnlyList<CatalogTileRow>) return;
         activeTileColumns = columns;
@@ -212,8 +216,9 @@ public partial class MainWindow : Window
 
     private void OnCatalogListSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (CatalogViewMode?.SelectedIndex == 2 &&
-            CatalogTileLayout.ColumnsForWidth(e.NewSize.Width) != activeTileColumns)
+        if (CatalogViewMode?.SelectedIndex is 0 or 1 &&
+            CatalogTileLayout.ColumnsForWidth(e.NewSize.Width,
+                smallArt: CatalogViewMode.SelectedIndex == 1) != activeTileColumns)
             ApplyCatalogLayout();
     }
 
@@ -2424,7 +2429,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnCatalogCardRowDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (CatalogViewMode.SelectedIndex == 2 ||
+        if (CatalogViewMode.SelectedIndex != 2 ||
             sender is not ListView list ||
             NativeCardRowActivation.SelectClickedRow(list, e.OriginalSource) is not
                 CatalogSnapshot.PrintingRow card) return;
@@ -2494,19 +2499,30 @@ public partial class MainWindow : Window
         CardsList.ItemsPanel = catalogDetailedPanel;
         CardsList.ItemTemplate = mode switch
         {
-            1 => (DataTemplate)FindResource("CatalogCompactTemplate"),
-            2 => (DataTemplate)FindResource("CatalogTileRowTemplate"),
-            _ => catalogDetailedTemplate
+            0 => (DataTemplate)FindResource("CatalogTileRowTemplate"),
+            1 => (DataTemplate)FindResource("CatalogSmallTileRowTemplate"),
+            _ => (DataTemplate)FindResource("CatalogCompactTemplate")
         };
         CatalogColumnHeaders.Visibility = mode == 2
-            ? Visibility.Collapsed : Visibility.Visible;
+            ? Visibility.Visible : Visibility.Collapsed;
         activeTileColumns = 0;
         ApplyCatalogLayout();
-        if (mode != 2 && previouslySelected is not null)
+        if (mode == 2 && previouslySelected is not null)
             CardsList.SelectedItem = previouslySelected;
-        else if (mode == 2)
+        else if (mode != 2)
             selectedTilePrinting = previouslySelected;
         // Cached Scryfall artwork controls exist only in the visible tile rows.
+    }
+
+    private void OnCatalogPageSizeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (CardsList is null || SearchBox is null || catalogSnapshot is null &&
+            !syntheticMode || closing) return;
+        // Page size affects offsets, cached pages and selection. Start on page
+        // one rather than showing a partial/incorrectly offset previous page.
+        catalogPageIndex = 0;
+        InvalidateCatalogPageCache();
+        _ = FilterAsync(debounce: false);
     }
 
     private void CancelPendingSearch()
@@ -3003,18 +3019,19 @@ public partial class MainWindow : Window
             else
             {
                 var cacheKey = new CatalogCacheKey(active, ownership,
-                    filter, filters, catalogPageIndex);
+                    filter, filters, catalogPageIndex, CatalogPageSize);
                 bool cached = TryGetCachedCatalogPage(cacheKey, out var results);
                 if (!cached)
                     results = await Task.Run(() =>
-                        active.SearchFiltered(filter, filters, cancellationToken: token,
+                        active.SearchFiltered(filter, filters, limit: CatalogPageSize, cancellationToken: token,
                             ownership: ownership,
                             offset: checked(catalogPageIndex * CatalogPageSize)), token);
                 token.ThrowIfCancellationRequested();
                 if (closing || version != modeVersion || !ReferenceEquals(searchCancellation, cts)) return;
                 if (!cached) RememberCatalogPage(cacheKey, results);
                 SetCatalogResults(results.Rows.Cast<object>());
-                PrefetchCatalogPageArtwork(results.Rows);
+                if (CatalogViewMode.SelectedIndex != 2)
+                    PrefetchCatalogPageArtwork(results.Rows);
                 SetCatalogPageState(results.Rows.Count, results.MayHaveMore);
                 FilterStatus.Text = $"{results.Rows.Count:N0} printings on page {catalogPageIndex + 1:N0} · SQL {results.SqlMilliseconds:F1} ms" +
                     (results.MayHaveMore ? " · More catalog pages available" : " · Last page") +
