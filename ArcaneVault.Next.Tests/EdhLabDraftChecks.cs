@@ -140,7 +140,7 @@ internal static class EdhLabDraftChecks
         // inside a mainboard name. The UI must resolve catalog identity for
         // grouping without modifying saved names, counts or printing metadata.
         var annotated = NativeDeckEditing.ParseMainboard(
-            "1 Arcane Signet (ANB) 117\\n4 Island (TMT) 316\\n1 Lightning Bolt (M11) 149");
+            "1 Arcane Signet (ANB) 117\n4 Island (TMT) 316\n1 Lightning Bolt (M11) 149");
         Must(paper.Find("Arcane Signet (ANB) 117")?.Name == "Arcane Signet" &&
              paper.Contains("Island (TMT) 316") &&
              paper.Find("Lightning Bolt (M11) 149") is null &&
