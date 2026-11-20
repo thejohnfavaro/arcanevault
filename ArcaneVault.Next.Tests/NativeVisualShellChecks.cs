@@ -849,6 +849,8 @@ internal static class NativeVisualShellChecks
                     Path.Combine(dir, "NativeCollectionWorkspace.DeckInspector.cs"));
                 code += "\n" + File.ReadAllText(
                     Path.Combine(dir, "NativeCollectionWorkspace.Proxies.cs"));
+                code += "\n" + File.ReadAllText(
+                    Path.Combine(dir, "NativeCollectionWorkspace.PhysicalProxyTransfer.cs"));
             }
             if (name == "NativeDeckEditorWindow" ||
                 name == "NativeDeckEditorView")
