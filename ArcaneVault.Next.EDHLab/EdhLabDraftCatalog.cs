@@ -68,7 +68,8 @@ public sealed class EdhLabDraftCatalog
     public int RecordedEligibleCount => recordedEligibleCount;
     public int SynergyEligibleCount => synergyByName.Values.Count(x => x.Matches);
     public EdhLabSynergyAdvisor.Fit? SynergyFor(string name) =>
-        synergyByName.TryGetValue(name, out var fit) ? fit : null;
+        Find(name) is { } card && synergyByName.TryGetValue(card.Name, out var fit)
+            ? fit : null;
 
     private static IReadOnlyList<string> Roles(string type, string oracle)
     {
@@ -156,13 +157,17 @@ public sealed class EdhLabDraftCatalog
         {
             foreach (var x in inventory.PhysicalCards)
                 if (x.Quantity > 0 && !string.IsNullOrWhiteSpace(x.Name))
-                    counts[x.Name] = checked(counts.GetValueOrDefault(x.Name) + x.Quantity);
+                    counts[ArenaDeckCardName.Identity(x.Name)] = checked(
+                        counts.GetValueOrDefault(ArenaDeckCardName.Identity(x.Name)) +
+                        x.Quantity);
         }
         else
         {
             foreach (var x in inventory.ArenaCards)
                 if (x.Quantity > 0 && !string.IsNullOrWhiteSpace(x.Name))
-                    counts[x.Name] = checked(counts.GetValueOrDefault(x.Name) + x.Quantity);
+                    counts[ArenaDeckCardName.Identity(x.Name)] = checked(
+                        counts.GetValueOrDefault(ArenaDeckCardName.Identity(x.Name)) +
+                        x.Quantity);
         }
 
         using var db = new SqliteConnection(new SqliteConnectionStringBuilder
