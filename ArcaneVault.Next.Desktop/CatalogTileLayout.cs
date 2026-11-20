@@ -18,6 +18,7 @@ public static class CatalogTileLayout
     // Reserve space for the vertical scroll bar and ListView chrome so the
     // final card is never clipped when a scroll bar appears.
     public const int TileWidth = 218;
+    public const int SmallTileWidth = 148;
     public const int TileMarginEachSide = 3;
     public const int SlotWidth = TileWidth + TileMarginEachSide * 2;
     public const int ViewportReserve = 24;
@@ -25,12 +26,13 @@ public static class CatalogTileLayout
     // Keep a bound on the number of art controls in a visible virtualized row.
     public const int MaximumColumns = 16;
 
-    public static int ColumnsForWidth(double availableWidth)
+    public static int ColumnsForWidth(double availableWidth, bool smallArt = false)
     {
         if (double.IsNaN(availableWidth) || double.IsInfinity(availableWidth) ||
             availableWidth <= 0) return 2;
+        int slot = (smallArt ? SmallTileWidth : TileWidth) + TileMarginEachSide * 2;
         return Math.Clamp((int)Math.Floor(
-            (availableWidth - ViewportReserve) / SlotWidth), 1, MaximumColumns);
+            (availableWidth - ViewportReserve) / slot), 1, MaximumColumns);
     }
 
     public static IReadOnlyList<CatalogTileRow> BuildRows(
