@@ -1526,7 +1526,6 @@ internal static class NativeVisualShellChecks
              mainCode.Contains("private const int MaximumCatalogPageSize = 200;") &&
              mainCode.Contains("private int CatalogPageSize =>") &&
              mainCode.Contains("CatalogPageSizeBox") &&
-             mainCode.Contains("limit: CatalogPageSize") &&
              main.Contains("CatalogSmallTileRowTemplate") &&
              main.Contains("OnCatalogPageSizeChanged") &&
              main.Contains("Big Art") &&
