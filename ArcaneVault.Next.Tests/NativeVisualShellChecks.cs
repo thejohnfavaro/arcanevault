@@ -1532,7 +1532,11 @@ internal static class NativeVisualShellChecks
              main.Contains("Big Art") &&
              main.Contains("Small Art") &&
              main.Contains("Text Only") &&
-             mainCode.Contains("offset: checked(catalogPageIndex * CatalogPageSize)") &&
+             mainCode.Contains("int pageSize = CatalogPageSize;") &&
+             mainCode.Contains("offset: checked(catalogPageIndex * pageSize)") &&
+             mainCode.Contains("limit: pageSize, cancellationToken: token") &&
+             mainCode.Contains("filter, filters, catalogPageIndex, pageSize") &&
+             !mainCode.Contains("limit: CatalogPageSize, cancellationToken: token") &&
              mainCode.Contains("FilterAsync(debounce: false, resetPage: false)") &&
              mainCode.Contains("if (resetPage) catalogPageIndex = 0;") &&
              mainCode.Contains("SetCatalogPageState(results.Rows.Count, results.MayHaveMore)") &&
