@@ -355,8 +355,20 @@ internal sealed class ArenaMatchTracker : IDisposable
             {
                 var observed = ArenaMatchTelemetry.Extract(root, match);
                 if (observed.Count > 0)
-                    archivedTelemetryEvents += history.AddTelemetry(observed,
-                        timestamp ?? DateTimeOffset.UtcNow);
+                {
+                    try
+                    {
+                        archivedTelemetryEvents += history.AddTelemetry(observed,
+                            timestamp ?? DateTimeOffset.UtcNow);
+                    }
+                    catch (Exception ex) when (ex is Microsoft.Data.Sqlite.SqliteException
+                        or IOException or UnauthorizedAccessException)
+                    {
+                        // Telemetry is optional: it must never interrupt
+                        // existing W/L detection or change a verified result.
+                        error = "Optional game telemetry unavailable: " + ex.Message;
+                    }
+                }
             }
             return;
         }
