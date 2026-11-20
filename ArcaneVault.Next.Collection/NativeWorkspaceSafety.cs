@@ -851,6 +851,31 @@ public static class NativeWorkspaceSafety
         }
     }
 
+    /// <summary>
+    /// Transfer selected, exactly verified physical printing copies into the
+    /// non-valued proxy ledger using one SHA-guarded native workspace commit.
+    /// The regular complete pre-change rollback includes both inventories.
+    /// </summary>
+    public static Replacement TransferPhysicalToProxy(string nativePath,
+        string catalogPath, IReadOnlyList<NativePhysicalProxyTransfer.Move> moves,
+        string expectedCurrentBackupSha, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nativePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        ArgumentNullException.ThrowIfNull(moves);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] updated = NativePhysicalProxyTransfer.Apply(
+                ReadPreservedBackup(path), catalogPath, moves);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, updated, "native-paper-to-proxy-transfer",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
     public static Replacement SetPhysicalQuantity(string nativePath,
         int physicalOrdinal, NativePhysicalRow expectedRow, int newQuantity,
         string expectedCurrentBackupSha, CancellationToken cancellation = default)
