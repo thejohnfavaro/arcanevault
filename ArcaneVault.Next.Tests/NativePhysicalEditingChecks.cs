@@ -171,6 +171,52 @@ internal static class NativePhysicalEditingChecks
                  "Native editing discarded unknown backup fields or ownership metadata.");
         }
 
+
+        // Physical -> Proxy transfers are multi-row, printing-exact, additive
+        // to existing proxies, and committed with exactly ONE recovery point.
+        var transferPath = Path.Combine(work, "physical-to-proxy-workspace.sqlite");
+        var transferBase = NativeWorkspaceSafety.StartFresh(transferPath);
+        var transferA = NativeWorkspaceSafety.AddVerifiedPhysical(transferPath,
+            catalog, a, 4, "nonfoil", transferBase.Current.BackupSha256);
+        var transferB = NativeWorkspaceSafety.AddVerifiedPhysical(transferPath,
+            catalog, b, 3, "foil", transferA.Current.BackupSha256);
+        var transferProxy = NativeWorkspaceSafety.SetProxyQuantity(transferPath,
+            "Proof% Card", 2, transferB.Current.BackupSha256);
+        var pre = transferProxy.Current.Collection;
+        var requests = new[] {
+            new NativePhysicalProxyTransfer.Move(0, pre.PhysicalCards[0], 2),
+            new NativePhysicalProxyTransfer.Move(1, pre.PhysicalCards[1], 3)
+        };
+        int recoveriesBefore = NativeWorkspaceSafety.RecoveryPaths(transferPath).Count;
+        var moved = NativeWorkspaceSafety.TransferPhysicalToProxy(transferPath,
+            catalog, requests, transferProxy.Current.BackupSha256);
+        Must(moved.Current.Collection.PhysicalCopies == 2 &&
+             moved.Current.Collection.PhysicalCards.Count == 1 &&
+             moved.Current.Collection.PhysicalCards[0].Quantity == 2 &&
+             moved.Current.Collection.PhysicalCards[0].ScryfallId == a.ToString("D") &&
+             NativeWorkspaceSafety.ListProxies(transferPath).Single().Quantity == 7 &&
+             moved.Current.Collection.ArenaCopies == pre.ArenaCopies &&
+             NativeWorkspaceSafety.RecoveryPaths(transferPath).Count == recoveriesBefore + 1 &&
+             NativeWorkspace.Open(moved.RecoveryPath).Collection.PhysicalCopies == 7,
+             "Atomic multi-printing transfer must conserve exact quantities and preserve rollback.");
+        var savedSha = moved.Current.BackupSha256;
+        var savedRecoveryCount = NativeWorkspaceSafety.RecoveryPaths(transferPath).Count;
+        Reject(() => NativeWorkspaceSafety.TransferPhysicalToProxy(transferPath,
+            catalog, requests, transferProxy.Current.BackupSha256));
+        Reject(() => NativeWorkspaceSafety.TransferPhysicalToProxy(transferPath,
+            catalog, new[] { new NativePhysicalProxyTransfer.Move(0,
+                moved.Current.Collection.PhysicalCards[0], 3) }, savedSha));
+        Reject(() => NativeWorkspaceSafety.TransferPhysicalToProxy(transferPath,
+            catalog, new[] {
+                new NativePhysicalProxyTransfer.Move(0,
+                    moved.Current.Collection.PhysicalCards[0], 1),
+                new NativePhysicalProxyTransfer.Move(0,
+                    moved.Current.Collection.PhysicalCards[0], 1)
+            }, savedSha));
+        Must(NativeWorkspace.Open(transferPath).BackupSha256 == savedSha &&
+             NativeWorkspaceSafety.RecoveryPaths(transferPath).Count == savedRecoveryCount,
+             "Stale, oversized or duplicate-row transfers must not alter either inventory.");
+
         Console.WriteLine("PASS: exact paper printing search, bounded literal search, native add/merge and foil variant, stale SHA and invalid edit guards, conserved unknown data, verified recovery and rollback");
     }
 }
