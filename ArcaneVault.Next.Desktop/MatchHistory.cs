@@ -42,6 +42,7 @@ internal sealed class MatchHistory : IDisposable
             source TEXT NOT NULL DEFAULT 'Arena'
         );";
         command.ExecuteNonQuery();
+        ArenaMatchTelemetry.EnsureSchema(db);
         using (var mappingSchema = db.CreateCommand())
         {
             mappingSchema.CommandText = @"CREATE TABLE IF NOT EXISTS deck_mappings (
@@ -67,6 +68,25 @@ internal sealed class MatchHistory : IDisposable
             using var migrate = db.CreateCommand();
             migrate.CommandText = "ALTER TABLE matches ADD COLUMN native_deck_id TEXT NOT NULL DEFAULT ''";
             migrate.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Record only explicitly match-associated, sanitized GRE telemetry.
+    /// These observations never change match results or native inventory.</summary>
+    internal int AddTelemetry(IEnumerable<ArenaMatchTelemetry.Observed> events,
+        DateTimeOffset captured)
+    {
+        lock (gate) return ArenaMatchTelemetry.Insert(db, events, captured);
+    }
+
+    internal int TelemetryCount(string matchId)
+    {
+        lock (gate)
+        {
+            using var command = db.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM arena_match_telemetry WHERE match_id=$id";
+            command.Parameters.AddWithValue("$id", matchId);
+            return Convert.ToInt32(command.ExecuteScalar());
         }
     }
 
