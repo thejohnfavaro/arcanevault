@@ -185,7 +185,8 @@ public static class NativeDeckOwnedPicker
             name.Any(char.IsControl))
             throw new ArgumentException("Invalid selected card name.", nameof(name));
         var entries = NativeDeckEditing.ParseMainboard(mainboard);
-        if (entries.Any(x => x.Name.Equals(name.Trim(),
+        string identity = ArenaDeckCardName.Identity(name);
+        if (entries.Any(x => ArenaDeckCardName.Identity(x.Name).Equals(identity,
                 StringComparison.OrdinalIgnoreCase)))
             return mainboard;
         return AddOne(mainboard, name);
