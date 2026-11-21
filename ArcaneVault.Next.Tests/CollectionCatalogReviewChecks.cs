@@ -13,6 +13,14 @@ internal static class CollectionCatalogReviewChecks
 
     public static void Run(string work)
     {
+        // Execute compiled card marker regex in CI. Compilation alone cannot
+        // detect a TypeInitializationException from malformed expressions.
+        var marked = AiReviewCardReferenceSyntax.Pattern.Matches(
+            "Brawl is a format. [[card:Fell the Profane]] is a card.");
+        Check(marked.Count == 1 &&
+              marked[0].Groups[1].Value == "Fell the Profane" &&
+              !AiReviewCardReferenceSyntax.Pattern.IsMatch("Brawl is a format."),
+            "AI card link regex must initialize and ignore unmarked words.");
         string backupPath = Path.Combine(work, "review-full-backup.json");
         string catalogPath = Path.Combine(work, "review-catalog.sqlite");
         const string knownA = "00000000-0000-4000-8000-000000000111";
