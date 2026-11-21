@@ -213,6 +213,69 @@ public static class CollectionCatalogReview
         return verified.ToArray();
     }
 
+    /// <summary>
+    /// Link all real card names explicitly mentioned in a completed AI review,
+    /// not just bold phrases and swap-table cells. Scan the locally installed
+    /// read-only catalog once; no network requests or AI-provided identifiers.
+    /// </summary>
+    public static IReadOnlyList<string> FindMentionedNames(
+        string catalogPath, string reviewText, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(catalogPath);
+        if (string.IsNullOrWhiteSpace(reviewText)) return Array.Empty<string>();
+
+        static string Normalize(string value) =>
+            value.Normalize(System.Text.NormalizationForm.FormKC)
+                .Replace('’', '\'').Replace('‘', '\'')
+                .Replace('ʼ', '\'').Replace('＇', '\'');
+
+        // We compare against the text without changing what is displayed.
+        // Apostrophes are normalized here and in the final WPF hyperlink matcher.
+        string review = Normalize(reviewText);
+        var matches = new List<string>();
+        using var db = Open(catalogPath);
+        using var command = db.CreateCommand();
+        command.CommandText = "SELECT name FROM cards";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (reader.IsDBNull(0)) continue;
+            string name = reader.GetString(0);
+            if (name.Length < 2 || name.Length > 150) continue;
+            string normalized = Normalize(name);
+            if (ContainsFullName(review, normalized))
+                matches.Add(name);
+        }
+        // Prioritize longer names so they win over names nested inside them,
+        // and cap expensive WPF interval matching for unusually long reviews.
+        return matches.Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(x => x.Length)
+            .ThenBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .Take(150).ToArray();
+    }
+
+    private static bool ContainsFullName(string text, string name)
+    {
+        // A card is only a mention when its entire name has word boundaries.
+        // For single-word card names, require the name's original casing to
+        // avoid linking generic prose such as 'draw' or 'counter'.
+        bool oneWord = !name.Any(char.IsWhiteSpace);
+        var comparison = oneWord ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        int offset = 0;
+        while (offset < text.Length)
+        {
+            int index = text.IndexOf(name, offset, comparison);
+            if (index < 0) return false;
+            int end = index + name.Length;
+            bool before = index == 0 || !char.IsLetterOrDigit(text[index - 1]);
+            bool after = end == text.Length || !char.IsLetterOrDigit(text[end]);
+            if (before && after) return true;
+            offset = index + 1;
+        }
+        return false;
+    }
+
     /// <summary>Offline card identity details; not a claim about the owned printing.</summary>
     public static CardDetails? ReadDetails(string catalogPath, string name)
     {
