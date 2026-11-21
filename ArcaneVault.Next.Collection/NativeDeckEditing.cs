@@ -35,13 +35,13 @@ public static class NativeDeckEditing
         public string BracketRulesVersion { get; init; } = "";
         public string BracketLabel => BracketMinimum is int minimum
             ? "Minimum bracket " + minimum + (BracketSaved ? " · Saved" : " · Provisional")
-            : "Commander bracket · Not applicable";
+            : "";
         public string BracketExplanation => BracketMinimum is int minimum
             ? "Minimum " + minimum + " · " + BracketGameChangers +
               " Game Changer" + (BracketGameChangers == 1 ? "" : "s") +
               (BracketSaved ? " · Assessment saved with deck" : " · Calculated locally; not saved") +
               " · Not a final power rating"
-            : "Commander Brackets only apply to tabletop Commander.";
+            : "";
 
         public string FavoriteLabel => Favorite ? "★ Favorite" : "";
         // Exact per-deck display choice; independent of collection ownership.
