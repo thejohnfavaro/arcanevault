@@ -96,7 +96,7 @@
                             Style="{StaticResource VaultPrimaryButton}"
                             Padding="17,9"/>
                 </StackPanel>
-                <TextBox x:Name="SearchBox"
+                <TextBox x:Name="SearchBox" Style="{StaticResource VaultSearchTextBox}"
                          ToolTip="Filter card names, set hints, collector numbers and verification"
                          TextChanged="OnFilterChanged"
                          Padding="11,9" FontSize="14"
@@ -397,7 +397,7 @@
                                 IsEnabled="False" Margin="0,0,10,0"
                                 Background="#382438" Foreground="White"
                                 BorderBrush="#79516C"/>
-                        <TextBox x:Name="DeckSearchBox" Width="160" Height="35"
+                        <TextBox x:Name="DeckSearchBox" Style="{StaticResource VaultSearchTextBox}" Width="160" Height="35"
                                  ToolTip="Search saved deck names, commanders and folders"
                                  TextChanged="OnDeckFilterChanged"
                                  Background="{DynamicResource VaultPanelRaised}"
@@ -738,7 +738,7 @@
                             <ComboBoxItem Content="Arena · card-name coverage"/>
                         </ComboBox>
                         <TextBlock x:Name="FindSetLabel" Text="Find a set" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox x:Name="SetSearch" Width="220" Padding="8,5"
+                        <TextBox x:Name="SetSearch" Style="{StaticResource VaultSearchTextBox}" Width="220" Padding="8,5"
                                  Background="{DynamicResource VaultPanelRaised}" Foreground="White" BorderBrush="{DynamicResource VaultLine}"
                                  TextChanged="OnSetFilterChanged" Margin="0,0,18,0"/>
                         <CheckBox x:Name="ShowEmptySets" Content="Include sets with no progress"
