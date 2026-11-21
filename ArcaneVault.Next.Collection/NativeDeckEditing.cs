@@ -49,6 +49,12 @@ public static class NativeDeckEditing
         public string AiReviewSavedUtc { get; init; } = "";
         public bool AiReviewStale { get; init; }
         public bool HasAiReview => AiReviewMarkdown.Length > 0;
+        public string AiReviewLabel => !HasAiReview ? "" :
+            AiReviewStale ? "AI review · Outdated" : "AI review · Saved";
+        public string AiReviewDescription => !HasAiReview ? "" :
+            (AiReviewStale ? "Review is outdated for this deck" :
+                "Saved AI review") + " · " + AiReviewMode + " · " +
+                AiReviewSavedUtc;
 
         public string FavoriteLabel => Favorite ? "★ Favorite" : "";
         // Exact per-deck display choice; independent of collection ownership.
