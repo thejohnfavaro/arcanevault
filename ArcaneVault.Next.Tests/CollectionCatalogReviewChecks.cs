@@ -58,6 +58,11 @@ internal static class CollectionCatalogReviewChecks
                 INSERT INTO cards VALUES('Split // Back', 'Legendary Creature — Test',
                     'When this enters, draw a card.', 'rare', 3, 'UB',
                     '{"commander":"legal","brawl":"legal"}','AAA');
+                INSERT INTO cards VALUES('Fell', 'Sorcery', 'Test.', 'common',1,'B',
+                    '{"commander":"legal"}','TST');
+                INSERT INTO cards VALUES('Fell the Profane // Fell Mire',
+                    'Instant // Land','Destroy target creature.', 'rare',4,'B',
+                    '{"commander":"legal"}','MH3');
                 INSERT INTO cards VALUES('Arena Spell','Sorcery','Draw two cards.',
                     'common',2,'U','{"commander":"legal","brawl":"legal"}','AAA');
                 INSERT INTO cards VALUES('Sphinx''s Tutelage','Enchantment',
@@ -147,6 +152,19 @@ internal static class CollectionCatalogReviewChecks
               shortened.TryGetValue("Dawnsire", out var selectedDawnsire) &&
               selectedDawnsire == "Dawnsire, Sunstar Dreadnought",
             "AI short names must resolve to the single matching deck card.");
+        // A front-face mention must resolve to the whole MDFC rather than
+        // allowing a shorter real card ("Fell") to steal part of the link.
+        var faceLinks = CollectionCatalogReview.FindShortNameLinks(catalogPath,
+            "Replace Fell the Profane with another removal spell.",
+            Array.Empty<string>());
+        Check(faceLinks.TryGetValue("Fell the Profane", out var fullFace) &&
+              fullFace == "Fell the Profane // Fell Mire",
+            "An unowned front face must resolve to its verified MDFC identity.");
+        var faceDeckLinks = CollectionCatalogReview.FindShortNameLinks(catalogPath,
+            "Fell the Profane is effective.", new[] { "Fell the Profane // Fell Mire" });
+        Check(faceDeckLinks.TryGetValue("Fell the Profane", out var ownedFace) &&
+              ownedFace == "Fell the Profane // Fell Mire",
+            "An owned MDFC front face must resolve correctly.");
         var saiInDeck = CollectionCatalogReview.FindShortNameLinks(catalogPath,
             "Sai and Anointed Procession produce Thopters.",
             new[] { "Sai, Master Thopterist" });
