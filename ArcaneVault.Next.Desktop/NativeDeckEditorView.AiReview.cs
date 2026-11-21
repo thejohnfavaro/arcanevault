@@ -164,16 +164,18 @@ public partial class NativeDeckEditorView
                     // Resolve full names and context-sensitive nicknames
                     // against the actual local catalog. An ambiguous nickname
                     // cannot silently navigate to the wrong card.
+                    var explicitMentions = string.Join("\n",
+                        AiReviewCardLinks.ExplicitNames(answer));
                     var resolved = await Task.Run(() =>
                     {
                         var exact = CollectionCatalogReview.FindMentionedNames(
-                            path, answer, lookupTimeout.Token);
+                            path, explicitMentions, lookupTimeout.Token);
                         var deckNames = NativeDeckEditing.ParseMainboard(draft)
                             .Select(entry => ArcaneVault.Next.Domain.ArenaDeckCardName.Identity(entry.Name))
                             .Append(ArcaneVault.Next.Domain.ArenaDeckCardName.Identity(commander))
                             .Where(name => !string.IsNullOrWhiteSpace(name));
                         var aliases = CollectionCatalogReview.FindShortNameLinks(
-                            path, answer, deckNames, lookupTimeout.Token);
+                            path, explicitMentions, deckNames, lookupTimeout.Token);
                         return (Exact: exact, Aliases: aliases);
                     }, lookupTimeout.Token).WaitAsync(lookupTimeout.Token);
                     var confirmed = resolved.Exact;
@@ -191,7 +193,7 @@ public partial class NativeDeckEditorView
                         });
                     AiReviewStatus.Text = visibleNames.Length > 0
                         ? "Review complete (" + model + "). " + visibleNames.Length +
-                          " verified card names and short references linked — click gold names for full details."
+                          " explicitly tagged card references verified — click gold names for full details."
                         : "Review complete (" + model +
                           "). No mentioned card names matched the local catalog. " +
                           "Check that Card Catalog has finished refreshing.";
