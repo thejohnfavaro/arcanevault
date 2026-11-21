@@ -286,8 +286,8 @@ public partial class NativeCollectionWorkspace : UserControl
     /// No physical printing is created or changed; only quantities decrease.
     /// All checks complete before replacing any live UI model.
     /// </summary>
-    private async Task<bool> TryRefreshPhysicalProxyTransferAsync(
-        NativeWorkspaceSafety.Replacement replacement)
+    private async Task<bool> TryRefreshVerifiedPhysicalChangeAsync(
+        NativeWorkspaceSafety.Replacement replacement, bool transferOnly)
     {
         if (closing || progress is null || !review.CatalogVerified ||
             string.IsNullOrWhiteSpace(nativePath) ||
@@ -301,13 +301,15 @@ public partial class NativeCollectionWorkspace : UserControl
             backup.Decks != next.Decks ||
             backup.DeckRevisions != next.DeckRevisions ||
             backup.PreferredArtworks != next.PreferredArtworks ||
-            next.PhysicalCopies >= backup.PhysicalCopies)
+            (transferOnly && next.PhysicalCopies >= backup.PhysicalCopies))
             return false;
         try
         {
             var verified = await Task.Run(() =>
             {
-                var updatedReview = CollectionCatalogReview.AfterRemovingCopies(review, next);
+                var updatedReview = transferOnly
+                    ? CollectionCatalogReview.AfterRemovingCopies(review, next)
+                    : CollectionCatalogReview.AfterVerifiedPhysicalEdit(review, next, catalogPath!);
                 var updatedProgress = NativeSetProgress.AfterRemovingCopies(progress, updatedReview);
                 var proxies = NativeWorkspaceSafety.ListProxiesFromVerified(replacement.Current);
                 return (updatedReview, updatedProgress, proxies);
@@ -341,8 +343,9 @@ public partial class NativeCollectionWorkspace : UserControl
                 $"Catalog-verified: {review.ConfirmedCopies:N0} physical copies across " +
                 $"{review.ConfirmedDistinctPrintings:N0} distinct printings and " +
                 $"{review.ConfirmedSets.Count:N0} sets  | Unresolved: {review.UnresolvedCopies:N0} copies";
-            StatusText.Text = "Verified physical-to-proxy transfer · collection counts refreshed. " +
-                "Recalculating affected pricing asynchronously.";
+            StatusText.Text = (transferOnly ? "Verified physical-to-proxy transfer" :
+                "Verified physical edit") + " · collection counts refreshed. " +
+                "Recalculating pricing asynchronously.";
             _ = CalculateValuationAsync();
             return true;
         }
@@ -352,6 +355,18 @@ public partial class NativeCollectionWorkspace : UserControl
         {
             return false; // Full verified reload remains authoritative fallback.
         }
+    }
+
+    private async Task FinishVerifiedPhysicalEditAsync(
+        NativeWorkspaceSafety.Replacement? replacement)
+    {
+        if (replacement is not null &&
+            await TryRefreshVerifiedPhysicalChangeAsync(replacement, transferOnly: false))
+            return;
+        // Unsupported changes and failed identity checks use the original
+        // authoritative reopen, never stale display models or a guessed SHA.
+        Close();
+        if (reopenNative is not null) await reopenNative();
     }
 
     private async Task FinishSavedDeckChangeAsync(
