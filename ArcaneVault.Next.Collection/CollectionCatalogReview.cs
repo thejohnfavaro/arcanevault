@@ -167,6 +167,31 @@ public static class CollectionCatalogReview
         string ArtworkUrl = "",
         string ManaCost = "");
 
+    /// <summary>
+    /// Validate multiple AI-mentioned card identities using one read-only
+    /// catalog connection. No guesses, deck edits, or external calls.
+    /// </summary>
+    public static IReadOnlyList<string> FindExactNames(string catalogPath,
+        IEnumerable<string> candidates, CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(catalogPath);
+        ArgumentNullException.ThrowIfNull(candidates);
+        var verified = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var db = Open(catalogPath);
+        using var command = db.CreateCommand();
+        command.CommandText = "SELECT name FROM cards WHERE name=$name COLLATE NOCASE LIMIT 1";
+        var parameter = command.Parameters.Add("$name", SqliteType.Text);
+        foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase).Take(80))
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(candidate) || candidate.Length > 255) continue;
+            parameter.Value = candidate;
+            var match = command.ExecuteScalar()?.ToString();
+            if (!string.IsNullOrWhiteSpace(match)) verified.Add(match);
+        }
+        return verified.ToArray();
+    }
+
     /// <summary>Offline card identity details; not a claim about the owned printing.</summary>
     public static CardDetails? ReadDetails(string catalogPath, string name)
     {
