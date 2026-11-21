@@ -26,13 +26,13 @@
             <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
                 <TextBlock Text="SEARCH" Style="{StaticResource VaultEyebrow}"
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBox x:Name="SearchBox" Width="290" Height="32"
+                <TextBox Style="{StaticResource VaultSearchTextBox}" x:Name="SearchBox" Width="290" Height="32"
                          TextChanged="OnFilterChanged"
                          ToolTip="Filter saved card names without changing the shortlist"
                          Background="{DynamicResource VaultPanelRaised}"
                          Foreground="{DynamicResource VaultText}"
                          BorderBrush="{DynamicResource VaultLine}"
-                         Padding="8,5"/>
+                         Padding="10,2"/>
             </StackPanel>
             <CheckBox x:Name="NotConfirmedOnly" Content="No verified owned copies"
                       Foreground="{DynamicResource VaultText}"
