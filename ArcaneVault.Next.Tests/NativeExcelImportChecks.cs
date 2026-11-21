@@ -95,7 +95,12 @@ internal static class NativeExcelImportChecks
         string invalid = Path.Combine(prefix, "invalid.xlsx");
         Excel(workbook);
         Excel(invalid, invalidQty: true);
+        // ARRANGE: a synthetic Excel workbook containing duplicate printings and an unknown card.
+        // ACT: parse the workbook without modifying the source file.
+        Console.WriteLine("  CHECK A: Excel rows, quantities and finishes parse correctly");
         var rows = NativeExcelCollectionImport.Read(workbook);
+        RegressionExpect.Equal(rows.Count, 4, "Excel workbook contains four source rows");
+        RegressionExpect.Equal(rows[0].Quantity, 2, "First Sol Ring row contains two copies");
         Must(rows.Count == 4 && rows[0].Name == "Sol Ring" &&
              rows[0].Quantity == 2 && rows[2].Name == "Unknown Relic" &&
              rows[2].Finish == "unspecified", "Excel header, quantity or finish parsing failed.");
@@ -120,7 +125,11 @@ internal static class NativeExcelImportChecks
             ddl.ExecuteNonQuery();
         }
         string catalogHash = Hash(catalog), workbookHash = Hash(workbook);
+        Console.WriteLine("  CHECK B: import preview identifies exact printings and unresolved cards");
         var preview = NativeExcelCollectionImport.Prepare(rows, catalog);
+        RegressionExpect.Equal(preview.Copies, 11L, "Excel source totals eleven physical copies");
+        RegressionExpect.Equal(preview.VerifiedCopies, 6L, "Six copies have confirmed printing matches");
+        RegressionExpect.Equal(preview.UnresolvedCopies, 5L, "Five unknown copies remain unresolved");
         Must(preview.Items.Count == 4 && preview.Copies == 11 &&
              preview.VerifiedRows == 3 && preview.VerifiedCopies == 6 &&
              preview.UnresolvedCopies == 5 &&
@@ -149,6 +158,7 @@ internal static class NativeExcelImportChecks
 
         string native = Path.Combine(prefix, "native.sqlite");
         var original = NativeWorkspace.ImportNewBytes(source, "excel-test", native);
+        Console.WriteLine("  CHECK C: import writes once and preserves a recoverable collection");
         var saved = NativeWorkspaceSafety.AddExcelPhysical(native, catalog, rows,
             original.BackupSha256);
         Must(saved.Current.Collection.PhysicalCopies == 12 &&
@@ -170,6 +180,8 @@ internal static class NativeExcelImportChecks
         string reconcilePath = Path.Combine(prefix, "excel-reconciled.sqlite");
         var origin = NativeWorkspace.ImportNewBytes(
             Collection(), "xlsx reconcile test", reconcilePath);
+        // ARRANGE/ACT: treat the workbook as a desired snapshot, not another additive import.
+        Console.WriteLine("  CHECK D: differential Excel import describes additions and adjustments");
         var difference = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
             reconcilePath, catalog, rows, origin.BackupSha256);
         Must(difference.HasChanges && difference.AddedRows == 2 &&
@@ -177,6 +189,10 @@ internal static class NativeExcelImportChecks
              difference.Lines.Single(x => x.Card == "Sol Ring").Imported == 3 &&
              difference.NetCopies == 10,
              "Excel reconciliation must aggregate duplicate printings, compare current to imported values and show net changes.");
+        RegressionExpect.Equal(difference.AddedRows, 2, "Two newly identified printing rows");
+        RegressionExpect.Equal(difference.AdjustedRows, 1, "Existing Sol Ring printing quantity adjusts");
+        RegressionExpect.Equal(difference.NetCopies, 10L, "Reconciliation adds ten copies net");
+        Console.WriteLine("  CHECK E: approved reconciliation retains Arena ownership and decks");
         var applied = NativeWorkspaceSafety.ReconcilePhysicalImport(
             reconcilePath, catalog, rows, origin.BackupSha256,
             difference.CandidateSha256);
@@ -186,12 +202,16 @@ internal static class NativeExcelImportChecks
              applied.Current.Collection.ArenaCopies == origin.Collection.ArenaCopies &&
              applied.Current.Collection.Decks == origin.Collection.Decks,
              "Excel reconciliation must apply desired print quantities without touching unrelated native data.");
+        Console.WriteLine("  CHECK F: repeating an unchanged Excel import is a no-op");
         var idempotent = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
             reconcilePath, catalog, rows, applied.Current.BackupSha256);
         Must(!idempotent.HasChanges && idempotent.UnchangedRows == 3 &&
              idempotent.NetCopies == 0 &&
              NativeWorkspace.Open(applied.RecoveryPath).Collection.PhysicalCopies == 1,
              "Excel reimport should become a no-op and preserve a recoverable original.");
+        RegressionExpect.Equal(idempotent.NetCopies, 0L, "Reimporting identical Excel rows changes no physical copies");
+        RegressionExpect.That(!idempotent.HasChanges,
+            "Reimporting an unchanged spreadsheet must not create a new change plan");
         Reject(() => NativeWorkspaceSafety.ReconcilePhysicalImport(
             reconcilePath, catalog, rows, applied.Current.BackupSha256,
             difference.CandidateSha256 + "stale"));
