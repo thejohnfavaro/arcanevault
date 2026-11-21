@@ -24,7 +24,7 @@ internal static class ArenaLogAssignmentChecks
                         stateType = state,
                         gameRoomConfig = new {
                             matchId,
-                            reservedPlayers = new[] { new { userId = playerId, playerName = "Tester", teamId = 1 } }
+                            reservedPlayers = new[] { new { userId = playerId, playerName = "Tester", teamId = 1, seatId = 1 } }
                         },
                         finalMatchResult = state == "MatchGameRoomStateType_MatchCompleted"
                             ? new { matchId, resultList = new[] {
@@ -190,7 +190,8 @@ internal static class ArenaLogAssignmentChecks
         Directory.CreateDirectory(Path.GetDirectoryName(telemetryLog)!);
         var telemetryDb = Path.Combine(local, "telemetry.sqlite3");
         var stateOne = new {
-            turnInfo = new { turnNumber = 1, phase = "Phase_Main1", activePlayer = 1 },
+            turnInfo = new { turnNumber = 1, phase = "Phase_Main1",
+                activePlayer = 1, activePlayerSeatId = 1 },
             gameInfo = new { gameNumber = 1, stage = "GameStage_Play" },
             players = new[] { new { systemSeatId = 1, lifeTotal = 20,
                 mulliganCount = 1, handCount = 6,
@@ -274,6 +275,11 @@ internal static class ArenaLogAssignmentChecks
                 gameplay.SeatsWithMulligans == 1 &&
                 gameplay.HighestObservedMulligans == 1,
                 "Game observations must deduplicate repeated player snapshots and distinguish turns from match lengths.");
+            var playDraw = telemetryHistory.ReadVerifiedPlayDraw();
+            Assert(playDraw.OnPlayWins == 1 && playDraw.OnPlayLosses == 0 &&
+                playDraw.OnDrawWins == 0 && playDraw.OnDrawLosses == 0 &&
+                playDraw.Unattributed == 0,
+                "Authenticated local seat and turn-one GRE active seat must identify on-play result.");
         }
 
         // A real submission without a saved mapping must STILL preserve the
