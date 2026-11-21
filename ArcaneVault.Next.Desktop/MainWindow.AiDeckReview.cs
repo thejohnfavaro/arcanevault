@@ -17,7 +17,7 @@ public partial class MainWindow
     private void OnOpenAiDeckReviewClicked(object sender, RoutedEventArgs e)
         => OpenAiDeckReview("");
 
-    internal void OpenAiDeckReview(string deckList)
+    internal void OpenAiDeckReview(string deckList, string? optionalCoverage = null)
     {
         var dialog = new Window
         {
@@ -51,6 +51,18 @@ public partial class MainWindow
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 6, 0, 0)
         });
+
+        var shareCoverage = new CheckBox
+        {
+            Content = "Include deck-only ownership coverage in copied prompt (optional)",
+            Foreground = Brushes.LightGray,
+            Margin = new Thickness(0, 0, 0, 9),
+            IsEnabled = !string.IsNullOrWhiteSpace(optionalCoverage),
+            IsChecked = false,
+            ToolTip = "Shares only counts for cards in this deck, never your full collection."
+        };
+        DockPanel.SetDock(shareCoverage, Dock.Top);
+        root.Children.Add(shareCoverage);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
         DockPanel.SetDock(actions, Dock.Bottom);
@@ -118,10 +130,15 @@ public partial class MainWindow
         void Refresh()
         {
             var mode = (modes.SelectedItem as ComboBoxItem)?.Tag as string ?? "health";
-            preview.Text = AiDeckReviewPrompt.Build(deck.Text, mode);
+            var chosenText = deck.Text;
+            if (shareCoverage.IsChecked == true && !string.IsNullOrWhiteSpace(optionalCoverage))
+                chosenText += "\\n\\nDECK-ONLY OWNERSHIP COVERAGE (opted in)\\n" + optionalCoverage;
+            preview.Text = AiDeckReviewPrompt.Build(chosenText, mode);
             copy.IsEnabled = !string.IsNullOrWhiteSpace(deck.Text);
             status.Text = "";
         }
+        shareCoverage.Checked += (_, _) => Refresh();
+        shareCoverage.Unchecked += (_, _) => Refresh();
         deck.TextChanged += (_, _) => Refresh();
         modes.SelectionChanged += (_, _) => Refresh();
         copy.Click += (_, _) =>
