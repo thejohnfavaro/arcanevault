@@ -36,27 +36,36 @@ internal static class OwnershipGoldenChecks
         Check(fixture.CatalogPrintings is not null && fixture.PhysicalLines is not null && fixture.Expected is not null,
             "Fixture missing required sections.");
 
+        // ARRANGE: capture input JSON so we can prove reconciliation never mutates it.
         var physicalBefore = JsonSerializer.Serialize(fixture.PhysicalLines);
         var catalogBefore = JsonSerializer.Serialize(fixture.CatalogPrintings);
         var result = PrintingReconciliation.Reconcile(fixture.PhysicalLines, fixture.CatalogPrintings);
         var expected = fixture.Expected;
-        Check(result.TotalCopies == expected.TotalCopies, "Physical copy total changed.");
-        Check(result.ConfirmedCopies == expected.ConfirmedCopies, "Confirmed copy count changed.");
-        Check(result.UnresolvedCopies == expected.UnresolvedCopies, "Unresolved copy count changed.");
+        // ASSERT: conservation of copies is the primary data-integrity guarantee.
+        RegressionExpect.Equal(result.TotalCopies, expected.TotalCopies,
+            "Reconciliation must preserve total physical copies");
+        RegressionExpect.Equal(result.ConfirmedCopies, expected.ConfirmedCopies,
+            "Confirmed copies must match the checked-in golden fixture");
+        RegressionExpect.Equal(result.UnresolvedCopies, expected.UnresolvedCopies,
+            "Unresolved copies must remain visible instead of disappearing");
         Check(result.TotalCopies == result.ConfirmedCopies + result.UnresolvedCopies,
             "Reconciliation lost or duplicated copies.");
-        Check(result.ConfirmedDistinctPrintings == expected.ConfirmedDistinctPrintings,
-            "Confirmed printing count changed.");
-        Check(result.ConfirmedBySet.Count == expected.BySet.Length, "Unexpected confirmed set count.");
+        RegressionExpect.Equal(result.ConfirmedDistinctPrintings,
+            expected.ConfirmedDistinctPrintings,
+            "Confirmed printing count must match the golden fixture");
+        RegressionExpect.Equal(result.ConfirmedBySet.Count, expected.BySet.Length,
+            "Number of distinct confirmed sets must match the fixture");
         foreach (var set in expected.BySet)
         {
             Check(result.ConfirmedBySet.TryGetValue(set.SetCode, out var observed),
                 "Missing confirmed set " + set.SetCode);
-            Check(observed!.DistinctPrintings == set.DistinctPrintings && observed.Copies == set.Copies,
-                "Wrong confirmed set summary " + set.SetCode);
+            RegressionExpect.Equal(observed!.DistinctPrintings, set.DistinctPrintings,
+                $"Set {set.SetCode} distinct confirmed printings");
+            RegressionExpect.Equal(observed.Copies, set.Copies,
+                $"Set {set.SetCode} confirmed physical copies");
         }
-        Check(result.UnresolvedLines.Count == expected.UnresolvedLines.Length,
-            "Unresolved lines were dropped.");
+        RegressionExpect.Equal(result.UnresolvedLines.Count, expected.UnresolvedLines.Length,
+            "Every unresolved line must remain in the reconciliation result");
         foreach (var line in expected.UnresolvedLines)
         {
             var observed = result.UnresolvedLines.SingleOrDefault(x => x.LineId == line.LineId);
@@ -67,6 +76,7 @@ internal static class OwnershipGoldenChecks
               JsonSerializer.Serialize(fixture.CatalogPrintings) == catalogBefore,
               "Reconciliation modified an input object.");
 
+        // ACT/ASSERT: ambiguous name-only identities must remain unresolved.
         var matching = fixture.PhysicalLines[0];
         var nameOnly = matching with { PrintId = null };
         var onlyHint = PrintingReconciliation.Reconcile([nameOnly], fixture.CatalogPrintings);
