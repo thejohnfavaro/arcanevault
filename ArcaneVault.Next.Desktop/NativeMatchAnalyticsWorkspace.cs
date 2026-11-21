@@ -14,6 +14,11 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
     private readonly NativeMatchPerformancePanel dashboard = new();
     private readonly TextBlock status = new() { Foreground = Brushes.LightGray,
         TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,8,0,12) };
+    private readonly TextBlock telemetryStatus = new() {
+        Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0,5,0,8) };
+    private readonly ListView telemetryRows = new() {
+        Height = 180, Margin = new Thickness(0,0,0,12) };
     private readonly Button refresh = new() { Content = "Refresh match analytics",
         Padding = new Thickness(12,8,12,8), HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBlock seasonStatus = new() {
@@ -45,6 +50,19 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             ArenaRankSeason.OfficialUrl){ UseShellExecute=true });
         header.Children.Add(official);
         header.Children.Add(status);
+        header.Children.Add(new TextBlock { Text = "GAMEPLAY TELEMETRY COVERAGE",
+            Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
+            Margin = new Thickness(0,3,0,3) });
+        header.Children.Add(telemetryStatus);
+        var telemetryGrid = new GridView();
+        telemetryGrid.Columns.Add(TelemetryColumn("Played (UTC)", "PlayedUtc", 175));
+        telemetryGrid.Columns.Add(TelemetryColumn("Deck", "DeckName", 170));
+        telemetryGrid.Columns.Add(TelemetryColumn("Format", "Format", 140));
+        telemetryGrid.Columns.Add(TelemetryColumn("Events", "Events", 70));
+        telemetryGrid.Columns.Add(TelemetryColumn("Games observed", "GamesWithNumbers", 115));
+        telemetryGrid.Columns.Add(TelemetryColumn("Highest turn", "HighestTurn", 105));
+        telemetryRows.View = telemetryGrid;
+        header.Children.Add(telemetryRows);
         var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         scroll.Content = dashboard;
@@ -58,6 +76,10 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
         };
         Unloaded += (_,_) => countdownTimer.Stop();
     }
+    private static GridViewColumn TelemetryColumn(string title, string property, double width) =>
+        new() { Header = title, Width = width,
+            DisplayMemberBinding = new System.Windows.Data.Binding(property) };
+
     private void RenderSeason()
     {
         var now=DateTimeOffset.UtcNow;
@@ -108,10 +130,21 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
         status.Text="Reading locally recorded Arena matches…";
         try
         {
-            var matches=await Task.Run(NativeMatchHistoryView.ReadPerformance);
-            dashboard.SetMatches(matches);
-            status.Text=$"{matches.Count} distinct match row(s) available for review. " +
+            var data = await Task.Run(() => {
+                var matches = NativeMatchHistoryView.ReadPerformance();
+                using var history = new MatchHistory();
+                return (matches, coverage: history.ReadTelemetryOverview());
+            });
+            dashboard.SetMatches(data.matches);
+            status.Text=$"{data.matches.Count} distinct match row(s) available for review. " +
                 "All calculations exclude unassigned rows and unconfirmed outcomes.";
+            var coverage = data.coverage;
+            telemetryStatus.Text = $"{coverage.MatchesWithTelemetry} of {coverage.RecordedMatches} recorded matches " +
+                $"have GRE observations ({coverage.ArchivedEvents} retained events). " +
+                "Only events linked to an explicitly identified match are archived. " +
+                "Game counts and highest turns are observed lower bounds, not complete game replays. " +
+                "The table shows the 20 most recent matches with telemetry.";
+            telemetryRows.ItemsSource = coverage.Recent;
         }
         catch(Exception ex) when (ex is IOException or SqliteException or
             UnauthorizedAccessException or InvalidOperationException or InvalidDataException)
