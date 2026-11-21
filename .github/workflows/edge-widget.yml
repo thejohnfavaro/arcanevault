@@ -1,4 +1,4 @@
-name: XENEON EDGE Widget Preview
+name: XENEON EDGE Widget Release
 on:
   push:
     branches: [main]
@@ -57,21 +57,21 @@ jobs:
           $packages | ForEach-Object { Copy-Item $_.FullName -Destination 'widget-dist/' }
       - uses: actions/upload-artifact@v4
         with:
-          name: ArcaneVault-XeneonEdge-Widget-0.9-preview
+          name: ArcaneVault-XeneonEdge-Widget-v1.0.0
           path: widget-dist/*.icuewidget
           if-no-files-found: error
-      - name: Publish independent EDGE widget preview release
+      - name: Publish XENEON EDGE v1.0.0 widget release
         if: github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'edge-widget-v0.9.0'
+          $tag = 'edge-widget-v1.0.0'
           gh release view $tag --repo ${{ github.repository }} *> $null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "EDGE widget $tag is already published; leaving existing immutable version intact."
           } else {
             $files = @(Get-ChildItem 'widget-dist/*.icuewidget' -File | ForEach-Object { $_.FullName })
-            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v0.9.0 (Preview)' --notes 'Prioritizes Physical Set Progress with an expandable, scrollable set list; compacts rank metadata, collection value and connection status. Preserves MTGA badges, countdown, W/L and all existing data. Compatible with Windows Native v0.9.151.' --prerelease
+            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v1.0.0' --notes 'Installable iCUE widget package produced and validated using the official widget CLI. Deck selection shows saved Arena Brawl decks only; paper Commander decks remain in Arcane Vault. Includes verified Arena win/loss, account rank, season countdown, set progress and collection value. Requires Arcane Vault Windows Native v0.9.181 or newer for format-aware snapshot filtering. iCUE hardware behavior should still be checked on the target XENEON EDGE device.'
             if ($LASTEXITCODE -ne 0) { throw 'Could not publish XENEON EDGE release.' }
           }
