@@ -8,6 +8,18 @@
   const SNAPSHOT_PATH = "{Runtime}/AppData/Local/ArcaneVault/streamdeck.json";
   const selectionKey = "arcanevault.edge.deckId.v1";
   const $ = id => document.getElementById(id);
+  // Chromium/iCUE touch zoom guard: CSS and the viewport are primary; these
+  // cancel browser-specific gesture zoom and trackpad Ctrl+wheel fallback.
+  // One-finger scrolling and normal button taps are unaffected.
+  document.addEventListener("gesturestart", event => event.preventDefault(), {passive:false});
+  document.addEventListener("gesturechange", event => event.preventDefault(), {passive:false});
+  document.addEventListener("gestureend", event => event.preventDefault(), {passive:false});
+  document.addEventListener("touchmove", event => {
+    if (event.touches && event.touches.length > 1) event.preventDefault();
+  }, {passive:false});
+  document.addEventListener("wheel", event => {
+    if (event.ctrlKey) event.preventDefault();
+  }, {passive:false});
   let lastSnapshot = null;
   let selectedId = "";
   let currentIndex = 0;
