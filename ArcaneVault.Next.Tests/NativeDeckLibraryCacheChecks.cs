@@ -48,6 +48,21 @@ internal static class NativeDeckLibraryCacheChecks
             throw new InvalidOperationException("Cache hit re-parsed the backup."), cache);
         Must(cached.Count == 1 && cached[0].Name == "Deck A",
              "An unchanged verified SHA must use the cached display summaries.");
+        Must(cached[0].BracketMinimum == 1 &&
+             cached[0].BracketLabel.Contains("Provisional"),
+             "Existing Commander decks must show a provisional minimum.");
+        // Reproduce the v0.9.180 bug: a schema-1 cache carried the old
+        // DeckRow without any bracket fields even when Format was Commander.
+        string stalePath = Path.Combine(cache, "deck-list.json");
+        File.WriteAllBytes(stalePath, JsonSerializer.SerializeToUtf8Bytes(new {
+            Schema = 1, BackupSha = sha,
+            Rows = new[] { new { Ordinal = 0, Id = "deck-id-A", Name = "Deck A",
+                Commander = "Atraxa, Praetors' Voice", Format = "Commander" } }
+        }));
+        var rebuilt = NativeDeckLibraryCache.List(sha, ReadOriginal, cache);
+        Must(reads == 2 && rebuilt.Single().BracketMinimum == 1,
+             "A stale cache missing bracket metadata must be discarded.");
+
 
         byte[] updated = Backup("B");
         string sha2 = Convert.ToHexString(SHA256.HashData(updated));
