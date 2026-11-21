@@ -11,8 +11,7 @@ using System.Text.Json;
 namespace ArcaneVault.Next.Desktop;
 
 /// <summary>
-/// Preview-only native ChatGPT plan OAuth client. Tokens live in memory and
-/// are never logged, synced or persisted. Browser authorization is explicit.
+/// ChatGPT OAuth client with Windows user-protected renewable session storage.
 /// </summary>
 internal sealed class ChatGptPlanClient
 {
@@ -25,12 +24,178 @@ internal sealed class ChatGptPlanClient
     private string? subject;
     private string? issuedClientId;
     private string? hostId;
+    private string? refreshToken;
+    private string? retainedIdToken;
+    private readonly SemaphoreSlim refreshGate = new(1, 1);
 
-    public bool IsConnected => accessToken is not null &&
-        expiresAt > DateTimeOffset.UtcNow.AddSeconds(30);
-    public string Status => IsConnected
-        ? "ChatGPT plan usage authorized for this session"
-        : "Not connected — no AI requests can be sent";
+    public bool IsConnected => refreshToken is not null ||
+        (accessToken is not null && expiresAt > DateTimeOffset.UtcNow.AddSeconds(30));
+    public string Status => refreshToken is not null
+        ? "Connected to ChatGPT — signed in across restarts"
+        : IsConnected ? "Connected for this session"
+        : "Not connected — use Options to connect";
+
+
+    private static string CredentialPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "ArcaneVaultNext", "AI", "chatgpt-session.dpapi");
+
+    private sealed record SavedSession(string ClientId, string Subject,
+        string Access, string Refresh, string IdToken, DateTimeOffset Expires, string HostId);
+
+    public ChatGptPlanClient() => LoadSavedSession();
+
+    private void LoadSavedSession()
+    {
+        try
+        {
+            if (!File.Exists(CredentialPath)) return;
+            byte[] encrypted = File.ReadAllBytes(CredentialPath);
+            byte[] clear = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+            try
+            {
+                var session = JsonSerializer.Deserialize<SavedSession>(clear);
+                if (session is null || string.IsNullOrWhiteSpace(session.ClientId) ||
+                    string.IsNullOrWhiteSpace(session.Refresh) ||
+                    string.IsNullOrWhiteSpace(session.Subject)) return;
+                issuedClientId = session.ClientId;
+                subject = session.Subject;
+                accessToken = session.Access;
+                refreshToken = session.Refresh;
+                retainedIdToken = session.IdToken;
+                expiresAt = session.Expires;
+                hostId = session.HostId;
+            }
+            finally { CryptographicOperations.ZeroMemory(clear); }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
+            CryptographicException or JsonException)
+        {
+            accessToken = null; refreshToken = null; subject = null;
+            retainedIdToken = null; issuedClientId = null;
+            expiresAt = default;
+        }
+    }
+
+    private void SaveSession()
+    {
+        if (accessToken is null || refreshToken is null || retainedIdToken is null ||
+            subject is null || issuedClientId is null || hostId is null)
+            throw new InvalidOperationException("OAuth session is incomplete.");
+        var record = new SavedSession(issuedClientId, subject, accessToken,
+            refreshToken, retainedIdToken, expiresAt, hostId);
+        byte[] clear = JsonSerializer.SerializeToUtf8Bytes(record);
+        byte[] encrypted;
+        try { encrypted = ProtectedData.Protect(clear, null, DataProtectionScope.CurrentUser); }
+        finally { CryptographicOperations.ZeroMemory(clear); }
+        Directory.CreateDirectory(Path.GetDirectoryName(CredentialPath)!);
+        var temporary = CredentialPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            File.WriteAllBytes(temporary, encrypted);
+            File.Move(temporary, CredentialPath, true);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    private void ClearSession()
+    {
+        accessToken = null;
+        refreshToken = null;
+        retainedIdToken = null;
+        subject = null;
+        expiresAt = default;
+        if (File.Exists(CredentialPath)) File.Delete(CredentialPath);
+    }
+
+    public async Task EnsureConnectedAsync(CancellationToken ct = default)
+    {
+        if (accessToken is not null && expiresAt > DateTimeOffset.UtcNow.AddMinutes(2)) return;
+        if (refreshToken is null || issuedClientId is null)
+            throw new InvalidOperationException("Connect ChatGPT in Options before reviewing.");
+        await refreshGate.WaitAsync(ct);
+        try
+        {
+            if (accessToken is not null && expiresAt > DateTimeOffset.UtcNow.AddMinutes(2)) return;
+            using var response = await Http.PostAsync(AuthBase + "/api/accounts/oauth/token",
+                new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["grant_type"] = "refresh_token",
+                    ["client_id"] = issuedClientId,
+                    ["refresh_token"] = refreshToken,
+                    ["resource"] = Resource
+                }), ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                if ((int)response.StatusCode is 400 or 401 or 403)
+                {
+                    ClearSession();
+                    throw new InvalidOperationException("ChatGPT authorization expired or was revoked. Reconnect in Options.");
+                }
+                throw new HttpRequestException("ChatGPT renewal unavailable (HTTP " +
+                    (int)response.StatusCode + ").");
+            }
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            var root = json.RootElement;
+            string newAccess = root.GetProperty("access_token").GetString() ??
+                throw new InvalidOperationException("Missing access token in renewal.");
+            string newRefresh = root.GetProperty("refresh_token").GetString() ??
+                throw new InvalidOperationException("Missing rotated refresh token.");
+            int expires = root.GetProperty("expires_in").GetInt32();
+            if (expires < 60) throw new InvalidOperationException("Invalid renewed token lifetime.");
+            if (root.TryGetProperty("scope", out var scopes) &&
+                !(scopes.GetString() ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Contains(RequiredScope, StringComparer.Ordinal))
+            {
+                ClearSession();
+                throw new InvalidOperationException("ChatGPT plan usage permission was withdrawn.");
+            }
+            accessToken = newAccess;
+            refreshToken = newRefresh;
+            expiresAt = DateTimeOffset.UtcNow.AddSeconds(expires);
+            // Retain the original verified ID token as a hint, never as proof
+            // of the newly refreshed grant.
+            SaveSession();
+        }
+        finally { refreshGate.Release(); }
+    }
+
+    public async Task<bool> DisconnectAsync(CancellationToken ct = default)
+    {
+        await refreshGate.WaitAsync(ct);
+        try
+        {
+            bool revoked = refreshToken is null;
+            if (refreshToken is not null && issuedClientId is not null)
+            {
+                try
+                {
+                    using var discovery = await Http.GetAsync(
+                        AuthBase + "/.well-known/openid-configuration", ct);
+                    discovery.EnsureSuccessStatusCode();
+                    using var json = JsonDocument.Parse(
+                        await discovery.Content.ReadAsStringAsync(ct));
+                    var endpoint = json.RootElement.GetProperty("revocation_endpoint").GetString();
+                    if (endpoint is null || !endpoint.StartsWith(AuthBase + "/", StringComparison.Ordinal))
+                        throw new InvalidOperationException("Unexpected revocation endpoint.");
+                    using var response = await Http.PostAsync(endpoint,
+                        new FormUrlEncodedContent(new Dictionary<string, string>
+                        {
+                            ["token"] = refreshToken,
+                            ["token_type_hint"] = "refresh_token",
+                            ["client_id"] = issuedClientId
+                        }), ct);
+                    revoked = response.IsSuccessStatusCode;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or
+                    TaskCanceledException or InvalidOperationException or JsonException)
+                { revoked = false; }
+            }
+            ClearSession();
+            return revoked;
+        }
+        finally { refreshGate.Release(); }
+    }
 
     private static string UrlSafe(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
@@ -106,6 +271,7 @@ internal sealed class ChatGptPlanClient
             ["code_challenge"] = challenge
         };
         if (issuedClientId is null) parameters["agent_name_hint"] = "Arcane Vault";
+        else if (retainedIdToken is not null) parameters["id_token_hint"] = retainedIdToken;
         var authorize = BuildUrl(AuthBase + "/api/accounts/authorize", parameters);
         Process.Start(new ProcessStartInfo(authorize) { UseShellExecute = true });
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -173,6 +339,10 @@ internal sealed class ChatGptPlanClient
         subject = newSubject;
         issuedClientId = clientId;
         expiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn);
+        retainedIdToken = idToken;
+        refreshToken = root.GetProperty("refresh_token").GetString() ??
+            throw new InvalidOperationException("Renewable access was not granted.");
+        SaveSession();
     }
 
     private static async Task<string> VerifyIdTokenAsync(string jwt, string clientId,
@@ -216,7 +386,8 @@ internal sealed class ChatGptPlanClient
 
     public async Task<(string Model, string Text)> ReviewAsync(string prompt, CancellationToken ct = default)
     {
-        if (!IsConnected || accessToken is null) throw new InvalidOperationException("Connect ChatGPT before reviewing.");
+        await EnsureConnectedAsync(ct);
+        if (accessToken is null) throw new InvalidOperationException("Connect ChatGPT in Options first.");
         if (string.IsNullOrWhiteSpace(prompt)) throw new ArgumentException("No deck provided.", nameof(prompt));
         using var modelsRequest = new HttpRequestMessage(HttpMethod.Get, Resource + "/models");
         modelsRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -263,11 +434,4 @@ internal sealed class ChatGptPlanClient
         return (model, result.ToString());
     }
 
-    public void Disconnect()
-    {
-        accessToken = null;
-        expiresAt = default;
-        subject = null;
-        // Keep the issued client ID for routine sign-in during the same session.
-    }
 }

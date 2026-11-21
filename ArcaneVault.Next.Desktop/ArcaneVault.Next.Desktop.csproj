@@ -21,6 +21,7 @@
               Link="Assets\ArcaneVault.ico"/>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
     <!-- Render official Scryfall SVG symbol paths natively (no WebView or facsimile glyphs). -->

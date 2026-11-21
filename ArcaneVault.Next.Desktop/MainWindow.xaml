@@ -554,6 +554,7 @@
                                 Margin="0,0,0,10"/>
 
                         <Expander x:Name="GeneralOptionsSettings" Header="Options" IsExpanded="False"
+                                  Expanded="OnChatGptOptionsExpanded"
                                   Foreground="{DynamicResource VaultText}"
                                   Background="Transparent" Margin="0,0,0,10"
                                   ToolTip="Collection reset and local application settings">
@@ -568,8 +569,35 @@
                                     Content="✦   AI Deck Review (Preview)"
                                     Click="OnOpenAiDeckReviewClicked"
                                     Style="{StaticResource VaultNavButtonDepth}"
-                                    ToolTip="Create a read-only deck review prompt, then copy it to ChatGPT manually. No account connection or automatic upload."
+                                    ToolTip="Open AI Deck Review in EDH Lab. Configure the ChatGPT connection separately under Options."
                                     Margin="0,0,0,7"/>
+                                <Border Background="{DynamicResource VaultPanelRaised}"
+                                        BorderBrush="{DynamicResource VaultLine}" BorderThickness="1"
+                                        CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="CHATGPT CONNECTION" Style="{StaticResource VaultEyebrow}"
+                                                   Margin="0,0,0,7"/>
+                                        <TextBlock x:Name="OptionsChatGptStatus"
+                                                   Text="Checking ChatGPT connection…"
+                                                   Foreground="{DynamicResource VaultMuted}"
+                                                   TextWrapping="Wrap" Margin="0,0,0,9"/>
+                                        <Button x:Name="OptionsConnectChatGptButton"
+                                                Content="Continue with ChatGPT"
+                                                Click="OnOptionsConnectChatGptClicked"
+                                                Style="{StaticResource VaultNavButtonDepth}"
+                                                Margin="0,0,0,5"
+                                                ToolTip="Connect once using your eligible ChatGPT plan. Arcane Vault securely remembers the account on this Windows user profile."/>
+                                        <Button x:Name="OptionsDisconnectChatGptButton"
+                                                Content="Disconnect ChatGPT"
+                                                Click="OnOptionsDisconnectChatGptClicked"
+                                                Style="{StaticResource VaultNavButtonDepth}"
+                                                Margin="0,0,0,5"
+                                                ToolTip="Revoke the renewable session and erase the locally protected credentials."/>
+                                        <TextBlock Text="AI requests still require clicking Analyze. You can disconnect at any time."
+                                                   FontSize="11" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource VaultMuted}"/>
+                                    </StackPanel>
+                                </Border>
                                 <Button x:Name="StartFreshButton"
                                     Content="＋   Start Fresh Collection"
                                     Click="OnStartFreshClicked"

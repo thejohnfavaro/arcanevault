@@ -10,6 +10,63 @@ public partial class MainWindow
     private readonly ChatGptPlanClient chatGptPlanClient = new();
     internal ChatGptPlanClient AiClient => chatGptPlanClient;
 
+    private void RefreshChatGptOptions()
+    {
+        if (OptionsChatGptStatus is null || OptionsConnectChatGptButton is null ||
+            OptionsDisconnectChatGptButton is null) return;
+        OptionsChatGptStatus.Text = chatGptPlanClient.Status;
+        OptionsConnectChatGptButton.Content = chatGptPlanClient.IsConnected
+            ? "Reauthorize ChatGPT" : "Continue with ChatGPT";
+        OptionsDisconnectChatGptButton.IsEnabled = chatGptPlanClient.IsConnected;
+    }
+
+    private void OnChatGptOptionsExpanded(object sender, RoutedEventArgs e) =>
+        RefreshChatGptOptions();
+
+    private async void OnOptionsConnectChatGptClicked(object sender, RoutedEventArgs e)
+    {
+        OptionsConnectChatGptButton.IsEnabled = false;
+        OptionsChatGptStatus.Text = "Authorize ChatGPT in your browser. No deck data is shared.";
+        try
+        {
+            await chatGptPlanClient.SignInAsync();
+            OptionsChatGptStatus.Text = "Connected and securely saved for future Arcane Vault launches.";
+        }
+        catch (Exception ex)
+        {
+            OptionsChatGptStatus.Text = "Connection unavailable: " + ex.Message;
+        }
+        finally
+        {
+            OptionsConnectChatGptButton.IsEnabled = true;
+            if (chatGptPlanClient.IsConnected) RefreshChatGptOptions();
+            else OptionsDisconnectChatGptButton.IsEnabled = false;
+        }
+    }
+
+    private async void OnOptionsDisconnectChatGptClicked(object sender, RoutedEventArgs e)
+    {
+        OptionsDisconnectChatGptButton.IsEnabled = false;
+        OptionsConnectChatGptButton.IsEnabled = false;
+        OptionsChatGptStatus.Text = "Disconnecting ChatGPT…";
+        try
+        {
+            bool revoked = await chatGptPlanClient.DisconnectAsync();
+            RefreshChatGptOptions();
+            if (!revoked) OptionsChatGptStatus.Text =
+                "Disconnected locally. Remote revocation could not be confirmed; also remove Arcane Vault access in ChatGPT Settings.";
+        }
+        catch (Exception ex)
+        {
+            OptionsChatGptStatus.Text = "Could not complete disconnect: " + ex.Message;
+        }
+        finally
+        {
+            OptionsConnectChatGptButton.IsEnabled = true;
+            OptionsDisconnectChatGptButton.IsEnabled = chatGptPlanClient.IsConnected;
+        }
+    }
+
     private async void OnOpenAiDeckReviewClicked(object sender, RoutedEventArgs e)
     {
         if (embeddedEdhDraft is not null)
