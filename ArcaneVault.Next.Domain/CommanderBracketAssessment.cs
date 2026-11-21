@@ -75,7 +75,36 @@ public static class CommanderBracketAssessment
     public sealed record Result(int MinimumBracket, int GameChangerCount,
         IReadOnlyList<string> MatchedCards, string Interpretation,
         IReadOnlyList<string> Unknowns, string RulesRevision,
-        bool IsFinalClassification = false);
+        bool IsFinalClassification = false)
+    {
+        // Read-only review prompts are intentionally NOT automatic rules floors.
+        // They are card-name indicators and cannot verify a combo, game speed
+        // or player intent without Oracle interpretation and a pregame talk.
+        public IReadOnlyList<string> FastManaIndicators { get; init; } = Array.Empty<string>();
+        public IReadOnlyList<string> TutorIndicators { get; init; } = Array.Empty<string>();
+        public IReadOnlyList<string> ResourceDenialIndicators { get; init; } = Array.Empty<string>();
+        public IReadOnlyList<string> PotentialEngines { get; init; } = Array.Empty<string>();
+    }
+
+    private static readonly ImmutableHashSet<string> FastMana =
+        new[] { "Sol Ring", "Mana Crypt", "Mana Vault", "Chrome Mox", "Mox Diamond",
+            "Mox Opal", "Lotus Petal", "Lion's Eye Diamond", "Jeweled Lotus",
+            "Ancient Tomb", "Grim Monolith", "Dark Ritual", "Cabal Ritual",
+            "Elvish Spirit Guide", "Simian Spirit Guide" }
+        .Select(Canonical).ToImmutableHashSet(StringComparer.OrdinalIgnoreCase);
+    private static readonly ImmutableHashSet<string> Tutors =
+        new[] { "Demonic Tutor", "Vampiric Tutor", "Imperial Seal",
+            "Mystical Tutor", "Worldly Tutor", "Enlightened Tutor",
+            "Gamble", "Intuition", "Entomb", "Diabolic Intent",
+            "Natural Order", "Green Sun's Zenith", "Finale of Devastation",
+            "Fabricate", "Transmute Artifact", "Spellseeker" }
+        .Select(Canonical).ToImmutableHashSet(StringComparer.OrdinalIgnoreCase);
+    private static readonly ImmutableHashSet<string> Denial =
+        new[] { "Armageddon", "Ravages of War", "Jokulhaups",
+            "Decree of Annihilation", "Winter Orb", "Static Orb",
+            "Stasis", "Blood Moon", "Back to Basics", "Humility",
+            "Contamination", "Opposition", "Smokestack" }
+        .Select(Canonical).ToImmutableHashSet(StringComparer.OrdinalIgnoreCase);
 
     public static int RosterCount => GameChangers.Count;
 
@@ -117,7 +146,24 @@ public static class CommanderBracketAssessment
             3 => "At least Bracket 3 due to Game Changers; power and play patterns may warrant Bracket 4 or 5.",
             _ => "No Game Changer floor detected. Could be any bracket depending on play patterns and intent."
         };
+        IReadOnlyList<string> Candidates(ImmutableHashSet<string> roster) =>
+            names.Where(roster.Contains)
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
+        var combos = new List<string>();
+        bool Has(string card) => names.Contains(Canonical(card), StringComparer.OrdinalIgnoreCase);
+        if (Has("Thassa's Oracle") && (Has("Demonic Consultation") || Has("Tainted Pact")))
+            combos.Add("Thassa's Oracle + exile-your-library consultation package (verify timing and legality)");
+        if (Has("Underworld Breach") && Has("Brain Freeze") && Has("Lion's Eye Diamond"))
+            combos.Add("Underworld Breach + Brain Freeze + Lion's Eye Diamond engine (verify resources)");
+        if (Has("Heliod, Sun-Crowned") && Has("Walking Ballista"))
+            combos.Add("Heliod + Walking Ballista interaction (verify damage and life-gain setup)");
         return new Result(minimum, matched.Length, matched, meaning,
-            unknowns, RulesVersion);
+            unknowns, RulesVersion)
+        {
+            FastManaIndicators = Candidates(FastMana),
+            TutorIndicators = Candidates(Tutors),
+            ResourceDenialIndicators = Candidates(Denial),
+            PotentialEngines = combos
+        };
     }
 }
