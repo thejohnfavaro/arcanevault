@@ -15,6 +15,15 @@ assert.match(stylesheet,/\.side #setPanel\{[\s\S]*?flex:1 1 0;min-height:130px/,
 assert.match(stylesheet,/\.side #setPanel \.set-rows\{[\s\S]*?overflow-y:auto/,
   "Set list must be vertically scrollable when many rows are present");
 
+// Verify zoom is disabled without sacrificing one-finger Set Progress scrolling.
+assert.match(markup, /maximum-scale=1\.0, user-scalable=no/,
+  "The embedded viewport must disable touch scaling.");
+assert.match(stylesheet, /html,body\{touch-action:pan-x pan-y/,
+  "The dashboard must omit pinch zoom from permitted touch actions.");
+assert.match(stylesheet, /\.set-rows\{touch-action:pan-y\}/,
+  "Set Progress must retain one-finger vertical scrolling.");
+
+const eventListeners = new Map();
 const elements=new Map();
 const make=(id="")=>{
   const attrs=new Map(), classes=new Set();
@@ -33,7 +42,11 @@ const make=(id="")=>{
 };
 const document={
   getElementById(id){if(!elements.has(id))elements.set(id,make(id));return elements.get(id);},
-  createElement:()=>make()
+  createElement:()=>make(),
+  addEventListener(type,callback,options){
+    assert.equal(options?.passive,false,"Zoom guards must be non-passive.");
+    eventListeners.set(type,callback);
+  }
 };
 let listener, tick, watches=0, unwatches=0, now=100000;
 const provider={
@@ -51,6 +64,21 @@ const box={
   URL,Intl,console
 };
 vm.runInNewContext(source,box,{filename:"widget.js"});
+for(const type of ["gesturestart","gesturechange","gestureend","touchmove","wheel"])
+  assert.equal(typeof eventListeners.get(type),"function",type+" zoom guard must be registered");
+function dispatch(type,properties={}) {
+  let prevented=false;
+  eventListeners.get(type)({...properties,preventDefault(){prevented=true;}});
+  return prevented;
+}
+assert.equal(dispatch("gesturestart"),true,"Pinch start must not zoom.");
+assert.equal(dispatch("gesturechange"),true,"Pinch updates must not zoom.");
+assert.equal(dispatch("touchmove",{touches:[{},{}]}),true,"Two fingers cannot zoom.");
+assert.equal(dispatch("touchmove",{touches:[{}]}),false,
+  "Single-finger scrolling must continue working.");
+assert.equal(dispatch("wheel",{ctrlKey:true}),true,"Ctrl-wheel must not zoom.");
+assert.equal(dispatch("wheel",{ctrlKey:false}),false,"Normal wheel scrolling must work.");
+
 assert.equal(watches,1,"Widget must register snapshot watch on startup");
 assert.equal(typeof listener,"function");
 assert.match(document.getElementById("status").textContent,/Waiting for Arcane Vault heartbeat/);
