@@ -1474,6 +1474,11 @@
                                     Click="OnAiAnalyzeClicked" Padding="11,8" Margin="0,0,8,5"
                                     Background="{DynamicResource VaultAccentMuted}"
                                     Foreground="{DynamicResource VaultText}"/>
+                            <Button x:Name="AiCancelReviewButton" Content="Cancel request"
+                                    Click="OnAiCancelClicked" IsEnabled="False"
+                                    Padding="10,8" Margin="0,0,8,5"
+                                    Background="{DynamicResource VaultPanelRaised}"
+                                    Foreground="{DynamicResource VaultText}"/>
                             <Button Content="Copy prompt" Click="OnAiCopyPromptClicked"
                                     Padding="10,8" Margin="0,0,8,5"
                                     Background="{DynamicResource VaultPanelRaised}"

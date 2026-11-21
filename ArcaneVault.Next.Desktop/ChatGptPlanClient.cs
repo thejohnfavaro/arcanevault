@@ -384,22 +384,34 @@ internal sealed class ChatGptPlanClient
         return sub;
     }
 
-    public async Task<(string Model, string Text)> ReviewAsync(string prompt, CancellationToken ct = default)
+    /// <summary>Reports request phases and the received partial response.
+    /// Progress contains only user-visible output, never credentials.</summary>
+    public async Task<(string Model, string Text)> ReviewAsync(
+        string prompt, CancellationToken ct = default,
+        IProgress<(string Stage, string Text)>? progress = null)
     {
+        if (string.IsNullOrWhiteSpace(prompt))
+            throw new ArgumentException("No deck provided.", nameof(prompt));
+        progress?.Report(("Checking ChatGPT authorization…", ""));
         await EnsureConnectedAsync(ct);
-        if (accessToken is null) throw new InvalidOperationException("Connect ChatGPT in Options first.");
-        if (string.IsNullOrWhiteSpace(prompt)) throw new ArgumentException("No deck provided.", nameof(prompt));
+        if (accessToken is null)
+            throw new InvalidOperationException("Connect ChatGPT in Options first.");
+
+        progress?.Report(("Finding an available model…", ""));
         using var modelsRequest = new HttpRequestMessage(HttpMethod.Get, Resource + "/models");
         modelsRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var modelsResponse = await Http.SendAsync(modelsRequest, ct);
         if (!modelsResponse.IsSuccessStatusCode)
-            throw new InvalidOperationException("ChatGPT model list request failed (HTTP " + (int)modelsResponse.StatusCode + ").");
+            throw new InvalidOperationException("ChatGPT model list failed (HTTP " +
+                (int)modelsResponse.StatusCode + ").");
         using var catalog = JsonDocument.Parse(await modelsResponse.Content.ReadAsStringAsync(ct));
         string model = catalog.RootElement.GetProperty("models").EnumerateArray()
             .Where(x => x.TryGetProperty("visibility", out var v) && v.GetString() == "list")
             .Select(x => x.GetProperty("slug").GetString())
             .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
             ?? throw new InvalidOperationException("No compatible models available for this account.");
+
+        progress?.Report(("Sending deck to ChatGPT (" + model + ")…", ""));
         using var request = new HttpRequestMessage(HttpMethod.Post, Resource + "/responses");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Content = new StringContent(JsonSerializer.Serialize(new
@@ -411,26 +423,96 @@ internal sealed class ChatGptPlanClient
         }), Encoding.UTF8, "application/json");
         using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("ChatGPT review failed (HTTP " + (int)response.StatusCode + ").");
+        {
+            string advice = response.StatusCode switch
+            {
+                HttpStatusCode.Unauthorized => " Reconnect your ChatGPT account in Options.",
+                HttpStatusCode.Forbidden => " The connected account is not authorized for this model.",
+                HttpStatusCode.TooManyRequests => " This account is rate limited; retry later.",
+                _ => ""
+            };
+            throw new InvalidOperationException("ChatGPT review request failed (HTTP " +
+                (int)response.StatusCode + ")." + advice);
+        }
+
+        progress?.Report(("Connected; receiving review…", ""));
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
         var result = new StringBuilder();
         bool completed = false;
-        while (await reader.ReadLineAsync(ct) is { } line)
+        string? eventName = null;
+        var eventData = new StringBuilder();
+        long lastUpdate = Environment.TickCount64;
+
+        void ProcessEvent()
         {
-            if (!line.StartsWith("data: ", StringComparison.Ordinal)) continue;
-            var data = line.Substring(6);
-            if (data == "[DONE]") break;
+            if (eventData.Length == 0) { eventName = null; return; }
+            string data = eventData.ToString();
+            eventData.Clear();
+            if (data == "[DONE]") { eventName = null; return; }
             using var item = JsonDocument.Parse(data);
             var ev = item.RootElement;
-            string? eventType = ev.TryGetProperty("type", out var t) ? t.GetString() : null;
-            if (eventType == "response.output_text.delta" && ev.TryGetProperty("delta", out var d))
-                result.Append(d.GetString());
-            else if (eventType == "response.completed") completed = true;
-            else if (eventType is "response.failed" or "response.incomplete")
-                throw new InvalidOperationException("ChatGPT did not complete the review.");
+            string? type = ev.TryGetProperty("type", out var t) ? t.GetString() : eventName;
+            eventName = null;
+            if (type == "response.output_text.delta" &&
+                ev.TryGetProperty("delta", out var delta))
+            {
+                string fragment = delta.GetString() ?? "";
+                if (result.Length + fragment.Length > 250_000)
+                    throw new InvalidOperationException("Review exceeded the supported response size.");
+                result.Append(fragment);
+                long now = Environment.TickCount64;
+                if (now - lastUpdate >= 220)
+                {
+                    progress?.Report(("Receiving review…", result.ToString()));
+                    lastUpdate = now;
+                }
+            }
+            else if (type == "response.completed")
+            {
+                completed = true;
+                // The API may include the final full output instead of deltas.
+                if (result.Length == 0 &&
+                    ev.TryGetProperty("response", out var full) &&
+                    full.TryGetProperty("output", out var output) &&
+                    output.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var message in output.EnumerateArray())
+                    {
+                        if (!message.TryGetProperty("content", out var content) ||
+                            content.ValueKind != JsonValueKind.Array) continue;
+                        foreach (var segment in content.EnumerateArray())
+                        {
+                            if (segment.TryGetProperty("type", out var kind) &&
+                                kind.GetString() == "output_text" &&
+                                segment.TryGetProperty("text", out var text))
+                                result.Append(text.GetString());
+                        }
+                    }
+                }
+            }
+            else if (type is "response.failed" or "response.incomplete" or "error")
+                throw new InvalidOperationException("ChatGPT ended the request with " + type + ".");
         }
-        if (!completed) throw new InvalidOperationException("ChatGPT response stream ended before completion.");
+
+        while (await reader.ReadLineAsync(ct) is { } line)
+        {
+            // Responses uses SSE; one event may contain multiple data: lines.
+            if (line.Length == 0) { ProcessEvent(); continue; }
+            if (line.StartsWith("event:", StringComparison.Ordinal))
+                eventName = line[6..].Trim();
+            else if (line.StartsWith("data:", StringComparison.Ordinal))
+            {
+                if (eventData.Length != 0) eventData.Append('\n');
+                eventData.Append(line[5..].TrimStart());
+            }
+        }
+        ProcessEvent();
+        if (!completed)
+            throw new InvalidOperationException("The ChatGPT response stream ended before completion.");
+        if (string.IsNullOrWhiteSpace(result.ToString()))
+            throw new InvalidOperationException("ChatGPT completed the request but returned no review text.");
+        progress?.Report(("Review received.", result.ToString()));
         return (model, result.ToString());
     }
 
