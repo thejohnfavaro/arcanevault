@@ -185,7 +185,8 @@
                                            Foreground="{DynamicResource VaultMuted}"
                                            TextWrapping="Wrap"
                                            FontSize="11" Margin="0,0,0,8"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                <ScrollViewer x:Name="LegalityScroller"
+                                              VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Disabled"
                                               MaxHeight="156">
                                     <ItemsControl x:Name="LegalityRows">
