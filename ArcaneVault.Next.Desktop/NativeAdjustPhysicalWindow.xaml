@@ -21,7 +21,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="New total quantity" VerticalAlignment="Center"
                            Margin="0,0,12,0"/>
-                <TextBox x:Name="NewQuantityBox" Width="90" Padding="9,7"
+                <TextBox Style="{StaticResource VaultQuantityTextBox}" x:Name="NewQuantityBox" Width="90" Padding="5,1"
                          Background="#202737" Foreground="White" BorderBrush="#343D51"
                          Margin="0,0,14,0"/>
                 <Button Content="Set to 0 (remove line)" Padding="12,8"
@@ -34,7 +34,7 @@
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,14">
             <TextBlock Text="If removing, type REMOVE:" VerticalAlignment="Center"
                        Margin="0,0,12,0"/>
-            <TextBox x:Name="ConfirmRemoveBox" Width="110" Padding="9,7"
+            <TextBox Style="{StaticResource VaultQuantityTextBox}" x:Name="ConfirmRemoveBox" Width="110" Padding="5,1"
                      Background="#202737" Foreground="White" BorderBrush="#343D51"/>
         </StackPanel>
         <DockPanel Grid.Row="4" LastChildFill="True">
