@@ -20,6 +20,8 @@ internal static class NativePeerSyncChecks
     {
         // A permanently paired device must never change identity because two
         // app/launcher instances start together or its file is truncated.
+        // ARRANGE/ACT: sixteen concurrent starts must all use one persistent identity.
+        Console.WriteLine("  CHECK A: stable peer identity survives concurrent startup");
         string identityRoot=Path.Combine(work,"peer-id-race");
         var ids=new string[16];
         Parallel.For(0,ids.Length,i=>ids[i]=NativePeerSync.DeviceIdIn(identityRoot));
@@ -58,10 +60,15 @@ internal static class NativePeerSyncChecks
         Reject(()=>NativePeerSync.Compare(path,
             JsonSerializer.SerializeToUtf8Bytes(anonymous)));
         var same=NativePeerSync.Compare(path,exported);
+        RegressionExpect.Equal(same.Changes.Count, 0,
+            "Comparing a peer snapshot to identical local records has zero changes");
+        RegressionExpect.Equal(same.EqualRecords, 4,
+            "All four recognized record groups match the unchanged peer snapshot");
         Check(same.Changes.Count==0 && same.EqualRecords==4,
             "Identical peer snapshot should be a no-op.");
         // A peer checkpoint can be stored only after identical recognized
         // records; previous checkpoints are retained instead of overwritten.
+        Console.WriteLine("  CHECK B: checkpoints retain exact trusted peer snapshots");
         string checkpointRoot=Path.Combine(work,"isolated-peer-checkpoints");
         var remoteBaseline=JsonNode.Parse(exported)!.AsObject();
         remoteBaseline["deviceId"]="00000000-0000-4000-8000-000000000366";
@@ -104,8 +111,15 @@ internal static class NativePeerSyncChecks
              "scryfallId":"22222222-2222-4222-8222-222222222222"}
             """));
         data["deckLibrary"]!.AsArray()[0]!["name"]="Remote renamed deck";
+        Console.WriteLine("  CHECK C: preview distinguishes additions from conflicting changes");
         var changed=NativePeerSync.Compare(path,
             JsonSerializer.SerializeToUtf8Bytes(modified));
+        RegressionExpect.Equal(changed.Additions, 1,
+            "One incoming printing is an addition");
+        RegressionExpect.Equal(changed.Updates, 2,
+            "Two existing records were updated remotely");
+        RegressionExpect.Equal(changed.Conflicts, 2,
+            "Conflicting record updates require review");
         Check(changed.Additions==1 && changed.Updates==2 &&
             changed.Conflicts==2 && !changed.SafeToAutoApply,
             "Expected one new printing and two unresolved conflicts.");
@@ -145,6 +159,7 @@ internal static class NativePeerSyncChecks
             duplicate["data"]!["deckLibrary"]!.AsArray()[0]!.DeepClone());
         Reject(()=>NativePeerSync.Compare(path,
             JsonSerializer.SerializeToUtf8Bytes(duplicate)));
+        Console.WriteLine("  CHECK D: approved merges preserve a recovery snapshot");
         // Work in a separate workspace because apply must actually replace the
         // collection while preserving a recoverable copy of the original.
         string writablePath=Path.Combine(work,"peer-apply-fixture.sqlite");
@@ -170,7 +185,8 @@ internal static class NativePeerSyncChecks
         Check(NativeWorkspace.Open(replacement.RecoveryPath).BackupSha256==previousSha,
             "Recovery file must preserve the original verified SHA.");
         var now=NativePeerSync.Compare(writablePath,incomingBytes);
-        Check(!now.HasChanges,"Applied local data must match incoming peer record groups.");
+        RegressionExpect.That(!now.HasChanges,
+            "After approved merge, a fresh comparison to incoming peer data finds no changes");
         Reject(()=>NativePeerSync.ApplyApprovedMerge(writablePath,prepared,previousSha));
         var damaged=JsonNode.Parse(baseBytes)!.AsObject();
         damaged["deviceId"]="00000000-0000-4000-8000-000000000999";
