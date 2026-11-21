@@ -195,6 +195,13 @@ internal static class NativeDeckEditingChecks
              updated.Current.Collection.PreferredArtworks == 1,
              "Deck update changed unrelated sections or failed to append a revision.");
         var afterUpdate = NativeWorkspaceSafety.ListDecks(path);
+        Must(afterUpdate[0].BracketMinimum == 1 &&
+              afterUpdate[0].BracketSaved &&
+              afterUpdate[0].BracketGameChangers == 0 &&
+              afterUpdate[1].BracketMinimum == 1 &&
+              !afterUpdate[1].BracketSaved,
+              "Saved Commander decks must persist bracket minimum while legacy decks remain provisional.");
+
         Must(afterUpdate[0].Name == "Legacy Commander Revised" &&
              afterUpdate[0].TotalCopies == 16 &&
              afterUpdate[0].EntryCount == 4 &&
@@ -323,6 +330,10 @@ internal static class NativeDeckEditingChecks
             originalRows[0].MainboardText, originalRows[0],
             baseline.BackupSha256, format: "Arena Brawl");
         var formattedRows = NativeWorkspaceSafety.ListDecks(formatPath);
+        Must(formattedRows[0].BracketMinimum is null &&
+              formattedRows[1].BracketMinimum == 1,
+              "Arena Brawl must not receive tabletop Commander brackets.");
+
         Must(formatted.Current.Collection.Decks == 2 &&
              formatted.Current.Collection.DeckRevisions == 2 &&
              formattedRows[0].Id == "deck_legacy_1" &&
