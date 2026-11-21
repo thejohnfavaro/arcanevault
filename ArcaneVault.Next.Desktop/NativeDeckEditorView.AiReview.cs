@@ -157,25 +157,20 @@ public partial class NativeDeckEditorView
                 using var lookupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
                 try
                 {
+                    var candidates = AiReviewCardLinks.Candidates(answer, draft, commander);
                     var confirmed = await Task.Run(() =>
-                    {
-                        var names = new List<string>();
-                        foreach (var candidate in AiReviewCardLinks.Candidates(answer, draft, commander)
-                            .Take(75))
-                        {
-                            lookupTimeout.Token.ThrowIfCancellationRequested();
-                            try
-                            {
-                                var details = CollectionCatalogReview.ReadDetails(path, candidate);
-                                if (details is not null) names.Add(details.Name);
-                            }
-                            catch (Exception) { /* Unknown or temporarily unavailable card. */ }
-                        }
-                        return names.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-                    }, lookupTimeout.Token).WaitAsync(lookupTimeout.Token);
+                        CollectionCatalogReview.FindExactNames(path,
+                            candidates.Take(80), lookupTimeout.Token),
+                        lookupTimeout.Token).WaitAsync(lookupTimeout.Token);
                     var linkedDocument = AiReviewMarkdown.Render(answer);
                     AiReviewCardLinks.Apply(linkedDocument, confirmed, OpenAiReviewCardDetails);
                     AiReviewResultViewer.Document = linkedDocument;
+                    AiReviewStatus.Text = confirmed.Count > 0
+                        ? "Review complete (" + model + "). " + confirmed.Count +
+                          " verified card names linked — click gold names for full details."
+                        : "Review complete (" + model +
+                          "). No mentioned card names matched the local catalog. " +
+                          "Check that Card Catalog has finished refreshing.";
                 }
                 catch (OperationCanceledException)
                 {
@@ -183,14 +178,18 @@ public partial class NativeDeckEditorView
                     AiReviewStatus.Text = "Review complete. Card links are unavailable because catalog lookup timed out.";
                     return;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    AiReviewStatus.Text = "Review complete. Card links unavailable; the review is still readable.";
+                    AiReviewStatus.Text = "Review complete, but card links could not be prepared (" +
+                        ex.GetType().Name + ": " +
+                        ex.Message[..Math.Min(ex.Message.Length, 150)] +
+                        "). The review is still readable.";
                     return;
                 }
             }
-            AiReviewStatus.Text = "Review complete (" + model +
-                "). Card names open full details. No deck edits were made.";
+            if (string.IsNullOrWhiteSpace(catalogPath))
+                AiReviewStatus.Text = "Review complete (" + model +
+                    "). Card previews require the local Scryfall catalog.";
         }
         catch (OperationCanceledException)
         {

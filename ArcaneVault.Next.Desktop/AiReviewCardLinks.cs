@@ -29,23 +29,40 @@ internal static class AiReviewCardLinks
                 cleaned is not ("Cut" or "Add" or "Card" or "Why"))
                 candidates.Add(cleaned);
         }
-        Add(commander);
-        foreach (var entry in NativeDeckEditing.ParseMainboard(mainboard))
-            Add(entry.Name);
-        foreach (Match m in Regex.Matches(response,
+        // The response goes FIRST. Otherwise a 100-card deck can exhaust
+        // the lookup budget before any proposed additions are considered.
+        foreach (Match m in Regex.Matches(response ?? "",
                      @"\*\*([^*\r\n]{2,110})\*\*"))
         {
-            if (candidates.Count >= 230) break;
+            if (candidates.Count >= 80) break;
             Add(m.Groups[1].Value);
         }
-        foreach (string line in response.Split('\n'))
+        foreach (string line in (response ?? "").Split('\n'))
         {
-            if (candidates.Count >= 250) break;
+            if (candidates.Count >= 100) break;
             if (!line.TrimStart().StartsWith('|')) continue;
             string[] cells = line.Trim().Trim('|').Split('|');
-            for (int col = 0; col < Math.Min(2, cells.Length); col++)
+            var headers = cells.Select(x => x.Trim().ToLowerInvariant()).ToArray();
+            if (headers.Contains("cut") || headers.Contains("add") ||
+                headers.Contains("priority")) continue;
+            // Standard AI layout: Priority | Cut | Add | Why.
+            // Tables without priority commonly use Cut | Add | Why.
+            int offset = cells.Length >= 4 &&
+                int.TryParse(cells[0].Trim(), out _) ? 1 : 0;
+            for (int col = offset; col < Math.Min(offset + 2, cells.Length); col++)
                 if (!Regex.IsMatch(cells[col].Trim(), @"^[-:\s]+$"))
                     Add(cells[col]);
+        }
+        Add(commander);
+        try
+        {
+            foreach (var entry in NativeDeckEditing.ParseMainboard(mainboard))
+                Add(entry.Name);
+        }
+        catch (Exception)
+        {
+            // A malformed unsaved draft cannot prevent links to valid,
+            // catalog-verified recommendations from rendering.
         }
         return candidates.Take(250).ToArray();
     }
