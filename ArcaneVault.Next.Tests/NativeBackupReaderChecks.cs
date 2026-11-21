@@ -49,7 +49,15 @@ internal static class NativeBackupReaderChecks
         var hash = SHA256.HashData(File.ReadAllBytes(backup));
         var beforeModified = File.GetLastWriteTimeUtc(backup);
 
+        // ACT: inspect a synthetic export without opening or editing a live collection.
+        Console.WriteLine("  CHECK A: backup viewer preserves printing, Arena and deck counts");
         var report = NativeBackupReader.Read(backup);
+        RegressionExpect.Equal(report.PhysicalCards.Count, 3,
+            "Backup reader must show three distinct physical printing rows");
+        RegressionExpect.Equal(report.PhysicalCopies, 6L,
+            "Backup reader must count all six physical copies");
+        RegressionExpect.Equal(report.ArenaCopies, 3L,
+            "Backup reader must count Arena copies independently");
         Check(report.PhysicalCards.Count == 3 && report.PhysicalCopies == 6 &&
               report.DistinctPhysicalNames == 2, "Physical rows and separate printings were lost.");
         Check(report.ArenaCards.Count == 2 && report.ArenaCopies == 3,
@@ -71,6 +79,7 @@ internal static class NativeBackupReaderChecks
         Check(hash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(backup))) &&
               beforeModified == File.GetLastWriteTimeUtc(backup),
             "Read-only native viewer modified its export.");
+        Console.WriteLine("  CHECK B: release-readiness diagnostics remain read-only");
         var readiness = NativeReleaseReadiness.Inspect(backup);
         Check(readiness.Sha256 == Convert.ToHexString(hash) &&
               readiness.FileBytes == new FileInfo(backup).Length &&
@@ -89,6 +98,8 @@ internal static class NativeBackupReaderChecks
               beforeModified == File.GetLastWriteTimeUtc(backup),
             "Release readiness must report exact backup metadata without changing the exported file.");
 
+        // ASSERT: unsafe exports are rejected, never silently accepted.
+        Console.WriteLine("  CHECK C: malformed backups must fail without touching the good export");
         string bad = Path.Combine(directory, "invalid-native-collection.json");
         File.WriteAllText(bad, "{\"schema\":2,\"cards\":[],\"physicalCards\":[{\"name\":\"Card\",\"qty\":-1}],\"deckLibrary\":[],\"preferredArtwork\":{}}");
         MustReject(() => NativeBackupReader.Read(bad));
