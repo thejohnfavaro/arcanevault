@@ -140,6 +140,81 @@ internal sealed class MatchHistory : IDisposable
         }
     }
 
+    /// <summary>Partial, seat-anonymous gameplay observations from archived GRE data.
+    /// Turn maxima are lower bounds: a missing final state must never be treated
+    /// as a completed game. Mulligans may be reported only for observed seats.</summary>
+    internal sealed record GameplayObservation(int GamesWithTurnData,
+        double AverageHighestObservedTurn, int GamesWithMulliganData,
+        int SeatsWithMulligans, int? HighestObservedMulligans);
+
+    internal GameplayObservation ReadGameplayObservation()
+    {
+        lock (gate)
+        {
+            // One row per observed match/game; exclude unknown game identifiers
+            // rather than silently blending multiple games in the same match.
+            var gameTurns = new List<int>();
+            using (var query = db.CreateCommand())
+            {
+                query.CommandText = @"SELECT MAX(t.turn_number)
+                    FROM arena_match_telemetry t
+                    INNER JOIN matches m ON m.match_id=t.match_id
+                    WHERE t.game_number IS NOT NULL AND t.turn_number BETWEEN 1 AND 1000
+                    GROUP BY t.match_id,t.game_number";
+                using var reader = query.ExecuteReader();
+                while (reader.Read())
+                    if (!reader.IsDBNull(0)) gameTurns.Add(reader.GetInt32(0));
+            }
+            // Values are seat-anonymous. Across successive snapshots, use the
+            // highest observed mulligan count for each match/game/seat, not
+            // the number of GRE messages that repeat the same count.
+            var mulligans = new Dictionary<(string Match,int Game,int Seat),int>();
+            using (var query = db.CreateCommand())
+            {
+                query.CommandText = @"SELECT t.match_id,t.game_number,t.payload_json
+                    FROM arena_match_telemetry t
+                    INNER JOIN matches m ON m.match_id=t.match_id
+                    WHERE t.game_number IS NOT NULL
+                    ORDER BY t.id DESC LIMIT 10000";
+                using var reader = query.ExecuteReader();
+                while (reader.Read())
+                {
+                    var match = reader.GetString(0);
+                    var game = reader.GetInt32(1);
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(reader.GetString(2));
+                        if (!doc.RootElement.TryGetProperty("players",out var players) ||
+                            players.ValueKind != JsonValueKind.Array) continue;
+                        foreach (var player in players.EnumerateArray())
+                        {
+                            if (player.ValueKind != JsonValueKind.Object ||
+                                !player.TryGetProperty("mulliganCount",out var count) ||
+                                !count.TryGetInt32(out int value) || value is < 0 or > 20)
+                                continue;
+                            JsonElement seat;
+                            if (!player.TryGetProperty("systemSeatId",out seat) &&
+                                !player.TryGetProperty("seatId",out seat) &&
+                                !player.TryGetProperty("systemSeatNumber",out seat))
+                                continue;
+                            if (!seat.TryGetInt32(out int seatNumber) ||
+                                seatNumber is < 0 or > 100) continue;
+                            var key = (match,game,seatNumber);
+                            if (!mulligans.TryGetValue(key,out int prior) || value>prior)
+                                mulligans[key] = value;
+                        }
+                    }
+                    catch (JsonException) { /* Historical malformed telemetry is ignored. */ }
+                }
+            }
+            return new GameplayObservation(gameTurns.Count,
+                gameTurns.Count==0 ? 0 : gameTurns.Average(),
+                mulligans.Keys.Select(x=>(x.Match,x.Game)).Distinct().Count(),
+                mulligans.Values.Count(x=>x>0),
+                mulligans.Count==0 ? null : mulligans.Values.Max());
+        }
+    }
+
     internal sealed record RankSnapshot(string WhenUtc, string ConstructedClass,
         int ConstructedLevel, string LimitedClass, int LimitedLevel);
 
