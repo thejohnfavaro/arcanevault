@@ -847,6 +847,11 @@ internal static class NativeVisualShellChecks
             string xml = File.ReadAllText(xamlPath);
             var doc = XDocument.Parse(xml);
             string code = File.ReadAllText(csPath);
+            // Event handlers may live in any partial code-behind file; keep
+            // the check accurate as workspaces grow beyond one source file.
+            foreach (var partialPath in Directory.GetFiles(dir, name + ".*.cs"))
+                if (!string.Equals(partialPath, csPath, StringComparison.OrdinalIgnoreCase))
+                    code += "\n" + File.ReadAllText(partialPath);
             if (name == "MainWindow")
             {
                 code += "\n" + File.ReadAllText(
