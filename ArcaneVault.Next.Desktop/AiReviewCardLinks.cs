@@ -75,9 +75,7 @@ internal static class AiReviewCardLinks
     // Only deliberate [[card:Full Card Name]] references can become links.
     // Never scan ordinary prose for catalog names: "Brawl", "Fell" and many
     // other legitimate cards are also everyday words.
-    private static readonly Regex ExplicitCard = new(
-        @"\[\[card:([^\[\]\r\n]{2,150})\]\]",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static Regex ExplicitCard => AiReviewCardReferenceSyntax.Pattern;
 
     internal static IReadOnlyList<string> ExplicitNames(string response) =>
         ExplicitCard.Matches(response ?? string.Empty)
