@@ -18,7 +18,7 @@ internal sealed class ChatGptPlanClient
     private const string AuthBase = "https://auth.openai.com";
     private const string Resource = "https://api.openai.com/v1";
     private const string RequiredScope = "chatgpt.tokens.use.direct";
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(45) };
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(3) };
     private string? accessToken;
     private DateTimeOffset expiresAt;
     private string? subject;
