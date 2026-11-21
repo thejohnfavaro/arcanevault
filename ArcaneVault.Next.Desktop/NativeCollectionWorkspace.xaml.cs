@@ -357,6 +357,102 @@ public partial class NativeCollectionWorkspace : UserControl
         }
     }
 
+    private async Task<bool> TryRefreshVerifiedArenaEditAsync(
+        NativeWorkspaceSafety.Replacement replacement)
+    {
+        if (closing || string.IsNullOrWhiteSpace(nativePath) ||
+            !Path.GetFullPath(nativePath).Equals(
+                Path.GetFullPath(replacement.Current.DatabasePath),
+                StringComparison.OrdinalIgnoreCase))
+            return false;
+        var next = replacement.Current.Collection;
+        if (!backup.PhysicalCards.SequenceEqual(next.PhysicalCards) ||
+            backup.PhysicalCopies != next.PhysicalCopies ||
+            backup.Decks != next.Decks ||
+            backup.DeckRevisions != next.DeckRevisions ||
+            backup.PreferredArtworks != next.PreferredArtworks)
+            return false;
+        IReadOnlyList<NativeProxyEditing.ProxyRow> verifiedProxies;
+        try
+        {
+            verifiedProxies = await Task.Run(() =>
+                NativeWorkspaceSafety.ListProxiesFromVerified(replacement.Current));
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or
+            ArgumentException or UnauthorizedAccessException or
+            Microsoft.Data.Sqlite.SqliteException or System.Text.Json.JsonException)
+        {
+            return false;
+        }
+        if (closing) return false;
+        // Catalog ownership must reflect this edit even though the physical
+        // review, priced printings, and paper set totals remain untouched.
+        onVerifiedPhysicalChange?.Invoke(next, verifiedProxies);
+        backup = next;
+        expectedBackupSha = replacement.Current.BackupSha256;
+        proxyRows = verifiedProxies;
+        ProxyList.ItemsSource = verifiedProxies;
+        arenaProgress = null;
+        arenaProgressLoading = false;
+        setQueryVersion++;
+        RefreshLists();
+        UpdateDeckInspectorCoverage();
+        TotalsText.Text =
+            $"Physical: {backup.PhysicalCopies:N0} copies · {backup.PhysicalCards.Count:N0} lines · " +
+            $"{backup.DistinctPhysicalNames:N0} names  |  " +
+            $"Arena: {backup.ArenaCopies:N0} copies  |  " +
+            $"Decks: {backup.Decks:N0} ({backup.DeckRevisions:N0} revisions)  |  " +
+            $"Preferred artwork: {backup.PreferredArtworks:N0}";
+        StatusText.Text = "Verified Arena inventory edit · reused physical collection and pricing.";
+        if (ArenaSetScope && !string.IsNullOrWhiteSpace(catalogPath))
+        {
+            // Rebuild only Arena name coverage, off the UI thread. Previous
+            // in-flight computations cannot publish once their SHA is stale.
+            var sha = expectedBackupSha;
+            var cards = next.ArenaCards.ToArray();
+            arenaProgressLoading = true;
+            RefreshSetList();
+            _ = RefreshArenaCoverageAfterEditAsync(cards, sha);
+        }
+        return true;
+    }
+
+    private async Task RefreshArenaCoverageAfterEditAsync(
+        IReadOnlyList<NativeArenaRow> arenaCards, string? sha)
+    {
+        try
+        {
+            var loaded = await Task.Run(() =>
+                NativeSetProgress.BuildArena(arenaCards, catalogPath!));
+            if (closing || expectedBackupSha != sha) return;
+            arenaProgress = loaded;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or
+            ArgumentException or UnauthorizedAccessException or
+            Microsoft.Data.Sqlite.SqliteException)
+        {
+            if (!closing && expectedBackupSha == sha)
+                SetDetailsHeader.Text = "Arena set coverage could not refresh: " + ex.Message;
+        }
+        finally
+        {
+            if (!closing && expectedBackupSha == sha)
+            {
+                arenaProgressLoading = false;
+                RefreshSetList();
+            }
+        }
+    }
+
+    private async Task FinishVerifiedArenaEditAsync(
+        NativeWorkspaceSafety.Replacement? replacement)
+    {
+        if (replacement is not null && await TryRefreshVerifiedArenaEditAsync(replacement))
+            return;
+        Close();
+        if (reopenNative is not null) await reopenNative();
+    }
+
     private async Task FinishVerifiedPhysicalEditAsync(
         NativeWorkspaceSafety.Replacement? replacement)
     {
@@ -1322,9 +1418,7 @@ public partial class NativeCollectionWorkspace : UserControl
         { Owner = Window.GetWindow(this) };
         if (editor.ShowDialog() != true) return;
 
-        Close();
-        if (reopenNative is not null)
-            await reopenNative();
+        await FinishVerifiedArenaEditAsync(editor.SavedReplacement);
     }
 
     private async void OnEditArenaClicked(object sender, RoutedEventArgs e)
@@ -1361,9 +1455,7 @@ public partial class NativeCollectionWorkspace : UserControl
             expectedBackupSha, ordinal, selected) { Owner = Window.GetWindow(this) };
         if (editor.ShowDialog() != true) return;
 
-        Close();
-        if (reopenNative is not null)
-            await reopenNative();
+        await FinishVerifiedArenaEditAsync(editor.SavedReplacement);
     }
 
     private async void OnAddPhysicalClicked(object sender, RoutedEventArgs e)
