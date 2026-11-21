@@ -42,6 +42,23 @@ internal static class NativeVisualShellChecks
              deckStudio.Contains("VaultPanelRaised"),
              "EDH Lab tab states must honor the selected native theme.");
 
+        // Search fields must not clip their glyphs at 100% or scaled DPI.
+        string appStyles = File.ReadAllText(Path.Combine(dir, "App.xaml"));
+        string nativeDetails = File.ReadAllText(Path.Combine(dir, "NativeCardDetailsWindow.xaml"));
+        string detailsCode = File.ReadAllText(Path.Combine(dir, "NativeCardDetailsWindow.xaml.cs"));
+        Must(appStyles.Contains("x:Key=\"VaultSearchTextBox\"") &&
+             appStyles.Contains("VerticalContentAlignment") &&
+             appStyles.Contains("TemplateBinding VerticalContentAlignment") &&
+             mainShell.Contains("Style=\"{StaticResource VaultSearchTextBox}\"") &&
+             deckStudio.Contains("Style=\"{StaticResource VaultSearchTextBox}\""),
+            "Search bars must use vertically aligned DPI-safe textboxes.");
+        Must(nativeDetails.Contains("x:Name=\"CardDetailsReadingGrid\"") &&
+             nativeDetails.Contains("x:Name=\"CardOraclePanel\"") &&
+             nativeDetails.Contains("x:Name=\"LegalityScroller\"") &&
+             detailsCode.Contains("Grid.SetColumn(CardOraclePanel, 1)") &&
+             detailsCode.Contains("CardMetadataPanel.MaxHeight = double.PositiveInfinity") &&
+             detailsCode.Contains("Grid.SetRow(CardOraclePanel, 1)"),
+            "Card Details must use spare width for full-height metadata and Oracle text.");
         // v0.9.65: Deck Library and EDH Lab commander discovery use
         // persistent, read-only selection inspectors. Opening a full
         // details window requires an explicit separate action.
