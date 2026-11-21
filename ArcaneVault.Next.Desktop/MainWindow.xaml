@@ -861,7 +861,7 @@
                         <TextBox x:Name="SearchBox" Style="{StaticResource VaultSearchTextBox}" TextChanged="OnSearchChanged"
                                  ToolTip="Search card names or Scryfall Oracle mechanics and rules text (Banding, Connive, Replicate); use Next to browse matching printings"
                                  FontSize="15" Height="44"
-                                 Padding="14,7"
+                                 Padding="10,2"
                                  Background="{DynamicResource VaultPanelRaised}"
                                  Foreground="{DynamicResource VaultText}"
                                  BorderBrush="{DynamicResource VaultLine}"/>
@@ -872,7 +872,7 @@
                                 <TextBox x:Name="SetFilterBox" Style="{StaticResource VaultSearchTextBox}" Width="90" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
                                          ToolTip="Exact set abbreviation (e.g. MH3, CMM)"
-                                         Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                         Padding="10,2" Background="{DynamicResource VaultPanelRaised}"
                                          Foreground="{DynamicResource VaultText}"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,12,7">
@@ -882,7 +882,7 @@
                                          TextChanged="OnOracleKeywordChanged"
                                          PreviewKeyDown="OnOracleKeywordKeyDown"
                                          ToolTip="Type a mechanic and press Space or Enter to complete; tap suggestions or use commas for custom Oracle phrases. Completed keywords can be removed."
-                                         Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                         Padding="10,2" Background="{DynamicResource VaultPanelRaised}"
                                          Foreground="{DynamicResource VaultText}"/>
                                 <WrapPanel x:Name="OracleTokensPanel" MaxWidth="250" Margin="0,4,0,0"/>
                                 <ListBox x:Name="OracleKeywordSuggestions" Width="235" MaxHeight="132"
@@ -953,17 +953,17 @@
                                 <TextBlock Text="MANA VALUE (MIN–MAX)" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBox x:Name="ManaValueMinBox" Width="66" Height="36"
+                                    <TextBox Style="{StaticResource VaultQuantityTextBox}" x:Name="ManaValueMinBox" Width="66" Height="36"
                                              ToolTip="Minimum mana value (CMC), inclusive. Set both fields to the same value for exact."
                                              TextChanged="OnCatalogFilterChanged"
-                                             Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                             Padding="5,1" Background="{DynamicResource VaultPanelRaised}"
                                              Foreground="{DynamicResource VaultText}"/>
                                     <TextBlock Text="–" VerticalAlignment="Center" Margin="6,0"
                                                Foreground="{DynamicResource VaultMuted}"/>
-                                    <TextBox x:Name="ManaValueMaxBox" Width="66" Height="36"
+                                    <TextBox Style="{StaticResource VaultQuantityTextBox}" x:Name="ManaValueMaxBox" Width="66" Height="36"
                                              ToolTip="Maximum mana value (CMC), inclusive; works with rarity and role filters"
                                              TextChanged="OnCatalogFilterChanged"
-                                             Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                             Padding="5,1" Background="{DynamicResource VaultPanelRaised}"
                                              Foreground="{DynamicResource VaultText}"/>
                                 </StackPanel>
                             </StackPanel>
@@ -973,7 +973,7 @@
                                 <TextBox x:Name="TypeFilterBox" Style="{StaticResource VaultSearchTextBox}" Width="163" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
                                          ToolTip="Filter oracle card type line: Creature, Enchantment, Wizard, etc."
-                                         Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
+                                         Padding="10,2" Background="{DynamicResource VaultPanelRaised}"
                                          Foreground="{DynamicResource VaultText}"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,14,7">
