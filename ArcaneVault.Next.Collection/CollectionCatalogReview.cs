@@ -255,6 +255,95 @@ public static class CollectionCatalogReview
             .Take(150).ToArray();
     }
 
+    /// <summary>
+    /// Resolve abbreviated references such as "Tezzeret" to a full local
+    /// catalog card. Prefer the reviewed deck when it has exactly one
+    /// matching card; otherwise only allow globally unambiguous names.
+    /// Never guess if several eligible printings/card identities share
+    /// the nickname.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> FindShortNameLinks(
+        string catalogPath, string reviewText, IEnumerable<string> deckCardNames,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(catalogPath);
+        ArgumentNullException.ThrowIfNull(deckCardNames);
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(reviewText)) return result;
+
+        // Only distinctive leading names. Avoid ordinary English and generic
+        // card-type phrases; alias matches remain case sensitive in the review.
+        static IEnumerable<string> Aliases(string name)
+        {
+            string lead = name.Split(',')[0].Trim();
+            if (lead.Length >= 5 && !lead.Contains(' ') &&
+                char.IsUpper(lead[0])) yield return lead;
+
+            string first = name.Split(' ', ',', StringSplitOptions.RemoveEmptyEntries)[0];
+            if (first.Length >= 6 && !first.Equals("The", StringComparison.OrdinalIgnoreCase) &&
+                char.IsUpper(first[0]) && !first.Equals(lead, StringComparison.OrdinalIgnoreCase))
+                yield return first;
+        }
+
+        var deckNames = new HashSet<string>(
+            deckCardNames.Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n.Trim()), StringComparer.OrdinalIgnoreCase);
+        var global = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var deck = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        using (var db = Open(catalogPath))
+        using (var command = db.CreateCommand())
+        {
+            command.CommandText = "SELECT DISTINCT name FROM cards";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (reader.IsDBNull(0)) continue;
+                string canonical = reader.GetString(0);
+                foreach (string alias in Aliases(canonical))
+                {
+                    if (!ContainsAlias(reviewText, alias)) continue;
+                    if (!global.TryGetValue(alias, out var all))
+                        global[alias] = all = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    all.Add(canonical);
+                    if (deckNames.Contains(canonical))
+                    {
+                        if (!deck.TryGetValue(alias, out var nearby))
+                            deck[alias] = nearby = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        nearby.Add(canonical);
+                    }
+                }
+            }
+        }
+        foreach (var pair in global)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            // Unique local deck identity outranks multiple catalog cards.
+            if (deck.TryGetValue(pair.Key, out var local) && local.Count == 1)
+                result[pair.Key] = local.Single();
+            else if ((!deck.ContainsKey(pair.Key) || deck[pair.Key].Count == 0) &&
+                     pair.Value.Count == 1)
+                result[pair.Key] = pair.Value.Single();
+        }
+        return result;
+    }
+
+    private static bool ContainsAlias(string text, string alias)
+    {
+        int from = 0;
+        while (from < text.Length)
+        {
+            int index = text.IndexOf(alias, from, StringComparison.Ordinal);
+            if (index < 0) return false;
+            int end = index + alias.Length;
+            if ((index == 0 || !char.IsLetterOrDigit(text[index - 1])) &&
+                (end == text.Length || !char.IsLetterOrDigit(text[end])))
+                return true;
+            from = index + 1;
+        }
+        return false;
+    }
+
     private static bool ContainsFullName(string text, string name)
     {
         // A card is only a mention when its entire name has word boundaries.
