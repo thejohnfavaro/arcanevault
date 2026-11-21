@@ -72,6 +72,15 @@ internal static class CollectionCatalogReviewChecks
                 INSERT INTO cards VALUES('Thoughtcast', 'Sorcery',
                     'Draw two cards.', 'common',5,'U',
                     '{"commander":"legal","brawl":"legal"}','MRD');
+                INSERT INTO cards VALUES('Tezzeret, Master of the Bridge','Legendary Planeswalker',
+                    'Affinity for artifacts.', 'mythic',6,'UB',
+                    '{"commander":"legal","brawl":"legal"}','WAR');
+                INSERT INTO cards VALUES('Tezzeret, Agent of Bolas','Legendary Planeswalker',
+                    'Look at the top five cards.', 'mythic',4,'UB',
+                    '{"commander":"legal","brawl":"legal"}','MBS');
+                INSERT INTO cards VALUES('Dawnsire, Sunstar Dreadnought','Artifact Creature',
+                    'Create artifact creature tokens.', 'rare',6,'',
+                    '{"commander":"legal","brawl":"legal"}','TST');
                 CREATE TABLE ownership(name TEXT, qty INTEGER);
                 INSERT INTO ownership VALUES('Separate installed inventory mirror',37);
                 """;
@@ -127,6 +136,29 @@ internal static class CollectionCatalogReviewChecks
             "while rejecting unverified names and duplicates.");
         // Not all AI card names are bold or in swap tables. Verify names
         // inside ordinary sentences, including an unowned recommended card.
+        var shortened = CollectionCatalogReview.FindShortNameLinks(catalogPath,
+            "Tezzeret and Dawnsire work well, but Tezzeret's abilities differ.",
+            new[] { "Tezzeret, Master of the Bridge", "Dawnsire, Sunstar Dreadnought" });
+        Check(shortened.TryGetValue("Tezzeret", out var selectedTezzeret) &&
+              selectedTezzeret == "Tezzeret, Master of the Bridge" &&
+              shortened.TryGetValue("Dawnsire", out var selectedDawnsire) &&
+              selectedDawnsire == "Dawnsire, Sunstar Dreadnought",
+            "AI short names must resolve to the single matching deck card.");
+        var globallyAmbiguous = CollectionCatalogReview.FindShortNameLinks(catalogPath,
+            "Tezzeret and Dawnsire are both options.", Array.Empty<string>());
+        Check(!globallyAmbiguous.ContainsKey("Tezzeret") &&
+              globallyAmbiguous.TryGetValue("Dawnsire", out var globalDawnsire) &&
+              globalDawnsire == "Dawnsire, Sunstar Dreadnought",
+            "Ambiguous nicknames without deck context must not guess a card.");
+        var twoDeckMatches = CollectionCatalogReview.FindShortNameLinks(catalogPath,
+            "Tezzeret is powerful.",
+            new[] { "Tezzeret, Master of the Bridge", "Tezzeret, Agent of Bolas" });
+        Check(!twoDeckMatches.ContainsKey("Tezzeret"),
+            "Two matching cards in a deck cannot silently resolve to one.");
+        var partialAlias = CollectionCatalogReview.FindShortNameLinks(catalogPath,
+            "Tezzerets and Dawnsirely are not standalone references.",
+            new[] { "Tezzeret, Master of the Bridge", "Dawnsire, Sunstar Dreadnought" });
+        Check(partialAlias.Count == 0, "Only standalone short references are linkable.");
         var proseMatches = CollectionCatalogReview.FindMentionedNames(catalogPath,
             "Esper Sentinel, Thoughtcast, Thought Monitor, and The One Ring give you more draw. " +
             "The card Sphinx’s Tutelage is also worth verifying. " +
