@@ -858,7 +858,7 @@
                         <TextBlock Text="SEARCH PRINTINGS"
                                    Style="{StaticResource VaultEyebrow}"
                                    Margin="0,0,0,7"/>
-                        <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged"
+                        <TextBox x:Name="SearchBox" Style="{StaticResource VaultSearchTextBox}" TextChanged="OnSearchChanged"
                                  ToolTip="Search card names or Scryfall Oracle mechanics and rules text (Banding, Connive, Replicate); use Next to browse matching printings"
                                  FontSize="15" Height="44"
                                  Padding="14,7"
@@ -869,7 +869,7 @@
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="SET CODE" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
-                                <TextBox x:Name="SetFilterBox" Width="90" Height="36"
+                                <TextBox x:Name="SetFilterBox" Style="{StaticResource VaultSearchTextBox}" Width="90" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
                                          ToolTip="Exact set abbreviation (e.g. MH3, CMM)"
                                          Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
@@ -878,7 +878,7 @@
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="KEYWORD / RULES TEXT" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
-                                <TextBox x:Name="OracleFilterBox" Width="235" Height="36"
+                                <TextBox x:Name="OracleFilterBox" Style="{StaticResource VaultSearchTextBox}" Width="235" Height="36"
                                          TextChanged="OnOracleKeywordChanged"
                                          PreviewKeyDown="OnOracleKeywordKeyDown"
                                          ToolTip="Type a mechanic and press Space or Enter to complete; tap suggestions or use commas for custom Oracle phrases. Completed keywords can be removed."
@@ -970,7 +970,7 @@
                             <StackPanel Margin="0,0,12,7">
                                 <TextBlock Text="TYPE CONTAINS" Style="{StaticResource VaultEyebrow}"
                                            Margin="0,0,0,4"/>
-                                <TextBox x:Name="TypeFilterBox" Width="163" Height="36"
+                                <TextBox x:Name="TypeFilterBox" Style="{StaticResource VaultSearchTextBox}" Width="163" Height="36"
                                          TextChanged="OnCatalogFilterChanged"
                                          ToolTip="Filter oracle card type line: Creature, Enchantment, Wizard, etc."
                                          Padding="7,4" Background="{DynamicResource VaultPanelRaised}"
