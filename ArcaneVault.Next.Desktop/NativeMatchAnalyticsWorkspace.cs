@@ -17,6 +17,9 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
     private readonly TextBlock telemetryStatus = new() {
         Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
         Margin = new Thickness(0,5,0,8) };
+    private readonly TextBlock gameplayStatus = new() {
+        Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0,5,0,10) };
     private readonly ListView telemetryRows = new() {
         Height = 180, Margin = new Thickness(0,0,0,12) };
     private readonly Button refresh = new() { Content = "Refresh match analytics",
@@ -54,6 +57,10 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
             Margin = new Thickness(0,3,0,3) });
         header.Children.Add(telemetryStatus);
+        header.Children.Add(new TextBlock { Text = "OBSERVED GAMEPLAY",
+            Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
+            Margin = new Thickness(0,3,0,3) });
+        header.Children.Add(gameplayStatus);
         var telemetryGrid = new GridView();
         telemetryGrid.Columns.Add(TelemetryColumn("Played (UTC)", "PlayedUtc", 175));
         telemetryGrid.Columns.Add(TelemetryColumn("Deck", "DeckName", 170));
@@ -133,7 +140,8 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             var data = await Task.Run(() => {
                 var matches = NativeMatchHistoryView.ReadPerformance();
                 using var history = new MatchHistory();
-                return (matches, coverage: history.ReadTelemetryOverview());
+                return (matches, coverage: history.ReadTelemetryOverview(),
+                    gameplay: history.ReadGameplayObservation());
             });
             dashboard.SetMatches(data.matches);
             status.Text=$"{data.matches.Count} distinct match row(s) available for review. " +
@@ -145,6 +153,18 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                 "Game counts and highest turns are observed lower bounds, not complete game replays. " +
                 "The table shows the 20 most recent matches with telemetry.";
             telemetryRows.ItemsSource = coverage.Recent;
+            var gameplay = data.gameplay;
+            gameplayStatus.Text = gameplay.GamesWithTurnData == 0
+                ? "No game-numbered turn observations yet. Enable Arena Detailed Logs to collect future evidence."
+                : $"Highest observed turn per game: {gameplay.AverageHighestObservedTurn:0.#} average " +
+                  $"across {gameplay.GamesWithTurnData} games with turn data. " +
+                  $"Mulligan data observed in {gameplay.GamesWithMulliganData} games; " +
+                  $"{gameplay.SeatsWithMulligans} game/seat observations show at least one mulligan. " +
+                  $"Highest observed seat mulligan count: " +
+                  (gameplay.HighestObservedMulligans?.ToString() ?? "unknown") + ". " +
+                  "These are partial, seat-anonymous observations, not final game lengths " +
+                  "or player-specific mulligan rates. Only the latest 10,000 telemetry events " +
+                  "are scanned for mulligan statistics; play/draw attribution remains unavailable.";
         }
         catch(Exception ex) when (ex is IOException or SqliteException or
             UnauthorizedAccessException or InvalidOperationException or InvalidDataException)
