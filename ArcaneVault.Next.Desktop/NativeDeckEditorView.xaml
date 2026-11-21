@@ -224,7 +224,7 @@
                             <TextBlock Text="Search mainboard · name, type or role"
                                        Margin="0,7,0,0" FontSize="10"
                                        Foreground="{DynamicResource VaultMuted}"/>
-                            <TextBox x:Name="MainboardManagerSearchBox"
+                            <TextBox x:Name="MainboardManagerSearchBox" Style="{StaticResource VaultSearchTextBox}"
                                      Margin="0,3,0,0" Padding="8,6"
                                      MaxLength="255"
                                      TextChanged="OnMainboardManagerSearchChanged"
@@ -490,7 +490,7 @@
                     <ComboBoxItem Content="Arena collection"/>
                 </ComboBox>
                 <StackPanel Grid.Row="2" Margin="0,0,0,6">
-                    <TextBox x:Name="OwnedSearchBox"
+                    <TextBox x:Name="OwnedSearchBox" Style="{StaticResource VaultSearchTextBox}"
                              TextChanged="OnOwnedSearchChanged"
                              Padding="9,7" Margin="0,0,0,4"
                              ToolTip="Filter card names; shows up to 200 eligible matches"
@@ -633,7 +633,7 @@
                                     <StackPanel Margin="0,0,9,5">
                                         <TextBlock Text="FIND LAND" Style="{StaticResource VaultEyebrow}"
                                                    Margin="0,0,0,3"/>
-                                        <TextBox x:Name="EdhLandSearchBox" Width="188"
+                                        <TextBox x:Name="EdhLandSearchBox" Style="{StaticResource VaultSearchTextBox}" Width="188"
                                                  MaxLength="255" Padding="7,5"
                                                  Background="{DynamicResource VaultPanel}"
                                                  Foreground="{DynamicResource VaultText}"
