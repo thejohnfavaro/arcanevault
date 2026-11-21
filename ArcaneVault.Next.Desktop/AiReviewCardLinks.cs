@@ -76,7 +76,7 @@ internal static class AiReviewCardLinks
     // Never scan ordinary prose for catalog names: "Brawl", "Fell" and many
     // other legitimate cards are also everyday words.
     private static readonly Regex ExplicitCard = new(
-        @"\\[\\[card:([^\\]\\r\\n]{2,150})\\]\\]",
+        @"\[\[card:([^\[\]\r\n]{2,150})\]\]",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     internal static IReadOnlyList<string> ExplicitNames(string response) =>
