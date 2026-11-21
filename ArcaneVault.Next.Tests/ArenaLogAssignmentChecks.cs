@@ -193,6 +193,7 @@ internal static class ArenaLogAssignmentChecks
             turnInfo = new { turnNumber = 1, phase = "Phase_Main1", activePlayer = 1 },
             gameInfo = new { gameNumber = 1, stage = "GameStage_Play" },
             players = new[] { new { systemSeatId = 1, lifeTotal = 20,
+                mulliganCount = 1, handCount = 6,
                 screenName = "PRIVATE_NAME", token = "PRIVATE_TOKEN" } },
             zones = new[] { new { zoneId = 7, type = "ZoneType_Hand", ownerSeatId = 1,
                 objectInstanceIds = new[] { 22 } } },
@@ -251,10 +252,21 @@ internal static class ArenaLogAssignmentChecks
             var json = (string?)payload.ExecuteScalar() ?? "";
             Assert(json.Contains("ZoneType_Hand") && json.Contains("12345") &&
                 json.Contains("AnnotationType_ZoneTransfer") &&
+                json.Contains("mulliganCount") && json.Contains("handCount") &&
                 !json.Contains("PRIVATE_NAME") &&
                 !json.Contains("PRIVATE_TOKEN") &&
                 !json.Contains("screenName") && !json.Contains("privateNote"),
                 "Persist useful game mechanics without any personally identifying log data.");
+        }
+
+        using (var telemetryHistory = new MatchHistory(telemetryDb))
+        {
+            var coverage = telemetryHistory.ReadTelemetryOverview();
+            Assert(coverage.RecordedMatches == 1 && coverage.MatchesWithTelemetry == 1 &&
+                coverage.ArchivedEvents == 2 && coverage.Recent.Count == 1 &&
+                coverage.Recent[0].GamesWithNumbers == 1 &&
+                coverage.Recent[0].HighestTurn == 2,
+                "Analytics coverage must count deduplicated GRE events and observed turns.");
         }
 
         // A real submission without a saved mapping must STILL preserve the
