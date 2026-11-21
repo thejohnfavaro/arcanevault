@@ -142,6 +142,40 @@ internal static class CollectionCatalogReviewChecks
               unverified.UnresolvedCopies == 21 && unverified.ConfirmedSets.Count == 0,
             "An absent catalog must not credit any printing.");
         var verified = CollectionCatalogReview.Examine(backup, catalogPath);
+        // Physical-to-proxy moves only remove existing copies. Reuse verified
+        // printing identities and catalog set denominators without SQL scans.
+        var reducedCards = backup.PhysicalCards.ToArray();
+        reducedCards[0] = reducedCards[0] with { Quantity = reducedCards[0].Quantity - 1 };
+        var reducedBackup = backup with {
+            PhysicalCards = reducedCards, PhysicalCopies = backup.PhysicalCopies - 1
+        };
+        var incremental = CollectionCatalogReview.AfterRemovingCopies(verified, reducedBackup);
+        var fullRecheck = CollectionCatalogReview.Examine(reducedBackup, catalogPath);
+        Check(incremental.ConfirmedCopies == fullRecheck.ConfirmedCopies &&
+              incremental.UnresolvedCopies == fullRecheck.UnresolvedCopies &&
+              incremental.ConfirmedDistinctPrintings == fullRecheck.ConfirmedDistinctPrintings &&
+              incremental.Rows.SequenceEqual(fullRecheck.Rows),
+            "Removal-only incremental verification must match a full catalog scan.");
+        var priorSets = new NativeSetProgress.Result(new[] {
+            new NativeSetProgress.SetRow("AAA", "A", "", 10, 1, 5),
+            new NativeSetProgress.SetRow("BBB", "B", "", 10, 1, 4)
+        }, 20, 2, 9);
+        var updatedSets = NativeSetProgress.AfterRemovingCopies(priorSets, incremental);
+        Check(updatedSets.ConfirmedOwnedCopies == incremental.ConfirmedCopies &&
+              updatedSets.Sets.Single(x => x.SetCode == "AAA").VerifiedCopies == 4 &&
+              updatedSets.Sets.Single(x => x.SetCode == "BBB").VerifiedCopies == 4 &&
+              updatedSets.CatalogPaperSlots == priorSets.CatalogPaperSlots,
+            "Set totals must update without rebuilding unaffected catalog denominators.");
+        bool rejectedIncrement = false;
+        try {
+            var increased = backup with {
+                PhysicalCards = backup.PhysicalCards.Select((row, index) =>
+                    index == 0 ? row with { Quantity = row.Quantity + 1 } : row).ToArray(),
+                PhysicalCopies = backup.PhysicalCopies + 1
+            };
+            _ = CollectionCatalogReview.AfterRemovingCopies(verified, increased);
+        } catch (InvalidDataException) { rejectedIncrement = true; }
+        Check(rejectedIncrement, "Incremental removal must reject increased ownership.");
         Check(verified.CatalogVerified && verified.TotalCopies == 21 &&
               verified.ConfirmedCopies == 9 && verified.UnresolvedCopies == 12 &&
               verified.QuantitiesConserved, "Verified/unresolved quantity conservation failed.");
