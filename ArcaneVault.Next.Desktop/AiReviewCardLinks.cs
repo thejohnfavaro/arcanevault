@@ -67,92 +67,64 @@ internal static class AiReviewCardLinks
         return candidates.Take(250).ToArray();
     }
 
-    internal static void Apply(FlowDocument document, IEnumerable<string> validated,
-        Action<string> inspect)
+    /// <summary>
+    /// Emit verified card hyperlinks as the document is built. Never alter a
+    /// live InlineCollection during enumeration; WPF invalidates its iterator
+    /// when a Run is inserted or removed.
+    /// </summary>
+    internal static void AppendVerifiedText(InlineCollection target, string text,
+        IReadOnlyList<string>? verifiedNames, Action<string>? inspect)
     {
-        var names = validated.Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(x => x.Length).ToArray();
-        if (names.Length == 0) return;
-        foreach (Block block in document.Blocks) VisitBlock(block, names, inspect);
-    }
-
-    private static void VisitBlock(Block block, string[] names, Action<string> inspect)
-    {
-        switch (block)
+        if (string.IsNullOrEmpty(text)) return;
+        if (inspect is null || verifiedNames is null || verifiedNames.Count == 0)
         {
-            case Paragraph p: Visit(p.Inlines, names, inspect); break;
-            case Table t:
-                foreach (TableRowGroup group in t.RowGroups)
-                foreach (TableRow row in group.Rows)
-                foreach (TableCell cell in row.Cells)
-                foreach (Block child in cell.Blocks)
-                    VisitBlock(child, names, inspect);
-                break;
-            case Section section:
-                foreach (Block child in section.Blocks)
-                    VisitBlock(child, names, inspect);
-                break;
-            case System.Windows.Documents.List list:
-                foreach (ListItem item in list.ListItems)
-                foreach (Block child in item.Blocks)
-                    VisitBlock(child, names, inspect);
-                break;
+            target.Add(new Run(text));
+            return;
         }
-    }
 
-    private static void Visit(InlineCollection inlines, string[] names,
-        Action<string> inspect)
-    {
-        // Snapshot because every Run may be replaced with several new inlines.
-        foreach (Inline original in inlines.Cast<Inline>().ToArray())
+        // Construct a standalone list of intervals before adding any content.
+        // Prefer the longest matching card on overlap, e.g. "Tithe" versus
+        // "Smothering Tithe", and preserve every unlinked character.
+        var ranges = new List<(int Start, int End, string Name)>();
+        foreach (string name in verifiedNames)
         {
-            if (original is Run run)
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            string pattern = @"(?<![\p{L}\p{N}])" + Regex.Escape(name) +
+                @"(?![\p{L}\p{N}])";
+            foreach (Match match in Regex.Matches(text, pattern,
+                         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                ranges.Add((match.Index, match.Index + match.Length, name));
+        }
+        if (ranges.Count == 0)
+        {
+            target.Add(new Run(text));
+            return;
+        }
+        ranges.Sort((left, right) =>
+        {
+            int start = left.Start.CompareTo(right.Start);
+            return start != 0 ? start : (right.End - right.Start).CompareTo(left.End - left.Start);
+        });
+
+        int cursor = 0;
+        foreach (var range in ranges)
+        {
+            if (range.Start < cursor) continue;
+            if (range.Start > cursor)
+                target.Add(new Run(text[cursor..range.Start]));
+
+            string selectedName = range.Name;
+            var link = new Hyperlink(new Run(text[range.Start..range.End]))
             {
-                string content = run.Text;
-                var ranges = new List<(int Start, int End, string Card)>();
-                foreach (string name in names)
-                {
-                    var expression = @"(?<![\p{L}\p{N}])" +
-                        Regex.Escape(name) + @"(?![\p{L}\p{N}])";
-                    foreach (Match match in Regex.Matches(content, expression,
-                                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-                        ranges.Add((match.Index, match.Index + match.Length, name));
-                }
-                if (ranges.Count == 0) continue;
-                ranges.Sort((a, b) =>
-                {
-                    int first = a.Start.CompareTo(b.Start);
-                    return first != 0 ? first : (b.End - b.Start).CompareTo(a.End - a.Start);
-                });
-                int offset = 0;
-                bool linked = false;
-                foreach (var range in ranges)
-                {
-                    if (range.Start < offset) continue;
-                    if (range.Start > offset)
-                        inlines.InsertBefore(run, new Run(content[offset..range.Start]));
-                    var link = new Hyperlink(new Run(content[range.Start..range.End]))
-                    {
-                        Foreground = Brushes.Goldenrod,
-                        TextDecorations = TextDecorations.Underline,
-                        ToolTip = "Open full card details: " + range.Card
-                    };
-                    string selected = range.Card;
-                    link.Click += (_, _) => inspect(selected);
-                    inlines.InsertBefore(run, link);
-                    linked = true;
-                    offset = range.End;
-                }
-                if (linked)
-                {
-                    if (offset < content.Length)
-                        inlines.InsertBefore(run, new Run(content[offset..]));
-                    inlines.Remove(run);
-                }
-            }
-            else if (original is Span span)
-                Visit(span.Inlines, names, inspect);
+                Foreground = Brushes.Goldenrod,
+                TextDecorations = TextDecorations.Underline,
+                ToolTip = "Open full card details: " + selectedName
+            };
+            link.Click += (_, _) => inspect(selectedName);
+            target.Add(link);
+            cursor = range.End;
         }
+        if (cursor < text.Length)
+            target.Add(new Run(text[cursor..]));
     }
 }
