@@ -33,28 +33,74 @@ public partial class NativeDeckEditorView
             aiLastResponse = original.AiReviewMarkdown;
             aiLastModel = original.AiReviewModel;
             aiLastMode = original.AiReviewMode;
-            aiReviewDeckFingerprint = NativeDeckEditing.ReviewFingerprint(
-                original.Format, original.Commander,
-                NativeDeckEditing.ParseMainboard(original.MainboardText));
+            aiReviewDeckFingerprint = original.AiReviewStale ? "" :
+                NativeDeckEditing.ReviewFingerprint(original.Format, original.Commander,
+                    NativeDeckEditing.ParseMainboard(original.MainboardText));
             AiReviewResultViewer.Document = AiReviewMarkdown.Render(aiLastResponse);
+            _ = RestoreSavedReviewCardLinksAsync();
         }
         RefreshSavedReviewStatus();
+    }
+
+    private async Task RestoreSavedReviewCardLinksAsync()
+    {
+        if (string.IsNullOrWhiteSpace(catalogPath) || aiLastResponse.Length == 0)
+            return;
+        string markdown = aiLastResponse, path = catalogPath;
+        try
+        {
+            using var budget = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+            var resolved = await Task.Run(() =>
+            {
+                string mentions = string.Join("\n", AiReviewCardLinks.ExplicitNames(markdown));
+                var exact = CollectionCatalogReview.FindMentionedNames(
+                    path, mentions, budget.Token);
+                var deckNames = NativeDeckEditing.ParseMainboard(original?.MainboardText ?? "")
+                    .Select(entry => ArcaneVault.Next.Domain.ArenaDeckCardName.Identity(entry.Name))
+                    .Append(ArcaneVault.Next.Domain.ArenaDeckCardName.Identity(
+                        original?.Commander ?? ""));
+                var aliases = CollectionCatalogReview.FindShortNameLinks(
+                    path, mentions, deckNames, budget.Token);
+                return (exact, aliases);
+            }, budget.Token).WaitAsync(budget.Token);
+            if (aiLastResponse != markdown) return;
+            var names = resolved.exact.Concat(resolved.aliases.Keys)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            AiReviewResultViewer.Document = AiReviewMarkdown.Render(markdown, names,
+                name => OpenAiReviewCardDetails(
+                    resolved.aliases.TryGetValue(name, out var fullName) ? fullName : name));
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or
+            IOException or InvalidDataException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            // Stored Markdown remains readable when the local catalog is missing.
+        }
     }
 
     private void RefreshSavedReviewStatus()
     {
         if (AiSaveReviewButton is null || AiReviewStatus is null) return;
-        bool matching = original is not null &&
-            NativeDeckEditing.ReviewFingerprint(FormatBox.Text,
-                CommanderBox.Text, NativeDeckEditing.ParseMainboard(MainboardBox.Text)) ==
-            NativeDeckEditing.ReviewFingerprint(original.Format,
-                original.Commander, NativeDeckEditing.ParseMainboard(original.MainboardText));
+        bool matching = false;
+        try
+        {
+            matching = original is not null &&
+                NativeDeckEditing.ReviewFingerprint(FormatBox.Text,
+                    CommanderBox.Text, NativeDeckEditing.ParseMainboard(MainboardBox.Text)) ==
+                NativeDeckEditing.ReviewFingerprint(original.Format,
+                    original.Commander, NativeDeckEditing.ParseMainboard(original.MainboardText));
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
+        {
+            // Invalid in-progress drafts are still editable, just not savable reviews.
+        }
         bool currentReview = matching && aiLastResponse.Length > 0 &&
+            original is not null && aiLastModel.Length > 0 &&
             aiReviewDeckFingerprint == NativeDeckEditing.ReviewFingerprint(
-                FormatBox.Text, CommanderBox.Text,
-                NativeDeckEditing.ParseMainboard(MainboardBox.Text));
+                original.Format, original.Commander,
+                NativeDeckEditing.ParseMainboard(original.MainboardText));
         AiSaveReviewButton.IsEnabled = !aiReviewRunning && !busy &&
-            original is not null && currentReview;
+            original is not null && currentReview &&
+            aiLastResponse != original.AiReviewMarkdown;
         if (original?.HasAiReview == true && aiLastResponse == original.AiReviewMarkdown)
             AiReviewStatus.Text = original.AiReviewStale || !matching
                 ? "Saved AI review is OUTDATED for this deck. Analyze the current deck again."
