@@ -51,6 +51,29 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "NativeCollectionWorkspace.DeckInspector.cs"));
         string v65DeckShell = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
+        // A deck-only EDH Lab save must not tear down and fully rescan the
+        // collection/catalog for the common case. Keep the existing safety
+        // fallback for inventory changes and failed verified refreshes.
+        string mainWindowCode = File.ReadAllText(
+            Path.Combine(dir, "MainWindow.xaml.cs"));
+        int embeddedSaved = mainWindowCode.IndexOf(
+            "private async void OnEmbeddedEdhDraftSaved(", StringComparison.Ordinal);
+        int embeddedEnd = mainWindowCode.IndexOf(
+            "private void DiscardEmbeddedEdhDraft(", embeddedSaved, StringComparison.Ordinal);
+        Must(embeddedSaved >= 0 && embeddedEnd > embeddedSaved,
+            "Embedded EDH save handler must exist.");
+        string saveHandler = mainWindowCode[embeddedSaved..embeddedEnd];
+        Must(saveHandler.Contains("RefreshSavedDecksFromVerifiedSaveAsync(saved)") &&
+             saveHandler.IndexOf("RefreshSavedDecksFromVerifiedSaveAsync(saved)",
+                 StringComparison.Ordinal) <
+             saveHandler.IndexOf("await RefreshNativeWorkspaceAsync()",
+                 StringComparison.Ordinal) &&
+             v65DeckShell.Contains("internal Task<bool> RefreshSavedDecksFromVerifiedSaveAsync") &&
+             v65DeckShell.Contains("TryRefreshSavedDecksAsync(replacement)") &&
+             v65DeckShell.Contains("backup.PhysicalCards.SequenceEqual(next.PhysicalCards)") &&
+             v65DeckShell.Contains("expectedBackupSha = replacement.Current.BackupSha256"),
+            "EDH saves must reuse the verified deck-only view before fallback full collection reload.");
+
         string v65CommanderUi = File.ReadAllText(
             Path.Combine(dir, "CommanderBrowserWindow.xaml"));
         string v65CommanderCode = File.ReadAllText(
