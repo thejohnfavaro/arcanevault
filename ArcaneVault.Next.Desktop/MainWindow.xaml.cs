@@ -2317,6 +2317,13 @@ public partial class MainWindow : Window
                 nativePath: bundle.workspace.DatabasePath,
                 expectedBackupSha: bundle.workspace.BackupSha256,
                 reopenNative: RefreshNativeWorkspaceAsync,
+                onVerifiedPhysicalChange: (verifiedCollection, verifiedProxies) =>
+                {
+                    catalogOwnership = NativeCatalogOwnership.From(
+                        verifiedCollection, verifiedProxies);
+                    InvalidateCatalogPageCache();
+                    _ = FilterAsync();
+                },
                 nativeDecks: bundle.decks,
                 editInEmbeddedEdhLab: OpenSavedDeckInEmbeddedEdhLabAsync);
             view.NavigateTo(nativeWorkspaceSelectedTab);
