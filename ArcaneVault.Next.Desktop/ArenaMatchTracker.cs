@@ -41,6 +41,8 @@ internal sealed class ArenaMatchTracker : IDisposable
         public string Id = "";
         public string Format = "";
         public int? PlayerTeam;
+        public int? VerifiedLocalSeat;
+        public bool SeatConflict;
         public string DeckId = "";
         public string NativeDeckId = "";
         public string DeckName = "";
@@ -527,6 +529,21 @@ internal sealed class ArenaMatchTracker : IDisposable
                 if ((!string.IsNullOrWhiteSpace(authenticatedId) && uid==authenticatedId) ||
                     (!string.IsNullOrWhiteSpace(screenName) && pn==screenName))
                     info.PlayerTeam = Number(p,"teamId");
+                // Play/draw needs stronger proof than W/L: an exact authenticated
+                // user ID and an explicit seat ID on the same reserved-player row.
+                // Names and team IDs do not imply GRE seat positions.
+                if (!string.IsNullOrWhiteSpace(authenticatedId) && uid==authenticatedId)
+                {
+                    int? seat=Number(p,"systemSeatId") ?? Number(p,"seatId") ??
+                        Number(p,"systemSeatNumber");
+                    if (seat.HasValue && seat.Value is >= 0 and <= 100)
+                    {
+                        if (info.VerifiedLocalSeat.HasValue &&
+                            info.VerifiedLocalSeat.Value!=seat.Value)
+                            info.SeatConflict=true;
+                        else info.VerifiedLocalSeat=seat;
+                    }
+                }
             }
         }
         if (info.Format.Length == 0 && recentQueueAt.HasValue && timestamp.HasValue &&
@@ -537,6 +554,8 @@ internal sealed class ArenaMatchTracker : IDisposable
             // An explicit new Playing room is the only safe point to begin
             // associating otherwise anonymous GRE game state with a match.
             activeTelemetryMatchId = idMatch;
+            if (!info.SeatConflict && info.VerifiedLocalSeat.HasValue)
+                history.RecordVerifiedSeat(idMatch,info.VerifiedLocalSeat.Value);
             info.Started ??= timestamp;
             if (info.DeckName.Length == 0 && !userChoseActiveDeck &&
                 latestLogDeckSelection.HasValue && timestamp.HasValue &&
@@ -576,6 +595,8 @@ internal sealed class ArenaMatchTracker : IDisposable
                         "Arena deck ID links to multiple saved decks; assign manually." :
                         "Arena deck ID has no verified saved-deck mapping; assign manually.") :
             "Deck assignment: " + info.Assignment;
+        if (!info.SeatConflict && info.VerifiedLocalSeat.HasValue)
+            history.RecordVerifiedSeat(idMatch,info.VerifiedLocalSeat.Value);
         var inserted = history.Add(new MatchHistory.MatchRow(idMatch, occurred.ToUniversalTime().ToString("O"),outcome,
             outcome=="unknown"?"unverified":"arena_match_result",info.Format,info.DeckId,info.DeckName,info.DeckVersion,
             Path.GetFileName(source),note,gw,gl,info.NativeDeckId));
