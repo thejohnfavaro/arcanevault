@@ -132,7 +132,7 @@ public partial class MainWindow
             var mode = (modes.SelectedItem as ComboBoxItem)?.Tag as string ?? "health";
             var chosenText = deck.Text;
             if (shareCoverage.IsChecked == true && !string.IsNullOrWhiteSpace(optionalCoverage))
-                chosenText += "\\n\\nDECK-ONLY OWNERSHIP COVERAGE (opted in)\\n" + optionalCoverage;
+                chosenText += "\n\nDECK-ONLY OWNERSHIP COVERAGE (opted in)\n" + optionalCoverage;
             preview.Text = AiDeckReviewPrompt.Build(chosenText, mode);
             copy.IsEnabled = !string.IsNullOrWhiteSpace(deck.Text);
             status.Text = "";
