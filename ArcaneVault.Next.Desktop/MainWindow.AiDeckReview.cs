@@ -16,7 +16,7 @@ public partial class MainWindow
             OptionsDisconnectChatGptButton is null) return;
         OptionsChatGptStatus.Text = chatGptPlanClient.Status;
         OptionsConnectChatGptButton.Content = chatGptPlanClient.IsConnected
-            ? "Reconnect / change ChatGPT account" : "Continue with ChatGPT";
+            ? "Reauthorize ChatGPT" : "Continue with ChatGPT";
         OptionsDisconnectChatGptButton.IsEnabled = chatGptPlanClient.IsConnected;
     }
 
