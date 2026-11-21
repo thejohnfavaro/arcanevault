@@ -35,7 +35,9 @@ permissions:
 
 # Prevent older partial commits from publishing over the most recent build.
 concurrency:
-  group: native-windows-main
+  # Allow PR checks and the main release pipeline to run independently.
+  # Only supersede previous runs targeting the SAME ref.
+  group: native-windows-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
