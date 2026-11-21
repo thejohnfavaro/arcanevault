@@ -59,6 +59,41 @@ internal static class NativeVisualShellChecks
              responsiveDetailsCode.Contains("CardMetadataPanel.MaxHeight = double.PositiveInfinity") &&
              responsiveDetailsCode.Contains("Grid.SetRow(CardOraclePanel, 1)"),
             "Card Details must use spare width for full-height metadata and Oracle text.");
+        // v0.9.185: numeric fields must never inherit oversized 7–9 DIP
+        // vertical padding. Multiline editors retain deliberate text margins.
+        string collectionInputs = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
+        string arenaEditorInputs = File.ReadAllText(
+            Path.Combine(dir, "NativeArenaEditorWindow.xaml"));
+        string physicalEditorInputs = File.ReadAllText(
+            Path.Combine(dir, "NativeAdjustPhysicalWindow.xaml"));
+        string addPrintingInputs = File.ReadAllText(
+            Path.Combine(dir, "NativeAddPrintingWindow.xaml"));
+        Must(appStyles.Contains("x:Key=\"VaultQuantityTextBox\"") &&
+             appStyles.Contains("Trigger Property=\"AcceptsReturn\" Value=\"True\"") &&
+             appStyles.Contains("UseLayoutRounding") &&
+             appStyles.Contains("TemplateBinding VerticalContentAlignment"),
+            "Shared input templates must center single-line text at scaled DPI and allow multiline stretching.");
+        foreach (var (file, field) in new[] {
+            (collectionInputs, "PhysicalToProxyCopiesBox"),
+            (collectionInputs, "ProxyQuantityBox"),
+            (arenaEditorInputs, "QuantityBox"),
+            (physicalEditorInputs, "NewQuantityBox"),
+            (addPrintingInputs, "QuantityBox"),
+            (deckStudio, "EdhLandTargetBox")
+        })
+        {
+            var element = Regex.Match(file,
+                "<TextBox\\\\b[^>]*x:Name=\\\"" + field + "\\\"[^>]*>|" +
+                "<TextBox\\\\b[^>]*x:Name=\\\"" + field + "\\\"[^>]*>",
+                RegexOptions.Singleline).Value;
+            Must(element.Contains("VaultQuantityTextBox") &&
+                 element.Contains("Padding=\\\"5,1\\\""),
+                "Quantity field needs centered, compact input padding: " + field);
+        }
+        Must(deckStudio.Contains("x:Name=\"MainboardBox\"") &&
+             deckStudio.Contains("AcceptsReturn=\"True\""),
+            "Multiline deck editing must remain available.");
         // v0.9.65: Deck Library and EDH Lab commander discovery use
         // persistent, read-only selection inspectors. Opening a full
         // details window requires an explicit separate action.
