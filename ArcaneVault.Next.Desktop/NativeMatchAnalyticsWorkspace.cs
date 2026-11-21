@@ -17,6 +17,9 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
     private readonly TextBlock telemetryStatus = new() {
         Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
         Margin = new Thickness(0,5,0,8) };
+    private readonly TextBlock playDrawStatus = new() {
+        Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0,5,0,10) };
     private readonly TextBlock gameplayStatus = new() {
         Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
         Margin = new Thickness(0,5,0,10) };
@@ -61,6 +64,10 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
             Margin = new Thickness(0,3,0,3) });
         header.Children.Add(gameplayStatus);
+        header.Children.Add(new TextBlock { Text = "VERIFIED PLAY / DRAW",
+            Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
+            Margin = new Thickness(0,3,0,3) });
+        header.Children.Add(playDrawStatus);
         var telemetryGrid = new GridView();
         telemetryGrid.Columns.Add(TelemetryColumn("Played (UTC)", "PlayedUtc", 175));
         telemetryGrid.Columns.Add(TelemetryColumn("Deck", "DeckName", 170));
@@ -141,7 +148,8 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                 var matches = NativeMatchHistoryView.ReadPerformance();
                 using var history = new MatchHistory();
                 return (matches, coverage: history.ReadTelemetryOverview(),
-                    gameplay: history.ReadGameplayObservation());
+                    gameplay: history.ReadGameplayObservation(),
+                    playDraw: history.ReadVerifiedPlayDraw());
             });
             dashboard.SetMatches(data.matches);
             status.Text=$"{data.matches.Count} distinct match row(s) available for review. " +
@@ -153,6 +161,16 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                 "Game counts and highest turns are observed lower bounds, not complete game replays. " +
                 "The table shows the 20 most recent matches with telemetry.";
             telemetryRows.ItemsSource = coverage.Recent;
+            var playDraw = data.playDraw;
+            string Rate(int wins,int losses) => wins+losses == 0 ? "—" :
+                $"{100d*wins/(wins+losses):0.#}%";
+            playDrawStatus.Text = $"On play: {playDraw.OnPlayWins} W / {playDraw.OnPlayLosses} L " +
+                $"({Rate(playDraw.OnPlayWins,playDraw.OnPlayLosses)}). " +
+                $"On draw: {playDraw.OnDrawWins} W / {playDraw.OnDrawLosses} L " +
+                $"({Rate(playDraw.OnDrawWins,playDraw.OnDrawLosses)}). " +
+                $"{playDraw.Unattributed} recorded results excluded (missing or ambiguous evidence). " +
+                "Only single-game matches with an authenticated room seat and an explicit " +
+                "turn-one active seat are attributed; multi-game matches are excluded.";
             var gameplay = data.gameplay;
             gameplayStatus.Text = gameplay.GamesWithTurnData == 0
                 ? "No game-numbered turn observations yet. Enable Arena Detailed Logs to collect future evidence."
