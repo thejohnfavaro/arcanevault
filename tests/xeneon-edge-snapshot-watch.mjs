@@ -61,9 +61,27 @@ listener("C:\\Users\\Test\\AppData\\Local\\ArcaneVault\\streamdeck.json",
     season:{season:"November 2026",endsUtc:new Date(now+3*86400000).toISOString(),
       checkedUtc:new Date(now).toISOString()},
     predictedConstructed:"Silver Tier 3",predictedLimited:"Gold Tier 4"}));
-assert.match(document.getElementById("status").textContent,/Connected, but no saved decks/);
+assert.match(document.getElementById("status").textContent,/no Arena Brawl decks/);
 assert.equal(document.getElementById("constructedRank").textContent,"Gold 2");
 assert.equal(document.getElementById("limitedRank").textContent,"Platinum 3");
+// Only Arena Brawl appears on the EDGE, never paper Commander or other formats.
+listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
+  JSON.stringify({schemaVersion:1,decks:[
+    {id:"paper-1",name:"Paper Commander",format:"Commander",commander:"Atraxa"},
+    {id:"brawl-1",name:"Arena Brawl",format:"Arena Brawl",commander:"The Borg Queen",wins:2,losses:1},
+    {id:"modern-1",name:"Modern",format:"Modern",commander:""}
+  ]}));
+assert.equal(document.getElementById("deckName").textContent,"Arena Brawl",
+  "Only Arena Brawl should be available in the EDGE selector");
+assert.equal(document.getElementById("deckCount").textContent,"1 / 1");
+assert.equal(document.getElementById("wins").textContent,"2");
+listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
+  JSON.stringify({schemaVersion:1,decks:[
+    {id:"paper-only",name:"Paper Commander",format:"Commander",commander:"Atraxa"}
+  ]}));
+assert.equal(document.getElementById("deckName").textContent,"No Arena Brawl decks",
+  "A paper Commander deck must never be silently treated as Arena Brawl");
+
 assert.match(document.getElementById("constructedRankIcon").getAttribute("src"),/constructed_gold_t2\.png$/);
 assert.match(document.getElementById("seasonCountdown").textContent,/3d 0h 0m/);
 assert.match(document.getElementById("seasonPrediction").textContent,/Silver Tier 3/);
