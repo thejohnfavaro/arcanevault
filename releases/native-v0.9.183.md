@@ -11,6 +11,9 @@
 ## Added
 - Regression guard covering the EDH Lab save handler's fast verified deck-only path and safe full-reload fallback.
 
+## Removed
+- No user data, collection entries, deck history, or existing safeguards were removed. Only the unnecessary full UI reload after successful deck-only saves is bypassed.
+
 ## Safety and verification
 - The underlying save still uses the existing optimistic-SHA checks, staging, atomic SQLite replacement, rollback file and integrity verification.
 - If inventory changes, a mismatch is detected or the fast refresh fails, Arcane Vault retains the full verified reload fallback.
