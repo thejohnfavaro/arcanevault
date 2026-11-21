@@ -27,6 +27,22 @@ public static class NativeDeckEditing
         public string CoverArtworkUrl { get; init; } = "";
         // MTG Arena deck identity is distinct from the user-facing native deck name.
         public string ArenaDeckId { get; init; } = "";
+        // Bracket data stays separate from deck legality and collection ownership.
+        // A rules-backed minimum is not a final Commander Bracket assignment.
+        public int? BracketMinimum { get; init; }
+        public int BracketGameChangers { get; init; }
+        public bool BracketSaved { get; init; }
+        public string BracketRulesVersion { get; init; } = "";
+        public string BracketLabel => BracketMinimum is int minimum
+            ? "Minimum bracket " + minimum + (BracketSaved ? " · Saved" : " · Provisional")
+            : "Commander bracket · Not applicable";
+        public string BracketExplanation => BracketMinimum is int minimum
+            ? "Minimum " + minimum + " · " + BracketGameChangers +
+              " Game Changer" + (BracketGameChangers == 1 ? "" : "s") +
+              (BracketSaved ? " · Assessment saved with deck" : " · Calculated locally; not saved") +
+              " · Not a final power rating"
+            : "Commander Brackets only apply to tabletop Commander.";
+
         public string FavoriteLabel => Favorite ? "★ Favorite" : "";
         // Exact per-deck display choice; independent of collection ownership.
         public IReadOnlyDictionary<string, string> EntryPrintingIds { get; init; } =
@@ -175,11 +191,31 @@ public static class NativeDeckEditing
             }
 
             string json = deck.ToJsonString();
+            // Legacy decks receive a read-only estimate; newly saved decks
+            // persist this same calculation in their own JSON metadata.
+            bool commanderFormat = string.Equals(format.Trim(), "Commander",
+                StringComparison.OrdinalIgnoreCase);
+            var computed = commanderFormat
+                ? CommanderBracketAssessment.Evaluate(
+                    entries.OfType<JsonObject>().Select(x => GetString(x, "name")), commander)
+                : null;
+            var stored = deck["bracketAssessment"] as JsonObject;
+            bool assessmentSaved = computed is not null &&
+                stored is not null &&
+                GetString(stored, "rulesVersion") == CommanderBracketAssessment.RulesVersion &&
+                int.TryParse(GetStringOrNumber(stored, "minimumBracket"), out int floor) &&
+                floor == computed.MinimumBracket &&
+                int.TryParse(GetStringOrNumber(stored, "gameChangerCount"), out int count) &&
+                count == computed.GameChangerCount;
             items.Add(new DeckRow(i, id, name, commander,
                 string.IsNullOrWhiteSpace(folder) ? "Unfiled" : folder,
                 entries.Count, copies, revisions, editable,
                 string.Join("\n", mainboard), Hash(json), format, favorite)
             {
+                BracketMinimum = computed?.MinimumBracket,
+                BracketGameChangers = computed?.GameChangerCount ?? 0,
+                BracketRulesVersion = computed?.RulesRevision ?? "",
+                BracketSaved = assessmentSaved,
                 ArenaDeckId = GetString(deck, "arenaDeckId"),
                 EntryPrintingIds = entries.OfType<JsonObject>()
                     .Where(x => GetString(x, "name").Length > 0 &&
@@ -299,6 +335,28 @@ public static class NativeDeckEditing
     /// fingerprint. Imported legacy IDs, revisions, deck cover, tags, folder,
     /// linked Arena IDs and other unknown fields are preserved on an update.
     /// </summary>
+
+    /// <summary>
+    /// Persist a deterministic minimum bracket only when a Commander deck is
+    /// explicitly saved. Never infer player intent or overwrite unrelated fields.
+    /// </summary>
+    private static JsonObject? BracketMetadata(string format, string commander,
+        IReadOnlyList<Entry> entries)
+    {
+        if (!string.Equals(format.Trim(), "Commander", StringComparison.OrdinalIgnoreCase))
+            return null;
+        var result = CommanderBracketAssessment.Evaluate(
+            entries.Select(e => e.Name), commander);
+        return new JsonObject
+        {
+            ["kind"] = "rules-backed-minimum",
+            ["minimumBracket"] = result.MinimumBracket,
+            ["gameChangerCount"] = result.GameChangerCount,
+            ["rulesVersion"] = result.RulesRevision,
+            ["computedUtc"] = DateTimeOffset.UtcNow.ToString("O")
+        };
+    }
+
     public static byte[] Save(byte[] backup,
         string name, string commander, string mainboardText,
         DeckRow? selected = null, string? format = null,
@@ -351,7 +409,8 @@ public static class NativeDeckEditing
                 ["folder"] = safeFolder,
                 ["tags"] = new JsonArray(),
                 ["coverCard"] = "",
-                ["revisions"] = new JsonArray()
+                ["revisions"] = new JsonArray(),
+                ["bracketAssessment"] = BracketMetadata(safeFormat, safeCommander, entries)
             });
             expectedCount++;
         }
@@ -395,6 +454,7 @@ public static class NativeDeckEditing
             row["favorite"] = safeFavorite;
             row["entries"] = WithDisplayPrints(
                 EntriesForSave(entries, previousEntries), displayPrintIds);
+            row["bracketAssessment"] = BracketMetadata(safeFormat, safeCommander, entries);
             row["updated"] = DateTimeOffset.UtcNow.ToString("O");
         }
 
