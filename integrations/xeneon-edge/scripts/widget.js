@@ -279,11 +279,21 @@
     renderSeason(snapshot);
   }
 
+  // The EDGE displays Arena match performance, so only Arena Brawl decks
+  // belong in its selector. Tabletop Commander stays in Arcane Vault and
+  // Stream Deck snapshots, but must not be interpreted as Arena Brawl.
+  function arenaBrawlDecks(snapshot) {
+    return Array.isArray(snapshot?.decks) ?
+      snapshot.decks.filter(d => d && d.id &&
+        typeof d.format === "string" &&
+        d.format.trim().toLowerCase() === "arena brawl") : [];
+  }
+
   function render(snapshot) {
-    const decks = Array.isArray(snapshot?.decks) ? snapshot.decks.filter(d => d && d.id) : [];
+    const decks = arenaBrawlDecks(snapshot);
     if (!decks.length) {
-      $("deckName").textContent = "No saved decks";
-      $("commander").textContent = "Add a deck in Arcane Vault Native";
+      $("deckName").textContent = "No Arena Brawl decks";
+      $("commander").textContent = "Save an Arena Brawl deck in Arcane Vault";
       $("deckCount").textContent = "0 / 0";
       $("wins").textContent = "—"; $("losses").textContent = "—";
       $("rate").textContent = "—"; $("rateFill").style.width = "0%";
@@ -291,7 +301,7 @@
       renderSetProgress(snapshot);
       renderRanks(snapshot);
       $("art").removeAttribute("src"); $("art").classList.remove("ready");
-      status("Connected, but no saved decks are available.", true);
+      status("Connected · no Arena Brawl decks in this snapshot.", true);
       return;
     }
     let index = decks.findIndex(d => String(d.id) === selectedId);
@@ -351,7 +361,7 @@
   }
 
   function cycle(direction) {
-    const decks = Array.isArray(lastSnapshot?.decks) ? lastSnapshot.decks : [];
+    const decks = arenaBrawlDecks(lastSnapshot);
     if (!decks.length) return;
     currentIndex = (currentIndex + direction + decks.length) % decks.length;
     selectedId = String(decks[currentIndex].id);
