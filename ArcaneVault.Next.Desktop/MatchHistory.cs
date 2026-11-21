@@ -43,6 +43,15 @@ internal sealed class MatchHistory : IDisposable
         );";
         command.ExecuteNonQuery();
         ArenaMatchTelemetry.EnsureSchema(db);
+        using (var seatSchema = db.CreateCommand())
+        {
+            seatSchema.CommandText = @"CREATE TABLE IF NOT EXISTS arena_verified_local_seats (
+                match_id TEXT PRIMARY KEY,
+                seat_id INTEGER NOT NULL,
+                evidence TEXT NOT NULL DEFAULT 'authenticated_room_user_id'
+            );";
+            seatSchema.ExecuteNonQuery();
+        }
         using (var mappingSchema = db.CreateCommand())
         {
             mappingSchema.CommandText = @"CREATE TABLE IF NOT EXISTS deck_mappings (
@@ -77,6 +86,85 @@ internal sealed class MatchHistory : IDisposable
         DateTimeOffset captured)
     {
         lock (gate) return ArenaMatchTelemetry.Insert(db, events, captured);
+    }
+
+    /// <summary>Persist only an exact authenticated user-id to room-seat match;
+    /// contradictions invalidate attribution rather than overwriting evidence.</summary>
+    internal void RecordVerifiedSeat(string matchId, int seat)
+    {
+        if (string.IsNullOrWhiteSpace(matchId) || matchId.Length > 180 || seat is < 0 or > 100)
+            return;
+        lock (gate)
+        {
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = @"INSERT INTO arena_verified_local_seats(match_id,seat_id)
+                VALUES ($id,$seat) ON CONFLICT(match_id) DO UPDATE SET
+                seat_id=CASE WHEN seat_id=excluded.seat_id THEN seat_id ELSE -1 END";
+            cmd.Parameters.AddWithValue("$id",matchId);
+            cmd.Parameters.AddWithValue("$seat",seat);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    internal sealed record PlayDrawSummary(int OnPlayWins,int OnPlayLosses,
+        int OnDrawWins,int OnDrawLosses, int Unattributed);
+    internal PlayDrawSummary ReadVerifiedPlayDraw()
+    {
+        lock (gate)
+        {
+            // Conservative: one numbered game only, one unambiguous starting
+            // seat observed at turn one, and one authenticated room seat.
+            var starts = new Dictionary<string,HashSet<int>>(StringComparer.Ordinal);
+            var games = new Dictionary<string,HashSet<int>>(StringComparer.Ordinal);
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.CommandText = @"SELECT t.match_id,t.game_number,t.turn_number,t.payload_json
+                    FROM arena_match_telemetry t
+                    INNER JOIN matches m ON m.match_id=t.match_id
+                    INNER JOIN arena_verified_local_seats s ON s.match_id=t.match_id
+                    WHERE s.seat_id>=0 ORDER BY t.id";
+                using var reader = cmd.ExecuteReader();
+                while(reader.Read())
+                {
+                    var id=reader.GetString(0);
+                    if (!reader.IsDBNull(1))
+                    {
+                        if(!games.TryGetValue(id,out var g)) games[id]=g=new HashSet<int>();
+                        g.Add(reader.GetInt32(1));
+                    }
+                    if(reader.IsDBNull(1) || reader.IsDBNull(2) || reader.GetInt32(2)!=1) continue;
+                    try
+                    {
+                        using var json=JsonDocument.Parse(reader.GetString(3));
+                        if (!json.RootElement.TryGetProperty("turn",out var turn) ||
+                            !turn.TryGetProperty("activePlayerSeatId",out var seat) ||
+                            !seat.TryGetInt32(out var n) || n is < 0 or > 100) continue;
+                        if(!starts.TryGetValue(id,out var set)) starts[id]=set=new HashSet<int>();
+                        set.Add(n);
+                    }
+                    catch(JsonException) { }
+                }
+            }
+            int pw=0,pl=0,dw=0,dl=0,unknown=0;
+            using var matches=db.CreateCommand();
+            matches.CommandText=@"SELECT m.match_id,m.result,s.seat_id FROM matches m
+                LEFT JOIN arena_verified_local_seats s ON s.match_id=m.match_id
+                WHERE m.result IN ('win','loss')";
+            using var rows=matches.ExecuteReader();
+            while(rows.Read())
+            {
+                var id=rows.GetString(0);
+                if(rows.IsDBNull(2) || rows.GetInt32(2)<0 ||
+                    !games.TryGetValue(id,out var g) || g.Count!=1 ||
+                    !starts.TryGetValue(id,out var found) || found.Count!=1)
+                { unknown++; continue; }
+                bool play=found.Single()==rows.GetInt32(2);
+                bool win=rows.GetString(1)=="win";
+                if(play) { if(win)pw++;else pl++; }
+                else { if(win)dw++;else dl++; }
+            }
+            return new PlayDrawSummary(pw,pl,dw,dl,unknown);
+        }
     }
 
     internal int TelemetryCount(string matchId)
