@@ -45,7 +45,7 @@ internal static class NativeVisualShellChecks
         // Search fields must not clip their glyphs at 100% or scaled DPI.
         string appStyles = File.ReadAllText(Path.Combine(dir, "App.xaml"));
         string nativeDetails = File.ReadAllText(Path.Combine(dir, "NativeCardDetailsWindow.xaml"));
-        string detailsCode = File.ReadAllText(Path.Combine(dir, "NativeCardDetailsWindow.xaml.cs"));
+        string responsiveDetailsCode = File.ReadAllText(Path.Combine(dir, "NativeCardDetailsWindow.xaml.cs"));
         Must(appStyles.Contains("x:Key=\"VaultSearchTextBox\"") &&
              appStyles.Contains("VerticalContentAlignment") &&
              appStyles.Contains("TemplateBinding VerticalContentAlignment") &&
@@ -55,9 +55,9 @@ internal static class NativeVisualShellChecks
         Must(nativeDetails.Contains("x:Name=\"CardDetailsReadingGrid\"") &&
              nativeDetails.Contains("x:Name=\"CardOraclePanel\"") &&
              nativeDetails.Contains("x:Name=\"LegalityScroller\"") &&
-             detailsCode.Contains("Grid.SetColumn(CardOraclePanel, 1)") &&
-             detailsCode.Contains("CardMetadataPanel.MaxHeight = double.PositiveInfinity") &&
-             detailsCode.Contains("Grid.SetRow(CardOraclePanel, 1)"),
+             responsiveDetailsCode.Contains("Grid.SetColumn(CardOraclePanel, 1)") &&
+             responsiveDetailsCode.Contains("CardMetadataPanel.MaxHeight = double.PositiveInfinity") &&
+             responsiveDetailsCode.Contains("Grid.SetRow(CardOraclePanel, 1)"),
             "Card Details must use spare width for full-height metadata and Oracle text.");
         // v0.9.65: Deck Library and EDH Lab commander discovery use
         // persistent, read-only selection inspectors. Opening a full
