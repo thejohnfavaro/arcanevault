@@ -83,10 +83,12 @@ internal static class NativeVisualShellChecks
             (deckStudio, "EdhLandTargetBox")
         })
         {
-            var element = Regex.Match(file,
-                "<TextBox\\\\b[^>]*x:Name=\\\"" + field + "\\\"[^>]*>|" +
-                "<TextBox\\\\b[^>]*x:Name=\\\"" + field + "\\\"[^>]*>",
-                RegexOptions.Singleline).Value;
+            int fieldAt = file.IndexOf("x:Name=\\\"" + field + "\\\"", StringComparison.Ordinal);
+            Must(fieldAt >= 0, "Missing numeric input: " + field);
+            int tagStart = file.LastIndexOf("<TextBox", fieldAt, StringComparison.Ordinal);
+            int tagEnd = file.IndexOf('>', fieldAt);
+            Must(tagStart >= 0 && tagEnd > fieldAt, "Invalid numeric input markup: " + field);
+            string element = file[tagStart..(tagEnd + 1)];
             Must(element.Contains("VaultQuantityTextBox") &&
                  element.Contains("Padding=\\\"5,1\\\""),
                 "Quantity field needs centered, compact input padding: " + field);
