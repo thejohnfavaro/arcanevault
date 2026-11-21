@@ -97,6 +97,19 @@ internal static class NativeVisualShellChecks
         Must(deckStudio.Contains("x:Name=\"MainboardBox\"") &&
              deckStudio.Contains("AcceptsReturn=\"True\""),
             "Multiline deck editing must remain available.");
+        // Persisted AI reports must be an explicit verified deck write, with
+        // source fingerprint checking and a visible stale-state indicator.
+        string aiViewCode = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorView.AiReview.cs"));
+        string aiDeckUi = File.ReadAllText(
+            Path.Combine(dir, "NativeDeckEditorView.xaml"));
+        Must(aiDeckUi.Contains("x:Name=\"AiSaveReviewButton\"") &&
+             aiViewCode.Contains("SaveDeckAiReview(nativePath, original") &&
+             aiViewCode.Contains("original.AiReviewStale") &&
+             aiViewCode.Contains("RestoreSavedReviewCardLinksAsync") &&
+             v65DeckUi.Contains("DeckInspectorAiReview") &&
+             v65DeckUi.Contains("AiReviewDescription"),
+            "AI review persistence and outdated indicators must be present in native deck UI.");
         // v0.9.65: Deck Library and EDH Lab commander discovery use
         // persistent, read-only selection inspectors. Opening a full
         // details window requires an explicit separate action.
