@@ -147,7 +147,8 @@ internal sealed class MatchHistory : IDisposable
             }
             int pw=0,pl=0,dw=0,dl=0,unknown=0;
             using var matches=db.CreateCommand();
-            matches.CommandText=@"SELECT m.match_id,m.result,s.seat_id FROM matches m
+            matches.CommandText=@"SELECT m.match_id,m.result,s.seat_id,
+                m.game_wins,m.game_losses FROM matches m
                 LEFT JOIN arena_verified_local_seats s ON s.match_id=m.match_id
                 WHERE m.result IN ('win','loss')";
             using var rows=matches.ExecuteReader();
@@ -155,6 +156,7 @@ internal sealed class MatchHistory : IDisposable
             {
                 var id=rows.GetString(0);
                 if(rows.IsDBNull(2) || rows.GetInt32(2)<0 ||
+                    rows.GetInt32(3)+rows.GetInt32(4)>1 ||
                     !games.TryGetValue(id,out var g) || g.Count!=1 ||
                     !starts.TryGetValue(id,out var found) || found.Count!=1)
                 { unknown++; continue; }
