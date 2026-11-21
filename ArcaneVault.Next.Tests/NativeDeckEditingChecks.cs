@@ -96,6 +96,47 @@ internal static class NativeDeckEditingChecks
              list[0].Editable && list[1].Editable,
              "Existing deck library metadata did not survive reading the native workspace.");
 
+        // A completed review belongs to the selected saved deck, not a
+        // machine-specific UI cache. Verify save, reopen, fingerprint staleness,
+        // independent recovery and unchanged ownership/revision history.
+        string reviewPath = Path.Combine(work, "native-ai-review-check.sqlite");
+        var reviewStart = NativeWorkspace.ImportNewBytes(source, "review-fixture", reviewPath);
+        var reviewSelected = NativeWorkspaceSafety.ListDecks(reviewPath)[0];
+        var reviewSaved = NativeWorkspaceSafety.SaveDeckAiReview(reviewPath,
+            reviewSelected, "## Health\n[[card:Sol Ring]] is useful.",
+            "review-test-model", "health", reviewStart.BackupSha256);
+        var reviewRows = NativeWorkspaceSafety.ListDecks(reviewPath);
+        Must(reviewRows[0].HasAiReview &&
+             reviewRows[0].AiReviewMarkdown.Contains("[[card:Sol Ring]]") &&
+             !reviewRows[0].AiReviewStale &&
+             reviewRows[0].AiReviewModel == "review-test-model" &&
+             reviewRows[0].Revisions == reviewSelected.Revisions &&
+             reviewSaved.Current.Collection.PhysicalCopies == reviewStart.Collection.PhysicalCopies &&
+             reviewSaved.Current.Collection.ArenaCopies == reviewStart.Collection.ArenaCopies,
+            "Review metadata must survive a verified workspace reopen without changing inventory/revisions.");
+        Reject(() => NativeWorkspaceSafety.SaveDeckAiReview(reviewPath,
+            reviewSelected, "Stale write", "test-model", "health",
+            reviewSaved.Current.BackupSha256));
+        var changed = NativeWorkspaceSafety.SaveDeck(reviewPath,
+            reviewRows[0].Name, reviewRows[0].Commander,
+            "1 Sol Ring\n13 Island\n1 Split // Back", reviewRows[0],
+            reviewSaved.Current.BackupSha256, format: reviewRows[0].Format);
+        var outdated = NativeWorkspaceSafety.ListDecks(reviewPath)[0];
+        Must(outdated.HasAiReview && outdated.AiReviewStale &&
+             outdated.AiReviewMarkdown == reviewRows[0].AiReviewMarkdown &&
+             outdated.Revisions == reviewRows[0].Revisions + 1,
+            "Changing the saved deck must retain but flag its old AI review as outdated.");
+        Must(NativeWorkspace.Open(reviewSaved.RecoveryPath).BackupSha256 ==
+             reviewStart.BackupSha256 &&
+             NativeWorkspace.Open(changed.RecoveryPath).BackupSha256 ==
+             reviewSaved.Current.BackupSha256,
+            "Review and subsequent deck saves must retain independent recovery points.");
+        Must(NativeDeckEditing.ReviewFingerprint("Commander", "Test Commander",
+                 NativeDeckEditing.ParseMainboard("1 Sol Ring\n13 Island")) !=
+             NativeDeckEditing.ReviewFingerprint("Arena Brawl", "Test Commander",
+                 NativeDeckEditing.ParseMainboard("1 Sol Ring\n13 Island")),
+            "A format change must invalidate a previously saved AI review.");
+
         Console.WriteLine("  CHECK B: duplicate mainboard lines combine without losing split cards");
         var mainboard = NativeDeckEditing.ParseMainboard(
             "1 Sol Ring\n11 Island\n2 island\n1 Split // Back\n");
