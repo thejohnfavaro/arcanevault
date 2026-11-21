@@ -498,6 +498,13 @@
                                                     <TextBlock Text="{Binding Folder}" FontSize="11"
                                                                Foreground="{DynamicResource VaultMuted}"/>
                                                 </Border>
+                                                <Border Background="{DynamicResource VaultAccentSurface}" CornerRadius="11"
+                                                        BorderBrush="{DynamicResource VaultAccentBorder}"
+                                                        BorderThickness="1" Padding="9,4" Margin="9,0,0,0">
+                                                    <TextBlock Text="{Binding BracketLabel}" FontSize="11"
+                                                               Foreground="{DynamicResource VaultAccent}"
+                                                               ToolTip="{Binding BracketExplanation}"/>
+                                                </Border>
                                             </WrapPanel>
                                         </StackPanel>
                                         <Grid Grid.Column="3" Margin="12,4,0,4"
@@ -556,6 +563,11 @@
                                                    FontSize="10.5"
                                                    Foreground="{DynamicResource VaultMuted}"
                                                    TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                        <TextBlock x:Name="DeckInspectorBracket" FontSize="11.5"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource VaultAccent}"
+                                                   TextWrapping="Wrap" Margin="0,6,0,0"
+                                                   ToolTip="Rules-backed minimum only. Actual Commander Bracket also depends on strategy, speed and intent."/>
                                     </StackPanel>
                                 </DockPanel>
                                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
