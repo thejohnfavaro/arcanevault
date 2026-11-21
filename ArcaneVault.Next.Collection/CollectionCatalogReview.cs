@@ -155,6 +155,64 @@ public static class CollectionCatalogReview
             confirmed, unresolved, allConfirmed.Count, perSet);
     }
 
+    /// <summary>
+    /// Rebuild only ownership quantities after an already verified operation
+    /// which exclusively REMOVES copies of existing physical printings.
+    /// No added or changed print identity is accepted on this path.
+    /// </summary>
+    public static Result AfterRemovingCopies(Result previous,
+        NativeBackupView next)
+    {
+        ArgumentNullException.ThrowIfNull(previous);
+        ArgumentNullException.ThrowIfNull(next);
+        var available = previous.Rows
+            .GroupBy(r => r.Original with { Quantity = 0 })
+            .ToDictionary(g => g.Key,
+                g => new Queue<PrintingRow>(g));
+        var rows = new List<PrintingRow>(next.PhysicalCards.Count);
+        long confirmed = 0, unresolved = 0;
+        var ids = new HashSet<Guid>();
+        var perSet = new Dictionary<string, (HashSet<Guid> Ids, long Copies)>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var newRow in next.PhysicalCards)
+        {
+            var key = newRow with { Quantity = 0 };
+            if (!available.TryGetValue(key, out var oldRows) ||
+                oldRows.Count == 0)
+                throw new InvalidDataException("A physical printing was added or changed; full catalog verification required.");
+            var old = oldRows.Dequeue();
+            if (newRow.Quantity > old.Quantity)
+                throw new InvalidDataException("A physical count increased; full catalog verification required.");
+            var refreshed = old with { Original = newRow };
+            rows.Add(refreshed);
+            if (!refreshed.Confirmed)
+            {
+                unresolved = checked(unresolved + newRow.Quantity);
+                continue;
+            }
+            if (!Guid.TryParse(newRow.ScryfallId, out Guid id) || id == Guid.Empty ||
+                string.IsNullOrWhiteSpace(refreshed.ConfirmedSet))
+                throw new InvalidDataException("Verified printing identity was lost.");
+            confirmed = checked(confirmed + newRow.Quantity);
+            ids.Add(id);
+            if (!perSet.TryGetValue(refreshed.ConfirmedSet, out var stats))
+                stats = (new HashSet<Guid>(), 0);
+            stats.Ids.Add(id);
+            stats.Copies = checked(stats.Copies + newRow.Quantity);
+            perSet[refreshed.ConfirmedSet] = stats;
+        }
+        // Every retained row must map to one old identity. Removed rows are
+        // allowed; additions, reordering into a changed identity, and increases are not.
+        if (confirmed + unresolved != next.PhysicalCopies ||
+            next.PhysicalCopies > previous.TotalCopies)
+            throw new InvalidDataException("Incremental printing review failed copy conservation.");
+        var summaries = perSet.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(x => new SetSummary(x.Key, x.Value.Ids.Count, x.Value.Copies))
+            .ToArray();
+        return new Result(previous.CatalogVerified, rows.AsReadOnly(),
+            next.PhysicalCopies, confirmed, unresolved, ids.Count, summaries);
+    }
+
     public sealed record CardDetails(
         string Name,
         string TypeLine,
