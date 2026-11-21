@@ -1488,6 +1488,12 @@
                                     Padding="10,8" Margin="0,0,8,5"
                                     Background="{DynamicResource VaultPanelRaised}"
                                     Foreground="{DynamicResource VaultText}"/>
+                            <Button x:Name="AiSaveReviewButton" Content="Save review with deck"
+                                    Click="OnAiSaveReviewClicked" IsEnabled="False"
+                                    Padding="10,8" Margin="0,0,8,5"
+                                    Background="{DynamicResource VaultAccentSurface}"
+                                    Foreground="{DynamicResource VaultText}"
+                                    ToolTip="Save the completed AI review inside this saved deck, with a content fingerprint. Changes to the card list will mark it outdated."/>
                             <Button Content="Copy review" Click="OnAiCopyReviewClicked"
                                     Padding="10,8" Margin="0,0,8,5"
                                     Background="{DynamicResource VaultPanelRaised}"
