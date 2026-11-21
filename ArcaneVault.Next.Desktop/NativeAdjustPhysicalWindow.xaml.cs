@@ -15,6 +15,7 @@ public partial class NativeAdjustPhysicalWindow : Window
     private readonly NativePhysicalRow original;
     private readonly int ordinal;
     private bool busy;
+    public NativeWorkspaceSafety.Replacement? SavedReplacement { get; private set; }
 
     public NativeAdjustPhysicalWindow(string nativePath,
         string expectedSha, int physicalOrdinal, NativePhysicalRow original)
@@ -78,6 +79,7 @@ public partial class NativeAdjustPhysicalWindow : Window
                 "\n\nUse Restore native recovery on the main window to reverse this edit.",
                 "Verified native quantity change", MessageBoxButton.OK,
                 MessageBoxImage.Information);
+            SavedReplacement = result;
             DialogResult = true;
         }
         catch (Exception ex)
