@@ -27,7 +27,8 @@ internal static class ArenaMatchTelemetry
     };
     private static readonly string[] PlayerFields = {
         "systemSeatNumber", "systemSeatId", "seatId", "lifeTotal", "startingLifeTotal",
-        "poisonCount", "energyCount", "teamId", "status"
+        "poisonCount", "energyCount", "teamId", "status",
+        "mulliganCount", "handCount", "cardsDrawnThisTurn", "landPlaysRemaining"
     };
     private static readonly string[] ObjectFields = {
         "instanceId", "grpId", "objectSourceGrpId", "zoneId", "ownerSeatId",
