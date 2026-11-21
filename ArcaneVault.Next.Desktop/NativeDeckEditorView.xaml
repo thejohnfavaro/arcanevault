@@ -138,6 +138,12 @@
                      Foreground="{DynamicResource VaultText}"
                      BorderBrush="{DynamicResource VaultEdgeLift}"
                      ToolTip="Deck-library folder name (up to 64 characters)"/>
+            <Button x:Name="AiReviewCurrentDeckButton"
+                    Content="✦ AI Review"
+                    Click="OnAiReviewCurrentDeckClicked"
+                    Style="{StaticResource VaultNavButtonDepth}"
+                    Margin="18,0,0,0" Padding="13,7"
+                    ToolTip="Preview a read-only review of this unsaved deck in ChatGPT. Nothing is shared until you copy it."/>
             <CheckBox x:Name="FavoriteDeckBox" Content="★ Favorite"
                       VerticalAlignment="Center" Margin="23,0,0,0"
                       Foreground="#E5BF79"

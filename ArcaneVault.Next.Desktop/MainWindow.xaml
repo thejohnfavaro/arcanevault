@@ -564,6 +564,12 @@
                                         Style="{StaticResource VaultNavPrimary}"
                                         ToolTip="Choose a classic or Magic color-identity application palette"
                                         Margin="0,0,0,7"/>
+                                <Button x:Name="AiDeckReviewButton"
+                                    Content="✦   AI Deck Review (Preview)"
+                                    Click="OnOpenAiDeckReviewClicked"
+                                    Style="{StaticResource VaultNavButtonDepth}"
+                                    ToolTip="Create a read-only deck review prompt, then copy it to ChatGPT manually. No account connection or automatic upload."
+                                    Margin="0,0,0,7"/>
                                 <Button x:Name="StartFreshButton"
                                     Content="＋   Start Fresh Collection"
                                     Click="OnStartFreshClicked"
