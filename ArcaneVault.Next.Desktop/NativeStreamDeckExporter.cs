@@ -43,6 +43,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         public string id { get; set; } = "";
         public string name { get; set; } = "";
         public string commander { get; set; } = "";
+        public string format { get; set; } = "";
         public string arenaDeckId { get; set; } = "";
         public string keyImagePath { get; set; } = "";
         public string imagePath { get; set; } = "";
@@ -181,7 +182,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 .Select(d => new Deck
                 {
                     id = d.Id, name = d.Name, commander = d.Commander,
-                    arenaDeckId = d.ArenaDeckId
+                    format = d.Format, arenaDeckId = d.ArenaDeckId
                 }).ToList();
 
             decks = read;
