@@ -52,8 +52,7 @@ public partial class NativeCollectionWorkspace
         ReviewDeckShortagesButton.IsEnabled = false;
         if (deck is null)
         {
-            DeckInspectorBracket.Text = "";
-        DeckInspectorCoverageSummary.Text = "";
+            DeckInspectorCoverageSummary.Text = "";
             DeckInspectorCoverageGaps.Text = "";
             DeckInspectorCardAvailability.Text = "";
             return;
@@ -154,6 +153,8 @@ public partial class NativeCollectionWorkspace
         DeckInspectorCardType.Text = "";
         DeckInspectorOracle.Document = NativeOracleReading.Build("");
         DeckInspectorFullDetailsButton.IsEnabled = false;
+        DeckInspectorBracket.Text = "";
+        DeckInspectorBracket.Visibility = Visibility.Collapsed;
         DeckInspectorCoverageSummary.Text = "";
         DeckInspectorCoverageGaps.Text = "";
         DeckInspectorCardAvailability.Text = "";
@@ -167,6 +168,8 @@ public partial class NativeCollectionWorkspace
         DeckInspectorPanel.Visibility = Visibility.Visible;
         DeckInspectorTitle.Text = deck.Name;
         DeckInspectorBracket.Text = deck.BracketExplanation;
+        DeckInspectorBracket.Visibility = deck.BracketMinimum is null
+            ? Visibility.Collapsed : Visibility.Visible;
         // Arena Brawl defaults to Arena; all other formats start Physical.
         // Either pool remains independently selectable for comparison.
         DeckInspectorOwnershipPool.SelectedIndex =
