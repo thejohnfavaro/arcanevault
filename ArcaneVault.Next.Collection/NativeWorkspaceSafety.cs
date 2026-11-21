@@ -14,6 +14,11 @@ public static class NativeWorkspaceSafety
 {
     private static readonly object UpdateGate = new();
 
+    // Test-only fault injection. Only the friend regression assembly can assign it.
+    // The callback is null for normal application use and must never be configured
+    // from user input, settings, or an environment variable.
+    internal static Action<string>? RegressionCrashPoint;
+
     public sealed record Diff(
         string CurrentBackupSha256,
         string CandidateBackupSha256,
@@ -154,6 +159,7 @@ public static class NativeWorkspaceSafety
             throw new InvalidDataException("Staged native workspace failed SHA verification.");
 
         File.Replace(stagedPath, nativePath, rollback, ignoreMetadataErrors: false);
+        RegressionCrashPoint?.Invoke("after-atomic-replace");
 
         // Never silently undo a failed post-swap verification. At this point
         // two independent copies may exist. Leave them intact for recovery.
@@ -192,6 +198,7 @@ public static class NativeWorkspaceSafety
             {
                 cancellation.ThrowIfCancellationRequested();
                 NativeWorkspace.ImportNewBytes(incoming, sourceDescription, stagedPath, cancellation);
+                RegressionCrashPoint?.Invoke("after-staging");
                 cancellation.ThrowIfCancellationRequested();
                 return ReplaceVerified(path, stagedPath, expectedCurrentBackupSha,
                     comparison.CandidateBackupSha256);
