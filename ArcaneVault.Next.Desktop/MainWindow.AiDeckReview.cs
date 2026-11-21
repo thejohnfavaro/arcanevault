@@ -15,6 +15,9 @@ namespace ArcaneVault.Next.Desktop;
 public partial class MainWindow
 {
     private void OnOpenAiDeckReviewClicked(object sender, RoutedEventArgs e)
+        => OpenAiDeckReview("");
+
+    internal void OpenAiDeckReview(string deckList)
     {
         var dialog = new Window
         {
@@ -83,7 +86,8 @@ public partial class MainWindow
             Padding = new Thickness(10),
             FontFamily = new FontFamily("Consolas"),
             FontSize = 12,
-            ToolTip = "Paste the deck list you choose to share. Personal collection files are never accessed."
+            Text = deckList,
+            ToolTip = "Your current deck is loaded locally. Only text you explicitly copy is shared."
         };
         Grid.SetRow(deck, 1);
         editor.Children.Add(deck);
