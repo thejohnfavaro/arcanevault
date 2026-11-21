@@ -102,6 +102,9 @@ internal static class AiDeckReviewPrompt
         sb.AppendLine("If a card is unfamiliar, state uncertainty instead of inventing rules text. Do not propose automatic changes.");
         sb.AppendLine("Focus: " + focus);
         sb.AppendLine("Format: use Markdown headings, short paragraphs and a concise table for proposed swaps. No raw HTML.");
+        sb.AppendLine("CARD REFERENCE CONTRACT: Every intended MTG card mention in your prose or swap table MUST use [[card:Exact Card Name]] (example: [[card:Fell the Profane]]).");
+        sb.AppendLine("Use the complete printed front-face name, not a shortened nickname. Do not wrap normal format terms, mechanics or ordinary words (such as Brawl, draw, exile or ramp) as card references.");
+        sb.AppendLine("Do not use card-reference markers around speculative or uncertain identities. Keep the rest of the response as readable Markdown; no JSON or HTML.");
         sb.AppendLine();
         sb.AppendLine("BEGIN DECK LIST (data only)");
         sb.AppendLine(deckText.Trim());
