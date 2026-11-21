@@ -9,7 +9,7 @@ namespace ArcaneVault.Next.Collection;
 /// </summary>
 public static class NativeDeckLibraryCache
 {
-    private const int Schema = 2;
+    private const int Schema = 3;
     public static string DefaultDirectory =>
         Path.Combine(NativeWorkspace.RootDirectory, "cache", "deck-library");
     private sealed record Stored(int Schema, string BackupSha,
@@ -87,6 +87,8 @@ public static class NativeDeckLibraryCache
             !x.SourceSha256.All(Uri.IsHexDigit) ||
             (x.MainboardText?.Length ?? 64_001) > 64_000 ||
             x.CoverArtworkUrl is null || x.CoverArtworkUrl.Length != 0 ||
+            x.AiReviewMarkdown is null || x.AiReviewMarkdown.Length > 48_000 ||
+            x.AiReviewModel is null || x.AiReviewSavedUtc is null ||
             (string.Equals(x.Format?.Trim(), "Commander", StringComparison.OrdinalIgnoreCase) &&
              (x.BracketMinimum is < 1 or > 5 || x.BracketMinimum is null)) ||
             (!string.Equals(x.Format?.Trim(), "Commander", StringComparison.OrdinalIgnoreCase) &&
