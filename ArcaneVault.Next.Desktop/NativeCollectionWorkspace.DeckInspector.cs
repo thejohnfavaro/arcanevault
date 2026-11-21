@@ -52,7 +52,8 @@ public partial class NativeCollectionWorkspace
         ReviewDeckShortagesButton.IsEnabled = false;
         if (deck is null)
         {
-            DeckInspectorCoverageSummary.Text = "";
+            DeckInspectorBracket.Text = "";
+        DeckInspectorCoverageSummary.Text = "";
             DeckInspectorCoverageGaps.Text = "";
             DeckInspectorCardAvailability.Text = "";
             return;
@@ -165,6 +166,7 @@ public partial class NativeCollectionWorkspace
 
         DeckInspectorPanel.Visibility = Visibility.Visible;
         DeckInspectorTitle.Text = deck.Name;
+        DeckInspectorBracket.Text = deck.BracketExplanation;
         // Arena Brawl defaults to Arena; all other formats start Physical.
         // Either pool remains independently selectable for comparison.
         DeckInspectorOwnershipPool.SelectedIndex =
