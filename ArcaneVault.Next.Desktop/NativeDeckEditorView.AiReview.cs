@@ -13,6 +13,9 @@ namespace ArcaneVault.Next.Desktop;
 public partial class NativeDeckEditorView
 {
     private string aiLastResponse = "";
+    private string aiLastModel = "";
+    private string aiLastMode = "";
+    private string aiReviewDeckFingerprint = "";
     private bool aiReviewRunning;
     private CancellationTokenSource? aiReviewCancellation;
     private MainWindow? AiOwner => Window.GetWindow(this) as MainWindow;
@@ -23,6 +26,83 @@ public partial class NativeDeckEditorView
         EdhEditorColumns.Visibility = Visibility.Collapsed;
         AiReviewWideSurface.Visibility = Visibility.Visible;
         RefreshAiReviewPrompt();
+        // Reopen reviews stored in the native deck backup; keep them available
+        // offline even without a connected ChatGPT session.
+        if (aiLastResponse.Length == 0 && original?.HasAiReview == true)
+        {
+            aiLastResponse = original.AiReviewMarkdown;
+            aiLastModel = original.AiReviewModel;
+            aiLastMode = original.AiReviewMode;
+            aiReviewDeckFingerprint = NativeDeckEditing.ReviewFingerprint(
+                original.Format, original.Commander,
+                NativeDeckEditing.ParseMainboard(original.MainboardText));
+            AiReviewResultViewer.Document = AiReviewMarkdown.Render(aiLastResponse);
+        }
+        RefreshSavedReviewStatus();
+    }
+
+    private void RefreshSavedReviewStatus()
+    {
+        if (AiSaveReviewButton is null || AiReviewStatus is null) return;
+        bool matching = original is not null &&
+            NativeDeckEditing.ReviewFingerprint(FormatBox.Text,
+                CommanderBox.Text, NativeDeckEditing.ParseMainboard(MainboardBox.Text)) ==
+            NativeDeckEditing.ReviewFingerprint(original.Format,
+                original.Commander, NativeDeckEditing.ParseMainboard(original.MainboardText));
+        bool currentReview = matching && aiLastResponse.Length > 0 &&
+            aiReviewDeckFingerprint == NativeDeckEditing.ReviewFingerprint(
+                FormatBox.Text, CommanderBox.Text,
+                NativeDeckEditing.ParseMainboard(MainboardBox.Text));
+        AiSaveReviewButton.IsEnabled = !aiReviewRunning && !busy &&
+            original is not null && currentReview;
+        if (original?.HasAiReview == true && aiLastResponse == original.AiReviewMarkdown)
+            AiReviewStatus.Text = original.AiReviewStale || !matching
+                ? "Saved AI review is OUTDATED for this deck. Analyze the current deck again."
+                : "Saved AI review · " + original.AiReviewModel + " · " +
+                  original.AiReviewSavedUtc + ". This is advisory, not a deck edit.";
+        else if (original is null && aiLastResponse.Length > 0)
+            AiReviewStatus.Text = "Review received. Save the deck first to persist its review.";
+        else if (original is not null && aiLastResponse.Length > 0 && !currentReview)
+            AiReviewStatus.Text = "Review refers to an earlier draft. Analyze the current saved deck before persisting.";
+    }
+
+    private async void OnAiSaveReviewClicked(object sender, RoutedEventArgs e)
+    {
+        if (original is null || aiReviewRunning || busy ||
+            aiLastResponse.Length == 0 || aiLastModel.Length == 0) return;
+        try
+        {
+            var fingerprint = NativeDeckEditing.ReviewFingerprint(
+                FormatBox.Text, CommanderBox.Text,
+                NativeDeckEditing.ParseMainboard(MainboardBox.Text));
+            var savedFingerprint = NativeDeckEditing.ReviewFingerprint(
+                original.Format, original.Commander,
+                NativeDeckEditing.ParseMainboard(original.MainboardText));
+            if (fingerprint != savedFingerprint ||
+                fingerprint != aiReviewDeckFingerprint)
+                throw new InvalidDataException(
+                    "The draft changed. Save the deck and analyze it again before persisting its review.");
+            AiSaveReviewButton.IsEnabled = false;
+            AiReviewStatus.Text = "Saving review with verified deck metadata and recovery backup…";
+            var replacement = await Task.Run(() =>
+                NativeWorkspaceSafety.SaveDeckAiReview(nativePath, original,
+                    aiLastResponse, aiLastModel, aiLastMode, expectedSha));
+            SavedReplacement = replacement;
+            AiReviewStatus.Text = "AI review saved with the deck. " +
+                "It will be marked outdated when card contents change.";
+            Saved?.Invoke(this, replacement);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or
+            IOException or UnauthorizedAccessException or
+            Microsoft.Data.Sqlite.SqliteException)
+        {
+            AiReviewStatus.Text = "Review was not saved: " + ex.Message;
+            RefreshSavedReviewStatus();
+        }
+        finally
+        {
+            if (AiSaveReviewButton is not null) AiSaveReviewButton.IsEnabled = false;
+        }
     }
 
     private void OnComputeCommanderBracketClicked(object sender, RoutedEventArgs e)
@@ -169,6 +249,19 @@ public partial class NativeDeckEditorView
             return;
         }
         var prompt = AiReviewPromptPreview.Text;
+        string analyzedFingerprint;
+        try
+        {
+            analyzedFingerprint = NativeDeckEditing.ReviewFingerprint(
+                FormatBox.Text, CommanderBox.Text,
+                NativeDeckEditing.ParseMainboard(MainboardBox.Text));
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
+        {
+            AiReviewStatus.Text = "Correct the draft before analyzing: " + ex.Message;
+            return;
+        }
+        string analyzedMode = (AiReviewModeBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "health";
         aiReviewRunning = true;
         AiAnalyzeButton.IsEnabled = false;
         aiReviewCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(3));
@@ -192,6 +285,9 @@ public partial class NativeDeckEditorView
             var (model, answer) = await client.ReviewAsync(
                 prompt, aiReviewCancellation.Token, updates);
             aiLastResponse = answer;
+            aiLastModel = model;
+            aiLastMode = analyzedMode;
+            aiReviewDeckFingerprint = analyzedFingerprint;
             AiReviewResultViewer.Document = AiReviewMarkdown.Render(answer);
             AiReviewStatus.Text = "Review received (" + model +
                 "). Identifying clickable cards in the local catalog…";
@@ -289,6 +385,12 @@ public partial class NativeDeckEditorView
             if (AiCancelReviewButton is not null)
                 AiCancelReviewButton.IsEnabled = false;
             RefreshAiReviewPrompt();
+            if (AiSaveReviewButton is not null)
+                AiSaveReviewButton.IsEnabled = original is not null &&
+                    aiLastResponse.Length > 0 && aiLastModel.Length > 0 &&
+                    aiReviewDeckFingerprint == analyzedFingerprint &&
+                    NativeDeckEditing.ReviewFingerprint(FormatBox.Text, CommanderBox.Text,
+                        NativeDeckEditing.ParseMainboard(MainboardBox.Text)) == analyzedFingerprint;
         }
     }
 
