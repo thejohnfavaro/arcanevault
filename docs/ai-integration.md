@@ -32,3 +32,13 @@ OpenAI's **Sign in with ChatGPT** supports optional *plan usage* for eligible Pl
 - Treat AI output as suggestions, not canonical rules text. Verify names, printings, color identity, and formats locally.
 - Do not hard-code client secrets, call undocumented ChatGPT web endpoints, or use user session cookies.
 - No invisible background requests; disclose all data sent and let the user cancel.
+
+## Experimental native ChatGPT session flow (PR #233)
+
+Windows now has a direct **Continue with ChatGPT** button in AI Deck Review, following the OSS authorization-code + PKCE + dynamic registration flow. It validates ID-token RSA signatures against OpenAI JWKS (issuer, client audience, nonce, expiry), checks the separately granted ChatGPT plan-use scope, gets the account's visible model list, then performs an explicitly initiated streaming Responses request with `store:false` and `stream:true`.
+
+- Tokens and issued client ID are **in-memory only**, for the current app process; restart requires reauthorization. The stable host ID is stored under `%LOCALAPPDATA%\\ArcaneVaultNext\\AI\\host-id.txt`. Refresh tokens are not used yet and never persisted.
+- This is a **preview**. It requires interactive validation with an eligible account; CI cannot test real OpenAI authorization. Do not label account sign-in or actual response delivery as production-verified.
+- EDH Lab's AI Review button uses the unsaved draft. Optional physical/Arena shortage coverage starts unchecked; only a scoped summary for cards in the deck may be included.
+- No automated deck edits, whole-inventory exports, sync credential sharing or silent inference.
+- Next: persist per-account issued registration and encrypted refresh tokens securely, add account/workspace switch, model picker, cancellation and stream progress, robust recoveries, explicit revocation, and offline/mock tests.
