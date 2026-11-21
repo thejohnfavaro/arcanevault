@@ -16,6 +16,51 @@ public partial class NativeCollectionWorkspace
         Array.Empty<NativeProxyEditing.ProxyRow>();
     private bool proxyBusy;
 
+    // Proxy-only changes preserve the verified physical/Arena inventory and
+    // saved decks. Keep the rendered collection and set progress alive.
+    private async Task FinishProxyLedgerChangeAsync(
+        NativeWorkspaceSafety.Replacement replacement)
+    {
+        if (closing) return;
+        var next = replacement.Current.Collection;
+        bool sameOwned = backup.PhysicalCards.SequenceEqual(next.PhysicalCards) &&
+            backup.ArenaCards.SequenceEqual(next.ArenaCards) &&
+            backup.PhysicalCopies == next.PhysicalCopies &&
+            backup.ArenaCopies == next.ArenaCopies &&
+            backup.Decks == next.Decks &&
+            backup.DeckRevisions == next.DeckRevisions &&
+            backup.PreferredArtworks == next.PreferredArtworks;
+        if (sameOwned && !string.IsNullOrWhiteSpace(nativePath) &&
+            Path.GetFullPath(nativePath).Equals(
+                Path.GetFullPath(replacement.Current.DatabasePath),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var fresh = await Task.Run(() =>
+                    NativeWorkspaceSafety.ListProxiesFromVerified(replacement.Current));
+                if (closing) return;
+                backup = next;
+                expectedBackupSha = replacement.Current.BackupSha256;
+                proxyRows = fresh;
+                ProxyList.ItemsSource = proxyRows;
+                ProxyStatusText.Text = $"{proxyRows.Sum(x => (long)x.Quantity):N0} proxy copies across " +
+                    $"{proxyRows.Count:N0} names · verified proxy-only refresh. " +
+                    "Owned cards, catalog, set progress and pricing remain unchanged.";
+                UpdateDeckInspectorCoverage();
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or
+                UnauthorizedAccessException or SqliteException or ArgumentException or
+                System.Text.Json.JsonException)
+            {
+                // Only a full verified reopen is safe if the fast path fails.
+            }
+        }
+        if (reopenNative is not null) await reopenNative();
+        else await LoadProxyRowsAsync();
+    }
+
     private async Task LoadProxyRowsAsync()
     {
         if (ProxyList is null || ProxyStatusText is null) return;
@@ -126,10 +171,7 @@ public partial class NativeCollectionWorkspace
                 $"{additions.Count:N0} names in one transaction. " +
                 "Refreshing the verified collection once…";
             // Refresh the application exactly once for the complete batch.
-            if (reopenNative is not null)
-                await reopenNative();
-            else
-                await LoadProxyRowsAsync();
+            await FinishProxyLedgerChangeAsync(replacement);
         }
         catch (Exception ex) when (ex is InvalidDataException or
             SqliteException or IOException or UnauthorizedAccessException or
@@ -185,10 +227,7 @@ public partial class NativeCollectionWorkspace
                   "Excluded from collection valuation and price lookup.";
             // Rebuild from the verified replacement, just as physical and
             // Arena edits already do. The host preserves selected tab index.
-            if (reopenNative is not null)
-                await reopenNative();
-            else
-                await LoadProxyRowsAsync();
+            await FinishProxyLedgerChangeAsync(replacement);
         }
         catch (Exception ex) when (ex is InvalidDataException or
             SqliteException or IOException or UnauthorizedAccessException or
