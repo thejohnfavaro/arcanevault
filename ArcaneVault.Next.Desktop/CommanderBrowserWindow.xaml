@@ -143,9 +143,9 @@
             <Button Content="Surprise Me!" DockPanel.Dock="Right" Click="OnRandomClicked"
                     Padding="18,9" Background="{DynamicResource VaultAccentMuted}" Foreground="White" BorderBrush="{DynamicResource VaultAccentBorder}"
                     Margin="12,0,0,0"/>
-            <TextBox x:Name="CommanderSearch" TextChanged="OnFiltersChanged"
+            <TextBox Style="{StaticResource VaultSearchTextBox}" x:Name="CommanderSearch" TextChanged="OnFiltersChanged"
                      ToolTip="Search commander name or Oracle text"
-                     FontSize="14" Padding="10,9"
+                     FontSize="14" Padding="10,2"
                      Background="{DynamicResource VaultPanelRaised}" Foreground="White" BorderBrush="{DynamicResource VaultLine}"/>
         </DockPanel>
         <Grid Grid.Row="4" MinHeight="0">
