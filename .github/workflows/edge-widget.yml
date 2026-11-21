@@ -57,21 +57,21 @@ jobs:
           $packages | ForEach-Object { Copy-Item $_.FullName -Destination 'widget-dist/' }
       - uses: actions/upload-artifact@v4
         with:
-          name: ArcaneVault-XeneonEdge-Widget-v1.0.0
+          name: ArcaneVault-XeneonEdge-Widget-v1.0.1
           path: widget-dist/*.icuewidget
           if-no-files-found: error
-      - name: Publish XENEON EDGE v1.0.0 widget release
+      - name: Publish XENEON EDGE v1.0.1 widget release
         if: github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'edge-widget-v1.0.0'
+          $tag = 'edge-widget-v1.0.1'
           gh release view $tag --repo ${{ github.repository }} *> $null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "EDGE widget $tag is already published; leaving existing immutable version intact."
           } else {
             $files = @(Get-ChildItem 'widget-dist/*.icuewidget' -File | ForEach-Object { $_.FullName })
-            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v1.0.0' --notes 'Installable iCUE widget package produced and validated using the official widget CLI. Deck selection shows saved Arena Brawl decks only; paper Commander decks remain in Arcane Vault. Includes verified Arena win/loss, account rank, season countdown, set progress and collection value. Requires Arcane Vault Windows Native v0.9.181 or newer for format-aware snapshot filtering. iCUE hardware behavior should still be checked on the target XENEON EDGE device.'
+            gh release create $tag @files --repo ${{ github.repository }} --target ${{ github.sha }} --title 'Arcane Vault XENEON EDGE Widget v1.0.1' --notes 'Installable iCUE widget package produced and validated using the official widget CLI. Disables pinch-to-zoom and Ctrl-wheel scaling while preserving normal taps and single-finger Set Progress scrolling. Deck selection shows saved Arena Brawl decks only; paper Commander decks remain in Arcane Vault. Includes verified Arena win/loss, account rank, season countdown, set progress and collection value. Requires Arcane Vault Windows Native v0.9.181 or newer for format-aware snapshot filtering. iCUE hardware behavior should still be checked on the target XENEON EDGE device.'
             if ($LASTEXITCODE -ne 0) { throw 'Could not publish XENEON EDGE release.' }
           }
