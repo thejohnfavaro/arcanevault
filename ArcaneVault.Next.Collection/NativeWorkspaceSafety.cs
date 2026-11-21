@@ -761,6 +761,29 @@ public static class NativeWorkspaceSafety
     }
 
     /// <summary>
+    /// Save an AI review with the selected saved deck's exact content
+    /// fingerprint, using the same verified staging and recovery as deck saves.
+    /// </summary>
+    public static Replacement SaveDeckAiReview(string nativePath,
+        NativeDeckEditing.DeckRow selected, string markdown,
+        string model, string mode, string expectedCurrentBackupSha,
+        CancellationToken cancellation = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
+        lock (UpdateGate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            string path = Path.GetFullPath(nativePath);
+            CheckCurrent(path, expectedCurrentBackupSha);
+            byte[] changed = NativeDeckEditing.SaveAiReview(
+                ReadPreservedBackup(path), selected, markdown, model, mode);
+            cancellation.ThrowIfCancellationRequested();
+            return Refresh(path, changed, "native-deck-ai-review-save",
+                expectedCurrentBackupSha, cancellation);
+        }
+    }
+
+    /// <summary>
     /// Duplicate one selected deck without copying its revision history or
     /// Arena link. Uses the same atomic SQLite swap and verified rollback.
     /// </summary>
