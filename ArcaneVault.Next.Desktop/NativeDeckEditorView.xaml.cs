@@ -549,6 +549,8 @@ public partial class NativeDeckEditorView : UserControl
         else
             RefreshDraftSummary();
         RefreshPreviewOwnership();
+        if (AiReviewWideSurface?.Visibility == Visibility.Visible)
+            RefreshSavedReviewStatus();
     }
 
     private void ScheduleEdhAnalysis()
