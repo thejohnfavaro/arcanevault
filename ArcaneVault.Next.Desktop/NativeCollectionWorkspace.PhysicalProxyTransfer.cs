@@ -85,8 +85,11 @@ public partial class NativeCollectionWorkspace
                 "in the recovery workspace:\n" + result.RecoveryPath,
                 "Physical → Proxy transfer complete", MessageBoxButton.OK,
                 MessageBoxImage.Information);
-            Close();
-            if (reopenNative is not null) await reopenNative();
+            if (!await TryRefreshPhysicalProxyTransferAsync(result))
+            {
+                Close();
+                if (reopenNative is not null) await reopenNative();
+            }
         }
         catch (Exception ex)
         {
