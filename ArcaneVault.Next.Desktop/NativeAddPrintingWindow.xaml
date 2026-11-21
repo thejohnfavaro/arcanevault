@@ -22,7 +22,7 @@
             <Button DockPanel.Dock="Right" Content="Find printings" Click="OnFindClicked"
                     x:Name="FindButton" Padding="16,8" Margin="12,0,0,0"
                     Background="#202737" Foreground="White"/>
-            <TextBox x:Name="QueryBox" Padding="10,8" FontSize="15"
+            <TextBox Style="{StaticResource VaultSearchTextBox}" x:Name="QueryBox" Padding="10,2" FontSize="15"
                      ToolTip="Enter at least two initial characters in the card name"
                      KeyDown="OnSearchKeyDown"
                      Background="#202737" Foreground="White" BorderBrush="#343D51"/>
@@ -43,7 +43,7 @@
         </ListView>
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,14,0,12">
             <TextBlock Text="Copies to add" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <TextBox x:Name="QuantityBox" Width="70" Text="1" Padding="8,6"
+            <TextBox Style="{StaticResource VaultQuantityTextBox}" x:Name="QuantityBox" Width="70" Text="1" Padding="5,1"
                      Background="#202737" Foreground="White" BorderBrush="#343D51"
                      Margin="0,0,22,0"/>
             <TextBlock Text="Finish" VerticalAlignment="Center" Margin="0,0,10,0"/>
