@@ -1379,11 +1379,7 @@ public partial class NativeCollectionWorkspace : UserControl
             expectedBackupSha) { Owner = Window.GetWindow(this) };
         if (dialog.ShowDialog() != true) return;
 
-        // Reopen from newly verified SQLite rather than retaining stale rows,
-        // catalog-set counts or the old optimistic-concurrency checksum.
-        Close();
-        if (reopenNative is not null)
-            await reopenNative();
+        await FinishVerifiedPhysicalEditAsync(dialog.SavedReplacement);
     }
 
     private async void OnAdjustPhysicalClicked(object sender, RoutedEventArgs e)
@@ -1417,10 +1413,7 @@ public partial class NativeCollectionWorkspace : UserControl
             expectedBackupSha, ordinal, selected.Original) { Owner = Window.GetWindow(this) };
         if (dialog.ShowDialog() != true) return;
 
-        // Refresh the entire collection and verified set counts after an edit.
-        Close();
-        if (reopenNative is not null)
-            await reopenNative();
+        await FinishVerifiedPhysicalEditAsync(dialog.SavedReplacement);
     }
 
     private void OnCardRowDoubleClick(object sender, MouseButtonEventArgs e)
