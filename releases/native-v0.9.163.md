@@ -10,6 +10,12 @@
 ## Changed
 - Native visual-shell regression test now recognizes handlers in partial code-behind files.
 
+## Fixed
+- Native XAML visual-shell validation correctly recognizes new event handlers in partial code-behind files.
+
+## Removed
+- Nothing. Existing data, deck, sync and backup workflows are preserved.
+
 ## Safety and limitations
 - AI is optional and disabled until expressly connected and used. Deck and collection databases remain unchanged.
 - AI review results are advisory and cannot automatically apply deck edits.
