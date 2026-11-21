@@ -217,6 +217,9 @@ internal static class ArenaLogAssignmentChecks
             new { type = "GREMessageType_GameStateMessage", gameStateMessage = (object)stateTwo }
         } } };
         File.WriteAllLines(telemetryLog, new[] {
+            Event(t.AddSeconds(-2), "Auth", new {
+                authenticateResponse = new { clientId = "self-id", screenName = "Tester" }
+            }),
             Event(t, "greToClientEvent", greBatch), // outside match: ignore
             Event(t.AddSeconds(10), "matchGameRoomStateChangedEvent",
                 Match("telemetry-match", "MatchGameRoomStateType_Playing", "self-id")),
