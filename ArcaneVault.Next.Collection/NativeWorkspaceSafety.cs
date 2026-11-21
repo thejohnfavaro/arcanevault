@@ -573,6 +573,22 @@ public static class NativeWorkspaceSafety
     /// Read distinctly labeled third-party/proxy copies from the fully verified
     /// preserved backup. Proxies never enter real ownership or Scryfall prices.
     /// </summary>
+    /// <summary>
+    /// Reuse an already verified atomic replacement without another complete
+    /// SQLite integrity scan. Reject a changed source SHA before trusting data.
+    /// </summary>
+    public static IReadOnlyList<NativeProxyEditing.ProxyRow> ListProxiesFromVerified(
+        NativeWorkspace.Workspace verified)
+    {
+        ArgumentNullException.ThrowIfNull(verified);
+        byte[] bytes = ReadPreservedBackup(verified.DatabasePath);
+        if (!Digest(bytes).Equals(verified.BackupSha256,
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException(
+                "The native proxy ledger changed after verification. Reload the collection.");
+        return NativeProxyEditing.Read(bytes);
+    }
+
     public static IReadOnlyList<NativeProxyEditing.ProxyRow> ListProxies(
         string nativePath)
     {
