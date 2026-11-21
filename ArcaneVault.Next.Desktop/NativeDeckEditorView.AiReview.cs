@@ -138,12 +138,38 @@ public partial class NativeDeckEditorView
             report.AppendLine();
             report.AppendLine(assessment.Interpretation);
             report.AppendLine();
+            report.AppendLine("### Deck construction indicators (advisory)");
+            report.AppendLine("These card-name matches flag areas to discuss, not verified combo lines or automatic bracket increases.");
+            report.AppendLine();
+            void Evidence(string heading, IReadOnlyList<string> cards)
+            {
+                report.AppendLine("**" + heading + ": " + cards.Count + "**");
+                report.AppendLine(cards.Count == 0 ? "- None of the named reference cards detected" :
+                    "- " + string.Join(", ", cards));
+                report.AppendLine();
+            }
+            Evidence("Fast mana", assessment.FastManaIndicators);
+            Evidence("Efficient tutors", assessment.TutorIndicators);
+            Evidence("Resource denial / lock pieces", assessment.ResourceDenialIndicators);
+            report.AppendLine("**Potential combo packages: " + assessment.PotentialEngines.Count + "**");
+            if (assessment.PotentialEngines.Count == 0)
+                report.AppendLine("- No named reference packages detected; this does not prove combo absence.");
+            else
+                foreach (string engine in assessment.PotentialEngines)
+                    report.AppendLine("- " + engine);
+            report.AppendLine();
             report.AppendLine("### Still requires assessment");
             foreach (var item in assessment.Unknowns)
                 report.AppendLine("- " + item);
             report.AppendLine();
             report.AppendLine("Rules: " + assessment.RulesRevision);
             report.AppendLine("This is not a final bracket rating. No deck changes or AI requests were made.");
+            aiLastResponse = report.ToString();
+            // Offline bracket analysis is not the ChatGPT response; never
+            // allow it to masquerade as an AI result eligible for saving.
+            aiLastModel = "";
+            aiReviewDeckFingerprint = "";
+            AiSaveReviewButton.IsEnabled = false;
             AiReviewResultViewer.Document = AiReviewMarkdown.Render(report.ToString());
             AiReviewStatus.Text = "Local bracket check complete (no AI or network). " +
                 "This is a floor, not a final bracket.";
