@@ -142,6 +142,48 @@ internal static class CollectionCatalogReviewChecks
               unverified.UnresolvedCopies == 21 && unverified.ConfirmedSets.Count == 0,
             "An absent catalog must not credit any printing.");
         var verified = CollectionCatalogReview.Examine(backup, catalogPath);
+        // Single-row physical edits must reuse prior identity decisions, and
+        // newly added printings must be checked by exact UUID, not card name.
+        var raisedCards = backup.PhysicalCards.ToArray();
+        raisedCards[0] = raisedCards[0] with { Quantity = raisedCards[0].Quantity + 3 };
+        var raisedBackup = backup with {
+            PhysicalCards = raisedCards, PhysicalCopies = backup.PhysicalCopies + 3
+        };
+        var raisedFast = CollectionCatalogReview.AfterVerifiedPhysicalEdit(
+            verified, raisedBackup, catalogPath);
+        Check(raisedFast.Rows.SequenceEqual(
+                  CollectionCatalogReview.Examine(raisedBackup, catalogPath).Rows) &&
+              raisedFast.ConfirmedCopies == 12,
+            "Quantity increases should reuse verified printing identities without changing other rows.");
+        var fewerRows = backup.PhysicalCards.Skip(1).ToArray();
+        var fewerBackup = backup with {
+            PhysicalCards = fewerRows, PhysicalCopies = backup.PhysicalCopies - backup.PhysicalCards[0].Quantity
+        };
+        Check(CollectionCatalogReview.AfterVerifiedPhysicalEdit(
+                verified, fewerBackup, catalogPath).Rows.SequenceEqual(
+                CollectionCatalogReview.Examine(fewerBackup, catalogPath).Rows),
+            "Removing a complete printing row must preserve remaining verification results.");
+        var extraRows = backup.PhysicalCards.Append(new NativePhysicalRow(
+            "Split // Back", 2, "AAA", "1", "nonfoil", knownA)).ToArray();
+        var extendedBackup = backup with {
+            PhysicalCards = extraRows, PhysicalCopies = backup.PhysicalCopies + 2
+        };
+        Check(CollectionCatalogReview.AfterVerifiedPhysicalEdit(
+                verified, extendedBackup, catalogPath).Rows.SequenceEqual(
+                CollectionCatalogReview.Examine(extendedBackup, catalogPath).Rows),
+            "A new paper printing finish must be verified by exact catalog UUID.");
+        bool badNewRowRejected = false;
+        try
+        {
+            var wrong = backup with {
+                PhysicalCards = backup.PhysicalCards.Append(new NativePhysicalRow(
+                    "Wrong Name", 1, "AAA", "1", "nonfoil", knownA)).ToArray(),
+                PhysicalCopies = backup.PhysicalCopies + 1
+            };
+            _ = CollectionCatalogReview.AfterVerifiedPhysicalEdit(verified, wrong, catalogPath);
+        }
+        catch (InvalidDataException) { badNewRowRejected = true; }
+        Check(badNewRowRejected, "Added printing must reject a name/UUID mismatch.");
         // Physical-to-proxy moves only remove existing copies. Reuse verified
         // printing identities and catalog set denominators without SQL scans.
         var reducedCards = backup.PhysicalCards.ToArray();
