@@ -88,7 +88,6 @@ public partial class NativeDeckEditorView
         var connected = AiOwner?.AiClient.IsConnected == true;
         AiAnalyzeButton.IsEnabled = !aiReviewRunning && connected &&
             !string.IsNullOrWhiteSpace(CurrentReviewDeck());
-        if (AiDisconnectButton is not null) AiDisconnectButton.IsEnabled = connected;
         if (AiAccountStatus is not null)
             AiAccountStatus.Text = AiOwner?.AiClient.Status ?? "Not connected to ChatGPT";
     }
@@ -98,39 +97,14 @@ public partial class NativeDeckEditorView
         if (!aiReviewRunning) RefreshAiReviewPrompt();
     }
 
-    private async void OnAiConnectClicked(object sender, RoutedEventArgs e)
-    {
-        var owner = AiOwner;
-        if (owner is null) return;
-        AiConnectButton.IsEnabled = false;
-        AiReviewStatus.Text = "Complete authorization in your browser. No deck information is sent by signing in.";
-        try
-        {
-            await owner.AiClient.SignInAsync();
-            AiReviewStatus.Text = "Connected. Review the prompt, then choose Analyze to share it.";
-        }
-        catch (Exception ex)
-        {
-            AiReviewStatus.Text = "Sign-in unavailable: " + ex.Message;
-        }
-        finally
-        {
-            AiConnectButton.IsEnabled = true;
-            RefreshAiReviewPrompt();
-        }
-    }
-
-    private void OnAiDisconnectClicked(object sender, RoutedEventArgs e)
-    {
-        AiOwner?.AiClient.Disconnect();
-        AiReviewStatus.Text = "Disconnected. Existing advice remains visible locally.";
-        RefreshAiReviewPrompt();
-    }
-
     private async void OnAiAnalyzeClicked(object sender, RoutedEventArgs e)
     {
         var client = AiOwner?.AiClient;
-        if (client?.IsConnected != true || aiReviewRunning) return;
+        if (client?.IsConnected != true || aiReviewRunning)
+        {
+            AiReviewStatus.Text = "Connect ChatGPT from Options before analyzing.";
+            return;
+        }
         RefreshAiReviewPrompt(); // Snapshot the latest unsaved draft and selected options.
         if (string.IsNullOrWhiteSpace(CurrentReviewDeck())) return;
         var prompt = AiReviewPromptPreview.Text;
