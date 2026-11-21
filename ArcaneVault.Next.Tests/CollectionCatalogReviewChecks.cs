@@ -42,6 +42,20 @@ internal static class CollectionCatalogReviewChecks
         Check(CommanderBracketAssessment.Evaluate(
             new[] { "Sol Ring" }, "Grand Arbiter Augustin IV").GameChangerCount == 1,
             "The commander itself must count if it is a Game Changer.");
+        var evidence = CommanderBracketAssessment.Evaluate(new[] {
+            "Sol Ring", "Demonic Tutor", "Winter Orb", "Thassa's Oracle",
+            "Demonic Consultation", "Walking Ballista"
+        }, "Heliod, Sun-Crowned");
+        Check(evidence.FastManaIndicators.Contains("Sol Ring") &&
+              evidence.TutorIndicators.Contains("Demonic Tutor") &&
+              evidence.ResourceDenialIndicators.Contains("Winter Orb") &&
+              evidence.PotentialEngines.Count == 2 &&
+              !evidence.IsFinalClassification,
+            "Bracket analysis must expose identifiable construction indicators without claiming a final rating.");
+        Check(CommanderBracketAssessment.Evaluate(new[] { "Sol Ring" })
+                .PotentialEngines.Count == 0,
+            "A lone card must not be presented as a verified combo.");
+
         // Execute compiled card marker regex in CI. Compilation alone cannot
         // detect a TypeInitializationException from malformed expressions.
         var marked = AiReviewCardReferenceSyntax.Pattern.Matches(
