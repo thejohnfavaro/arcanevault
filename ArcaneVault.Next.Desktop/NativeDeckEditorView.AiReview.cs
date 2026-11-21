@@ -25,6 +25,55 @@ public partial class NativeDeckEditorView
         RefreshAiReviewPrompt();
     }
 
+    private void OnComputeCommanderBracketClicked(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var format = FormatBox?.Text ?? "";
+            if (!format.Contains("Commander", StringComparison.OrdinalIgnoreCase) ||
+                format.Contains("Brawl", StringComparison.OrdinalIgnoreCase))
+            {
+                AiReviewStatus.Text = "Commander Brackets apply to tabletop Commander, not Arena Brawl.";
+                return;
+            }
+            var cards = NativeDeckEditing.ParseMainboard(MainboardBox?.Text ?? "")
+                .Select(c => c.Name).ToArray();
+            if (cards.Length == 0)
+            {
+                AiReviewStatus.Text = "Add cards to your deck before assessing its bracket.";
+                return;
+            }
+            var assessment = ArcaneVault.Next.Domain.CommanderBracketAssessment.Evaluate(
+                cards, CommanderBox?.Text);
+            var report = new StringBuilder();
+            report.AppendLine("## Commander Bracket — preliminary local assessment");
+            report.AppendLine();
+            report.AppendLine("**Rules-backed minimum: Bracket " +
+                assessment.MinimumBracket + "**");
+            report.AppendLine();
+            report.AppendLine("Game Changers: **" + assessment.GameChangerCount + "**");
+            if (assessment.MatchedCards.Count > 0)
+                foreach (var name in assessment.MatchedCards)
+                    report.AppendLine("- " + name);
+            report.AppendLine();
+            report.AppendLine(assessment.Interpretation);
+            report.AppendLine();
+            report.AppendLine("### Still requires assessment");
+            foreach (var item in assessment.Unknowns)
+                report.AppendLine("- " + item);
+            report.AppendLine();
+            report.AppendLine("Rules: " + assessment.RulesRevision);
+            report.AppendLine("This is not a final bracket rating. No deck changes or AI requests were made.");
+            AiReviewResultViewer.Document = AiReviewMarkdown.Render(report.ToString());
+            AiReviewStatus.Text = "Local bracket check complete (no AI or network). " +
+                "This is a floor, not a final bracket.";
+        }
+        catch (Exception ex)
+        {
+            AiReviewStatus.Text = "Bracket check unavailable: " + ex.Message;
+        }
+    }
+
     private void OnAiReviewCurrentDeckClicked(object sender, RoutedEventArgs e) => OpenAiReview();
 
     private void OnAiReturnToEditorClicked(object sender, RoutedEventArgs e)
