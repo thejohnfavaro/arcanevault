@@ -59,6 +59,48 @@ public static class NativeSetProgress
         int ConfirmedOwnedSlots,
         long ConfirmedOwnedCopies);
 
+    /// <summary>
+    /// Reuse unchanged catalog set denominators and artwork after verified
+    /// physical-copy removals. Compute ownership per exact verified collector
+    /// slot, including cases where the last copy of a slot was transferred.
+    /// </summary>
+    public static Result AfterRemovingCopies(Result previous,
+        CollectionCatalogReview.Result review)
+    {
+        ArgumentNullException.ThrowIfNull(previous);
+        ArgumentNullException.ThrowIfNull(review);
+        if (!review.CatalogVerified)
+            throw new InvalidDataException("Cannot reuse unverified set progress.");
+        var owned = review.Rows.Where(x => x.Confirmed)
+            .GroupBy(x => x.ConfirmedSet, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.GroupBy(x => x.CatalogCollector,
+                StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(c => c.Key, c => c.Sum(x => (long)x.Quantity),
+                    StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase);
+        var results = new List<SetRow>(previous.Sets.Count);
+        long copies = 0;
+        int slots = 0;
+        var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var set in previous.Sets)
+        {
+            if (!known.Add(set.SetCode))
+                throw new InvalidDataException("Duplicate catalog set totals.");
+            owned.TryGetValue(set.SetCode, out var occupied);
+            int count = occupied?.Count ?? 0;
+            if (count > set.TotalSlots)
+                throw new InvalidDataException("Verified ownership exceeds catalog set slots.");
+            long total = occupied?.Values.Sum() ?? 0;
+            copies = checked(copies + total);
+            slots = checked(slots + count);
+            results.Add(set with { OwnedSlots = count, VerifiedCopies = total,
+                OwnedValueLabel = "", OwnedValueChange = "" });
+        }
+        if (copies != review.ConfirmedCopies ||
+            owned.Keys.Any(x => !known.Contains(x)))
+            throw new InvalidDataException("Set Progress incremental update failed copy conservation.");
+        return new Result(results, previous.CatalogPaperSlots, slots, copies);
+    }
+
     private static SqliteConnection OpenReadOnly(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
