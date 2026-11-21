@@ -110,8 +110,7 @@ internal sealed class ChatGptPlanClient
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromMinutes(3));
         HttpListenerContext callback;
-        try { callback = await listener.GetContextAsync().WaitAsync(timeout.Token); }
-        finally { listener.Stop(); }
+        callback = await listener.GetContextAsync().WaitAsync(timeout.Token);
         // Validate the full callback path and unpredictable state before exchange.
         var args = Query(callback.Request.Url?.Query);
         bool validPath = callback.Request.Url?.AbsolutePath == "/auth/callback";
@@ -127,6 +126,7 @@ internal sealed class ChatGptPlanClient
         callback.Response.ContentLength64 = bytes.Length;
         await callback.Response.OutputStream.WriteAsync(bytes, cancellationToken);
         callback.Response.Close();
+        listener.Stop();
         if (!validPath || !validState) throw new InvalidOperationException("OAuth callback state or path mismatch.");
         if (args.TryGetValue("error", out var oauthError)) throw new InvalidOperationException("Sign-in declined: " + oauthError);
         if (!args.TryGetValue("code", out var code) || string.IsNullOrWhiteSpace(code))
