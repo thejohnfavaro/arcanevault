@@ -89,7 +89,14 @@ internal static class AiReviewCardLinks
         foreach (string name in verifiedNames)
         {
             if (string.IsNullOrWhiteSpace(name)) continue;
-            string pattern = @"(?<![\p{L}\p{N}])" + Regex.Escape(name) +
+            // Match display typography without weakening catalog verification:
+            // Sphinx’s Tutelage and Sphinx's Tutelage refer to the same
+            // canonical, catalog-verified name. Preserve the response glyphs.
+            string namePattern = string.Concat(name.Select(ch =>
+                ch is '\'' or '’' or '‘' or 'ʼ' or '＇'
+                    ? @"['’‘ʼ＇]"
+                    : Regex.Escape(ch.ToString())));
+            string pattern = @"(?<![\p{L}\p{N}])" + namePattern +
                 @"(?![\p{L}\p{N}])";
             foreach (Match match in Regex.Matches(text, pattern,
                          RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))

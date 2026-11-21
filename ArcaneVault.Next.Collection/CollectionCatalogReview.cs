@@ -185,9 +185,30 @@ public static class CollectionCatalogReview
         {
             cancellation.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(candidate) || candidate.Length > 255) continue;
-            parameter.Value = candidate;
-            var match = command.ExecuteScalar()?.ToString();
-            if (!string.IsNullOrWhiteSpace(match)) verified.Add(match);
+
+            // ChatGPT sometimes uses typographic apostrophes (Sphinx’s
+            // Tutelage), while the Scryfall catalog stores a plain ASCII
+            // apostrophe (Sphinx's Tutelage), or vice versa. Try a small,
+            // explicit set of punctuation-equivalent spellings; each query
+            // still requires a full exact card-name match.
+            string normalized = candidate.Trim().Normalize(System.Text.NormalizationForm.FormKC)
+                .Replace('’', '\'').Replace('‘', '\'')
+                .Replace('ʼ', '\'').Replace('＇', '\'');
+            var alternatives = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                candidate.Trim(), normalized,
+                normalized.Replace('\'', '’'), normalized.Replace('\'', '‘')
+            };
+            foreach (string variant in alternatives)
+            {
+                parameter.Value = variant;
+                var match = command.ExecuteScalar()?.ToString();
+                if (!string.IsNullOrWhiteSpace(match))
+                {
+                    verified.Add(match);
+                    break;
+                }
+            }
         }
         return verified.ToArray();
     }
