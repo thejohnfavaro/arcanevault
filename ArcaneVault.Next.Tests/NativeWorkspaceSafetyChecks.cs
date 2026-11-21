@@ -93,6 +93,37 @@ internal static class NativeWorkspaceSafetyChecks
              initialTime == File.GetLastWriteTimeUtc(original),
              "Stale refresh changed the native workspace.");
 
+        // ARRANGE/ACT: model an interrupted save using a cancellation request
+        // before the replacement is committed. This is a deterministic
+        // cancellation check, not a simulated power outage during File.Replace.
+        Console.WriteLine("  CHECK C2: canceled replacement leaves the source and recovery history unchanged");
+        using (var canceled = new CancellationTokenSource())
+        {
+            canceled.Cancel();
+            bool rejectedCancellation = false;
+            try
+            {
+                NativeWorkspaceSafety.Refresh(original, v2,
+                    "interrupted-refresh-fixture", imported.BackupSha256,
+                    canceled.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                rejectedCancellation = true;
+            }
+            RegressionExpect.That(rejectedCancellation,
+                "A canceled refresh must report cancellation rather than replacing the collection");
+        }
+        RegressionExpect.That(initialHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(original))),
+            "Canceled refresh must preserve the original workspace bytes");
+        RegressionExpect.That(initialTime == File.GetLastWriteTimeUtc(original),
+            "Canceled refresh must preserve the original workspace modification time");
+        RegressionExpect.Equal(NativeWorkspaceSafety.RecoveryPaths(original).Count, 0,
+            "Canceled refresh must not create a rollback file");
+        RegressionExpect.Equal(Directory.GetFiles(work,
+            "native-safe-refresh.sqlite.refresh-*.sqlite").Length, 0,
+            "Canceled refresh must clean up any staged SQLite replacement");
+
         byte[] invalid = JsonSerializer.SerializeToUtf8Bytes(new
         {
             schema = 2, cards = Array.Empty<object>(),
