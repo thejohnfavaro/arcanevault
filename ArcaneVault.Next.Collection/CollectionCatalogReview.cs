@@ -275,6 +275,15 @@ public static class CollectionCatalogReview
         // card-type phrases; alias matches remain case sensitive in the review.
         static IEnumerable<string> Aliases(string name)
         {
+            // Scryfall stores modal double-faced cards as "Front // Back".
+            // Reviews usually mention the front face alone. Link that entire
+            // face to the canonical card, not just its first word (e.g. Fell).
+            int separator = name.IndexOf(" // ", StringComparison.Ordinal);
+            if (separator > 0)
+            {
+                string front = name[..separator].Trim();
+                if (front.Length >= 3) yield return front;
+            }
             string lead = name.Split(',')[0].Trim();
             // Short legendary names such as Sai (or Ral) are useful, but
             // require deck context: three-/four-letter strings are too easy
