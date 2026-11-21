@@ -99,7 +99,7 @@
                 <TextBox x:Name="SearchBox" Style="{StaticResource VaultSearchTextBox}"
                          ToolTip="Filter card names, set hints, collector numbers and verification"
                          TextChanged="OnFilterChanged"
-                         Padding="11,9" FontSize="14"
+                         Padding="10,2" FontSize="14"
                          Background="{DynamicResource VaultPanelRaised}"
                          Foreground="{DynamicResource VaultText}"
                          BorderBrush="{DynamicResource VaultLine}"/>
@@ -148,8 +148,8 @@
                         <TextBlock Text="Copies per selected printing:"
                                    Foreground="{DynamicResource VaultMuted}"
                                    VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBox x:Name="PhysicalToProxyCopiesBox" Width="54" Height="36"
-                                 Text="1" MaxLength="5" Padding="8,6"
+                        <TextBox Style="{StaticResource VaultQuantityTextBox}" x:Name="PhysicalToProxyCopiesBox" Width="54" Height="36"
+                                 Text="1" MaxLength="5" Padding="5,1"
                                  Background="{DynamicResource VaultPanel}"
                                  Foreground="{DynamicResource VaultText}"
                                  BorderBrush="{DynamicResource VaultEdgeLift}"
@@ -401,7 +401,7 @@
                                  ToolTip="Search saved deck names, commanders and folders"
                                  TextChanged="OnDeckFilterChanged"
                                  Background="{DynamicResource VaultPanelRaised}"
-                                 Foreground="{DynamicResource VaultText}" Padding="8,6"
+                                 Foreground="{DynamicResource VaultText}" Padding="10,2"
                                  Margin="4,0,10,0"/>
                         <CheckBox x:Name="FavoriteDecksOnly" Content="★ Favorites"
                                   Foreground="{DynamicResource VaultText}"
@@ -738,7 +738,7 @@
                             <ComboBoxItem Content="Arena · card-name coverage"/>
                         </ComboBox>
                         <TextBlock x:Name="FindSetLabel" Text="Find a set" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox x:Name="SetSearch" Style="{StaticResource VaultSearchTextBox}" Width="220" Padding="8,5"
+                        <TextBox x:Name="SetSearch" Style="{StaticResource VaultSearchTextBox}" Width="220" Padding="10,2"
                                  Background="{DynamicResource VaultPanelRaised}" Foreground="White" BorderBrush="{DynamicResource VaultLine}"
                                  TextChanged="OnSetFilterChanged" Margin="0,0,18,0"/>
                         <CheckBox x:Name="ShowEmptySets" Content="Include sets with no progress"
@@ -979,15 +979,15 @@
                             <TextBlock Text="CARD NAME" FontSize="10"
                                        Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,4"/>
                             <TextBox x:Name="ProxyNameBox" Width="270" MaxLength="255"
-                                     Padding="9,8" Background="{DynamicResource VaultPanel}"
+                                     Padding="10,2" Background="{DynamicResource VaultPanel}"
                                      Foreground="{DynamicResource VaultText}"
                                      BorderBrush="{DynamicResource VaultEdgeLift}"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,12,0">
                             <TextBlock Text="PROXY COPIES" FontSize="10"
                                        Foreground="{DynamicResource VaultMuted}" Margin="0,0,0,4"/>
-                            <TextBox x:Name="ProxyQuantityBox" Width="92" Text="1"
-                                     MaxLength="6" Padding="9,8"
+                            <TextBox Style="{StaticResource VaultQuantityTextBox}" x:Name="ProxyQuantityBox" Width="92" Text="1"
+                                     MaxLength="6" Padding="5,1"
                                      Background="{DynamicResource VaultPanel}"
                                      Foreground="{DynamicResource VaultText}"
                                      BorderBrush="{DynamicResource VaultEdgeLift}"/>
