@@ -106,6 +106,23 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "NativeCollectionWorkspace.DeckInspector.cs"));
         string v65DeckShell = File.ReadAllText(
             Path.Combine(dir, "NativeCollectionWorkspace.xaml.cs"));
+        // Single-row collection changes must receive the verified atomic
+        // replacement, rather than closing the workspace on every save.
+        string addedPrintingCode = File.ReadAllText(
+            Path.Combine(dir, "NativeAddPrintingWindow.xaml.cs"));
+        string quantityCode = File.ReadAllText(
+            Path.Combine(dir, "NativeAdjustPhysicalWindow.xaml.cs"));
+        string arenaCode = File.ReadAllText(
+            Path.Combine(dir, "NativeArenaEditorWindow.xaml.cs"));
+        Must(addedPrintingCode.Contains("SavedReplacement = result;") &&
+             quantityCode.Contains("SavedReplacement = result;") &&
+             arenaCode.Contains("SavedReplacement = result;") &&
+             v65DeckShell.Contains("FinishVerifiedPhysicalEditAsync(dialog.SavedReplacement)") &&
+             v65DeckShell.Contains("FinishVerifiedArenaEditAsync(editor.SavedReplacement)") &&
+             v65DeckShell.Contains("AfterVerifiedPhysicalEdit(review, next, catalogPath!)") &&
+             v65DeckShell.Contains("onVerifiedPhysicalChange?.Invoke(next, verified.proxies)") &&
+             v65DeckShell.Contains("onVerifiedPhysicalChange?.Invoke(next, verifiedProxies)"),
+            "Verified collection edits must refresh the live view before falling back to a full reload.");
         // A deck-only EDH Lab save must not tear down and fully rescan the
         // collection/catalog for the common case. Keep the existing safety
         // fallback for inventory changes and failed verified refreshes.
