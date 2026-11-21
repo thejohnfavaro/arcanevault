@@ -162,9 +162,11 @@ public partial class NativeDeckEditorView
                         CollectionCatalogReview.FindExactNames(path,
                             candidates.Take(80), lookupTimeout.Token),
                         lookupTimeout.Token).WaitAsync(lookupTimeout.Token);
-                    var linkedDocument = AiReviewMarkdown.Render(answer);
-                    AiReviewCardLinks.Apply(linkedDocument, confirmed, OpenAiReviewCardDetails);
-                    AiReviewResultViewer.Document = linkedDocument;
+                    // Construct a NEW formatted document with verified card
+                    // links already in its paragraphs and table cells.
+                    // Never mutate a rendered WPF InlineCollection in place.
+                    AiReviewResultViewer.Document = AiReviewMarkdown.Render(
+                        answer, confirmed.ToArray(), OpenAiReviewCardDetails);
                     AiReviewStatus.Text = confirmed.Count > 0
                         ? "Review complete (" + model + "). " + confirmed.Count +
                           " verified card names linked — click gold names for full details."
