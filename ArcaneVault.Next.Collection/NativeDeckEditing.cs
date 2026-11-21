@@ -43,6 +43,13 @@ public static class NativeDeckEditing
               " · Not a final power rating"
             : "";
 
+        public string AiReviewMarkdown { get; init; } = "";
+        public string AiReviewModel { get; init; } = "";
+        public string AiReviewMode { get; init; } = "";
+        public string AiReviewSavedUtc { get; init; } = "";
+        public bool AiReviewStale { get; init; }
+        public bool HasAiReview => AiReviewMarkdown.Length > 0;
+
         public string FavoriteLabel => Favorite ? "★ Favorite" : "";
         // Exact per-deck display choice; independent of collection ownership.
         public IReadOnlyDictionary<string, string> EntryPrintingIds { get; init; } =
@@ -51,6 +58,26 @@ public static class NativeDeckEditing
 
     private static string Hash(string json) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
+
+    /// <summary>
+    /// Review identity is based on actual deck contents (not folder, art,
+    /// timestamp or JSON serialization). Changing format, commander, any
+    /// card identity or count makes a stored AI review visibly outdated.
+    /// </summary>
+    public static string ReviewFingerprint(string format, string commander,
+        IEnumerable<Entry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        var cards = entries.Select(e =>
+                (Name: CommanderBracketAssessment.Canonical(e.Name), e.Quantity))
+            .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(e => e.Quantity)
+            .Select(e => e.Quantity + " " + e.Name.ToUpperInvariant());
+        string canonical = format.Trim().ToUpperInvariant() + "\n" +
+            CommanderBracketAssessment.Canonical(commander).ToUpperInvariant() +
+            "\n" + string.Join("\n", cards);
+        return Hash(canonical);
+    }
 
     private static string CheckedText(string value, string field, int max, bool required)
     {
@@ -199,6 +226,13 @@ public static class NativeDeckEditing
                 ? CommanderBracketAssessment.Evaluate(
                     entries.OfType<JsonObject>().Select(x => GetString(x, "name")), commander)
                 : null;
+            var priorReview = deck["aiReview"] as JsonObject;
+            string savedMarkdown = priorReview is null ? "" : GetString(priorReview, "markdown");
+            string storedFingerprint = priorReview is null ? "" : GetString(priorReview, "deckFingerprint");
+            string actualFingerprint = ReviewFingerprint(format, commander,
+                entries.OfType<JsonObject>()
+                    .Select(x => new Entry(GetString(x, "name"),
+                        int.TryParse(GetStringOrNumber(x, "qty"), out int q) ? q : 0)));
             var stored = deck["bracketAssessment"] as JsonObject;
             bool assessmentSaved = computed is not null &&
                 stored is not null &&
@@ -216,6 +250,12 @@ public static class NativeDeckEditing
                 BracketGameChangers = computed?.GameChangerCount ?? 0,
                 BracketRulesVersion = computed?.RulesRevision ?? "",
                 BracketSaved = assessmentSaved,
+                AiReviewMarkdown = savedMarkdown,
+                AiReviewModel = priorReview is null ? "" : GetString(priorReview, "model"),
+                AiReviewMode = priorReview is null ? "" : GetString(priorReview, "mode"),
+                AiReviewSavedUtc = priorReview is null ? "" : GetString(priorReview, "savedUtc"),
+                AiReviewStale = savedMarkdown.Length > 0 &&
+                    !string.Equals(storedFingerprint, actualFingerprint, StringComparison.Ordinal),
                 ArenaDeckId = GetString(deck, "arenaDeckId"),
                 EntryPrintingIds = entries.OfType<JsonObject>()
                     .Where(x => GetString(x, "name").Length > 0 &&
@@ -461,6 +501,47 @@ public static class NativeDeckEditing
         byte[] output = JsonSerializer.SerializeToUtf8Bytes(root);
         var after = NativeBackupReader.Read(output);
         VerifyOtherSections(before, after, expectedCount, expectedRevisions);
+        return output;
+    }
+
+    /// <summary>
+    /// Persist an AI review ONLY for an unchanged, explicitly selected deck,
+    /// through the caller's normal SHA-gated native replacement. Unrelated
+    /// collection/deck data and all existing revision history stay untouched.
+    /// </summary>
+    public static byte[] SaveAiReview(byte[] backup, DeckRow selected,
+        string markdown, string model, string mode)
+    {
+        ArgumentNullException.ThrowIfNull(backup);
+        ArgumentNullException.ThrowIfNull(selected);
+        if (string.IsNullOrWhiteSpace(markdown) || markdown.Length > 48_000 ||
+            markdown.Any(c => c == '\0'))
+            throw new ArgumentException("A complete AI review must be 1–48,000 characters.", nameof(markdown));
+        if (string.IsNullOrWhiteSpace(model) || model.Length > 120 ||
+            model.Any(char.IsControl) || mode is not ("health" or "owned" or "synergy"))
+            throw new ArgumentException("Invalid AI review model or focus.");
+        var before = NativeBackupReader.Read(backup);
+        var rows = Describe(backup, out var root, out var library);
+        if (selected.Ordinal < 0 || selected.Ordinal >= library.Count ||
+            rows[selected.Ordinal].SourceSha256 != selected.SourceSha256 ||
+            !rows[selected.Ordinal].Editable)
+            throw new InvalidDataException("The saved deck changed. Reopen before attaching an AI review.");
+        var row = (JsonObject)library[selected.Ordinal]!;
+        string fingerprint = ReviewFingerprint(rows[selected.Ordinal].Format,
+            rows[selected.Ordinal].Commander,
+            ParseMainboard(rows[selected.Ordinal].MainboardText));
+        row["aiReview"] = new JsonObject
+        {
+            ["schema"] = 1,
+            ["markdown"] = markdown,
+            ["model"] = model,
+            ["mode"] = mode,
+            ["savedUtc"] = DateTimeOffset.UtcNow.ToString("O"),
+            ["deckFingerprint"] = fingerprint
+        };
+        byte[] output = JsonSerializer.SerializeToUtf8Bytes(root);
+        VerifyOtherSections(before, NativeBackupReader.Read(output),
+            before.Decks, before.DeckRevisions);
         return output;
     }
 
