@@ -17,12 +17,19 @@ public partial class NativeDeckEditorView
 
     public void OpenAiReview()
     {
-        if (EdhAiReviewTab is null || EdhWorkspaceTabs is null) return;
-        EdhWorkspaceTabs.SelectedItem = EdhAiReviewTab;
+        if (AiReviewWideSurface is null || EdhEditorColumns is null) return;
+        EdhEditorColumns.Visibility = Visibility.Collapsed;
+        AiReviewWideSurface.Visibility = Visibility.Visible;
         RefreshAiReviewPrompt();
     }
 
     private void OnAiReviewCurrentDeckClicked(object sender, RoutedEventArgs e) => OpenAiReview();
+
+    private void OnAiReturnToEditorClicked(object sender, RoutedEventArgs e)
+    {
+        AiReviewWideSurface.Visibility = Visibility.Collapsed;
+        EdhEditorColumns.Visibility = Visibility.Visible;
+    }
 
     private string CurrentReviewDeck()
     {
