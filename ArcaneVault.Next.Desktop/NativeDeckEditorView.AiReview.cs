@@ -1,4 +1,5 @@
 using ArcaneVault.Next.Collection;
+using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -115,7 +116,31 @@ public partial class NativeDeckEditorView
         {
             var (model, answer) = await client.ReviewAsync(prompt);
             aiLastResponse = answer;
-            AiReviewResultViewer.Document = AiReviewMarkdown.Render(answer);
+            var document = AiReviewMarkdown.Render(answer);
+            if (!string.IsNullOrWhiteSpace(catalogPath))
+            {
+                // Catalog validation happens off the UI thread. The AI can
+                // suggest unknown card names, but only indexed cards are links.
+                string path = catalogPath!;
+                var draft = MainboardBox?.Text ?? "";
+                var commander = CommanderBox?.Text ?? "";
+                var confirmed = await Task.Run(() =>
+                {
+                    var names = new List<string>();
+                    foreach (var candidate in AiReviewCardLinks.Candidates(answer, draft, commander))
+                    {
+                        try
+                        {
+                            var details = CollectionCatalogReview.ReadDetails(path, candidate);
+                            if (details is not null) names.Add(details.Name);
+                        }
+                        catch (Exception) { /* Catalog may be refreshing. */ }
+                    }
+                    return names.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                });
+                AiReviewCardLinks.Apply(document, confirmed, OpenAiReviewCardDetails);
+            }
+            AiReviewResultViewer.Document = document;
             AiReviewStatus.Text = "Review complete (" + model + "). Suggestions are read-only; no deck edits were made.";
         }
         catch (Exception ex)
@@ -126,6 +151,33 @@ public partial class NativeDeckEditorView
         {
             aiReviewRunning = false;
             RefreshAiReviewPrompt();
+        }
+    }
+
+    private async void OpenAiReviewCardDetails(string cardName)
+    {
+        if (string.IsNullOrWhiteSpace(catalogPath)) return;
+        try
+        {
+            var detail = await Task.Run(() =>
+                CollectionCatalogReview.ReadDetails(catalogPath!, cardName));
+            if (detail is null)
+            {
+                AiReviewStatus.Text = "Card not found in the local catalog: " + cardName;
+                return;
+            }
+            // Reuse the full native card screen. No deck or inventory writes.
+            var window = new NativeCardDetailsWindow(detail.Name,
+                "AI Review recommendation · read-only card details",
+                detail, catalogPath: catalogPath)
+            {
+                Owner = Window.GetWindow(this)
+            };
+            window.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            AiReviewStatus.Text = "Card preview unavailable: " + ex.Message;
         }
     }
 
