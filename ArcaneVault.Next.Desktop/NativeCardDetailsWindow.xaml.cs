@@ -87,14 +87,58 @@ public partial class NativeCardDetailsWindow : Window
     private void AdaptContentHeight()
     {
         if (CardContentGrid is null || CardArtFrame is null ||
-            CardMetadataPanel is null) return;
+            CardMetadataPanel is null || CardOraclePanel is null ||
+            CardDetailsReadingGrid is null || LegalityScroller is null)
+            return;
         double space = CardContentGrid.ActualHeight;
-        if (space <= 0) return;
+        double width = CardContentGrid.ActualWidth;
+        if (space <= 0 || width <= 0) return;
+
+        // Responsive artwork column: prevent a fixed 350-DIP rail from taking
+        // half of a narrow window or becoming tiny on a wide monitor.
+        CardContentGrid.ColumnDefinitions[0].Width = new GridLength(
+            Math.Clamp(width * 0.31, 240, 430));
         double artwork = NativeCardDetailsLayout.ArtworkHeight(space);
         if (Math.Abs(CardArtFrame.Height - artwork) > 1)
             CardArtFrame.Height = artwork;
-        // A long legality list must never consume the Oracle-text row.
-        CardMetadataPanel.MaxHeight = Math.Clamp(space - 205, 100, 230);
+
+        // At wide widths, metadata/legality and Oracle reading are peers,
+        // each using the entire right-hand height. At compact widths they
+        // stack vertically and remain independently scrollable.
+        double readingWidth = width - CardContentGrid.ColumnDefinitions[0].Width.Value - 20;
+        bool wide = readingWidth >= 760;
+        if (wide)
+        {
+            CardDetailsReadingGrid.ColumnDefinitions[0].Width = new GridLength(0.44, GridUnitType.Star);
+            CardDetailsReadingGrid.ColumnDefinitions[1].Width = new GridLength(0.56, GridUnitType.Star);
+            CardDetailsReadingGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
+            CardDetailsReadingGrid.RowDefinitions[1].Height = new GridLength(0);
+            Grid.SetRow(CardMetadataPanel, 0);
+            Grid.SetColumn(CardMetadataPanel, 0);
+            Grid.SetRowSpan(CardMetadataPanel, 2);
+            Grid.SetRow(CardOraclePanel, 0);
+            Grid.SetColumn(CardOraclePanel, 1);
+            Grid.SetRowSpan(CardOraclePanel, 2);
+            CardMetadataPanel.Margin = new Thickness(0, 0, 12, 0);
+            CardMetadataPanel.MaxHeight = double.PositiveInfinity;
+            LegalityScroller.MaxHeight = Math.Max(156, space - 270);
+        }
+        else
+        {
+            CardDetailsReadingGrid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+            CardDetailsReadingGrid.ColumnDefinitions[1].Width = new GridLength(0);
+            CardDetailsReadingGrid.RowDefinitions[0].Height = GridLength.Auto;
+            CardDetailsReadingGrid.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
+            Grid.SetRow(CardMetadataPanel, 0);
+            Grid.SetColumn(CardMetadataPanel, 0);
+            Grid.SetRowSpan(CardMetadataPanel, 1);
+            Grid.SetRow(CardOraclePanel, 1);
+            Grid.SetColumn(CardOraclePanel, 0);
+            Grid.SetRowSpan(CardOraclePanel, 1);
+            CardMetadataPanel.Margin = new Thickness(0, 0, 0, 10);
+            CardMetadataPanel.MaxHeight = Math.Clamp(space * 0.46, 175, 380);
+            LegalityScroller.MaxHeight = 180;
+        }
     }
 
     private void RenderOracleText(string? original)
