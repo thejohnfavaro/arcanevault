@@ -29,6 +29,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private string? lastRefreshNonce;
     private string? selectedRefreshDeckId;
     private DateTimeOffset nextScheduledRefresh = DateTimeOffset.MinValue;
+    private bool firstSnapshotPublished;
     private DateTimeOffset nextSetProgressRetry = DateTimeOffset.MinValue;
     private string? setProgressStamp;
     private SetProgressSummary? setProgress;
@@ -112,8 +113,20 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 bool pressed = ConsumeRefreshRequest();
                 if (pressed || DateTimeOffset.UtcNow >= nextScheduledRefresh)
                 {
-                    arenaTracker?.Tick();
-                    await RefreshAsync(stopped.Token);
+                    // Initial workspace state should reach EDGE before scanning
+                    // potentially huge Arena Player.log files. The tracker is
+                    // updated after the first publish, then before later refreshes.
+                    if (!firstSnapshotPublished)
+                    {
+                        await RefreshAsync(stopped.Token);
+                        firstSnapshotPublished = true;
+                        arenaTracker?.Tick();
+                    }
+                    else
+                    {
+                        arenaTracker?.Tick();
+                        await RefreshAsync(stopped.Token);
+                    }
                     nextScheduledRefresh = DateTimeOffset.UtcNow.AddSeconds(15);
                 }
             }
@@ -195,6 +208,12 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             nextDeckMappingRefresh = DateTimeOffset.UtcNow.AddSeconds(15);
         }
 
+        // Publish deck and match information before optional cover lookup,
+        // image rendering, or set progress queries delay the EDGE refresh.
+        // Subsequent publishes enrich this snapshot with artwork and sets.
+        var (initialRecent, initialSource, initialActive) = ApplyMatches();
+        Publish(initialRecent, initialSource, "Native app connected", initialActive);
+
         // Card metadata can become available after a catalog sync, without
         // any deck library change. Retry missing artwork independently.
         if (DateTimeOffset.UtcNow >= nextCoverRetry ||
@@ -204,8 +223,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             nextCoverRetry = DateTimeOffset.UtcNow.AddSeconds(45);
         }
 
-        var (recent, source, active) = ApplyMatches();
-        Publish(recent, source, "Native app connected", active);
+        var (recent, source, active) =
+            (initialRecent, initialSource, initialActive);
 
         // Render at most three buttons per tick. The selected deck is first
         // when a key or Property Inspector requests a refresh, so a long
