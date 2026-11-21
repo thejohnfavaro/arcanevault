@@ -157,10 +157,13 @@ public partial class NativeDeckEditorView
                 using var lookupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
                 try
                 {
-                    var candidates = AiReviewCardLinks.Candidates(answer, draft, commander);
+                    // Discover catalog-backed mentions across the complete
+                    // response, including plain prose such as "The One Ring".
+                    // The previous bold/table/mainboard candidate list omitted
+                    // ordinary card names that were not already in the deck.
                     var confirmed = await Task.Run(() =>
-                        CollectionCatalogReview.FindExactNames(path,
-                            candidates.Take(80), lookupTimeout.Token),
+                        CollectionCatalogReview.FindMentionedNames(
+                            path, answer, lookupTimeout.Token),
                         lookupTimeout.Token).WaitAsync(lookupTimeout.Token);
                     // Construct a NEW formatted document with verified card
                     // links already in its paragraphs and table cells.

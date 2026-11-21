@@ -66,6 +66,12 @@ internal static class CollectionCatalogReviewChecks
                 INSERT INTO cards VALUES('Emry, Lurker of the Loch','Legendary Creature',
                     'Tap: Cast an artifact card from your graveyard.',
                     'rare',3,'U','{"commander":"legal","brawl":"legal"}','ELD');
+                INSERT INTO cards VALUES('The One Ring', 'Legendary Artifact',
+                    'Protection from everything.', 'mythic',4,'',
+                    '{"commander":"legal","brawl":"legal"}','LTR');
+                INSERT INTO cards VALUES('Thoughtcast', 'Sorcery',
+                    'Draw two cards.', 'common',5,'U',
+                    '{"commander":"legal","brawl":"legal"}','MRD');
                 CREATE TABLE ownership(name TEXT, qty INTEGER);
                 INSERT INTO ownership VALUES('Separate installed inventory mirror',37);
                 """;
@@ -119,6 +125,22 @@ internal static class CollectionCatalogReviewChecks
               !aiMatches.Any(name => name.Contains("Missing")),
             "AI card-name verification must accept typographic apostrophes " +
             "while rejecting unverified names and duplicates.");
+        // Not all AI card names are bold or in swap tables. Verify names
+        // inside ordinary sentences, including an unowned recommended card.
+        var proseMatches = CollectionCatalogReview.FindMentionedNames(catalogPath,
+            "Esper Sentinel, Thoughtcast, Thought Monitor, and The One Ring give you more draw. " +
+            "The card Sphinx’s Tutelage is also worth verifying. " +
+            "This is not a link to Missing Card.", CancellationToken.None);
+        Check(proseMatches.Contains("The One Ring") &&
+              proseMatches.Contains("Thoughtcast") &&
+              proseMatches.Contains("Sphinx's Tutelage") &&
+              !proseMatches.Contains("Arena Spell") &&
+              !proseMatches.Contains("Missing Card"),
+            "AI review should detect catalog cards anywhere in prose, including typographic punctuation.");
+        var exactBoundary = CollectionCatalogReview.FindMentionedNames(catalogPath,
+            "Thoughtcasting is a word; The One Ringmaster is not a card.");
+        Check(!exactBoundary.Contains("Thoughtcast") && !exactBoundary.Contains("The One Ring"),
+            "Partial words must not be linked as MTG cards.");
         var reverseMatches = CollectionCatalogReview.FindExactNames(catalogPath,
             new[] { "Sphinx‘s Tutelage" });
         Check(reverseMatches.Count == 1 &&
