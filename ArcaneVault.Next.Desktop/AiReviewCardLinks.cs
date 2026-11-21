@@ -72,64 +72,47 @@ internal static class AiReviewCardLinks
     /// live InlineCollection during enumeration; WPF invalidates its iterator
     /// when a Run is inserted or removed.
     /// </summary>
+    // Only deliberate [[card:Full Card Name]] references can become links.
+    // Never scan ordinary prose for catalog names: "Brawl", "Fell" and many
+    // other legitimate cards are also everyday words.
+    private static readonly Regex ExplicitCard = new(
+        @"\\[\\[card:([^\\]\\r\\n]{2,150})\\]\\]",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    internal static IReadOnlyList<string> ExplicitNames(string response) =>
+        ExplicitCard.Matches(response ?? string.Empty)
+            .Select(m => m.Groups[1].Value.Trim())
+            .Where(n => n.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(150).ToArray();
+
     internal static void AppendVerifiedText(InlineCollection target, string text,
         IReadOnlyList<string>? verifiedNames, Action<string>? inspect)
     {
         if (string.IsNullOrEmpty(text)) return;
-        if (inspect is null || verifiedNames is null || verifiedNames.Count == 0)
-        {
-            target.Add(new Run(text));
-            return;
-        }
-
-        // Construct a standalone list of intervals before adding any content.
-        // Prefer the longest matching card on overlap, e.g. "Tithe" versus
-        // "Smothering Tithe", and preserve every unlinked character.
-        var ranges = new List<(int Start, int End, string Name)>();
-        foreach (string name in verifiedNames)
-        {
-            if (string.IsNullOrWhiteSpace(name)) continue;
-            // Match display typography without weakening catalog verification:
-            // Sphinx’s Tutelage and Sphinx's Tutelage refer to the same
-            // canonical, catalog-verified name. Preserve the response glyphs.
-            string namePattern = string.Concat(name.Select(ch =>
-                ch is '\'' or '’' or '‘' or 'ʼ' or '＇'
-                    ? @"['’‘ʼ＇]"
-                    : Regex.Escape(ch.ToString())));
-            string pattern = @"(?<![\p{L}\p{N}])" + namePattern +
-                @"(?![\p{L}\p{N}])";
-            foreach (Match match in Regex.Matches(text, pattern,
-                         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-                ranges.Add((match.Index, match.Index + match.Length, name));
-        }
-        if (ranges.Count == 0)
-        {
-            target.Add(new Run(text));
-            return;
-        }
-        ranges.Sort((left, right) =>
-        {
-            int start = left.Start.CompareTo(right.Start);
-            return start != 0 ? start : (right.End - right.Start).CompareTo(left.End - left.Start);
-        });
-
         int cursor = 0;
-        foreach (var range in ranges)
+        foreach (Match match in ExplicitCard.Matches(text))
         {
-            if (range.Start < cursor) continue;
-            if (range.Start > cursor)
-                target.Add(new Run(text[cursor..range.Start]));
+            if (match.Index > cursor)
+                target.Add(new Run(text[cursor..match.Index]));
 
-            string selectedName = range.Name;
-            var link = new Hyperlink(new Run(text[range.Start..range.End]))
+            string shown = match.Groups[1].Value.Trim();
+            string? verified = verifiedNames?.FirstOrDefault(name =>
+                string.Equals(name, shown, StringComparison.OrdinalIgnoreCase));
+            if (verified is not null && inspect is not null)
             {
-                Foreground = Brushes.Goldenrod,
-                TextDecorations = TextDecorations.Underline,
-                ToolTip = "Open full card details: " + selectedName
-            };
-            link.Click += (_, _) => inspect(selectedName);
-            target.Add(link);
-            cursor = range.End;
+                var link = new Hyperlink(new Run(shown))
+                {
+                    Foreground = Brushes.Goldenrod,
+                    TextDecorations = TextDecorations.Underline,
+                    ToolTip = "Open full card details: " + verified
+                };
+                link.Click += (_, _) => inspect(verified);
+                target.Add(link);
+            }
+            else
+                target.Add(new Run(shown));
+            cursor = match.Index + match.Length;
         }
         if (cursor < text.Length)
             target.Add(new Run(text[cursor..]));
