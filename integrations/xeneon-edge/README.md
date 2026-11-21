@@ -2,6 +2,12 @@
 
 Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for the working Companion v0.9. Built for XENEON EDGE `dashboard_lcd` in 2560×720, responsive down to 840×344. No full-screen window or localhost server is required.
 
+## Arena Brawl deck filtering (native v0.9.181+)
+- The Xeneon EDGE deck selector now shows only decks explicitly saved as **Arena Brawl**, not tabletop **Commander** or unrelated formats.
+- The native read-only `streamdeck.json` snapshot now includes each deck's `format`. This leaves the full deck library and Stream Deck Companion untouched.
+- A native build that lacks `format` will display **No Arena Brawl decks** rather than falsely classifying paper decks. Update both the Windows application and iCUE widget package for the new selection behavior.
+- Touch previous/next navigation cycles only through eligible Arena Brawl decks. Arena rank and physical collection widgets stay independent of the deck filter.
+
 ## Features in 0.9
 - Read-only live monitoring of `%LOCALAPPDATA%\\ArcaneVault\\streamdeck.json`, the same native snapshot used by the Stream Deck Companion. iCUE's **File System Provider 1.0** delivers changes; the native app already publishes periodically.
 - Touch previous/next deck selection with persistent widget-local deck ID; changes here do not alter Stream Deck's separate selected key.
