@@ -48,8 +48,8 @@ public static class NativeDeckAnalytics
             // Arena imports may retain printing annotations such as
             // "Sol Ring (CMM) 396". Catalog cards are keyed by card identity,
             // not by an owned or imported printing descriptor.
-            string identity = ArenaDeckCardName.Identity(entry.Name);
-            quantities[identity] = checked(quantities.GetValueOrDefault(identity) + entry.Quantity);
+            string cardIdentity = ArenaDeckCardName.Identity(entry.Name);
+            quantities[cardIdentity] = checked(quantities.GetValueOrDefault(cardIdentity) + entry.Quantity);
         }
         if (singleton && !string.IsNullOrWhiteSpace(commander))
         {
