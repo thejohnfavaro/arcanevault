@@ -13,6 +13,35 @@ internal static class CollectionCatalogReviewChecks
 
     public static void Run(string work)
     {
+        // Bracket computation must not confuse a Game Changer count with
+        // an authoritative social/competitive bracket classification.
+        Check(CommanderBracketAssessment.RosterCount == 53,
+            "Commander bracket roster must contain all 53 February 2026 Game Changers.");
+        var core = CommanderBracketAssessment.Evaluate(
+            new[] { "Sol Ring", "Arcane Signet" }, "The Borg Queen");
+        Check(core.MinimumBracket == 1 && core.GameChangerCount == 0 &&
+              !core.IsFinalClassification,
+            "No Game Changers cannot prove Bracket 1 or 2.");
+        var upgraded = CommanderBracketAssessment.Evaluate(
+            new[] { "Farewell", "Smothering Tithe", "The One Ring" });
+        Check(upgraded.MinimumBracket == 3 &&
+              upgraded.GameChangerCount == 3,
+            "Three Game Changers require at least Bracket 3.");
+        var optimized = CommanderBracketAssessment.Evaluate(
+            new[] { "Farewell", "Smothering Tithe", "The One Ring",
+                    "Chrome Mox", "Chrome Mox (2XM) 250" });
+        Check(optimized.MinimumBracket == 4 &&
+              optimized.GameChangerCount == 4,
+            "Four unique Game Changers require at least Bracket 4.");
+        Check(CommanderBracketAssessment.Evaluate(
+            new[] { "Sol Ring" }, knownMassLandDenial: true).MinimumBracket == 4,
+            "Known mass land denial rules out Brackets 1 through 3.");
+        Check(CommanderBracketAssessment.Evaluate(
+            new[] { "Sol Ring" }, knownEarlyTwoCardWin: true).MinimumBracket == 4,
+            "Known early two-card wins require higher-bracket discussion.");
+        Check(CommanderBracketAssessment.Evaluate(
+            new[] { "Sol Ring" }, "Grand Arbiter Augustin IV").GameChangerCount == 1,
+            "The commander itself must count if it is a Game Changer.");
         // Execute compiled card marker regex in CI. Compilation alone cannot
         // detect a TypeInitializationException from malformed expressions.
         var marked = AiReviewCardReferenceSyntax.Pattern.Matches(
