@@ -11,6 +11,7 @@ public partial class NativeArenaEditorWindow : Window
     private readonly int? selectedOrdinal;
     private readonly NativeArenaRow? selectedRow;
     private bool busy;
+    public NativeWorkspaceSafety.Replacement? SavedReplacement { get; private set; }
 
     public NativeArenaEditorWindow(string nativePath, string expectedSha,
         int? selectedOrdinal = null, NativeArenaRow? selectedRow = null)
@@ -86,6 +87,7 @@ public partial class NativeArenaEditorWindow : Window
                 result.RecoveryPath +
                 "\n\nUse Restore native recovery from the main window to undo.",
                 "Native Arena edit saved", MessageBoxButton.OK, MessageBoxImage.Information);
+            SavedReplacement = result;
             DialogResult = true;
         }
         catch (Exception ex)
