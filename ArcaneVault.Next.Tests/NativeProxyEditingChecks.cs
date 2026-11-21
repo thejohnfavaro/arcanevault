@@ -23,12 +23,23 @@ internal static class NativeProxyEditingChecks
         var fresh = NativeWorkspaceSafety.StartFresh(path);
         Must(fresh.Created && NativeWorkspaceSafety.ListProxies(path).Count == 0,
             "Brand-new workspaces must have an empty, optional proxy ledger.");
+        // ARRANGE: create a fresh, disposable workspace with zero confirmed copies.
         var baseline = fresh.Current.Collection;
+        Console.WriteLine("  CHECK A: proxies must never become confirmed physical or Arena inventory");
         var first = NativeWorkspaceSafety.SetProxyQuantity(path, "Sol Ring", 2,
             fresh.Current.BackupSha256);
         var second = NativeWorkspaceSafety.SetProxyQuantity(path,
             "Third-party custom art", 3, first.Current.BackupSha256);
         var proxies = NativeWorkspaceSafety.ListProxies(path);
+        RegressionExpect.Equal(proxies.Count, 2, "Two proxy entries after adding two names");
+        RegressionExpect.Equal(proxies.Single(x => x.Name == "Sol Ring").Quantity, 2,
+            "Sol Ring proxy quantity after setting 2 copies");
+        RegressionExpect.Equal(proxies.Single(x => x.Name == "Third-party custom art").Quantity, 3,
+            "Custom-art proxy quantity after setting 3 copies");
+        RegressionExpect.Equal(second.Current.Collection.PhysicalCopies, 0L,
+            "Adding proxies must not manufacture real physical copies");
+        RegressionExpect.Equal(second.Current.Collection.ArenaCopies, 0L,
+            "Adding paper proxies must not manufacture Arena copies");
         Must(proxies.Count == 2 &&
              proxies.Single(x => x.Name == "Sol Ring").Quantity == 2 &&
              proxies.Single(x => x.Name == "Third-party custom art").Quantity == 3 &&
@@ -64,6 +75,7 @@ internal static class NativeProxyEditingChecks
              x.Message.Contains("not an owned printing", StringComparison.Ordinal)),
              "Deck save preflight must clearly call out paper proxies and tournament caveat.");
 
+        Console.WriteLine("  CHECK B: invalid or stale edits must preserve data and recovery points");
         int recoveryCount = NativeWorkspaceSafety.RecoveryPaths(path).Count;
         string unchangedSha = NativeWorkspace.Open(path).BackupSha256;
         Reject(() => NativeWorkspaceSafety.SetProxyQuantity(path,
@@ -91,6 +103,7 @@ internal static class NativeProxyEditingChecks
              removed.Current.Collection.PhysicalCopies == 0,
              "Removing a proxy must not delete physical inventory or other proxies.");
 
+        Console.WriteLine("  CHECK C: backups must reject malformed proxy ownership");
         // Malformed extras must be rejected rather than silently promoted to
         // physical cards or discarded during backup import/reopen.
         byte[] malformed = JsonSerializer.SerializeToUtf8Bytes(new
@@ -135,6 +148,7 @@ internal static class NativeProxyEditingChecks
              File.Exists(cleared.RecoveryPath),
              "Fresh start must clear proxies only with an explicit whole-workspace reset and recovery.");
 
+        Console.WriteLine("  CHECK D: batch additions should combine quantities once per save");
         // Batch paste is additive, duplicate names are combined, and the
         // complete transaction creates just one recovery point and one SHA.
         var parsedBatch = NativeProxyEditing.ParseAdditions(
@@ -156,6 +170,13 @@ internal static class NativeProxyEditingChecks
             "2 Sol Ring\n3x Counterspell\nSol Ring\nThird-party custom card",
             beforeBatchSha);
         var batchRows = NativeWorkspaceSafety.ListProxies(path);
+        RegressionExpect.Equal(batchRows.Count, 3, "Three unique proxy names after batch paste");
+        RegressionExpect.Equal(batchRows.Single(x => x.Name == "Sol Ring").Quantity, 3,
+            "Duplicate Sol Ring lines combine to three proxies");
+        RegressionExpect.Equal(batchRows.Single(x => x.Name == "Counterspell").Quantity, 3,
+            "Counterspell batch quantity is three");
+        RegressionExpect.Equal(NativeWorkspaceSafety.RecoveryPaths(path).Count,
+            beforeBatchRecovery + 1, "One batch should create exactly one recovery point");
         Must(batchRows.Count == 3 &&
              batchRows.Single(x => x.Name == "Sol Ring").Quantity == 3 &&
              batchRows.Single(x => x.Name == "Counterspell").Quantity == 3 &&
