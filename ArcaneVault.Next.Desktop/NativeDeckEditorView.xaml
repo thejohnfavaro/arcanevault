@@ -1470,6 +1470,11 @@
                             </Expander>
                         </StackPanel>
                         <WrapPanel Grid.Row="3" Margin="0,0,0,7">
+                            <Button Content="Compute bracket (offline)" Click="OnComputeCommanderBracketClicked"
+                                    Padding="11,8" Margin="0,0,8,5"
+                                    Background="{DynamicResource VaultPanelRaised}"
+                                    Foreground="{DynamicResource VaultText}"
+                                    ToolTip="Read-only Game Changer check and minimum Commander bracket; does not send an AI request."/>
                             <Button x:Name="AiAnalyzeButton" Content="Analyze current deck"
                                     Click="OnAiAnalyzeClicked" Padding="11,8" Margin="0,0,8,5"
                                     Background="{DynamicResource VaultAccentMuted}"
