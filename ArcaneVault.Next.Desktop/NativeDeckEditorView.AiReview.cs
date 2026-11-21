@@ -161,18 +161,37 @@ public partial class NativeDeckEditorView
                     // response, including plain prose such as "The One Ring".
                     // The previous bold/table/mainboard candidate list omitted
                     // ordinary card names that were not already in the deck.
-                    var confirmed = await Task.Run(() =>
-                        CollectionCatalogReview.FindMentionedNames(
-                            path, answer, lookupTimeout.Token),
-                        lookupTimeout.Token).WaitAsync(lookupTimeout.Token);
-                    // Construct a NEW formatted document with verified card
-                    // links already in its paragraphs and table cells.
-                    // Never mutate a rendered WPF InlineCollection in place.
+                    // Resolve full names and context-sensitive nicknames
+                    // against the actual local catalog. An ambiguous nickname
+                    // cannot silently navigate to the wrong card.
+                    var resolved = await Task.Run(() =>
+                    {
+                        var exact = CollectionCatalogReview.FindMentionedNames(
+                            path, answer, lookupTimeout.Token);
+                        var deckNames = NativeDeckEditing.ParseMainboard(draft)
+                            .Select(entry => ArcaneVault.Next.Domain.ArenaDeckCardName.Identity(entry.Name))
+                            .Append(ArcaneVault.Next.Domain.ArenaDeckCardName.Identity(commander))
+                            .Where(name => !string.IsNullOrWhiteSpace(name));
+                        var aliases = CollectionCatalogReview.FindShortNameLinks(
+                            path, answer, deckNames, lookupTimeout.Token);
+                        return (Exact: exact, Aliases: aliases);
+                    }, lookupTimeout.Token).WaitAsync(lookupTimeout.Token);
+                    var confirmed = resolved.Exact;
+                    var nicknameMap = resolved.Aliases;
+                    var visibleNames = confirmed.Concat(nicknameMap.Keys)
+                        .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                    // Build a NEW WPF document; each alias carries its
+                    // canonical target when clicked (e.g. Tezzeret).
                     AiReviewResultViewer.Document = AiReviewMarkdown.Render(
-                        answer, confirmed.ToArray(), OpenAiReviewCardDetails);
-                    AiReviewStatus.Text = confirmed.Count > 0
-                        ? "Review complete (" + model + "). " + confirmed.Count +
-                          " verified card names linked — click gold names for full details."
+                        answer, visibleNames, name =>
+                        {
+                            OpenAiReviewCardDetails(
+                                nicknameMap.TryGetValue(name, out var canonical)
+                                    ? canonical : name);
+                        });
+                    AiReviewStatus.Text = visibleNames.Length > 0
+                        ? "Review complete (" + model + "). " + visibleNames.Length +
+                          " verified card names and short references linked — click gold names for full details."
                         : "Review complete (" + model +
                           "). No mentioned card names matched the local catalog. " +
                           "Check that Card Catalog has finished refreshing.";
