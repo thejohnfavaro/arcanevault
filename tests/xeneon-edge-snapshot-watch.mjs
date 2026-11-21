@@ -64,6 +64,9 @@ listener("C:\\Users\\Test\\AppData\\Local\\ArcaneVault\\streamdeck.json",
 assert.match(document.getElementById("status").textContent,/no Arena Brawl decks/);
 assert.equal(document.getElementById("constructedRank").textContent,"Gold 2");
 assert.equal(document.getElementById("limitedRank").textContent,"Platinum 3");
+assert.match(document.getElementById("constructedRankIcon").getAttribute("src"),/constructed_gold_t2\.png$/);
+assert.match(document.getElementById("seasonCountdown").textContent,/3d 0h 0m/);
+assert.match(document.getElementById("seasonPrediction").textContent,/Silver Tier 3/);
 // Only Arena Brawl appears on the EDGE, never paper Commander or other formats.
 listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
   JSON.stringify({schemaVersion:1,decks:[
@@ -82,9 +85,7 @@ listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.j
 assert.equal(document.getElementById("deckName").textContent,"No Arena Brawl decks",
   "A paper Commander deck must never be silently treated as Arena Brawl");
 
-assert.match(document.getElementById("constructedRankIcon").getAttribute("src"),/constructed_gold_t2\.png$/);
-assert.match(document.getElementById("seasonCountdown").textContent,/3d 0h 0m/);
-assert.match(document.getElementById("seasonPrediction").textContent,/Silver Tier 3/);
+
 now+=50000;tick();
 assert.equal(unwatches,1,"Stale watcher must rearm after no file signals");
 assert.equal(watches,2);
