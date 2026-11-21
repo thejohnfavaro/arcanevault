@@ -81,6 +81,9 @@ internal static class CollectionCatalogReviewChecks
                 INSERT INTO cards VALUES('Dawnsire, Sunstar Dreadnought','Artifact Creature',
                     'Create artifact creature tokens.', 'rare',6,'',
                     '{"commander":"legal","brawl":"legal"}','TST');
+                INSERT INTO cards VALUES('Sai, Master Thopterist','Legendary Creature',
+                    'Whenever you cast an artifact spell, create a 1/1 Thopter.',
+                    'rare',3,'U','{"commander":"legal","brawl":"legal"}','M19');
                 CREATE TABLE ownership(name TEXT, qty INTEGER);
                 INSERT INTO ownership VALUES('Separate installed inventory mirror',37);
                 """;
@@ -144,6 +147,22 @@ internal static class CollectionCatalogReviewChecks
               shortened.TryGetValue("Dawnsire", out var selectedDawnsire) &&
               selectedDawnsire == "Dawnsire, Sunstar Dreadnought",
             "AI short names must resolve to the single matching deck card.");
+        var saiInDeck = CollectionCatalogReview.FindShortNameLinks(catalogPath,
+            "Sai and Anointed Procession produce Thopters.",
+            new[] { "Sai, Master Thopterist" });
+        Check(saiInDeck.TryGetValue("Sai", out var saiTarget) &&
+              saiTarget == "Sai, Master Thopterist",
+            "Short character names such as Sai must link to their full card in the deck.");
+        var saiOutsideDeck = CollectionCatalogReview.FindShortNameLinks(catalogPath,
+            "Sai and Anointed Procession produce Thopters.",
+            Array.Empty<string>());
+        Check(!saiOutsideDeck.ContainsKey("Sai"),
+            "Short aliases must require a matching card in the reviewed deck.");
+        var saiSubstring = CollectionCatalogReview.FindShortNameLinks(catalogPath,
+            "Sailors and mosaic art do not mention Sai by itself.",
+            Array.Empty<string>());
+        Check(!saiSubstring.ContainsKey("Sai"),
+            "Three-letter aliases without deck context must never link.");
         var globallyAmbiguous = CollectionCatalogReview.FindShortNameLinks(catalogPath,
             "Tezzeret and Dawnsire are both options.", Array.Empty<string>());
         Check(!globallyAmbiguous.ContainsKey("Tezzeret") &&

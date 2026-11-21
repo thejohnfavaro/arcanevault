@@ -276,7 +276,10 @@ public static class CollectionCatalogReview
         static IEnumerable<string> Aliases(string name)
         {
             string lead = name.Split(',')[0].Trim();
-            if (lead.Length >= 5 && !lead.Contains(' ') &&
+            // Short legendary names such as Sai (or Ral) are useful, but
+            // require deck context: three-/four-letter strings are too easy
+            // to mistake for ordinary text in the wider catalog.
+            if (lead.Length >= 3 && !lead.Contains(' ') &&
                 char.IsUpper(lead[0])) yield return lead;
 
             string first = name.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)[0];
@@ -321,7 +324,8 @@ public static class CollectionCatalogReview
             // Unique local deck identity outranks multiple catalog cards.
             if (deck.TryGetValue(pair.Key, out var local) && local.Count == 1)
                 result[pair.Key] = local.Single();
-            else if ((!deck.ContainsKey(pair.Key) || deck[pair.Key].Count == 0) &&
+            else if (pair.Key.Length >= 5 &&
+                     (!deck.ContainsKey(pair.Key) || deck[pair.Key].Count == 0) &&
                      pair.Value.Count == 1)
                 result[pair.Key] = pair.Value.Single();
         }
