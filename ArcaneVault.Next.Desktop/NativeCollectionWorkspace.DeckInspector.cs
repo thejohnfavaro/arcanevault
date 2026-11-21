@@ -155,6 +155,7 @@ public partial class NativeCollectionWorkspace
         DeckInspectorFullDetailsButton.IsEnabled = false;
         DeckInspectorBracket.Text = "";
         DeckInspectorBracket.Visibility = Visibility.Collapsed;
+        DeckInspectorAiReview.Text = "";
         DeckInspectorCoverageSummary.Text = "";
         DeckInspectorCoverageGaps.Text = "";
         DeckInspectorCardAvailability.Text = "";
@@ -167,6 +168,7 @@ public partial class NativeCollectionWorkspace
 
         DeckInspectorPanel.Visibility = Visibility.Visible;
         DeckInspectorTitle.Text = deck.Name;
+        DeckInspectorAiReview.Text = deck.AiReviewDescription;
         DeckInspectorBracket.Text = deck.BracketExplanation;
         DeckInspectorBracket.Visibility = deck.BracketMinimum is null
             ? Visibility.Collapsed : Visibility.Visible;
