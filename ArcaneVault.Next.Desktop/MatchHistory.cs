@@ -90,6 +90,56 @@ internal sealed class MatchHistory : IDisposable
         }
     }
 
+    /// <summary>Read-only coverage of safely retained Arena game-state evidence.
+    /// An event is an observed GRE message, not necessarily a player action;
+    /// a turn number is the highest observed turn, not guaranteed game length.</summary>
+    internal sealed record TelemetryCoverage(string MatchId, string PlayedUtc,
+        string DeckName, string Format, int Events, int GamesWithNumbers, int? HighestTurn);
+    internal sealed record TelemetryOverview(int RecordedMatches, int MatchesWithTelemetry,
+        int ArchivedEvents, IReadOnlyList<TelemetryCoverage> Recent);
+
+    internal TelemetryOverview ReadTelemetryOverview()
+    {
+        lock (gate)
+        {
+            int recorded;
+            using (var count = db.CreateCommand())
+            {
+                count.CommandText = "SELECT COUNT(*) FROM matches";
+                recorded = Convert.ToInt32(count.ExecuteScalar());
+            }
+            int covered, events;
+            using (var totals = db.CreateCommand())
+            {
+                totals.CommandText = @"SELECT COUNT(DISTINCT t.match_id), COUNT(*)
+                    FROM arena_match_telemetry t
+                    INNER JOIN matches m ON m.match_id=t.match_id";
+                using var reader = totals.ExecuteReader();
+                reader.Read();
+                covered = reader.GetInt32(0);
+                events = reader.GetInt32(1);
+            }
+            var recent = new List<TelemetryCoverage>();
+            using (var query = db.CreateCommand())
+            {
+                query.CommandText = @"SELECT m.match_id, m.played_utc, m.deck_name,
+                    m.format, COUNT(t.id), COUNT(DISTINCT t.game_number),
+                    MAX(t.turn_number)
+                    FROM matches m
+                    INNER JOIN arena_match_telemetry t ON t.match_id=m.match_id
+                    GROUP BY m.match_id
+                    ORDER BY m.played_utc DESC, m.match_id DESC LIMIT 20";
+                using var reader = query.ExecuteReader();
+                while (reader.Read())
+                    recent.Add(new TelemetryCoverage(reader.GetString(0),
+                        reader.GetString(1),reader.GetString(2),reader.GetString(3),
+                        reader.GetInt32(4),reader.GetInt32(5),
+                        reader.IsDBNull(6) ? null : reader.GetInt32(6)));
+            }
+            return new TelemetryOverview(recorded,covered,events,recent);
+        }
+    }
+
     internal sealed record RankSnapshot(string WhenUtc, string ConstructedClass,
         int ConstructedLevel, string LimitedClass, int LimitedLevel);
 
