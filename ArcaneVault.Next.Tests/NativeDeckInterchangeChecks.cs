@@ -30,7 +30,16 @@ internal static class NativeDeckInterchangeChecks
             1 Ninja of the Deep Hours (C18) 94
             1 Sol Ring
             """;
+        // ARRANGE: Arena text with an explicit commander, duplicate cards and printing hints.
+        // ACT: import the text as a native deck without treating annotations as cards.
+        Console.WriteLine("  CHECK A: Arena import recognizes Commander and combines duplicate card rows");
         var imported = NativeDeckTextExchange.Parse(arena);
+        RegressionExpect.Equal(imported.Commander, "Yuriko, the Tiger's Shadow",
+            "Arena import retains the commander identity");
+        RegressionExpect.Equal(imported.MainboardCopies, 7,
+            "Arena import consolidates duplicate names without changing total copies");
+        RegressionExpect.Equal(imported.CardNames, 3,
+            "Three unique mainboard card names remain after import");
         Must(imported.Commander == "Yuriko, the Tiger's Shadow" &&
              imported.CardNames == 3 &&
              imported.MainboardCopies == 7 &&
@@ -42,7 +51,12 @@ internal static class NativeDeckInterchangeChecks
 
         string exported = NativeDeckTextExchange.Export(
             imported.MainboardText, imported.Commander);
+        Console.WriteLine("  CHECK B: exported Arena-style deck text reimports without data loss");
         var roundtrip = NativeDeckTextExchange.Parse(exported);
+        RegressionExpect.Equal(roundtrip.MainboardText, imported.MainboardText,
+            "Deck mainboard is identical after export and reimport");
+        RegressionExpect.Equal(roundtrip.Commander, imported.Commander,
+            "Commander identity survives a text round trip");
         Must(roundtrip.MainboardText == imported.MainboardText &&
              roundtrip.Commander == imported.Commander &&
              !roundtrip.RemovedPrintingAnnotations,
@@ -93,6 +107,7 @@ internal static class NativeDeckInterchangeChecks
              sourceDeck.Editable,
             "An imported legacy folder/favorite was not available for native editing.");
 
+        Console.WriteLine("  CHECK C: organizing a saved deck preserves ownership and historical fields");
         var saved = NativeWorkspaceSafety.SaveDeck(workspace, sourceDeck.Name,
             sourceDeck.Commander, sourceDeck.MainboardText, sourceDeck,
             initial.BackupSha256, format: sourceDeck.Format,
@@ -107,6 +122,10 @@ internal static class NativeDeckInterchangeChecks
 
         var prior = NativeWorkspace.Open(saved.RecoveryPath).Collection;
         var current = saved.Current.Collection;
+        RegressionExpect.Equal(current.ArenaCopies, prior.ArenaCopies,
+            "Changing deck folder/favorite must not alter Arena inventory");
+        RegressionExpect.Equal(current.PhysicalCopies, prior.PhysicalCopies,
+            "Changing deck folder/favorite must not alter real physical inventory");
         Must(prior.ArenaCopies == current.ArenaCopies &&
              prior.PhysicalCopies == current.PhysicalCopies &&
              prior.PreferredArtworks == current.PreferredArtworks &&
