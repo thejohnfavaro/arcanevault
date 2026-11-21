@@ -137,17 +137,31 @@ internal static class NativePeerSyncChecks
         var baseExport=JsonNode.Parse(exported)!.AsObject();
         var remoteOnly=JsonNode.Parse(exported)!.AsObject();
         remoteOnly["data"]!["cards"]!.AsArray()[0]!["qty"]=5;
+        // ARRANGE: the shared ancestor is unchanged locally, but the peer increased a quantity.
+        // ACT: identify that difference as incoming-only instead of a conflict.
+        Console.WriteLine("  CHECK E: shared baseline distinguishes remote-only updates");
         var plan=NativePeerSync.CompareWithBaseline(path,
             JsonSerializer.SerializeToUtf8Bytes(remoteOnly),
             JsonSerializer.SerializeToUtf8Bytes(baseExport));
+        RegressionExpect.Equal(plan.IncomingOnly, 1,
+            "One peer-only quantity update should be listed as incoming");
+        RegressionExpect.Equal(plan.LocalOnly, 0,
+            "Unchanged local data should have no local-only updates");
+        RegressionExpect.Equal(plan.Conflicts, 0,
+            "A peer-only update relative to a shared ancestor should not conflict");
         Check(plan.IncomingOnly==1 && plan.LocalOnly==0 &&
             plan.Conflicts==0 && !plan.SafeToAutoApply,
             "Expected one incoming-only modification relative to the shared base.");
         var divergedBase=JsonNode.Parse(exported)!.AsObject();
         divergedBase["data"]!["cards"]!.AsArray()[0]!["qty"]=3;
+        Console.WriteLine("  CHECK F: divergent updates must be reviewed rather than silently merged");
         var divergent=NativePeerSync.CompareWithBaseline(path,
             JsonSerializer.SerializeToUtf8Bytes(remoteOnly),
             JsonSerializer.SerializeToUtf8Bytes(divergedBase));
+        RegressionExpect.Equal(divergent.Conflicts, 1,
+            "Two independently modified values produce one conflicting record");
+        RegressionExpect.That(!divergent.SafeToAutoApply,
+            "Divergent sync changes require manual review before applying");
         Check(divergent.Conflicts==1 && !divergent.SafeToAutoApply,
             "Independently modified records must be treated as conflicts.");
         var invalid=JsonNode.Parse(exported)!.AsObject();
@@ -174,7 +188,12 @@ internal static class NativePeerSyncChecks
              "scryfallId":"22222222-2222-4222-8222-222222222222"}
             """));
         byte[] incomingBytes=JsonSerializer.SerializeToUtf8Bytes(received);
+        Console.WriteLine("  CHECK G: a clean approved merge applies only incoming differences");
         var prepared=NativePeerSync.PrepareMerge(writablePath,incomingBytes,baseBytes);
+        RegressionExpect.Equal(prepared.IncomingChanges, 2,
+            "Prepared peer merge contains two incoming changes");
+        RegressionExpect.Equal(prepared.LocalChanges, 0,
+            "Prepared merge has no local-only changes");
         Check(prepared.IncomingChanges==2 && prepared.LocalChanges==0 &&
             prepared.HasChanges,"Clean peer additions should prepare two changes.");
         string previousSha=NativeWorkspace.Open(writablePath).BackupSha256;
@@ -187,6 +206,7 @@ internal static class NativePeerSyncChecks
         var now=NativePeerSync.Compare(writablePath,incomingBytes);
         RegressionExpect.That(!now.HasChanges,
             "After approved merge, a fresh comparison to incoming peer data finds no changes");
+        Console.WriteLine("  CHECK H: stale reapplication must be rejected without data loss");
         Reject(()=>NativePeerSync.ApplyApprovedMerge(writablePath,prepared,previousSha));
         var damaged=JsonNode.Parse(baseBytes)!.AsObject();
         damaged["deviceId"]="00000000-0000-4000-8000-000000000999";
