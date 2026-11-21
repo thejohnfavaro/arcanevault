@@ -59,7 +59,12 @@ internal static class NativeCsvImportChecks
             """;
         File.WriteAllText(csv, sample, new UTF8Encoding(true));
         string originalHash = Sha(csv);
+        // ACT: parse a real-world-shaped CSV with a BOM, quotes and multiline notes.
+        Console.WriteLine("  CHECK A: CSV parsing preserves five rows and quoted card names");
         var rows = NativeCsvCollectionImport.Read(csv);
+        RegressionExpect.Equal(rows.Count, 5, "CSV import should preserve five source rows");
+        RegressionExpect.Equal(rows[2].Name, "Strange, Card",
+            "A comma inside quotes must remain part of the card name");
         Must(rows.Count == 5 && rows[0].Quantity == 2 &&
              rows[1].Name == "Island" && rows[1].Finish == "nonfoil" &&
              rows[2].Name == "Strange, Card" &&
@@ -113,7 +118,13 @@ internal static class NativeCsvImportChecks
             ddl.ExecuteNonQuery();
         }
         string catalogHash = Sha(catalog);
+        Console.WriteLine("  CHECK B: CSV preview distinguishes verified and unresolved printings");
         var preview = NativeExcelCollectionImport.Prepare(rows, catalog);
+        RegressionExpect.Equal(preview.Copies, 15L, "CSV contains fifteen copies in total");
+        RegressionExpect.Equal(preview.VerifiedCopies, 6L,
+            "Only exact printing matches become verified copies");
+        RegressionExpect.Equal(preview.UnresolvedCopies, 9L,
+            "Unverified printing identities stay unresolved");
         Must(preview.Copies == 15 && preview.Items.Count == 5 &&
              preview.VerifiedRows == 3 && preview.VerifiedCopies == 6 &&
              preview.UnresolvedCopies == 9 &&
@@ -138,6 +149,7 @@ internal static class NativeCsvImportChecks
 
         var workspace = Path.Combine(root, "native.sqlite");
         var first = NativeWorkspace.ImportNewBytes(incoming, "csv fixture", workspace);
+        Console.WriteLine("  CHECK C: applying a CSV import preserves the prior collection in recovery");
         var committed = NativeWorkspaceSafety.AddPhysicalImport(
             workspace, catalog, rows, first.BackupSha256);
         Must(committed.Current.Collection.PhysicalCopies == 16 &&
@@ -158,6 +170,7 @@ internal static class NativeCsvImportChecks
         string reconciledPath = Path.Combine(root, "csv-reconciled.sqlite");
         var original = NativeWorkspace.ImportNewBytes(
             Backup(), "csv diff fixture", reconciledPath);
+        Console.WriteLine("  CHECK D: repeat import previews differences instead of double counting");
         var physicalDiff = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
             reconciledPath, catalog, rows, original.BackupSha256);
         Must(physicalDiff.HasChanges && physicalDiff.AddedRows == 3 &&
@@ -194,6 +207,7 @@ internal static class NativeCsvImportChecks
              NativeWorkspace.Open(physicalCommitted.RecoveryPath)
                  .Collection.PhysicalCopies == 1,
              "Physical CSV reconciliation must apply only net differences with full rollback.");
+        Console.WriteLine("  CHECK E: importing identical CSV again is a no-op");
         var noChange = NativeWorkspaceSafety.PreviewPhysicalReconciliation(
             reconciledPath, catalog, rows, physicalCommitted.Current.BackupSha256);
         Must(!noChange.HasChanges && noChange.UnchangedRows == 4 &&
