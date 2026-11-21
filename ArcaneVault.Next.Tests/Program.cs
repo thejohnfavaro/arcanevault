@@ -11,6 +11,14 @@ static void Assert(bool condition, string message)
 static string Hash(string path) =>
     Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
 
+// Test subprocess entry point: used only by synthetic crash-boundary regression.
+// It bypasses normal suite selection and never opens a user workspace.
+if (args.Length == 4 && args[0] == "--crash-fixture")
+{
+    NativeCrashRecoveryChecks.RunCrashChild(args[1], args[2], args[3]);
+    return;
+}
+
 // Named, discoverable test groups. Default invocation still runs every group.
 var suiteDescriptions = new (string Id, string Description)[] {
     ("catalog-snapshot", "Synthetic SQLite read-only search and snapshot integrity"),
@@ -27,6 +35,7 @@ var suiteDescriptions = new (string Id, string Description)[] {
     ("native-large-collection", "Large collections remain supported"),
     ("native-workspace", "Local collection storage behaves correctly"),
     ("native-workspace-safety", "Workspace recovery protects user data"),
+    ("native-crash-recovery", "Forced process termination before and after atomic workspace replacement"),
     ("native-fresh-start", "First-run and recovery paths are safe"),
     ("native-physical-editing", "Physical inventory changes preserve counts"),
     ("native-proxy-editing", "Proxy edits preserve real ownership"),
@@ -263,6 +272,7 @@ try
     RunNamed("native-large-collection", "Large collections remain supported", () => NativeLargeCollectionChecks.Run(work));
     RunNamed("native-workspace", "Local collection storage behaves correctly", () => NativeWorkspaceChecks.Run(work));
     RunNamed("native-workspace-safety", "Workspace recovery protects user data", () => NativeWorkspaceSafetyChecks.Run(work));
+    RunNamed("native-crash-recovery", "Forced process termination before and after atomic workspace replacement", () => NativeCrashRecoveryChecks.Run(work));
     RunNamed("native-fresh-start", "First-run and recovery paths are safe", () => NativeFreshStartChecks.Run(work));
     RunNamed("native-physical-editing", "Physical inventory changes preserve counts", () => NativePhysicalEditingChecks.Run(work));
     RunNamed("native-proxy-editing", "Proxy edits preserve real ownership", () => NativeProxyEditingChecks.Run(work));
