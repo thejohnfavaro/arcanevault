@@ -106,14 +106,14 @@
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0">
                 <TextBlock Text="Deck name" Margin="0,0,0,6"/>
-                <TextBox x:Name="DeckNameBox" Padding="10,8" FontSize="14"
+                <TextBox x:Name="DeckNameBox" Padding="10,2" FontSize="14"
                          Background="{DynamicResource VaultPanelRaised}"
                          Foreground="{DynamicResource VaultText}"
                          BorderBrush="{DynamicResource VaultEdgeLift}"/>
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="Commander (optional)" Margin="0,0,0,6"/>
-                <TextBox x:Name="CommanderBox" TextChanged="OnDraftChanged" Padding="10,8" FontSize="14"
+                <TextBox x:Name="CommanderBox" TextChanged="OnDraftChanged" Padding="10,2" FontSize="14"
                          Background="{DynamicResource VaultPanelRaised}"
                          Foreground="{DynamicResource VaultText}"
                          BorderBrush="{DynamicResource VaultEdgeLift}"/>
@@ -134,7 +134,7 @@
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12"
                     VerticalAlignment="Center">
             <TextBlock Text="Folder" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <TextBox x:Name="FolderBox" Width="235" Padding="10,7"
+            <TextBox x:Name="FolderBox" Width="235" Padding="10,2"
                      Text="Unfiled"
                      Background="{DynamicResource VaultPanelRaised}"
                      Foreground="{DynamicResource VaultText}"
@@ -219,8 +219,8 @@
                             <TextBlock Text="Search mainboard · name, type or role"
                                        Margin="0,7,0,0" FontSize="10"
                                        Foreground="{DynamicResource VaultMuted}"/>
-                            <TextBox x:Name="MainboardManagerSearchBox"
-                                     Margin="0,3,0,0" Padding="8,6"
+                            <TextBox Style="{StaticResource VaultSearchTextBox}" x:Name="MainboardManagerSearchBox"
+                                     Margin="0,3,0,0" Padding="10,2"
                                      MaxLength="255"
                                      TextChanged="OnMainboardManagerSearchChanged"
                                      ToolTip="Filter the unsaved mainboard by card name, type or role; never modifies deck contents"
@@ -485,9 +485,9 @@
                     <ComboBoxItem Content="Arena collection"/>
                 </ComboBox>
                 <StackPanel Grid.Row="2" Margin="0,0,0,6">
-                    <TextBox x:Name="OwnedSearchBox"
+                    <TextBox Style="{StaticResource VaultSearchTextBox}" x:Name="OwnedSearchBox"
                              TextChanged="OnOwnedSearchChanged"
-                             Padding="9,7" Margin="0,0,0,4"
+                             Padding="10,2" Margin="0,0,0,4"
                              ToolTip="Filter card names; shows up to 200 eligible matches"
                              Background="#202737" Foreground="White"
                              BorderBrush="#514276"/>
@@ -582,8 +582,8 @@
                                     <TextBlock Text="Land target"
                                                VerticalAlignment="Center"
                                                Margin="0,0,5,5"/>
-                                    <TextBox x:Name="EdhLandTargetBox"
-                                             Width="38" Text="36" Padding="3,3"
+                                    <TextBox Style="{StaticResource VaultQuantityTextBox}" x:Name="EdhLandTargetBox"
+                                             Width="38" Text="36" Padding="5,1"
                                              Margin="0,0,8,5"
                                              Background="{DynamicResource VaultPanel}"
                                              Foreground="{DynamicResource VaultText}"
@@ -628,8 +628,8 @@
                                     <StackPanel Margin="0,0,9,5">
                                         <TextBlock Text="FIND LAND" Style="{StaticResource VaultEyebrow}"
                                                    Margin="0,0,0,3"/>
-                                        <TextBox x:Name="EdhLandSearchBox" Width="188"
-                                                 MaxLength="255" Padding="7,5"
+                                        <TextBox Style="{StaticResource VaultSearchTextBox}" x:Name="EdhLandSearchBox" Width="188"
+                                                 MaxLength="255" Padding="10,2"
                                                  Background="{DynamicResource VaultPanel}"
                                                  Foreground="{DynamicResource VaultText}"
                                                  TextChanged="OnLandDiscoveryFilterChanged"
