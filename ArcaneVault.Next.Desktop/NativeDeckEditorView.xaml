@@ -1491,12 +1491,12 @@
                         <TextBlock x:Name="AiReviewStatus" Grid.Row="4" TextWrapping="Wrap"
                                    Foreground="{DynamicResource VaultMuted}"
                                    Margin="0,0,0,6"
-                                   Text="No automatic requests. Review the data preview, then select Analyze."/>
+                                   Text="Review card links open full details with a normal click. Use Copy review to copy the response."/>
                         <Border Grid.Row="5" CornerRadius="8" Padding="3"
                                 Background="{DynamicResource VaultPanelRaised}"
                                 BorderBrush="{DynamicResource VaultLine}" BorderThickness="1">
                             <FlowDocumentScrollViewer x:Name="AiReviewResultViewer"
-                                                      IsToolBarVisible="False" IsSelectionEnabled="True"
+                                                      IsToolBarVisible="False" IsSelectionEnabled="False"
                                                       Background="Transparent"
                                                       Foreground="{DynamicResource VaultText}"
                                                       VerticalScrollBarVisibility="Auto"
