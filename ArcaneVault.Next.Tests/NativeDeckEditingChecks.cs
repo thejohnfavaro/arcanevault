@@ -77,12 +77,18 @@ internal static class NativeDeckEditingChecks
     {
         string path = Path.Combine(work, "native-saved-deck-editor.sqlite");
         string exportPath = Path.Combine(work, "deck-fixture-original.json");
+        // ARRANGE: an isolated workspace with two decks, physical cards, and Arena cards.
+        // The editor must preserve unrelated collection state and historical metadata.
         byte[] source = Source();
         File.WriteAllBytes(exportPath, source);
         byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(exportPath));
 
         var initial = NativeWorkspace.ImportNewBytes(source, "full-deck-fixture", path);
+        Console.WriteLine("  CHECK A: load existing deck metadata without discarding history");
         var list = NativeWorkspaceSafety.ListDecks(path);
+        RegressionExpect.Equal(list.Count, 2, "Original workspace contains two saved decks");
+        RegressionExpect.Equal(list[0].TotalCopies, 14, "Original Commander deck contains 14 mainboard copies");
+        RegressionExpect.Equal(list[0].Revisions, 1, "Original Commander deck retains one revision");
         Must(list.Count == 2 && list[0].Name == "Legacy Commander" &&
              list[0].Commander == "Test Commander" &&
              list[0].TotalCopies == 14 && list[0].EntryCount == 3 &&
@@ -90,8 +96,11 @@ internal static class NativeDeckEditingChecks
              list[0].Editable && list[1].Editable,
              "Existing deck library metadata did not survive reading the native workspace.");
 
+        Console.WriteLine("  CHECK B: duplicate mainboard lines combine without losing split cards");
         var mainboard = NativeDeckEditing.ParseMainboard(
             "1 Sol Ring\n11 Island\n2 island\n1 Split // Back\n");
+        RegressionExpect.Equal(mainboard.Count, 3, "Parsing combines duplicate card names into three entries");
+        RegressionExpect.Equal(mainboard[1].Quantity, 13, "Case-insensitive Island lines combine to 13 copies");
         Must(mainboard.Count == 3 && mainboard[1].Quantity == 13 &&
              mainboard[2].Name == "Split // Back",
              "Duplicate case-insensitive land lines or split card names were parsed incorrectly.");
@@ -168,10 +177,17 @@ internal static class NativeDeckEditingChecks
             "Test Commander", list[0].MainboardText, list[0],
             displayPrintIds: new Dictionary<string, string> { ["Sol Ring"] = "bogus" }));
 
+        Console.WriteLine("  CHECK C: deck saves append history and preserve physical and Arena ownership");
         var updated = NativeWorkspaceSafety.SaveDeck(path,
             "Legacy Commander Revised", "Test Commander",
             "1 Sol Ring\n13 Island\n1 Split // Back\n1 Counterspell",
             list[0], initial.BackupSha256);
+        RegressionExpect.Equal(updated.Current.Collection.Decks, 2,
+            "Saving an existing deck does not change the number of saved decks");
+        RegressionExpect.Equal(updated.Current.Collection.PhysicalCopies, 3L,
+            "Saving a deck must preserve three real physical copies");
+        RegressionExpect.Equal(updated.Current.Collection.ArenaCopies, 4L,
+            "Saving a deck must preserve four Arena copies");
         Must(updated.Current.Collection.Decks == 2 &&
              updated.Current.Collection.DeckRevisions == 2 &&
              updated.Current.Collection.PhysicalCopies == 3 &&
@@ -211,6 +227,7 @@ internal static class NativeDeckEditingChecks
                  "Deck update discarded legacy metadata, earlier revisions, unknown fields or card annotations.");
         }
 
+        Console.WriteLine("  CHECK D: stale edits must fail without changing workspace or recovery history");
         int priorRollbackCount = NativeWorkspaceSafety.RecoveryPaths(path).Count;
         byte[] nativeHash = SHA256.HashData(File.ReadAllBytes(path));
         Reject(() => NativeWorkspaceSafety.SaveDeck(path,
