@@ -267,6 +267,13 @@ internal static class ArenaLogAssignmentChecks
                 coverage.Recent[0].GamesWithNumbers == 1 &&
                 coverage.Recent[0].HighestTurn == 2,
                 "Analytics coverage must count deduplicated GRE events and observed turns.");
+            var gameplay = telemetryHistory.ReadGameplayObservation();
+            Assert(gameplay.GamesWithTurnData == 1 &&
+                gameplay.AverageHighestObservedTurn == 2 &&
+                gameplay.GamesWithMulliganData == 1 &&
+                gameplay.SeatsWithMulligans == 1 &&
+                gameplay.HighestObservedMulligans == 1,
+                "Game observations must deduplicate repeated player snapshots and distinguish turns from match lengths.");
         }
 
         // A real submission without a saved mapping must STILL preserve the
