@@ -103,12 +103,14 @@ internal static class NativeVisualShellChecks
             Path.Combine(dir, "NativeDeckEditorView.AiReview.cs"));
         string aiDeckUi = File.ReadAllText(
             Path.Combine(dir, "NativeDeckEditorView.xaml"));
+        string reviewCollectionUi = File.ReadAllText(
+            Path.Combine(dir, "NativeCollectionWorkspace.xaml"));
         Must(aiDeckUi.Contains("x:Name=\"AiSaveReviewButton\"") &&
              aiViewCode.Contains("SaveDeckAiReview(nativePath, original") &&
              aiViewCode.Contains("original.AiReviewStale") &&
              aiViewCode.Contains("RestoreSavedReviewCardLinksAsync") &&
-             v65DeckUi.Contains("DeckInspectorAiReview") &&
-             v65DeckUi.Contains("AiReviewDescription"),
+             reviewCollectionUi.Contains("DeckInspectorAiReview") &&
+             reviewCollectionUi.Contains("AiReviewDescription"),
             "AI review persistence and outdated indicators must be present in native deck UI.");
         // v0.9.65: Deck Library and EDH Lab commander discovery use
         // persistent, read-only selection inspectors. Opening a full
