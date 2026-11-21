@@ -21,12 +21,12 @@
                    Text="Arena ownership is tracked by card name, not by physical printing. This does not verify Arena format legality. Only the native collection changes. Your installed Arcane Vault app and its files are untouched."/>
         <StackPanel Grid.Row="2" Margin="0,0,0,14">
             <TextBlock Text="Card name" Margin="0,0,0,6"/>
-            <TextBox x:Name="CardNameBox" Padding="10,9" FontSize="15"
+            <TextBox x:Name="CardNameBox" Padding="10,2" FontSize="15"
                      Background="#202737" Foreground="White" BorderBrush="#343D51"/>
             <TextBlock Text="Owned copies (0 removes the selected Arena row)"
                        Margin="0,13,0,6"/>
-            <TextBox x:Name="QuantityBox" Width="130" HorizontalAlignment="Left"
-                     Padding="10,9" FontSize="15"
+            <TextBox Style="{StaticResource VaultQuantityTextBox}" x:Name="QuantityBox" Width="130" HorizontalAlignment="Left"
+                     Padding="5,1" FontSize="15"
                      Background="#202737" Foreground="White" BorderBrush="#343D51"/>
             <TextBlock x:Name="ModeNote" Foreground="#E5BF79"
                        TextWrapping="Wrap" Margin="0,11,0,0"/>
