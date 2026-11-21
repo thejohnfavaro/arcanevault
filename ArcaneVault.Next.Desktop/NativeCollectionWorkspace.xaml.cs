@@ -206,6 +206,13 @@ public partial class NativeCollectionWorkspace : UserControl
     /// reconciliation, set progress, price lookups and catalog filters.
     /// Failure falls back to the ordinary full verified re-open.
     /// </summary>
+    // Embedded EDH Lab saves have already passed the same atomic verification
+    // as Deck Library edits. Reuse the existing view and read-only catalog models.
+    // False means the caller must perform the full verified workspace reload.
+    internal Task<bool> RefreshSavedDecksFromVerifiedSaveAsync(
+        NativeWorkspaceSafety.Replacement? replacement) =>
+        TryRefreshSavedDecksAsync(replacement);
+
     private async Task<bool> TryRefreshSavedDecksAsync(
         NativeWorkspaceSafety.Replacement? replacement)
     {
