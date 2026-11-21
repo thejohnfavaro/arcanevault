@@ -213,6 +213,87 @@ public static class CollectionCatalogReview
             next.PhysicalCopies, confirmed, unresolved, ids.Count, summaries);
     }
 
+    /// <summary>
+    /// Refresh catalog-backed physical ownership after one already-verified
+    /// native add/adjust operation. Existing printing identities inherit their
+    /// prior catalog verdict; a newly added identity is looked up by UUID in
+    /// the official read-only paper catalog, never inferred from a card name.
+    /// All ownership is re-conserved before the caller updates the live UI.
+    /// </summary>
+    public static Result AfterVerifiedPhysicalEdit(Result previous,
+        NativeBackupView next, string catalogPath)
+    {
+        ArgumentNullException.ThrowIfNull(previous);
+        ArgumentNullException.ThrowIfNull(next);
+        ArgumentException.ThrowIfNullOrWhiteSpace(catalogPath);
+        if (!previous.CatalogVerified)
+            throw new InvalidDataException("A verified catalog is required for incremental physical edits.");
+
+        var existing = previous.Rows
+            .GroupBy(r => r.Original with { Quantity = 0 })
+            .ToDictionary(g => g.Key, g => new Queue<PrintingRow>(g));
+        var updated = new List<PrintingRow>(next.PhysicalCards.Count);
+        int matched = 0, introduced = 0, changed = 0;
+        foreach (var card in next.PhysicalCards)
+        {
+            if (existing.TryGetValue(card with { Quantity = 0 }, out var queue) &&
+                queue.Count > 0)
+            {
+                var prior = queue.Dequeue();
+                matched++;
+                if (prior.Quantity != card.Quantity) changed++;
+                updated.Add(prior with { Original = card });
+                continue;
+            }
+            introduced++;
+            if (introduced > 1 || !Guid.TryParse(card.ScryfallId, out var id) ||
+                id == Guid.Empty)
+                throw new InvalidDataException("New physical rows require full catalog verification.");
+            var official = NativePhysicalEditing.RequirePaperPrinting(catalogPath, id);
+            if (!official.Name.Equals(card.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                !official.SetCode.Equals(card.SetCode.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                !official.CollectorNumber.Equals(card.CollectorNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("New physical printing does not match its catalog identity.");
+            updated.Add(new PrintingRow(card, true, "Verified printing",
+                official.SetCode, official.Name, official.CollectorNumber));
+        }
+        int removed = existing.Values.Sum(q => q.Count);
+        if (introduced + removed + changed != 1 || matched + introduced != next.PhysicalCards.Count)
+            throw new InvalidDataException("Multiple physical changes require full catalog verification.");
+
+        long confirmed = 0, unresolved = 0;
+        var ids = new HashSet<Guid>();
+        var sets = new Dictionary<string, (HashSet<Guid> Ids, long Copies)>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var row in updated)
+        {
+            if (!row.Confirmed)
+            {
+                unresolved = checked(unresolved + row.Quantity);
+                continue;
+            }
+            if (!Guid.TryParse(row.PrintId, out var id) || id == Guid.Empty ||
+                string.IsNullOrWhiteSpace(row.ConfirmedSet))
+                throw new InvalidDataException("Verified printing identity is inconsistent.");
+            confirmed = checked(confirmed + row.Quantity);
+            ids.Add(id);
+            if (!sets.TryGetValue(row.ConfirmedSet, out var current))
+                current = (new HashSet<Guid>(), 0);
+            current.Ids.Add(id);
+            current.Copies = checked(current.Copies + row.Quantity);
+            sets[row.ConfirmedSet] = current;
+        }
+        if (confirmed + unresolved != next.PhysicalCopies ||
+            (confirmed + unresolved == previous.TotalCopies && introduced + removed > 0 &&
+             next.PhysicalCards.Count == previous.Rows.Count && changed == 0))
+            throw new InvalidDataException("Incremental physical edit failed conservation.");
+        return new Result(true, updated.AsReadOnly(), next.PhysicalCopies,
+            confirmed, unresolved, ids.Count,
+            sets.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(x => new SetSummary(x.Key, x.Value.Ids.Count, x.Value.Copies))
+                .ToArray());
+    }
+
     public sealed record CardDetails(
         string Name,
         string TypeLine,
