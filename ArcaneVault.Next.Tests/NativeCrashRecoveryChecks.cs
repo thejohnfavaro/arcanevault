@@ -40,10 +40,12 @@ internal static class NativeCrashRecoveryChecks
             + Path.DirectorySeparatorChar;
         var full = Path.GetFullPath(native);
         var parent = Path.GetDirectoryName(full)!;
-        var folder = Path.GetFileName(parent);
+        var scenario = Path.GetFileName(parent);
+        var fixtureRoot = Directory.GetParent(parent)?.Name ?? "";
         if (!OperatingSystem.IsWindows() ||
             !full.StartsWith(temp, StringComparison.OrdinalIgnoreCase) ||
-            !folder.StartsWith("arcane-next-tests-", StringComparison.OrdinalIgnoreCase) ||
+            !fixtureRoot.StartsWith("arcane-next-tests-", StringComparison.OrdinalIgnoreCase) ||
+            scenario is not ("crash-after-staging" or "crash-after-atomic-replace") ||
             Path.GetFileName(full) != "crash-workspace.sqlite" ||
             Path.GetDirectoryName(Path.GetFullPath(incomingPath)) != parent ||
             Path.GetDirectoryName(Path.GetFullPath(checkpoint)) != parent ||
