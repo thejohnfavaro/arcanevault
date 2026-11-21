@@ -189,7 +189,7 @@ public partial class NativeDeckEditorView
                                 nicknameMap.TryGetValue(name, out var canonical)
                                     ? canonical : name);
                         });
-                    AiReviewStatus.Text = confirmed.Count > 0
+                    AiReviewStatus.Text = visibleNames.Length > 0
                         ? "Review complete (" + model + "). " + visibleNames.Length +
                           " verified card names and short references linked — click gold names for full details."
                         : "Review complete (" + model +
