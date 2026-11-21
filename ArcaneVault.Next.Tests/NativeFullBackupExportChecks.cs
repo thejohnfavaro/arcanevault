@@ -65,6 +65,8 @@ internal static class NativeFullBackupExportChecks
         var sourceHash = SHA256.HashData(File.ReadAllBytes(source));
         var sourceTime = File.GetLastWriteTimeUtc(source);
 
+        // ARRANGE: use a disposable workspace, then make Arena and deck edits.
+        Console.WriteLine("  CHECK A: prepare edited collection data before exporting");
         var initialized = NativeWorkspace.ImportNewBytes(original, "source-fixture", native);
         var increased = NativeWorkspaceSafety.AddArenaCopies(native, "Arena Card", 3,
             initialized.BackupSha256);
@@ -83,6 +85,8 @@ internal static class NativeFullBackupExportChecks
         var nativeTime = File.GetLastWriteTimeUtc(native);
         int rollbackCount = NativeWorkspaceSafety.RecoveryPaths(native).Count;
 
+        // ACT: export collection data without mutating the source workspace.
+        Console.WriteLine("  CHECK B: exported backup matches saved workspace and checksum");
         var output = NativeWorkspaceSafety.ExportFullBackup(native, exported,
             state.BackupSha256);
         Must(File.Exists(exported) &&
@@ -124,7 +128,10 @@ internal static class NativeFullBackupExportChecks
         File.WriteAllText(redistributed, swappedJson.ToJsonString());
         byte[] sourceBeforeComparison = File.ReadAllBytes(native);
         int recoveriesBeforeComparison = NativeWorkspaceSafety.RecoveryPaths(native).Count;
+        Console.WriteLine("  CHECK C: unchanged totals cannot conceal changes to individual printings");
         var swapped = NativeCollectionIntegrity.Compare(redistributed, native);
+        RegressionExpect.Equal(swapped.TotalDifferingEntries, 2,
+            "Swapping copies between distinct printings reports two changed entries");
         Must(!swapped.ByteIdentical && !swapped.InventoryMatch &&
              !swapped.AggregateMatch && swapped.TotalDifferingEntries == 2 &&
              swapped.BackupMissingIds == 2 && swapped.ActiveMissingIds == 1 &&
@@ -186,13 +193,17 @@ internal static class NativeFullBackupExportChecks
         // A real full exported backup must be importable, even if the original
         // Windows/WebView profile has been uninstalled.
         string replay = Path.Combine(work, "native-full-backup-reimport.sqlite");
+        Console.WriteLine("  CHECK D: export restores equivalent records into a separate workspace");
         var restored = NativeWorkspace.ImportNew(exported, replay);
+        RegressionExpect.Equal(restored.BackupSha256, state.BackupSha256,
+            "Restored full backup must reproduce source JSON checksum");
         Must(restored.Collection.PhysicalCards.SequenceEqual(state.Collection.PhysicalCards) &&
              restored.Collection.ArenaCards.SequenceEqual(state.Collection.ArenaCards) &&
              restored.Collection.DeckRevisions == state.Collection.DeckRevisions &&
              restored.BackupSha256 == state.BackupSha256,
              "Native-exported backup cannot bootstrap an identical independent workspace.");
 
+        Console.WriteLine("  CHECK E: invalid or canceled exports must preserve prior files");
         var backupHash = SHA256.HashData(File.ReadAllBytes(exported));
         var backupTime = File.GetLastWriteTimeUtc(exported);
         Reject(() => NativeWorkspaceSafety.ExportFullBackup(native, exported,
