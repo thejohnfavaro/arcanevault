@@ -15,6 +15,7 @@ public partial class NativeAddPrintingWindow : Window
     private readonly string nativePath;
     private readonly string expectedBackupSha;
     private bool busy;
+    public NativeWorkspaceSafety.Replacement? SavedReplacement { get; private set; }
 
     public NativeAddPrintingWindow(string catalogPath, string nativePath,
         string expectedBackupSha, string? initialCardName = null)
@@ -105,6 +106,7 @@ public partial class NativeAddPrintingWindow : Window
                 "Previous native collection saved at:\n" + result.RecoveryPath +
                 "\n\nUse 'Restore native recovery' in the main window to undo.",
                 "Native printing added", MessageBoxButton.OK, MessageBoxImage.Information);
+            SavedReplacement = result;
             DialogResult = true;
         }
         catch (Exception ex)
