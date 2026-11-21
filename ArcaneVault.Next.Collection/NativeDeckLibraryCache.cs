@@ -9,7 +9,7 @@ namespace ArcaneVault.Next.Collection;
 /// </summary>
 public static class NativeDeckLibraryCache
 {
-    private const int Schema = 1;
+    private const int Schema = 2;
     public static string DefaultDirectory =>
         Path.Combine(NativeWorkspace.RootDirectory, "cache", "deck-library");
     private sealed record Stored(int Schema, string BackupSha,
@@ -86,7 +86,11 @@ public static class NativeDeckLibraryCache
             x.SourceSha256.Length != 64 ||
             !x.SourceSha256.All(Uri.IsHexDigit) ||
             (x.MainboardText?.Length ?? 64_001) > 64_000 ||
-            x.CoverArtworkUrl is null || x.CoverArtworkUrl.Length != 0))
+            x.CoverArtworkUrl is null || x.CoverArtworkUrl.Length != 0 ||
+            (string.Equals(x.Format?.Trim(), "Commander", StringComparison.OrdinalIgnoreCase) &&
+             (x.BracketMinimum is < 1 or > 5 || x.BracketMinimum is null)) ||
+            (!string.Equals(x.Format?.Trim(), "Commander", StringComparison.OrdinalIgnoreCase) &&
+             x.BracketMinimum is not null)))
             return false;
         return rows.Select(x => x.Ordinal).Distinct().Count() == rows.Length;
     }
