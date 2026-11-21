@@ -16,9 +16,9 @@ namespace ArcaneVault.Next.Desktop;
 public partial class NativeCollectionWorkspace : UserControl
 {
     private NativeBackupView backup;
-    private readonly CollectionCatalogReview.Result review;
+    private CollectionCatalogReview.Result review;
     private readonly string? catalogPath;
-    private readonly NativeSetProgress.Result? progress;
+    private NativeSetProgress.Result? progress;
     private NativeSetProgress.Result? arenaProgress;
     private bool arenaProgressLoading;
     private sealed record SetTileRow(IReadOnlyList<NativeSetProgress.SetRow> Cards);
@@ -31,6 +31,7 @@ public partial class NativeCollectionWorkspace : UserControl
     private readonly string? nativePath;
     private string? expectedBackupSha;
     private readonly Func<Task>? reopenNative;
+    private readonly Action<NativeBackupView, IReadOnlyList<NativeProxyEditing.ProxyRow>>? onVerifiedPhysicalChange;
     private readonly Func<NativeDeckEditing.DeckRow, EdhLabFormat,
         string, bool, string?, Task>? editInEmbeddedEdhLab;
     private IReadOnlyList<NativeDeckEditing.DeckRow> deckRows;
@@ -52,6 +53,7 @@ public partial class NativeCollectionWorkspace : UserControl
         NativeSetProgress.Result? progress, bool nativeWorkspace = false,
         string? nativePath = null, string? expectedBackupSha = null,
         Func<Task>? reopenNative = null,
+        Action<NativeBackupView, IReadOnlyList<NativeProxyEditing.ProxyRow>>? onVerifiedPhysicalChange = null,
         IReadOnlyList<NativeDeckEditing.DeckRow>? nativeDecks = null,
         Func<NativeDeckEditing.DeckRow, EdhLabFormat, string, bool,
             string?, Task>? editInEmbeddedEdhLab = null)
@@ -63,6 +65,7 @@ public partial class NativeCollectionWorkspace : UserControl
         this.nativePath = nativePath;
         this.expectedBackupSha = expectedBackupSha;
         this.reopenNative = reopenNative;
+        this.onVerifiedPhysicalChange = onVerifiedPhysicalChange;
         this.editInEmbeddedEdhLab = editInEmbeddedEdhLab;
         deckRows = nativeDecks ?? Array.Empty<NativeDeckEditing.DeckRow>();
         InitializeComponent();
@@ -276,6 +279,79 @@ public partial class NativeCollectionWorkspace : UserControl
             "Inventory, set progress, catalog and price views reused unchanged.";
         _ = LoadDeckCoversAsync(); // optional artwork refresh, never blocks library
         return true;
+    }
+
+    /// <summary>
+    /// Fast path for an exact, already-verified physical-to-proxy transfer.
+    /// No physical printing is created or changed; only quantities decrease.
+    /// All checks complete before replacing any live UI model.
+    /// </summary>
+    private async Task<bool> TryRefreshPhysicalProxyTransferAsync(
+        NativeWorkspaceSafety.Replacement replacement)
+    {
+        if (closing || progress is null || !review.CatalogVerified ||
+            string.IsNullOrWhiteSpace(nativePath) ||
+            !Path.GetFullPath(nativePath).Equals(
+                Path.GetFullPath(replacement.Current.DatabasePath),
+                StringComparison.OrdinalIgnoreCase))
+            return false;
+        var next = replacement.Current.Collection;
+        if (!backup.ArenaCards.SequenceEqual(next.ArenaCards) ||
+            backup.ArenaCopies != next.ArenaCopies ||
+            backup.Decks != next.Decks ||
+            backup.DeckRevisions != next.DeckRevisions ||
+            backup.PreferredArtworks != next.PreferredArtworks ||
+            next.PhysicalCopies >= backup.PhysicalCopies)
+            return false;
+        try
+        {
+            var verified = await Task.Run(() =>
+            {
+                var updatedReview = CollectionCatalogReview.AfterRemovingCopies(review, next);
+                var updatedProgress = NativeSetProgress.AfterRemovingCopies(progress, updatedReview);
+                var proxies = NativeWorkspaceSafety.ListProxiesFromVerified(replacement.Current);
+                return (updatedReview, updatedProgress, proxies);
+            });
+            if (closing) return false;
+            // The callback updates Catalog ownership, never persists writes.
+            // A throwing callback falls back to a full authoritative re-open.
+            onVerifiedPhysicalChange?.Invoke(next, verified.proxies);
+            backup = next;
+            review = verified.updatedReview;
+            progress = verified.updatedProgress;
+            expectedBackupSha = replacement.Current.BackupSha256;
+            proxyRows = verified.proxies;
+            ProxyList.ItemsSource = proxyRows;
+            valuation = null;
+            setValues = new Dictionary<string, NativeSetValuation.SetValue>(
+                StringComparer.OrdinalIgnoreCase);
+            selectedSetRow = null;
+            setQueryVersion++;
+            valuationVersion++;
+            RefreshSetList();
+            RefreshLists();
+            UpdateDeckInspectorCoverage();
+            TotalsText.Text =
+                $"Physical: {backup.PhysicalCopies:N0} copies · {backup.PhysicalCards.Count:N0} lines · " +
+                $"{backup.DistinctPhysicalNames:N0} names  |  " +
+                $"Arena: {backup.ArenaCopies:N0} copies  |  " +
+                $"Decks: {backup.Decks:N0} ({backup.DeckRevisions:N0} revisions)  |  " +
+                $"Preferred artwork: {backup.PreferredArtworks:N0}";
+            VerificationText.Text =
+                $"Catalog-verified: {review.ConfirmedCopies:N0} physical copies across " +
+                $"{review.ConfirmedDistinctPrintings:N0} distinct printings and " +
+                $"{review.ConfirmedSets.Count:N0} sets  | Unresolved: {review.UnresolvedCopies:N0} copies";
+            StatusText.Text = "Verified physical-to-proxy transfer · collection counts refreshed. " +
+                "Recalculating affected pricing asynchronously.";
+            _ = CalculateValuationAsync();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or
+            ArgumentException or UnauthorizedAccessException or
+            Microsoft.Data.Sqlite.SqliteException or System.Text.Json.JsonException)
+        {
+            return false; // Full verified reload remains authoritative fallback.
+        }
     }
 
     private async Task FinishSavedDeckChangeAsync(
