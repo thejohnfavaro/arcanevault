@@ -2697,6 +2697,31 @@ public partial class MainWindow : Window
         nativeWorkspaceRequested = true;
         edhLabRequested = false;
         UpdateWorkspaceNavigation();
+        // The deck save already completed the atomic swap and independent
+        // rollback verification. Keep the live Collection view and its catalog,
+        // set progress, pricing and inventory models if this was deck-only.
+        // A changed inventory or source mismatch uses the full safe reload.
+        var existingView = nativeWorkspaceView;
+        if (existingView is not null)
+        {
+            try
+            {
+                if (await existingView.RefreshSavedDecksFromVerifiedSaveAsync(saved))
+                {
+                    existingView.NavigateTo(2);
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or
+                UnauthorizedAccessException or ArgumentException or
+                Microsoft.Data.Sqlite.SqliteException or
+                System.Text.Json.JsonException)
+            {
+                // A failed optional presentation refresh must not suppress
+                // the existing fully verified fallback.
+                Debug.WriteLine("Embedded EDH deck-only refresh: " + ex);
+            }
+        }
         await RefreshNativeWorkspaceAsync();
     }
 
