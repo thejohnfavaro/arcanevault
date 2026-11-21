@@ -1,3 +1,4 @@
+using ArcaneVault.Next.Domain;
 using Microsoft.Data.Sqlite;
 
 namespace ArcaneVault.Next.Collection;
@@ -44,11 +45,15 @@ public static class NativeDeckAnalytics
         foreach (var entry in entries)
         {
             if (entry.Quantity < 1) throw new InvalidDataException("Invalid deck quantity.");
-            quantities[entry.Name] = checked(quantities.GetValueOrDefault(entry.Name) + entry.Quantity);
+            // Arena imports may retain printing annotations such as
+            // "Sol Ring (CMM) 396". Catalog cards are keyed by card identity,
+            // not by an owned or imported printing descriptor.
+            string cardIdentity = ArenaDeckCardName.Identity(entry.Name);
+            quantities[cardIdentity] = checked(quantities.GetValueOrDefault(cardIdentity) + entry.Quantity);
         }
         if (singleton && !string.IsNullOrWhiteSpace(commander))
         {
-            string name = commander.Trim();
+            string name = ArenaDeckCardName.Identity(commander);
             quantities[name] = checked(quantities.GetValueOrDefault(name) + 1);
         }
 

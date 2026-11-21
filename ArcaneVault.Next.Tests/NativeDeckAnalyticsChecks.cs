@@ -46,6 +46,28 @@ internal static class NativeDeckAnalyticsChecks
              result.Identity["Multicolor"] == 1 && result.Identity["Colorless"] == 2 &&
              result.Identity["W"] == 1,
              "Color identity distribution must count copies and multicolor cards once.");
+        // Arena imports retain set and collector metadata in mainboard text,
+        // but analytics must resolve canonical card identities without writes.
+        var arenaEntries = NativeDeckEditing.ParseMainboard(
+            "7 Forest (M21) 274\n3 Forest\n" +
+            "1 Sol Ring (CMM) 396\n1 Sol Ring\n" +
+            "1 Hybrid Test (TST) 25\n" +
+            "3 Lightning Bolt (STA) 42\n2 Missing Spell (TST) 17");
+        var arenaResult = NativeDeckAnalytics.Analyze(
+            arenaEntries, "Leader (TST) 1", "Commander", path);
+        Must(arenaResult.TotalCards == 19 &&
+             arenaResult.KnownCards == result.KnownCards &&
+             arenaResult.UnknownCards == result.UnknownCards &&
+             arenaResult.Lands == result.Lands &&
+             arenaResult.Creatures == result.Creatures &&
+             arenaResult.Artifacts == result.Artifacts &&
+             arenaResult.Instants == result.Instants &&
+             arenaResult.Curve.SequenceEqual(result.Curve) &&
+             arenaResult.Identity.OrderBy(x => x.Key)
+                 .SequenceEqual(result.Identity.OrderBy(x => x.Key)),
+             "Arena-style printing annotations must not hide catalog cards.");
+        Must(arenaEntries.Any(x => x.Name == "Sol Ring (CMM) 396"),
+             "Analytics must not rewrite imported deck printing text.");
         var standard = NativeDeckAnalytics.Analyze(entries, "Leader", "60-card", path);
         Must(standard.TotalCards == 18 && standard.Creatures == 1,
              "Non-commander deck must not include optional leader.");
