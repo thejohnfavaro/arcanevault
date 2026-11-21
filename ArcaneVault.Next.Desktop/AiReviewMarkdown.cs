@@ -9,7 +9,8 @@ namespace ArcaneVault.Next.Desktop;
 /// <summary>Safe WPF rendering of Markdown; no HTML, scripts or web navigation.</summary>
 internal static class AiReviewMarkdown
 {
-    public static FlowDocument Render(string markdown)
+    public static FlowDocument Render(string markdown,
+        IReadOnlyList<string>? verifiedNames = null, Action<string>? inspect = null)
     {
         var doc = new FlowDocument
         {
@@ -46,7 +47,7 @@ internal static class AiReviewMarkdown
                         foreach (var cell in rows[r].Trim('|').Split('|'))
                         {
                             var p = new Paragraph { Margin = new Thickness(0) };
-                            AddInline(p.Inlines, cell.Trim());
+                            AddInline(p.Inlines, cell.Trim(), verifiedNames, inspect);
                             tableRow.Cells.Add(new TableCell(p)
                             {
                                 Padding = new Thickness(7, 5, 7, 6),
@@ -59,7 +60,7 @@ internal static class AiReviewMarkdown
                     doc.Blocks.Add(table);
                     continue;
                 }
-                foreach (var row in rows) AddParagraph(doc, row, false);
+                foreach (var row in rows) AddParagraph(doc, row, false, verifiedNames, inspect);
                 continue;
             }
             int level = line.TakeWhile(c => c == '#').Count();
@@ -72,7 +73,7 @@ internal static class AiReviewMarkdown
                     Foreground = new SolidColorBrush(Color.FromRgb(230, 187, 113)),
                     Margin = new Thickness(0, 12, 0, 7)
                 };
-                AddInline(h.Inlines, line[(level + 1)..]);
+                AddInline(h.Inlines, line[(level + 1)..], verifiedNames, inspect);
                 doc.Blocks.Add(h);
                 i++;
                 continue;
@@ -88,30 +89,51 @@ internal static class AiReviewMarkdown
                     line += " " + lines[i++].Trim();
             }
             else i++;
-            AddParagraph(doc, line, bullet);
+            AddParagraph(doc, line, bullet, verifiedNames, inspect);
         }
         return doc;
     }
 
-    private static void AddParagraph(FlowDocument doc, string text, bool bullet)
+    private static void AddParagraph(FlowDocument doc, string text, bool bullet,
+        IReadOnlyList<string>? verifiedNames, Action<string>? inspect)
     {
         var p = new Paragraph { Margin = new Thickness(bullet ? 9 : 0, 2, 0, bullet ? 5 : 10) };
-        AddInline(p.Inlines, text);
+        AddInline(p.Inlines, text, verifiedNames, inspect);
         doc.Blocks.Add(p);
     }
 
-    private static void AddInline(InlineCollection collection, string text)
+    private static void AddInline(InlineCollection collection, string text,
+        IReadOnlyList<string>? verifiedNames, Action<string>? inspect)
     {
+        // Parse Markdown emphasis first, then emit links into the new spans.
+        // No traversal or mutation of existing WPF document collections.
         var tokens = Regex.Matches(text, @"\*\*[^*]+\*\*|\*[^*]+\*");
         int start = 0;
         foreach (Match token in tokens)
         {
-            if (token.Index > start) collection.Add(new Run(text[start..token.Index]));
-            var value = token.Value;
-            if (value.StartsWith("**")) collection.Add(new Bold(new Run(value[2..^2])));
-            else collection.Add(new Italic(new Run(value[1..^1])));
+            if (token.Index > start)
+                AiReviewCardLinks.AppendVerifiedText(collection,
+                    text[start..token.Index], verifiedNames, inspect);
+
+            string value = token.Value;
+            if (value.StartsWith("**", StringComparison.Ordinal))
+            {
+                var bold = new Bold();
+                AiReviewCardLinks.AppendVerifiedText(bold.Inlines,
+                    value[2..^2], verifiedNames, inspect);
+                collection.Add(bold);
+            }
+            else
+            {
+                var italic = new Italic();
+                AiReviewCardLinks.AppendVerifiedText(italic.Inlines,
+                    value[1..^1], verifiedNames, inspect);
+                collection.Add(italic);
+            }
             start = token.Index + token.Length;
         }
-        if (start < text.Length) collection.Add(new Run(text[start..]));
+        if (start < text.Length)
+            AiReviewCardLinks.AppendVerifiedText(collection,
+                text[start..], verifiedNames, inspect);
     }
 }
