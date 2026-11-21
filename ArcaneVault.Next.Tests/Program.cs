@@ -11,6 +11,118 @@ static void Assert(bool condition, string message)
 static string Hash(string path) =>
     Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
 
+// Named, discoverable test groups. Default invocation still runs every group.
+var suiteDescriptions = new (string Id, string Description)[] {
+    ("catalog-snapshot", "Synthetic SQLite read-only search and snapshot integrity"),
+    ("match-assignment", "Match results attach to the correct saved deck"),
+    ("match-performance", "Win rates and match analytics exclude ambiguous results"),
+    ("match-deck-attribution", "Arena matches link to verified deck identities"),
+    ("arena-log-assignment", "Arena logs record matches and gameplay evidence safely"),
+    ("arena-queue-rank", "Queue and rank data is interpreted correctly"),
+    ("arena-rank-season", "Ranked seasons and resets are read correctly"),
+    ("ownership-golden", "Owned cards reconcile against the reference collection"),
+    ("migration-preview", "Legacy migration previews do not mutate live records"),
+    ("offline-staging", "Imported data is safely staged"),
+    ("native-backup-reader", "Backups can be read and validated"),
+    ("native-large-collection", "Large collections remain supported"),
+    ("native-workspace", "Local collection storage behaves correctly"),
+    ("native-workspace-safety", "Workspace recovery protects user data"),
+    ("native-fresh-start", "First-run and recovery paths are safe"),
+    ("native-physical-editing", "Physical inventory changes preserve counts"),
+    ("native-proxy-editing", "Proxy edits preserve real ownership"),
+    ("native-physical-quantity", "Card quantities remain consistent"),
+    ("native-arena-editing", "Arena collection edits stay separate"),
+    ("native-arena-import", "Arena inventory imports correctly"),
+    ("native-scryfall-catalog-sync", "Catalog updates retain data safely"),
+    ("native-deck-editing", "Deck edits and saves preserve card contents"),
+    ("native-deck-owned-picker", "Deck card selection follows ownership rules"),
+    ("native-deck-library-cache", "Saved deck library caches update correctly"),
+    ("native-deck-cover-cache", "Deck artwork caches update correctly"),
+    ("native-theme", "Themes retain expected behavior"),
+    ("native-deck-analytics", "Deck performance metrics calculate correctly"),
+    ("native-deck-preflight", "Deck validation catches invalid lists"),
+    ("native-deck-interchange", "Deck export and import are compatible"),
+    ("native-catalog-filter", "Catalog search and filters work"),
+    ("native-ownership-catalog", "Catalog ownership is shown accurately"),
+    ("native-arena-presentation", "Arena inventory is presented correctly"),
+    ("native-printing-artwork", "Card printings and artwork match"),
+    ("native-physical-valuation", "Collection values use owned printings"),
+    ("native-shortlist", "Shortlisted cards are maintained correctly"),
+    ("native-card-role", "Card role classification remains stable"),
+    ("native-excel-import", "Excel importing preserves collection data"),
+    ("native-csv-import", "CSV importing handles collection data"),
+    ("native-format-legality", "Deck format rules are enforced"),
+    ("native-update", "App update logic protects installations"),
+    ("native-full-backup-export", "Full backups include required data"),
+    ("native-peer-sync", "Sync and merge preserve collection integrity"),
+    ("native-visual-shell", "Windows workspace structure remains consistent"),
+    ("native-release-notes", "Release notes satisfy required fields"),
+    ("legacy-storage-import", "Legacy storage import remains compatible"),
+    ("collection-catalog-review", "Catalog and collection review are accurate"),
+    ("native-set-progress", "Set completion totals are correct"),
+    ("edh-lab", "EDH Lab core rules and analysis work"),
+    ("edh-lab-draft", "EDH Lab draft workflow behaves correctly"),
+    ("edh-lab-land-advisor", "Land recommendations follow mana needs"),
+    ("edh-lab-mana-base-builder", "Suggested mana bases meet deck requirements"),
+};
+var requested = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+bool listOnly = false;
+for (int i = 0; i < args.Length; i++)
+{
+    if (args[i] == "--list") { listOnly = true; continue; }
+    string? value = null;
+    if (args[i] == "--suite" && i + 1 < args.Length) value = args[++i];
+    else if (args[i].StartsWith("--suite=", StringComparison.Ordinal))
+        value = args[i]["--suite=".Length..];
+    else throw new ArgumentException("Unknown argument: " + args[i] +
+        ". Use --list, --suite suite-id, or --suite=suite-id.");
+    foreach (var item in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        requested.Add(item);
+}
+if (listOnly)
+{
+    foreach (var suite in suiteDescriptions)
+        Console.WriteLine($"SUITE {suite.Id}: {suite.Description}");
+    return;
+}
+var validIds = suiteDescriptions.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+var missing = requested.Where(x => !validIds.Contains(x)).ToArray();
+if (missing.Length > 0) throw new ArgumentException(
+    "Unknown suite(s): " + string.Join(", ", missing) + ". Run --list to see available names.");
+bool Selected(string id) => requested.Count == 0 || requested.Contains(id);
+void RunNamed(string id, string description, Action run)
+{
+    if (!Selected(id)) return;
+    var timer = Stopwatch.StartNew();
+    Console.WriteLine($"RUN  {id}: {description}");
+    try
+    {
+        run();
+        Console.WriteLine($"PASS {id}: {description} ({timer.ElapsedMilliseconds} ms)");
+    }
+    catch (Exception error)
+    {
+        Console.Error.WriteLine($"FAIL {id}: {description}. {error.Message}");
+        throw;
+    }
+}
+async Task RunNamedAsync(string id, string description, Func<Task> run)
+{
+    if (!Selected(id)) return;
+    var timer = Stopwatch.StartNew();
+    Console.WriteLine($"RUN  {id}: {description}");
+    try
+    {
+        await run();
+        Console.WriteLine($"PASS {id}: {description} ({timer.ElapsedMilliseconds} ms)");
+    }
+    catch (Exception error)
+    {
+        Console.Error.WriteLine($"FAIL {id}: {description}. {error.Message}");
+        throw;
+    }
+}
+
 var work = Path.Combine(Path.GetTempPath(), "arcane-next-tests-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(work);
 var sourcePath = Path.Combine(work, "fixture-catalog.sqlite");
@@ -18,12 +130,14 @@ var invalidPath = Path.Combine(work, "not-a-catalog.sqlite");
 
 try
 {
-    MatchAssignmentChecks.Run(work);
-    MatchPerformanceChecks.Run();
-    MatchDeckAttributionChecks.Run();
-    ArenaLogAssignmentChecks.Run(work);
-    ArenaQueueRankChecks.Run(work);
-    ArenaRankSeasonChecks.Run(work);
+    RunNamed("match-assignment", "Match results attach to the correct saved deck", () => MatchAssignmentChecks.Run(work));
+    RunNamed("match-performance", "Win rates and match analytics exclude ambiguous results", () => MatchPerformanceChecks.Run());
+    RunNamed("match-deck-attribution", "Arena matches link to verified deck identities", () => MatchDeckAttributionChecks.Run());
+    RunNamed("arena-log-assignment", "Arena logs record matches and gameplay evidence safely", () => ArenaLogAssignmentChecks.Run(work));
+    RunNamed("arena-queue-rank", "Queue and rank data is interpreted correctly", () => ArenaQueueRankChecks.Run(work));
+    RunNamed("arena-rank-season", "Ranked seasons and resets are read correctly", () => ArenaRankSeasonChecks.Run(work));
+    RunNamed("catalog-snapshot", "Synthetic SQLite read-only search and snapshot integrity", () =>
+    {
     // Create exactly the schema columns consumed by the readonly snapshot,
     // plus a separate ownership table whose contents must remain untouched.
     using (var source = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -139,52 +253,54 @@ try
     catch (InvalidDataException) { rejected = true; }
     Assert(rejected, "Invalid source must be rejected");
 
-    OwnershipGoldenChecks.Run();
-    MigrationPreviewChecks.Run(work);
-    OfflineStagingChecks.Run(work);
-    NativeBackupReaderChecks.Run(work);
-    NativeLargeCollectionChecks.Run(work);
-    NativeWorkspaceChecks.Run(work);
-    NativeWorkspaceSafetyChecks.Run(work);
-    NativeFreshStartChecks.Run(work);
-    NativePhysicalEditingChecks.Run(work);
-    NativeProxyEditingChecks.Run(work);
-    NativePhysicalQuantityChecks.Run(work);
-    NativeArenaEditingChecks.Run(work);
-    NativeArenaImportChecks.Run(work);
-    await NativeScryfallCatalogSyncChecks.RunAsync(work);
-    NativeDeckEditingChecks.Run(work);
-    NativeDeckOwnedPickerChecks.Run();
-    NativeDeckLibraryCacheChecks.Run(work);
-    NativeDeckCoverCacheChecks.Run(work);
-    NativeThemeChecks.Run(work);
-    NativeDeckAnalyticsChecks.Run(work);
-    NativeDeckPreflightChecks.Run(work);
-    NativeDeckInterchangeChecks.Run(work);
-    NativeCatalogFilterChecks.Run(work);
-    NativeOwnershipCatalogChecks.Run(work);
-    NativeArenaPresentationChecks.Run(work);
-    NativePrintingArtworkChecks.Run(work);
-    NativePhysicalValuationChecks.Run(work);
-    NativeShortlistChecks.Run(work);
-    NativeCardRoleChecks.Run(work);
-    NativeExcelImportChecks.Run(work);
-    NativeCsvImportChecks.Run(work);
-    NativeFormatLegalityChecks.Run(work);
-    NativeUpdateChecks.Run(work);
-    NativeFullBackupExportChecks.Run(work);
-    NativePeerSyncChecks.Run(work);
-    NativeVisualShellChecks.Run();
-    NativeReleaseNotesChecks.Run();
-    LegacyStorageImportChecks.Run(work);
-    CollectionCatalogReviewChecks.Run(work);
-    NativeSetProgressChecks.Run(work);
-    EdhLabChecks.Run(work);
-    EdhLabDraftChecks.Run(work);
-    EdhLabLandAdvisorChecks.Run();
-    EdhLabManaBaseBuilderChecks.Run();
+        Console.WriteLine("PASS: 25,202-row read-only snapshot, original unchanged, bounded/escaped searches, snapshot isolation and cleanup");
+    });
 
-    Console.WriteLine("PASS: 25,202-row read-only snapshot, original unchanged, bounded/escaped searches, snapshot isolation and cleanup");
+    RunNamed("ownership-golden", "Owned cards reconcile against the reference collection", () => OwnershipGoldenChecks.Run());
+    RunNamed("migration-preview", "Legacy migration previews do not mutate live records", () => MigrationPreviewChecks.Run(work));
+    RunNamed("offline-staging", "Imported data is safely staged", () => OfflineStagingChecks.Run(work));
+    RunNamed("native-backup-reader", "Backups can be read and validated", () => NativeBackupReaderChecks.Run(work));
+    RunNamed("native-large-collection", "Large collections remain supported", () => NativeLargeCollectionChecks.Run(work));
+    RunNamed("native-workspace", "Local collection storage behaves correctly", () => NativeWorkspaceChecks.Run(work));
+    RunNamed("native-workspace-safety", "Workspace recovery protects user data", () => NativeWorkspaceSafetyChecks.Run(work));
+    RunNamed("native-fresh-start", "First-run and recovery paths are safe", () => NativeFreshStartChecks.Run(work));
+    RunNamed("native-physical-editing", "Physical inventory changes preserve counts", () => NativePhysicalEditingChecks.Run(work));
+    RunNamed("native-proxy-editing", "Proxy edits preserve real ownership", () => NativeProxyEditingChecks.Run(work));
+    RunNamed("native-physical-quantity", "Card quantities remain consistent", () => NativePhysicalQuantityChecks.Run(work));
+    RunNamed("native-arena-editing", "Arena collection edits stay separate", () => NativeArenaEditingChecks.Run(work));
+    RunNamed("native-arena-import", "Arena inventory imports correctly", () => NativeArenaImportChecks.Run(work));
+    await RunNamedAsync("native-scryfall-catalog-sync", "Catalog updates retain data safely", () => NativeScryfallCatalogSyncChecks.RunAsync(work));
+    RunNamed("native-deck-editing", "Deck edits and saves preserve card contents", () => NativeDeckEditingChecks.Run(work));
+    RunNamed("native-deck-owned-picker", "Deck card selection follows ownership rules", () => NativeDeckOwnedPickerChecks.Run());
+    RunNamed("native-deck-library-cache", "Saved deck library caches update correctly", () => NativeDeckLibraryCacheChecks.Run(work));
+    RunNamed("native-deck-cover-cache", "Deck artwork caches update correctly", () => NativeDeckCoverCacheChecks.Run(work));
+    RunNamed("native-theme", "Themes retain expected behavior", () => NativeThemeChecks.Run(work));
+    RunNamed("native-deck-analytics", "Deck performance metrics calculate correctly", () => NativeDeckAnalyticsChecks.Run(work));
+    RunNamed("native-deck-preflight", "Deck validation catches invalid lists", () => NativeDeckPreflightChecks.Run(work));
+    RunNamed("native-deck-interchange", "Deck export and import are compatible", () => NativeDeckInterchangeChecks.Run(work));
+    RunNamed("native-catalog-filter", "Catalog search and filters work", () => NativeCatalogFilterChecks.Run(work));
+    RunNamed("native-ownership-catalog", "Catalog ownership is shown accurately", () => NativeOwnershipCatalogChecks.Run(work));
+    RunNamed("native-arena-presentation", "Arena inventory is presented correctly", () => NativeArenaPresentationChecks.Run(work));
+    RunNamed("native-printing-artwork", "Card printings and artwork match", () => NativePrintingArtworkChecks.Run(work));
+    RunNamed("native-physical-valuation", "Collection values use owned printings", () => NativePhysicalValuationChecks.Run(work));
+    RunNamed("native-shortlist", "Shortlisted cards are maintained correctly", () => NativeShortlistChecks.Run(work));
+    RunNamed("native-card-role", "Card role classification remains stable", () => NativeCardRoleChecks.Run(work));
+    RunNamed("native-excel-import", "Excel importing preserves collection data", () => NativeExcelImportChecks.Run(work));
+    RunNamed("native-csv-import", "CSV importing handles collection data", () => NativeCsvImportChecks.Run(work));
+    RunNamed("native-format-legality", "Deck format rules are enforced", () => NativeFormatLegalityChecks.Run(work));
+    RunNamed("native-update", "App update logic protects installations", () => NativeUpdateChecks.Run(work));
+    RunNamed("native-full-backup-export", "Full backups include required data", () => NativeFullBackupExportChecks.Run(work));
+    RunNamed("native-peer-sync", "Sync and merge preserve collection integrity", () => NativePeerSyncChecks.Run(work));
+    RunNamed("native-visual-shell", "Windows workspace structure remains consistent", () => NativeVisualShellChecks.Run());
+    RunNamed("native-release-notes", "Release notes satisfy required fields", () => NativeReleaseNotesChecks.Run());
+    RunNamed("legacy-storage-import", "Legacy storage import remains compatible", () => LegacyStorageImportChecks.Run(work));
+    RunNamed("collection-catalog-review", "Catalog and collection review are accurate", () => CollectionCatalogReviewChecks.Run(work));
+    RunNamed("native-set-progress", "Set completion totals are correct", () => NativeSetProgressChecks.Run(work));
+    RunNamed("edh-lab", "EDH Lab core rules and analysis work", () => EdhLabChecks.Run(work));
+    RunNamed("edh-lab-draft", "EDH Lab draft workflow behaves correctly", () => EdhLabDraftChecks.Run(work));
+    RunNamed("edh-lab-land-advisor", "Land recommendations follow mana needs", () => EdhLabLandAdvisorChecks.Run());
+    RunNamed("edh-lab-mana-base-builder", "Suggested mana bases meet deck requirements", () => EdhLabManaBaseBuilderChecks.Run());
+
 }
 finally
 {
