@@ -36,6 +36,30 @@ public partial class NativeDeckEditorView
         }
         result.AppendLine("Deck");
         result.AppendLine(board);
-        main.OpenAiDeckReview(result.ToString());
+        // Include only the chosen pool's card-by-card coverage, not a full inventory.
+        // The review dialog keeps this optional and unchecked by default.
+        string? coverage = null;
+        try
+        {
+            var pool = OwnedPoolBox?.SelectedIndex == 1
+                ? ArcaneVault.Next.Collection.NativeDeckOwnedPicker.Pool.Arena
+                : ArcaneVault.Next.Collection.NativeDeckOwnedPicker.Pool.Physical;
+            var summary = ArcaneVault.Next.Collection.NativeDeckOwnedPicker.Review(
+                ownership, pool, board, CommanderBox.Text, FormatBox.Text, proxyLedger);
+            var lines = new StringBuilder();
+            lines.AppendLine("Inventory: " + pool);
+            lines.AppendLine(summary.Header);
+            foreach (var card in summary.Shortages.Take(100))
+                lines.AppendLine(card.Name + ": needed " + card.Required +
+                    ", confirmed owned " + card.Owned +
+                    ", proxy " + card.Proxy + ", still missing " + card.Missing);
+            coverage = lines.ToString();
+        }
+        catch (Exception)
+        {
+            // Missing ownership data must not prevent reviewing a deck.
+            coverage = null;
+        }
+        main.OpenAiDeckReview(result.ToString(), coverage);
     }
 }
