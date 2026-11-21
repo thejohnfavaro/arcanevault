@@ -14,6 +14,7 @@ public partial class NativeDeckEditorView
 {
     private string aiLastResponse = "";
     private bool aiReviewRunning;
+    private CancellationTokenSource? aiReviewCancellation;
     private MainWindow? AiOwner => Window.GetWindow(this) as MainWindow;
 
     public void OpenAiReview()
@@ -98,6 +99,12 @@ public partial class NativeDeckEditorView
         if (!aiReviewRunning) RefreshAiReviewPrompt();
     }
 
+    private void OnAiCancelClicked(object sender, RoutedEventArgs e)
+    {
+        aiReviewCancellation?.Cancel();
+        AiReviewStatus.Text = "Stopping the review request…";
+    }
+
     private async void OnAiAnalyzeClicked(object sender, RoutedEventArgs e)
     {
         var client = AiOwner?.AiClient;
@@ -106,50 +113,107 @@ public partial class NativeDeckEditorView
             AiReviewStatus.Text = "Connect ChatGPT from Options before analyzing.";
             return;
         }
-        RefreshAiReviewPrompt(); // Snapshot the latest unsaved draft and selected options.
-        if (string.IsNullOrWhiteSpace(CurrentReviewDeck())) return;
+        RefreshAiReviewPrompt();
+        if (string.IsNullOrWhiteSpace(CurrentReviewDeck()))
+        {
+            AiReviewStatus.Text = "Add at least one card to the current deck.";
+            return;
+        }
         var prompt = AiReviewPromptPreview.Text;
         aiReviewRunning = true;
         AiAnalyzeButton.IsEnabled = false;
-        AiReviewStatus.Text = "Analyzing the previewed deck…";
+        aiReviewCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        if (AiCancelReviewButton is not null)
+            AiCancelReviewButton.IsEnabled = true;
+        AiReviewStatus.Text = "Starting request…";
+        var received = "";
+        // Render partial text while the network is still streaming, rather
+        // than waiting for hundreds of unrelated catalog card lookups.
+        var updates = new Progress<(string Stage, string Text)>(update =>
+        {
+            AiReviewStatus.Text = update.Stage;
+            if (update.Text.Length > 0 && update.Text != received)
+            {
+                received = update.Text;
+                AiReviewResultViewer.Document = AiReviewMarkdown.Render(received);
+            }
+        });
         try
         {
-            var (model, answer) = await client.ReviewAsync(prompt);
+            var (model, answer) = await client.ReviewAsync(
+                prompt, aiReviewCancellation.Token, updates);
             aiLastResponse = answer;
-            var document = AiReviewMarkdown.Render(answer);
+            AiReviewResultViewer.Document = AiReviewMarkdown.Render(answer);
+            AiReviewStatus.Text = "Review received (" + model +
+                "). Identifying clickable cards in the local catalog…";
+
+            // Card linking is an enhancement, not a prerequisite for showing
+            // the result. Slow/unavailable catalog data cannot hide an answer.
             if (!string.IsNullOrWhiteSpace(catalogPath))
             {
-                // Catalog validation happens off the UI thread. The AI can
-                // suggest unknown card names, but only indexed cards are links.
                 string path = catalogPath!;
                 var draft = MainboardBox?.Text ?? "";
                 var commander = CommanderBox?.Text ?? "";
-                var confirmed = await Task.Run(() =>
+                using var lookupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+                try
                 {
-                    var names = new List<string>();
-                    foreach (var candidate in AiReviewCardLinks.Candidates(answer, draft, commander))
+                    var confirmed = await Task.Run(() =>
                     {
-                        try
+                        var names = new List<string>();
+                        foreach (var candidate in AiReviewCardLinks.Candidates(answer, draft, commander)
+                            .Take(75))
                         {
-                            var details = CollectionCatalogReview.ReadDetails(path, candidate);
-                            if (details is not null) names.Add(details.Name);
+                            lookupTimeout.Token.ThrowIfCancellationRequested();
+                            try
+                            {
+                                var details = CollectionCatalogReview.ReadDetails(path, candidate);
+                                if (details is not null) names.Add(details.Name);
+                            }
+                            catch (Exception) { /* Unknown or temporarily unavailable card. */ }
                         }
-                        catch (Exception) { /* Catalog may be refreshing. */ }
-                    }
-                    return names.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-                });
-                AiReviewCardLinks.Apply(document, confirmed, OpenAiReviewCardDetails);
+                        return names.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                    }, lookupTimeout.Token).WaitAsync(lookupTimeout.Token);
+                    var linkedDocument = AiReviewMarkdown.Render(answer);
+                    AiReviewCardLinks.Apply(linkedDocument, confirmed, OpenAiReviewCardDetails);
+                    AiReviewResultViewer.Document = linkedDocument;
+                }
+                catch (OperationCanceledException)
+                {
+                    // The complete review remains readable without links.
+                    AiReviewStatus.Text = "Review complete. Card links are unavailable because catalog lookup timed out.";
+                    return;
+                }
+                catch (Exception)
+                {
+                    AiReviewStatus.Text = "Review complete. Card links unavailable; the review is still readable.";
+                    return;
+                }
             }
-            AiReviewResultViewer.Document = document;
-            AiReviewStatus.Text = "Review complete (" + model + "). Suggestions are read-only; no deck edits were made.";
+            AiReviewStatus.Text = "Review complete (" + model +
+                "). Card names open full details. No deck edits were made.";
+        }
+        catch (OperationCanceledException)
+        {
+            AiReviewStatus.Text = "Review cancelled or timed out. " +
+                "Any received text remains visible; no deck changes were made.";
         }
         catch (Exception ex)
         {
-            AiReviewStatus.Text = "Analysis unavailable: " + ex.Message;
+            AiReviewStatus.Text = "Analysis unavailable: " + ex.Message +
+                (received.Length > 0 ? " Partial text is shown below." : "");
+            if (received.Length == 0)
+                AiReviewResultViewer.Document = AiReviewMarkdown.Render(
+                    "## Review unavailable\n" +
+                    "The request did not return a complete review. " +
+                    "See the status above for the failure stage and reason.");
         }
         finally
         {
             aiReviewRunning = false;
+            aiReviewCancellation?.Dispose();
+            aiReviewCancellation = null;
+            if (AiCancelReviewButton is not null)
+                AiCancelReviewButton.IsEnabled = false;
             RefreshAiReviewPrompt();
         }
     }
