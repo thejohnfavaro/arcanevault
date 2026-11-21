@@ -117,12 +117,16 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <Grid Grid.Column="2">
+            <Grid Grid.Column="2" x:Name="CardDetailsReadingGrid">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="0"/>
+                </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <Border Grid.Row="0" x:Name="CardMetadataPanel"
+                <Border Grid.Row="0" Grid.Column="0" x:Name="CardMetadataPanel"
                         Style="{StaticResource VaultElevatedPanel}"
                         Margin="0,0,0,10" Padding="12"
                         MaxHeight="230">
@@ -242,7 +246,8 @@
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
-                <Border Grid.Row="1" Style="{StaticResource VaultElevatedPanel}"
+                <Border Grid.Row="1" Grid.Column="0" x:Name="CardOraclePanel"
+                        Style="{StaticResource VaultElevatedPanel}"
                         Padding="14" MinHeight="190">
                     <Grid>
                         <Grid.RowDefinitions>
