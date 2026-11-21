@@ -60,6 +60,12 @@ internal static class CollectionCatalogReviewChecks
                     '{"commander":"legal","brawl":"legal"}','AAA');
                 INSERT INTO cards VALUES('Arena Spell','Sorcery','Draw two cards.',
                     'common',2,'U','{"commander":"legal","brawl":"legal"}','AAA');
+                INSERT INTO cards VALUES('Sphinx''s Tutelage','Enchantment',
+                    'Whenever you draw a card, target opponent mills two cards.',
+                    'uncommon',3,'U','{"commander":"legal","brawl":"legal"}','ORI');
+                INSERT INTO cards VALUES('Emry, Lurker of the Loch','Legendary Creature',
+                    'Tap: Cast an artifact card from your graveyard.',
+                    'rare',3,'U','{"commander":"legal","brawl":"legal"}','ELD');
                 CREATE TABLE ownership(name TEXT, qty INTEGER);
                 INSERT INTO ownership VALUES('Separate installed inventory mirror',37);
                 """;
@@ -102,6 +108,22 @@ internal static class CollectionCatalogReviewChecks
               details.ColorIdentity == "UB" && details.Rarity == "rare" &&
               details.ManaValue == 3 && details.ManaCost == "",
             "Older Scryfall catalogs without mana_cost must still load without inventing pips.");
+        // AI review often receives smart apostrophes even when the catalog
+        // stores the Scryfall canonical name with an ASCII apostrophe.
+        var aiMatches = CollectionCatalogReview.FindExactNames(catalogPath,
+            new[] { "Sphinx’s Tutelage", "Sphinx's Tutelage",
+                "Emry, Lurker of the Loch", "Sphinx’s Missing Card" });
+        Check(aiMatches.Count == 2 &&
+              aiMatches.Contains("Sphinx's Tutelage") &&
+              aiMatches.Contains("Emry, Lurker of the Loch") &&
+              !aiMatches.Any(name => name.Contains("Missing")),
+            "AI card-name verification must accept typographic apostrophes " +
+            "while rejecting unverified names and duplicates.");
+        var reverseMatches = CollectionCatalogReview.FindExactNames(catalogPath,
+            new[] { "Sphinx‘s Tutelage" });
+        Check(reverseMatches.Count == 1 &&
+              reverseMatches[0] == "Sphinx's Tutelage",
+            "Opening single quotation mark must resolve to canonical name.");
         // Newer catalog snapshots include exact official mana_cost tokens.
         // The old schema above must remain readable without that column.
         string manaCatalog = Path.Combine(work, "review-mana-cost-catalog.sqlite");
