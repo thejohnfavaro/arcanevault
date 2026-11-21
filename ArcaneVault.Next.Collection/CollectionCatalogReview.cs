@@ -279,7 +279,7 @@ public static class CollectionCatalogReview
             if (lead.Length >= 5 && !lead.Contains(' ') &&
                 char.IsUpper(lead[0])) yield return lead;
 
-            string first = name.Split(' ', ',', StringSplitOptions.RemoveEmptyEntries)[0];
+            string first = name.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)[0];
             if (first.Length >= 6 && !first.Equals("The", StringComparison.OrdinalIgnoreCase) &&
                 char.IsUpper(first[0]) && !first.Equals(lead, StringComparison.OrdinalIgnoreCase))
                 yield return first;
