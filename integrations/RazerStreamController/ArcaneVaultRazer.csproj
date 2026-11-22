@@ -17,6 +17,6 @@
   </ItemGroup>
   <Target Name="CopyPackage" AfterTargets="Build">
     <ItemGroup><PackageFiles Include="package\**\*" /></ItemGroup>
-    <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(TargetDir)\..\%(RecursiveDir)" />
+    <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(TargetDir)%(RecursiveDir)" />
   </Target>
 </Project>
