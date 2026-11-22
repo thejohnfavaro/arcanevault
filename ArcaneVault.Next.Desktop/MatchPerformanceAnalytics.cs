@@ -34,6 +34,31 @@ internal static class MatchPerformanceAnalytics
         public double Rate => Matches == 0 ? 0 : 100d * Wins / Matches;
     }
 
+    /// <summary>Group only confirmed, uniquely attributed matches by the saved
+    /// commander's verified color identity. Unknown is never colorless.</summary>
+    internal static IReadOnlyList<FormatRow> ByOwnColorIdentity(
+        IEnumerable<Entry> source, IReadOnlyDictionary<string,string> deckColors)
+    {
+        string Identity(Entry match)
+        {
+            if (!string.IsNullOrWhiteSpace(match.NativeDeckId) &&
+                deckColors.TryGetValue(match.NativeDeckId, out var byId))
+                return byId;
+            return deckColors.TryGetValue("name:" + match.DeckName.Trim(),
+                out var byName) ? byName : "Unknown";
+        }
+        return source.Where(x => !string.IsNullOrWhiteSpace(x.MatchId) &&
+                !string.IsNullOrWhiteSpace(x.DeckName) &&
+                x.Result is "win" or "loss")
+            .GroupBy(x => x.MatchId, StringComparer.Ordinal)
+            .Select(g => g.OrderByDescending(x => x.Played).First())
+            .GroupBy(Identity, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new FormatRow(g.Key, g.Count(x => x.Result == "win"),
+                g.Count(x => x.Result == "loss")))
+            .OrderBy(g => g.Format == "Unknown" ? 1 : 0)
+            .ThenByDescending(g => g.Matches).ThenBy(g => g.Format).ToArray();
+    }
+
     internal static Report Build(IEnumerable<Entry> source, string? deckName,
         int days, DateTimeOffset now, string? format = null)
     {
