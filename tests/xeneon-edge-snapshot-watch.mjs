@@ -96,13 +96,13 @@ listener("C:\\Users\\Test\\AppData\\Local\\ArcaneVault\\streamdeck.json",
     season:{season:"November 2026",endsUtc:new Date(now+3*86400000).toISOString(),
       checkedUtc:new Date(now).toISOString()},
     predictedConstructed:"Silver Tier 3",predictedLimited:"Gold Tier 4"}));
-assert.match(document.getElementById("status").textContent,/no Arena Brawl decks/);
+assert.match(document.getElementById("status").textContent,/no tracked Arena decks/);
 assert.equal(document.getElementById("constructedRank").textContent,"Gold 2");
 assert.equal(document.getElementById("limitedRank").textContent,"Platinum 3");
 assert.match(document.getElementById("constructedRankIcon").getAttribute("src"),/constructed_gold_t2\.png$/);
 assert.match(document.getElementById("seasonCountdown").textContent,/3d 0h 0m/);
 assert.match(document.getElementById("seasonPrediction").textContent,/Silver Tier 3/);
-// Only Arena Brawl appears on the EDGE, never paper Commander or other formats.
+// Only explicitly saved Arena Brawl and Arena Standard decks appear on EDGE.
 listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
   JSON.stringify({schemaVersion:1,decks:[
     {id:"paper-1",name:"Paper Commander",format:"Commander",commander:"Atraxa"},
@@ -110,7 +110,7 @@ listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.j
     {id:"modern-1",name:"Modern",format:"Modern",commander:""}
   ]}));
 assert.equal(document.getElementById("deckName").textContent,"Arena Brawl",
-  "Only Arena Brawl should be available in the EDGE selector");
+  "Arena Brawl should be available while paper formats are excluded");
 assert.equal(document.getElementById("deckCount").textContent,"1 / 1");
 assert.equal(document.getElementById("wins").textContent,"2");
 assert.match(markup,/id="autoSwitchDeck"/,
@@ -162,12 +162,40 @@ assert.equal(document.getElementById("deckName").textContent,"Borg",
 emit([{...first,wins:3,losses:2},{...second,losses:1},
   {id:"brawl-3",name:"Newly synced",format:"Arena Brawl",wins:9,losses:1}]);
 assert.equal(document.getElementById("deckName").textContent,"Borg");
+// Standard is eligible without a commander; a newly synced deck must not
+// hijack focus, but a new verified Ranked Standard result should.
+const standard={id:"standard-1",name:"Azorius Control",format:"Arena Standard",
+  commander:"",wins:0,losses:0,matchHistory:[],
+  artUrl:"https://cards.scryfall.io/normal/front/a/a/azorius.jpg"};
+emit([{...first,wins:3,losses:2},{...second,losses:1},standard]);
+assert.equal(document.getElementById("deckName").textContent,"Borg",
+  "Adding a Standard deck cannot auto-select old match results");
+document.getElementById("next").dispatch("click");
+assert.equal(document.getElementById("deckName").textContent,"Etali");
+document.getElementById("next").dispatch("click");
+assert.equal(document.getElementById("deckName").textContent,"Azorius Control",
+  "Arena Standard decks must appear in the EDGE carousel");
+assert.equal(document.getElementById("commander").textContent,"Format: Ranked Standard",
+  "A 60-card Standard deck must not imply a commander");
+assert.equal(document.getElementById("deckCount").textContent,"3 / 3");
+assert.equal(document.getElementById("recordSummary").textContent,
+  "No verified Ranked Standard matches");
+document.getElementById("prev").dispatch("click");
+emit([{...first,wins:3,losses:2},{...second,losses:1},
+  {...standard,wins:1,
+    matchHistory:[{result:"win",playedUtc:"2026-11-22T15:00:00Z"}]}]);
+assert.equal(document.getElementById("deckName").textContent,"Azorius Control",
+  "Verified Standard win should auto-switch to the updated Standard deck");
+assert.equal(document.getElementById("recordSummary").textContent,
+  "Confirmed Ranked Standard matches");
+assert.equal(document.getElementById("wins").textContent,"1");
+
 listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
   JSON.stringify({schemaVersion:1,decks:[
     {id:"paper-only",name:"Paper Commander",format:"Commander",commander:"Atraxa"}
   ]}));
-assert.equal(document.getElementById("deckName").textContent,"No Arena Brawl decks",
-  "A paper Commander deck must never be silently treated as Arena Brawl");
+assert.equal(document.getElementById("deckName").textContent,"No Arena decks",
+  "A paper Commander deck must not be treated as a digital Arena deck");
 
 
 now+=50000;tick();
