@@ -25,9 +25,6 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
         Margin = new Thickness(0,5,0,10) };
     private readonly ComboBox deckScope = new() {
         MinWidth = 230, Margin = new Thickness(0,4,0,7) };
-    private readonly TextBlock scopedPlayDrawStatus = new() {
-        Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
-        Margin = new Thickness(0,0,0,10) };
     private readonly ListView telemetryRows = new() {
         Height = 180, Margin = new Thickness(0,0,0,12) };
     private readonly Button refresh = new() { Content = "Refresh match analytics",
@@ -110,6 +107,12 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             ArenaRankSeason.OfficialUrl){ UseShellExecute=true });
         header.Children.Add(official);
         header.Children.Add(status);
+        header.Children.Add(new TextBlock { Text = "DECK SCOPE",
+            Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
+            Margin = new Thickness(0,8,0,3) });
+        header.Children.Add(deckScope);
+        deckScope.SelectionChanged += OnScopedDeckSelectionChanged;
+
         header.Children.Add(new TextBlock { Text = "GAMEPLAY TELEMETRY COVERAGE",
             Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
             Margin = new Thickness(0,3,0,3) });
@@ -122,12 +125,6 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
             Margin = new Thickness(0,3,0,3) });
         header.Children.Add(playDrawStatus);
-        header.Children.Add(new TextBlock { Text = "SAVED DECK PLAY / DRAW",
-            Foreground = Brushes.White, FontWeight = FontWeights.SemiBold,
-            FontSize = 14, Margin = new Thickness(0,3,0,3) });
-        header.Children.Add(deckScope);
-        header.Children.Add(scopedPlayDrawStatus);
-        deckScope.SelectionChanged += OnScopedDeckSelectionChanged;
         var telemetryGrid = new GridView();
         telemetryGrid.Columns.Add(TelemetryColumn("Played (UTC)", "PlayedUtc", 175));
         telemetryGrid.Columns.Add(TelemetryColumn("Deck", "DeckName", 170));
@@ -214,8 +211,12 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
         {
             string selectedDeckId = (deckScope.SelectedItem as SavedDeckOption)?.Id ?? "";
             var data = await Task.Run(() => {
-                var matches = NativeMatchHistoryView.ReadPerformance();
-                var savedDecks = new List<SavedDeckOption>();
+                var allMatches = NativeMatchHistoryView.ReadPerformance();
+                var matches = selectedDeckId.Length == 0 ? allMatches :
+                    allMatches.Where(m => m.NativeDeckId.Equals(selectedDeckId,
+                        StringComparison.OrdinalIgnoreCase)).ToArray();
+                var savedDecks = new List<SavedDeckOption> {
+                    new("", "All Decks — aggregate") };
                 if (File.Exists(ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath))
                 {
                     try
@@ -237,24 +238,30 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                 {
                     identities = new Dictionary<string,string>();
                 }
+                string? scope = selectedDeckId.Length == 0 ? null : selectedDeckId;
                 return (matches, identities, savedDecks,
-                    scoped: selectedDeckId.Length == 0 ? null :
-                        history.ReadVerifiedPlayDrawForDeck(selectedDeckId),
-                    coverage: history.ReadTelemetryOverview(),
-                    gameplay: history.ReadGameplayObservation(),
-                    playDraw: history.ReadVerifiedPlayDraw());
+                    coverage: history.ReadTelemetryOverviewForDeck(scope),
+                    gameplay: history.ReadGameplayObservationForDeck(scope),
+                    playDraw: history.ReadVerifiedPlayDrawForDeck(scope));
             });
-            dashboard.SetMatches(data.matches, data.identities);
+            dashboard.SetMatches(data.matches, data.identities,
+                singleDeck: selectedDeckId.Length > 0);
             // Preserve the current deck by stable ID, not by row position or
             // name. A missing exact ID means no verified deck-scoped totals.
             deckScope.SelectionChanged -= OnScopedDeckSelectionChanged;
             deckScope.ItemsSource = data.savedDecks;
-            deckScope.SelectedItem = data.savedDecks.FirstOrDefault(d => d.Id == selectedDeckId);
+            deckScope.SelectedItem = data.savedDecks.FirstOrDefault(d => d.Id == selectedDeckId)
+                ?? data.savedDecks[0];
             deckScope.SelectionChanged += OnScopedDeckSelectionChanged;
-            status.Text=$"{data.matches.Count} distinct match row(s) available for review. " +
-                "All calculations exclude unassigned rows and unconfirmed outcomes.";
+            string scopeLabel = data.savedDecks.FirstOrDefault(d => d.Id == selectedDeckId)?.Name
+                ?? "All Decks — aggregate";
+            status.Text = $"{scopeLabel}: {data.matches.Count} recorded match row(s). " +
+                (selectedDeckId.Length == 0
+                    ? "Aggregate across saved decks; unassigned matches remain excluded from performance totals."
+                    : "Only matches with this exact saved deck ID are included. " +
+                      "Name-only and ambiguous historical assignments are excluded.");
             var coverage = data.coverage;
-            telemetryStatus.Text = $"{coverage.MatchesWithTelemetry} of {coverage.RecordedMatches} recorded matches " +
+            telemetryStatus.Text = $"{scopeLabel}: {coverage.MatchesWithTelemetry} of {coverage.RecordedMatches} recorded matches " +
                 $"have GRE observations ({coverage.ArchivedEvents} retained events). " +
                 "Only events linked to an explicitly identified match are archived. " +
                 "Game counts and highest turns are observed lower bounds, not complete game replays. " +
@@ -263,25 +270,13 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             var playDraw = data.playDraw;
             string Rate(int wins,int losses) => wins+losses == 0 ? "—" :
                 $"{100d*wins/(wins+losses):0.#}%";
-            playDrawStatus.Text = $"On play: {playDraw.OnPlayWins} W / {playDraw.OnPlayLosses} L " +
+            playDrawStatus.Text = $"{scopeLabel} · On play: {playDraw.OnPlayWins} W / {playDraw.OnPlayLosses} L " +
                 $"({Rate(playDraw.OnPlayWins,playDraw.OnPlayLosses)}). " +
                 $"On draw: {playDraw.OnDrawWins} W / {playDraw.OnDrawLosses} L " +
                 $"({Rate(playDraw.OnDrawWins,playDraw.OnDrawLosses)}). " +
                 $"{playDraw.Unattributed} recorded results excluded (missing or ambiguous evidence). " +
                 "Only single-game matches with an authenticated room seat and an explicit " +
                 "turn-one active seat are attributed; multi-game matches are excluded.";
-            var scoped = data.scoped;
-            scopedPlayDrawStatus.Text = selectedDeckId.Length == 0
-                ? "Choose a saved deck to view verified play/draw results. No deck is selected."
-                : scoped is null
-                    ? "No saved deck identity available."
-                    : $"Selected deck: {data.savedDecks.FirstOrDefault(d => d.Id == selectedDeckId)?.Name ?? selectedDeckId}. " +
-                      $"On play: {scoped.OnPlayWins} W / {scoped.OnPlayLosses} L " +
-                      $"({Rate(scoped.OnPlayWins,scoped.OnPlayLosses)}). " +
-                      $"On draw: {scoped.OnDrawWins} W / {scoped.OnDrawLosses} L " +
-                      $"({Rate(scoped.OnDrawWins,scoped.OnDrawLosses)}). " +
-                      $"{scoped.Unattributed} results lack sufficient seat/turn evidence. " +
-                      "Only exact recorded native deck IDs count here; missing or ambiguous records are excluded.";
             var gameplay = data.gameplay;
             gameplayStatus.Text = gameplay.GamesWithTurnData == 0
                 ? "No game-numbered turn observations yet. Enable Arena Detailed Logs to collect future evidence."
