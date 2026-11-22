@@ -72,28 +72,73 @@ public sealed class NativeCardArtImage : Image
         current = request;
         var serial = version;
         bool acquired = false;
+        string artUrl = ArtUrl;
         try
         {
             await LoadingGate.WaitAsync(request.Token);
             acquired = true;
-            var bytes = await NativeCardArtwork.LoadAsync(ArtUrl, request.Token);
-            if (bytes is null || bytes.Length == 0 ||
-                request.IsCancellationRequested || serial != version || !IsLoaded)
-                return;
-
-            using var stream = new MemoryStream(bytes);
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.DecodePixelWidth = Math.Clamp(DecodeWidth, 96, 800); // Limit thumbnail and banner allocations.
-            image.StreamSource = stream;
-            image.EndInit();
-            image.Freeze();
-            if (serial == version && !request.IsCancellationRequested && IsLoaded)
-                Source = image;
+            // One retry covers transient CDN failures; corrupt cached images
+            // are evicted and fetched again instead of leaving a blank cover.
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                request.Token.ThrowIfCancellationRequested();
+                if (serial != version || !IsLoaded) return;
+                try
+                {
+                    var bytes = await NativeCardArtwork.LoadAsync(artUrl, request.Token);
+                    if (bytes is null || bytes.Length == 0)
+                        throw new IOException("Artwork download returned no image.");
+                    using var stream = new MemoryStream(bytes);
+                    var image = new BitmapImage();
+                    image.BeginInit();
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.DecodePixelWidth = Math.Clamp(DecodeWidth, 96, 800);
+                    image.StreamSource = stream;
+                    image.EndInit();
+                    image.Freeze();
+                    if (serial == version && !request.IsCancellationRequested && IsLoaded)
+                    {
+                        Source = image;
+                        ToolTip = null;
+                    }
+                    return;
+                }
+                catch (OperationCanceledException) when (request.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex) when (ex is IOException or HttpRequestException or
+                    TimeoutException or System.Runtime.InteropServices.COMException or
+                    System.NotSupportedException or System.IO.FileFormatException)
+                {
+                    if (request.IsCancellationRequested || serial != version || !IsLoaded)
+                        return;
+                    if (attempt == 1)
+                    {
+                        ToolTip = "Official Scryfall artwork could not load: " +
+                            ex.Message + ". The saved card selection is preserved.";
+                        System.Diagnostics.Debug.WriteLine(
+                            "Arcane Vault deck artwork failed: " + ex);
+                        return;
+                    }
+                    // Removing a disposable local image on any artwork error
+                    // is safe. The next attempt uses the same official URL.
+                    NativeCardArtwork.InvalidateCachedImage(artUrl);
+                    await Task.Delay(800, request.Token);
+                }
+            }
         }
         catch (OperationCanceledException) { }
-        catch (Exception) { /* Missing art leaves card text usable. */ }
+        catch (Exception ex)
+        {
+            if (serial == version && IsLoaded)
+            {
+                ToolTip = "Official Scryfall artwork could not load: " +
+                    ex.Message + ". The saved card selection is preserved.";
+                System.Diagnostics.Debug.WriteLine(
+                    "Arcane Vault deck artwork failed: " + ex);
+            }
+        }
         finally
         {
             if (acquired) LoadingGate.Release();
