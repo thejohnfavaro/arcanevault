@@ -184,7 +184,9 @@ internal static class NativeVisualShellChecks
              v65DeckCode.Contains("NativeOracleReading.Build(details.OracleText)") &&
              v65DeckCode.Contains("version != deckInspectVersion") &&
              v65DeckCode.Contains("ReferenceEquals(deck, inspectedSavedDeck)") &&
-             v65DeckCode.Contains("NativeCardArtwork.IsTrustedArtworkUrl(details.ArtworkUrl)") &&
+             v65DeckCode.Contains("NativeCardArtwork.IsTrustedArtworkUrl(selectedArt)") &&
+             v65DeckCode.Contains("NativePrintingArtwork.Require(catalogPath!") &&
+             v65DeckCode.Contains("deck.CommanderPrintingId.Length > 0") &&
              v65DeckCode.Contains("new NativeCardDetailsWindow(card.Name") &&
              v65DeckShell.Contains("ShowDeckInspector(selectedDeck)") &&
              v65DeckShell.Contains("deckInspectVersion++;"),
