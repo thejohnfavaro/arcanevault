@@ -187,7 +187,9 @@ internal static class NativeVisualShellChecks
              v65DeckUi.Contains("OnDeckInspectorCardSelected") &&
              v65DeckUi.Contains("OnDeckInspectorCardDoubleClick") &&
              v65DeckUi.Contains("OnDeckInspectorFullDetailsClicked") &&
-             v65DeckUi.Contains("VirtualizingStackPanel.IsVirtualizing=\"True\"") &&
+             v65DeckUi.Contains("<WrapPanel Orientation=\"Horizontal\"/>") &&
+             v65DeckUi.Contains("<Setter Property=\"Width\" Value=\"512\"/>") &&
+             v65DeckUi.Contains("ScrollViewer.CanContentScroll=\"False\"") &&
              v65DeckCode.Contains("NativeDeckEditing.ParseMainboard(deck.MainboardText)") &&
              v65DeckCode.Contains("NativeOracleReading.Build(details.OracleText)") &&
              v65DeckCode.Contains("version != deckInspectVersion") &&
