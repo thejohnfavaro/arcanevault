@@ -645,6 +645,10 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     if (deck.format.Equals("Arena Standard", StringComparison.OrdinalIgnoreCase) &&
                         !queue.Equals("Standard Ranked", StringComparison.OrdinalIgnoreCase))
                         continue;
+                    if (deck.format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase) &&
+                        (queue.Equals("Standard", StringComparison.OrdinalIgnoreCase) ||
+                         queue.Equals("Standard Ranked", StringComparison.OrdinalIgnoreCase)))
+                        continue;
                     used = true;
                     if (result == "win") deck.wins++; else deck.losses++;
                     if (!histories.TryGetValue(deck.id, out var history))
