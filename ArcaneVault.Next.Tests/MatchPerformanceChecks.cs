@@ -101,6 +101,15 @@ internal static class MatchPerformanceChecks
             !ownIdentity.Any(x => x.Format == "W"),
             "Native deck IDs must determine verified color identity; duplicate, unknown " +
             "and missing results must not invent wins or silently become colorless.");
+        // Native wins/losses remain authoritative even when a matching legacy
+        // record carries an explicit opponent-color annotation missing from
+        // the native copy. Unknown is never guessed from your own colors.
+        RegressionExpect.That(
+            NativeMatchHistoryView.PreferExplicitOpponentColors("", "WU") == "WU" &&
+            NativeMatchHistoryView.PreferExplicitOpponentColors("BR", "WU") == "BR" &&
+            NativeMatchHistoryView.PreferExplicitOpponentColors("", "") == "",
+            "Native-first match reconciliation must retain explicitly recorded " +
+            "opponent colors from historical duplicate rows without inventing colors.");
         var shortRange = MatchPerformanceAnalytics.Build(rows,"Deck A",1,now);
         RegressionExpect.That(shortRange.Matches == 1, "Date range should not include older results.");
     }
