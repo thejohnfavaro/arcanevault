@@ -62,11 +62,15 @@ public static class NativeDeckEditing
         public string DeckCoverMode { get; init; } = "Auto";
         public string DeckCoverCardName { get; init; } = "";
         public string DeckCoverPrintingId { get; init; } = "";
-        public string EffectiveCoverCard => DeckCoverMode == "Custom" &&
-            DeckCoverCardName.Length > 0 ? DeckCoverCardName :
-            Commander.Length > 0 ? Commander :
+        public bool CustomCoverCardStillInDeck => DeckCoverMode == "Custom" &&
+            DeckCoverCardName.Length > 0 &&
+            (DeckCoverCardName.Equals(Commander, StringComparison.OrdinalIgnoreCase) ||
+             ParseMainboard(MainboardText).Any(x => x.Name.Equals(
+                DeckCoverCardName, StringComparison.OrdinalIgnoreCase)));
+        public string EffectiveCoverCard => CustomCoverCardStillInDeck
+            ? DeckCoverCardName : Commander.Length > 0 ? Commander :
             ParseMainboard(MainboardText).FirstOrDefault()?.Name ?? "";
-        public string EffectiveCoverPrintingId => DeckCoverMode == "Custom"
+        public string EffectiveCoverPrintingId => CustomCoverCardStillInDeck
             ? DeckCoverPrintingId : Commander.Length > 0 ? CommanderPrintingId : "";
         public IReadOnlyDictionary<string, string> EntryPrintingIds { get; init; } =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
