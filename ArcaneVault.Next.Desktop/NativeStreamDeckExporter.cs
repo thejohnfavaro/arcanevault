@@ -125,11 +125,14 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     ongoingSeasonCheck = RefreshSeasonAsync(stopped.Token);
                 }
                 bool pressed = ConsumeRefreshRequest();
-                if (pressed || DateTimeOffset.UtcNow >= nextScheduledRefresh)
+                bool scheduled = DateTimeOffset.UtcNow >= nextScheduledRefresh;
+                bool deckFileChanged = firstSnapshotPublished && WorkspaceFileChanged();
+                if (pressed || scheduled || deckFileChanged)
                 {
-                    // Initial workspace state should reach EDGE before scanning
-                    // potentially huge Arena Player.log files. The tracker is
-                    // updated after the first publish, then before later refreshes.
+                    // A saved deck edit is a cheap file-stamp observation
+                    // detected within the one-second loop. Publish it without
+                    // needlessly rescanning the potentially huge Arena log.
+                    // Match capture still runs on its independent 15s cadence.
                     if (!firstSnapshotPublished)
                     {
                         await RefreshAsync(stopped.Token);
@@ -138,10 +141,11 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     }
                     else
                     {
-                        arenaTracker?.Tick();
+                        if (scheduled || pressed) arenaTracker?.Tick();
                         await RefreshAsync(stopped.Token);
                     }
-                    nextScheduledRefresh = DateTimeOffset.UtcNow.AddSeconds(15);
+                    if (scheduled || !firstSnapshotPublished)
+                        nextScheduledRefresh = DateTimeOffset.UtcNow.AddSeconds(15);
                 }
             }
             catch (OperationCanceledException) when (stopped.IsCancellationRequested) { break; }
@@ -170,6 +174,20 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             nextSeasonCheck = DateTimeOffset.UtcNow.AddHours(1);
             Log("Official Arena ranked season refresh unavailable",error);
         }
+    }
+
+    /// <summary>
+    /// Poll metadata only; a real deck edit atomically swaps the verified
+    /// workspace file. Heavy integrity checks remain in RefreshAsync and
+    /// happen only after a stamp change.
+    /// </summary>
+    private bool WorkspaceFileChanged()
+    {
+        if (lastWorkspaceStamp is null) return false;
+        string path = NativeWorkspace.DefaultPath;
+        if (!File.Exists(path)) return true;
+        var info = new FileInfo(path);
+        return info.Length + ":" + info.LastWriteTimeUtc.Ticks != lastWorkspaceStamp;
     }
 
     private async Task RefreshAsync(CancellationToken cancel)
