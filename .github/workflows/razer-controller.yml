@@ -1,0 +1,44 @@
+name: Arcane Vault Razer Stream Controller Plugin
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'integrations/RazerStreamController/**'
+      - '.github/workflows/razer-controller.yml'
+  pull_request:
+    paths:
+      - 'integrations/RazerStreamController/**'
+      - '.github/workflows/razer-controller.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore and build Razer controller plugin
+        run: dotnet build integrations/RazerStreamController/ArcaneVaultRazer.csproj -c Release
+      - name: Install official packaging tool
+        run: dotnet tool install -g LogiPluginTool --version 6.4.2.3599
+      - name: Package plugin
+        shell: pwsh
+        run: |
+          logiplugintool pack integrations/RazerStreamController/bin/Release integrations/RazerStreamController/ArcaneVaultRazer_0_1_0.lplug4
+          if ($LASTEXITCODE -ne 0) { throw "Plugin packaging failed" }
+      - name: Verify plugin package
+        shell: pwsh
+        run: |
+          logiplugintool verify integrations/RazerStreamController/ArcaneVaultRazer_0_1_0.lplug4
+          if ($LASTEXITCODE -ne 0) { throw "Plugin validation failed" }
+      - name: Upload installable test plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArcaneVault-RazerController-Plugin-TestBuild
+          path: integrations/RazerStreamController/ArcaneVaultRazer_0_1_0.lplug4
+          retention-days: 30
+          if-no-files-found: error
