@@ -74,6 +74,33 @@ internal static class MatchPerformanceChecks
             "Streak extremes must not be confused with the active streak.");
         RegressionExpect.That(streakReport.CurrentStreak == 3,
             "Latest win streak must reflect the chronological last match.");
+        // Commander colors belong to the user's saved deck, not the opponent.
+        // Stable native IDs take precedence over ambiguous deck-name matches.
+        var ownIdentity = MatchPerformanceAnalytics.ByOwnColorIdentity(new[] {
+            new MatchPerformanceAnalytics.Entry("color-win",now,"Renamed deck",
+                "native-b","Arena Brawl","win"),
+            new MatchPerformanceAnalytics.Entry("color-win",now,"Renamed deck",
+                "native-b","Arena Brawl","win"),
+            new MatchPerformanceAnalytics.Entry("color-loss",now,"Deck A",
+                "native-c","Arena Brawl","loss"),
+            new MatchPerformanceAnalytics.Entry("colorless",now,"Deck C",
+                "native-colorless","Arena Brawl","win"),
+            new MatchPerformanceAnalytics.Entry("unidentified",now,"Missing",
+                "unknown-id","Arena Brawl","loss"),
+            new MatchPerformanceAnalytics.Entry("unconfirmed",now,"Deck A",
+                "native-b","Arena Brawl","unknown")
+        }, new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase) {
+            ["native-b"] = "BR", ["native-c"] = "GU",
+            ["native-colorless"] = "C", ["name:Deck A"] = "W"
+        });
+        RegressionExpect.That(ownIdentity.Sum(x => x.Matches) == 4 &&
+            ownIdentity.Single(x => x.Format == "BR").Wins == 1 &&
+            ownIdentity.Single(x => x.Format == "GU").Losses == 1 &&
+            ownIdentity.Single(x => x.Format == "C").Wins == 1 &&
+            ownIdentity.Single(x => x.Format == "Unknown").Losses == 1 &&
+            !ownIdentity.Any(x => x.Format == "W"),
+            "Native deck IDs must determine verified color identity; duplicate, unknown " +
+            "and missing results must not invent wins or silently become colorless.");
         var shortRange = MatchPerformanceAnalytics.Build(rows,"Deck A",1,now);
         RegressionExpect.That(shortRange.Matches == 1, "Date range should not include older results.");
     }
