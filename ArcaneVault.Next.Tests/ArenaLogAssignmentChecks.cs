@@ -290,6 +290,19 @@ internal static class ArenaLogAssignmentChecks
                 gameplay.SeatsWithMulligans == 1 &&
                 gameplay.HighestObservedMulligans == 1,
                 "Game observations must deduplicate repeated player snapshots and distinguish turns from match lengths.");
+            var deckCoverage = telemetryHistory.ReadTelemetryOverviewForDeck("test-native-a");
+            var otherCoverage = telemetryHistory.ReadTelemetryOverviewForDeck("test-native-b");
+            var deckGameplay = telemetryHistory.ReadGameplayObservationForDeck("test-native-a");
+            var otherGameplay = telemetryHistory.ReadGameplayObservationForDeck("test-native-b");
+            Assert(deckCoverage.RecordedMatches == 1 &&
+                deckCoverage.MatchesWithTelemetry == 1 && deckCoverage.ArchivedEvents == 2 &&
+                otherCoverage.RecordedMatches == 0 &&
+                otherCoverage.MatchesWithTelemetry == 0 && otherCoverage.ArchivedEvents == 0 &&
+                deckGameplay.GamesWithTurnData == 1 &&
+                deckGameplay.GamesWithMulliganData == 1 &&
+                otherGameplay.GamesWithTurnData == 0 &&
+                otherGameplay.GamesWithMulliganData == 0,
+                "All gameplay telemetry totals and observed mulligans must respect exact saved deck scope.");
             var playDraw = telemetryHistory.ReadVerifiedPlayDraw();
             Assert(playDraw.OnPlayWins == 1 && playDraw.OnPlayLosses == 0 &&
                 playDraw.OnDrawWins == 0 && playDraw.OnDrawLosses == 0 &&
