@@ -3,7 +3,7 @@
   "id": "com.rngesus.arcanevault.edge",
   "name": "Arcane Vault — Deck Dashboard",
   "description": "Arena Brawl deck art and verified match records, MTG Arena rank, and physical collection progress for XENEON EDGE.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "preview_icon": "resources/icon.svg",
   "min_app_version": "5.52",
   "min_framework_version": "1.9.0",
