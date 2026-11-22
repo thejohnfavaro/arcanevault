@@ -69,7 +69,8 @@ public static class NativePrintingArtwork
         // style catalog is available. Never present print IDs as styles.
         cmd.CommandText = """
             SELECT print_id,name,setcode,collector,setname,image,games,digital,release
-            FROM variants WHERE name=$name COLLATE NOCASE
+            FROM variants WHERE (name=$name COLLATE NOCASE
+                OR substr(name,1,length($name)+4) = $name || ' // ' COLLATE NOCASE)
             """ + (arenaOnly
                 ? " AND instr(',' || lower(replace(games,' ','')) || ',', ',arena,') > 0"
                 : "") + (arenaOnly
@@ -116,9 +117,12 @@ public static class NativePrintingArtwork
         using var reader = cmd.ExecuteReader();
         if (!reader.Read())
             throw new InvalidDataException("Selected printing is absent from the current Scryfall catalog.");
+        string requestedName = name.Trim();
+        string catalogName = reader.GetString(1);
+        bool sameCard = catalogName.Equals(requestedName, StringComparison.OrdinalIgnoreCase) ||
+            catalogName.StartsWith(requestedName + " // ", StringComparison.OrdinalIgnoreCase);
         if (reader.IsDBNull(0) || !Guid.TryParse(reader.GetString(0), out var actual) ||
-            actual != id || !string.Equals(reader.GetString(1), name.Trim(),
-                StringComparison.OrdinalIgnoreCase))
+            actual != id || !sameCard)
             throw new InvalidDataException("Printing ID conflicts with the selected card name.");
         string image = reader.GetString(5);
         if (!TrustedImage(image))
