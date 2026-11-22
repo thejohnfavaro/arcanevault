@@ -42,6 +42,12 @@ internal static class NativeVisualShellChecks
              !performancePanel.Contains("BY YOUR DECK COLOR IDENTITY") &&
              !matchAnalytics.Contains("ReadSavedDeckColors"),
              "Analytics must scroll as one page and use horizontal space for paired summaries and tables.");
+        Must(matchAnalytics.Contains("MatchDeckAttribution.Resolve(") &&
+             matchAnalytics.Contains("history.Mappings()") &&
+             matchAnalytics.Contains("ReadTelemetryOverviewForDeck(null, selectedMatchIds)") &&
+             matchAnalytics.Contains("ReadGameplayObservationForDeck(null, selectedMatchIds)") &&
+             matchAnalytics.Contains("ReadVerifiedPlayDrawForDeck(null, selectedMatchIds)"),
+             "Per-deck analytics must include historical verified assignments in both results and telemetry.");
         Must(matchAnalytics.Contains("All Decks — aggregate") &&
              matchAnalytics.Contains("ReadTelemetryOverviewForDeck(scope)") &&
              matchAnalytics.Contains("ReadGameplayObservationForDeck(scope)") &&
