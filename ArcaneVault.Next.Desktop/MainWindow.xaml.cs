@@ -2300,8 +2300,12 @@ public partial class MainWindow : Window
                 var progress = activeCatalog is null ? null :
                     NativeSetProgressCache.Physical(verification,
                         NativeWorkspace.CatalogPath, workspace.BackupSha256);
-                var decks = NativeWorkspaceSafety.ListDecks(NativeWorkspace.DefaultPath);
-                var proxies = NativeWorkspaceSafety.ListProxies(workspace.DatabasePath);
+                // Workspace.Open has already completed SQLite quick_check,
+                // backup SHA and exact row projection. Do not redo the entire
+                // traversal for each UI list. These helpers still confirm the
+                // preserved source SHA before reading optional presentation data.
+                var decks = NativeWorkspaceSafety.ListDecksFromVerified(workspace);
+                var proxies = NativeWorkspaceSafety.ListProxiesFromVerified(workspace);
                 return (workspace, verification, progress, decks, proxies);
             });
             if (closing || version != modeVersion ||
