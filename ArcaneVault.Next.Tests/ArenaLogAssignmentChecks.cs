@@ -395,7 +395,7 @@ internal static class ArenaLogAssignmentChecks
             }, t);
             var rawIds = OpponentColorObservation.PublicOpponentCardIds(
                 JsonSerializer.SerializeToElement(publicSnapshot), 1);
-            Assert(rawIds.SetEquals(new HashSet<long> { 555, 999 }),
+            Assert(rawIds.Count == 2 && rawIds.Contains(555) && rawIds.Contains(999),
                 "Public cards must belong to a verified opponent seat; own cards, hand and hidden cards are excluded.");
             var seen = observedHistory.ReadObservedOpponentColors(observedCatalog,
                 new HashSet<string>(StringComparer.Ordinal) { "observed-match" });
