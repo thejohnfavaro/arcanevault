@@ -18,6 +18,20 @@ internal static class ArenaQueueRankChecks
             "Ranked Constructed queue must remain distinguishable.");
         Assert(ArenaQueueInfo.Label("mystery-event-88") == "mystery-event-88",
             "Unrecognized event IDs must not be guessed.");
+        // Arena can report only the generic Constructed ladder queue. Accept
+        // existing, recorded wins for a verified saved Standard deck, but never
+        // infer Ranked Standard from name-only attribution or Play queues.
+        Assert(ArenaQueueInfo.IsRankedStandardMatch("Traditional_Standard_Ranked",false) &&
+            ArenaQueueInfo.IsRankedStandardMatch("Standard_Ladder",false) &&
+            ArenaQueueInfo.IsRankedStandardMatch("Ladder",true) &&
+            ArenaQueueInfo.IsRankedStandardMatch("ConstructedRanked",true) &&
+            !ArenaQueueInfo.IsRankedStandardMatch("Ladder",false) &&
+            !ArenaQueueInfo.IsRankedStandardMatch("Standard_Play",true) &&
+            !ArenaQueueInfo.IsRankedStandardMatch("Historic_Ranked",true) &&
+            !ArenaQueueInfo.IsRankedStandardMatch("Brawl_Ladder",true) &&
+            !ArenaQueueInfo.IsRankedStandardMatch("",true),
+            "Generic Ladder should count only for a uniquely mapped Standard deck.");
+
         using var document=JsonDocument.Parse("""
             {"constructedClass":"Gold","constructedLevel":2,"constructedStep":4,
              "limitedClass":"Platinum","limitedLevel":3,"limitedStep":2,
