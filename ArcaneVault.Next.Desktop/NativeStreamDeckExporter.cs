@@ -32,6 +32,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private bool firstSnapshotPublished;
     private DateTimeOffset nextSetProgressRetry = DateTimeOffset.MinValue;
     private string? setProgressStamp;
+    private string? physicalStampWorkspace;
+    private string? physicalInventoryFingerprint;
     private SetProgressSummary? setProgress;
     private readonly HttpClient seasonClient = new() { Timeout = TimeSpan.FromSeconds(12) };
     private ArenaRankSeason.Schedule? seasonSchedule;
@@ -302,6 +304,29 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         Publish(recent, source, "Native app connected", active);
     }
 
+    private static string ReadPhysicalInventoryFingerprint(string nativePath,
+        CancellationToken cancel)
+    {
+        using var db = new SqliteConnection(new SqliteConnectionStringBuilder {
+            DataSource = nativePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false
+        }.ToString());
+        db.Open();
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = "SELECT ordinal,payload_json FROM physical_lines ORDER BY ordinal";
+        using var rows = cmd.ExecuteReader();
+        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(
+            System.Security.Cryptography.HashAlgorithmName.SHA256);
+        while (rows.Read())
+        {
+            cancel.ThrowIfCancellationRequested();
+            var bytes = System.Text.Encoding.UTF8.GetBytes(
+                rows.GetInt32(0).ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                ":" + rows.GetString(1) + "\n");
+            hash.AppendData(bytes);
+        }
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
     private void RefreshSetSummary(CancellationToken cancel)
     {
         string catalog = NativeWorkspace.CatalogPath;
@@ -315,8 +340,21 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         {
             var workspace = new FileInfo(NativeWorkspace.DefaultPath);
             var info = new FileInfo(catalog);
-            string stamp = workspace.Length + ":" + workspace.LastWriteTimeUtc.Ticks
-                + ":" + info.Length + ":" + info.LastWriteTimeUtc.Ticks;
+            string workspaceStamp = workspace.Length + ":" +
+                workspace.LastWriteTimeUtc.Ticks;
+            // A deck-only edit changes the database file and its manifest,
+            // not the physical_lines table. Set progress depends on physical
+            // inventory + catalog, not deck names, art, stats or match counts.
+            // Hash only the small physical projection, never the full 100MB
+            // backup or the Scryfall catalog on this 15-second worker path.
+            if (workspaceStamp != physicalStampWorkspace)
+            {
+                physicalInventoryFingerprint =
+                    ReadPhysicalInventoryFingerprint(NativeWorkspace.DefaultPath, cancel);
+                physicalStampWorkspace = workspaceStamp;
+            }
+            string stamp = (physicalInventoryFingerprint ?? "") + ":" +
+                info.Length + ":" + info.LastWriteTimeUtc.Ticks;
             if (stamp == setProgressStamp && setProgress is not null) return;
             if (DateTimeOffset.UtcNow < nextSetProgressRetry) return;
             nextSetProgressRetry = DateTimeOffset.UtcNow.AddMinutes(5);
