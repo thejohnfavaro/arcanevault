@@ -52,13 +52,13 @@ public static class NativeDeckPreflight
         return singleton ? 1 : 4;
     }
 
-    private static string? CommanderLegality(Card card)
+    private static string? CachedLegality(Card card, string formatKey)
     {
         try
         {
             using var doc = JsonDocument.Parse(card.Legalities);
             if (doc.RootElement.ValueKind == JsonValueKind.Object &&
-                doc.RootElement.TryGetProperty("commander", out var property) &&
+                doc.RootElement.TryGetProperty(formatKey, out var property) &&
                 property.ValueKind == JsonValueKind.String)
                 return property.GetString();
         }
@@ -77,9 +77,10 @@ public static class NativeDeckPreflight
         format = (format ?? "").Trim();
         bool edh = format.Equals("Commander", StringComparison.OrdinalIgnoreCase);
         bool brawl = format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase);
-        bool regular = format.Equals("60-card", StringComparison.OrdinalIgnoreCase);
+        bool arenaStandard = format.Equals("Arena Standard", StringComparison.OrdinalIgnoreCase);
+        bool regular = format.Equals("60-card", StringComparison.OrdinalIgnoreCase) || arenaStandard;
         bool singleton = edh || brawl;
-        string pool = brawl ? "Arena" : edh ? "Physical" : "Physical / Arena (separate)";
+        string pool = brawl || arenaStandard ? "Arena" : edh ? "Physical" : "Physical / Arena (separate)";
         var notes = new List<Finding>();
         void Warn(string message) => notes.Add(new Finding(Level.Warning, message));
         void Review(string message) => notes.Add(new Finding(Level.Review, message));
@@ -97,11 +98,13 @@ public static class NativeDeckPreflight
                 Warn("The chosen commander is also listed in the mainboard; remove the extra mainboard copy.");
         }
         else if (regular && mainboardCount < 60)
-            Warn($"60-card: {mainboardCount} mainboard copies; expected at least 60.");
+            Warn($"{(arenaStandard ? "Arena Standard" : "60-card")}: {mainboardCount} mainboard copies; expected at least 60.");
         else if (!regular && !singleton)
             Review("Custom format: deck-size, singleton and format legality rules are not assumed.");
 
-        if (!singleton && commander.Length > 0)
+        if (arenaStandard && commander.Length > 0)
+            Warn("Arena Standard has no commander zone; remove the commander field before saving.");
+        else if (!singleton && commander.Length > 0)
             Review("Commander field is set for a non-Commander format; it is not included in the mainboard count.");
 
         var physical = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -132,13 +135,13 @@ public static class NativeDeckPreflight
             if (edh && paperAvailable < pair.Value)
                 Warn($"Physical inventory: {pair.Key} needs {pair.Value}, " +
                     $"owned {paper}, Proxy {proxy}, still missing {pair.Value - paperAvailable}.");
-            else if (brawl && digital < pair.Value)
+            else if ((brawl || arenaStandard) && digital < pair.Value)
                 Warn($"Arena inventory: {pair.Key} needs {pair.Value}, owned {digital}.");
-            else if (!singleton && regular && paperAvailable < pair.Value &&
+            else if (!arenaStandard && !singleton && regular && paperAvailable < pair.Value &&
                      digital < pair.Value)
                 Review($"Neither inventory individually covers {pair.Value}× {pair.Key} " +
                     $"(paper owned {paper}, Proxy {proxy}, Arena {digital}).");
-            if (!brawl && proxyUsed > 0)
+            if (!brawl && !arenaStandard && proxyUsed > 0)
                 Review($"Proxy: {proxyUsed}× {pair.Key} fills a paper deck copy " +
                     "but is not an owned printing, is excluded from collection value, " +
                     "and may not be valid for sanctioned play.");
@@ -233,12 +236,20 @@ public static class NativeDeckPreflight
                 Warn($"{entry.Name}: {entry.Quantity} copies exceed its catalog-supported " +
                     $"{(singleton ? "singleton" : "four-of")} limit.");
 
-            if (brawl && !card.HasArenaPrinting)
+            if ((brawl || arenaStandard) && !card.HasArenaPrinting)
                 Warn($"{entry.Name}: no Arena printing found in this local catalog.");
+            if (arenaStandard)
+            {
+                string? legality = CachedLegality(card, "standard");
+                if (legality is "banned" or "not_legal")
+                    Warn($"{entry.Name}: cached Scryfall Standard legality is '{legality}'.");
+                else if (legality is null or "unknown")
+                    Review($"{entry.Name}: current Standard legality is not confirmed by local catalog.");
+            }
 
             if (edh)
             {
-                string? status = CommanderLegality(card);
+                string? status = CachedLegality(card, "commander");
                 if (status is "banned" or "not_legal")
                     Warn($"{entry.Name}: cached Scryfall Commander legality is '{status}'.");
                 else if (status is null)
@@ -252,6 +263,10 @@ public static class NativeDeckPreflight
             if (status is "banned" or "not_legal")
                 Warn($"{commander}: cached Scryfall Commander legality is '{status}'.");
         }
+        if (arenaStandard)
+            Review("Arena Standard rotation, live bans and Ranked queue eligibility " +
+                "may have changed since the local Scryfall catalog sync. " +
+                "Sideboard legality and match queue are not certified by this mainboard review.");
         if (brawl)
             Review("Arena Brawl's live ban list, commander-specific bans and queue restrictions " +
                 "are NOT verified by this offline Scryfall snapshot.");
