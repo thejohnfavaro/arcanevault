@@ -210,6 +210,15 @@ assert.equal(document.getElementById("deckName").textContent,"Azorius Control",
 assert.equal(document.getElementById("recordSummary").textContent,
   "Confirmed Ranked Standard matches");
 assert.equal(document.getElementById("wins").textContent,"1");
+// A custom cover art change refreshes the current deck image even when no
+// win/loss is added. The Xeneon should follow the saved deck art choice.
+const customArt="https://cards.scryfall.io/normal/front/c/c/custom-cover.jpg";
+emit([{...first,wins:3,losses:2},{...second,losses:1},
+  {...standard,wins:1,artUrl:customArt,
+    matchHistory:[{result:"win",playedUtc:"2026-11-22T15:00:00Z"}]}]);
+assert.equal(document.getElementById("deckName").textContent,"Azorius Control");
+assert.equal(document.getElementById("art").dataset.artUrl,customArt,
+  "Saved custom deck cover art must refresh without requiring another match");
 
 listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
   JSON.stringify({schemaVersion:1,decks:[
