@@ -147,8 +147,10 @@ internal static class OpponentColorObservation
                 !Number(card, "ownerSeatId", out int owner) ||
                 owner is < 0 or > 100 || owner == localSeat ||
                 Hidden(card)) continue;
-            if (CardId(card, "grpId", out long id) ||
-                CardId(card, "objectSourceGrpId", out id))
+            // grpId is the visible object's own Arena printing ID.
+            // objectSourceGrpId can describe a token or copied source card,
+            // which is not proof that the opponent revealed that printing.
+            if (CardId(card, "grpId", out long id))
                 result.Add(id);
         }
         return result;
