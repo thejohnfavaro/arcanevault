@@ -224,7 +224,8 @@ internal sealed class NativeMatchHistoryView : UserControl
             .Where(x => DateTimeOffset.TryParse(x.Played, out _))
             .Select(x => new MatchPerformanceAnalytics.Entry(
                 x.MatchId, DateTimeOffset.Parse(x.Played),
-                x.DeckName, x.NativeDeckId, x.Format, x.Result, x.OpponentColors))
+                x.DeckName, x.NativeDeckId, x.Format, x.Result,
+                x.OpponentColors, x.DeckId, x.Note))
             .ToArray();
 
     private void FilterRows()
