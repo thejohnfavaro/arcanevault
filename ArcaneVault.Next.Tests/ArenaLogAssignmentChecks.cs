@@ -303,6 +303,37 @@ internal static class ArenaLogAssignmentChecks
                 otherGameplay.GamesWithTurnData == 0 &&
                 otherGameplay.GamesWithMulliganData == 0,
                 "All gameplay telemetry totals and observed mulligans must respect exact saved deck scope.");
+            // Historic matches may be confirmed by a saved Arena mapping or
+            // a unique explicit assignment even if native_deck_id is blank.
+            // Once resolved, all scoped analytics must use the SAME immutable
+            // match-ID set; unselected records must contribute nothing.
+            IReadOnlySet<string> accepted = new HashSet<string>(
+                StringComparer.Ordinal) { "telemetry-match" };
+            IReadOnlySet<string> empty = new HashSet<string>(
+                StringComparer.Ordinal);
+            var mappedCoverage = telemetryHistory.ReadTelemetryOverviewForDeck(
+                null, accepted);
+            var mappedGameplay = telemetryHistory.ReadGameplayObservationForDeck(
+                null, accepted);
+            var mappedPlayDraw = telemetryHistory.ReadVerifiedPlayDrawForDeck(
+                null, accepted);
+            var emptyCoverage = telemetryHistory.ReadTelemetryOverviewForDeck(
+                null, empty);
+            var emptyGameplay = telemetryHistory.ReadGameplayObservationForDeck(
+                null, empty);
+            var emptyPlayDraw = telemetryHistory.ReadVerifiedPlayDrawForDeck(
+                null, empty);
+            Assert(mappedCoverage.RecordedMatches == 1 &&
+                mappedCoverage.ArchivedEvents == 2 &&
+                mappedGameplay.GamesWithTurnData == 1 &&
+                mappedGameplay.GamesWithMulliganData == 1 &&
+                mappedPlayDraw.OnPlayWins == 1 &&
+                emptyCoverage.RecordedMatches == 0 &&
+                emptyCoverage.ArchivedEvents == 0 &&
+                emptyGameplay.GamesWithTurnData == 0 &&
+                emptyPlayDraw.OnPlayWins == 0 &&
+                emptyPlayDraw.Unattributed == 0,
+                "Resolved historical match IDs must scope every telemetry and play/draw statistic.");
             var playDraw = telemetryHistory.ReadVerifiedPlayDraw();
             Assert(playDraw.OnPlayWins == 1 && playDraw.OnPlayLosses == 0 &&
                 playDraw.OnDrawWins == 0 && playDraw.OnDrawLosses == 0 &&
