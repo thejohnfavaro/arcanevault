@@ -985,18 +985,37 @@ public partial class NativeCollectionWorkspace : UserControl
         {
             // Only local metadata is read here; the virtualized cover images
             // fetch bytes through the existing throttled on-screen image cache.
-            var covers = await Task.Run(() => NativeDeckCoverCache.Get(
-                commanders, catalogPath!, expectedBackupSha!));
+            var covers = await Task.Run(() =>
+            {
+                var defaults = NativeDeckCoverCache.Get(
+                    commanders, catalogPath!, expectedBackupSha!);
+                var byDeck = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var deck in deckRows)
+                {
+                    string url = defaults.GetValueOrDefault(deck.Commander, "");
+                    if (deck.CommanderPrintingId.Length > 0 &&
+                        Guid.TryParse(deck.CommanderPrintingId, out var printingId) &&
+                        !deck.Format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            url = NativePrintingArtwork.Require(catalogPath!,
+                                deck.Commander, printingId).ImageUrl;
+                        }
+                        catch (Exception ex) when (ex is InvalidDataException or
+                            Microsoft.Data.Sqlite.SqliteException)
+                        {
+                            // Keep the saved cosmetic choice for a future catalog refresh.
+                        }
+                    }
+                    byDeck[deck.Id] = url;
+                }
+                return byDeck;
+            });
             if (closing || loadVersion != deckCoversVersion) return;
             deckRows = deckRows.Select(x =>
-            {
-                bool commanderFormat = x.Format.Equals("Commander",
-                    StringComparison.OrdinalIgnoreCase) ||
-                    x.Format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase);
-                return commanderFormat && covers.TryGetValue(x.Commander, out var url)
-                    ? x with { CoverArtworkUrl = url }
-                    : x;
-            }).ToArray();
+                covers.TryGetValue(x.Id, out var url)
+                    ? x with { CoverArtworkUrl = url } : x).ToArray();
             deckCoversReady = true;
             RefreshDeckRows();
         }
