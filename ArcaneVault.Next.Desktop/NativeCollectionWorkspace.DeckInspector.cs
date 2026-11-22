@@ -258,8 +258,17 @@ public partial class NativeCollectionWorkspace
         {
             var loaded = await Task.Run(() =>
             {
-                var cardDetails = CollectionCatalogReview.ReadDetails(catalogPath!, selected.Name);
-                string art = cardDetails?.ArtworkUrl ?? "";
+                // Arena deck exports can store "Card Name (SET) 123" as one
+                // mainboard label. Card Details indexes the undressed name;
+                // the cover resolver also honors the indicated printing.
+                string catalogName = NativeDeckCoverCache
+                    .ParseArenaPrintingHint(selected.Name).Name;
+                var cardDetails = CollectionCatalogReview.ReadDetails(catalogPath!, catalogName);
+                string art = NativeDeckCoverCache.Get(new[] { selected.Name },
+                    catalogPath!, expectedBackupSha ?? new string('0', 64))
+                    .GetValueOrDefault(selected.Name, cardDetails?.ArtworkUrl ?? "");
+                if (!NativeCardArtwork.IsTrustedArtworkUrl(art))
+                    art = cardDetails?.ArtworkUrl ?? "";
                 if (selected.IsCommander && deck.CommanderPrintingId.Length > 0 &&
                     Guid.TryParse(deck.CommanderPrintingId, out var printingId))
                 {
