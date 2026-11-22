@@ -7,6 +7,19 @@ namespace ArcaneVault.Next.Desktop;
 
 public partial class NativeDeckEditorView
 {
+    private static bool UsesCommanderZone(string format) =>
+        format.Trim().Equals("Commander", StringComparison.OrdinalIgnoreCase) ||
+        format.Trim().Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase);
+
+    private void UpdateCommanderFieldVisibility()
+    {
+        if (CommanderFieldPanel is null || FormatBox is null) return;
+        string format = FormatBox.SelectedItem is ComboBoxItem option
+            ? option.Content?.ToString() ?? FormatBox.Text : FormatBox.Text;
+        CommanderFieldPanel.Visibility = UsesCommanderZone(format)
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private sealed record CoverPrintingOption(string Id, string Display);
     private bool updatingCoverControls;
     private int coverGalleryVersion;
