@@ -40,7 +40,8 @@ internal static class NativePeerWithAnalytics
                 playedUtc = x.Played.ToUniversalTime().ToString("O"),
                 deckName = x.DeckName,
                 format = x.Format,
-                result = x.Result
+                result = x.Result,
+                opponentColors = x.OpponentColors
             }).ToArray();
         root["matchAnalytics"] = JsonSerializer.SerializeToNode(new {
             schema = 1,
