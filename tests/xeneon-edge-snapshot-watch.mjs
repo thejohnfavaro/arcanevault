@@ -98,10 +98,31 @@ listener("C:\\Users\\Test\\AppData\\Local\\ArcaneVault\\streamdeck.json",
     predictedConstructed:"Silver Tier 3",predictedLimited:"Gold Tier 4"}));
 assert.match(document.getElementById("status").textContent,/no tracked Arena decks/);
 assert.equal(document.getElementById("constructedRank").textContent,"Gold 2");
+assert.equal(document.getElementById("constructedProgress").textContent,
+  "Division progress not captured",
+  "Do not fabricate progress when Arena only reports rank and division");
 assert.equal(document.getElementById("limitedRank").textContent,"Platinum 3");
 assert.match(document.getElementById("constructedRankIcon").getAttribute("src"),/constructed_gold_t2\.png$/);
 assert.match(document.getElementById("seasonCountdown").textContent,/3d 0h 0m/);
 assert.match(document.getElementById("seasonPrediction").textContent,/Silver Tier 3/);
+// Actual Constructed and Limited steps are separate from historical wins and
+// losses and must display only when supplied by verified rank responses.
+listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
+  JSON.stringify({schemaVersion:1,decks:[],rank:{
+    constructedClass:"Gold",constructedLevel:2,constructedStep:4,
+    limitedClass:"Platinum",limitedLevel:3,limitedStep:2}}));
+assert.equal(document.getElementById("constructedProgress").textContent,
+  "Division step 4 · observed");
+assert.equal(document.getElementById("limitedProgress").textContent,
+  "Division step 2 · observed");
+listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
+  JSON.stringify({schemaVersion:1,decks:[],rank:{
+    constructedClass:"Mythic",constructedLevel:0,constructedLeaderboardPlace:321,
+    limitedClass:"Gold",limitedLevel:4}}));
+assert.equal(document.getElementById("constructedProgress").textContent,
+  "Leaderboard #321 · verified");
+assert.equal(document.getElementById("limitedProgress").textContent,
+  "Division progress not captured");
 // Only explicitly saved Arena Brawl and Arena Standard decks appear on EDGE.
 listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
   JSON.stringify({schemaVersion:1,decks:[
