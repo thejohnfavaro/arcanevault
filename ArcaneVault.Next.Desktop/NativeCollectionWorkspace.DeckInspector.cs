@@ -264,9 +264,20 @@ public partial class NativeCollectionWorkspace
                 string catalogName = NativeDeckCoverCache
                     .ParseArenaPrintingHint(selected.Name).Name;
                 var cardDetails = CollectionCatalogReview.ReadDetails(catalogPath!, catalogName);
-                string art = NativeDeckCoverCache.Get(new[] { selected.Name },
-                    catalogPath!, expectedBackupSha ?? new string('0', 64))
-                    .GetValueOrDefault(selected.Name, cardDetails?.ArtworkUrl ?? "");
+                string art = cardDetails?.ArtworkUrl ?? "";
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(expectedBackupSha))
+                        art = NativeDeckCoverCache.Get(new[] { selected.Name },
+                            catalogPath!, expectedBackupSha!)
+                            .GetValueOrDefault(selected.Name, art);
+                }
+                catch (Exception ex) when (ex is InvalidDataException or IOException or
+                    UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or
+                    ArgumentException)
+                {
+                    // Missing optional art must never hide valid Oracle rules.
+                }
                 if (!NativeCardArtwork.IsTrustedArtworkUrl(art))
                     art = cardDetails?.ArtworkUrl ?? "";
                 if (selected.IsCommander && deck.CommanderPrintingId.Length > 0 &&
