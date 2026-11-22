@@ -34,6 +34,16 @@ internal static class NativeVisualShellChecks
             "NativeMatchAnalyticsWorkspace.cs"));
         var performancePanel = File.ReadAllText(Path.Combine(dir,
             "NativeMatchPerformancePanel.cs"));
+        var edgeExporter = File.ReadAllText(Path.Combine(dir,
+            "NativeStreamDeckExporter.cs"));
+        Must(edgeExporter.Contains("WorkspaceFileChanged()") &&
+             edgeExporter.Contains("lastRenderedWins == deck.wins") &&
+             edgeExporter.Contains("prior.coverCardName == next.coverCardName") &&
+             edgeExporter.Contains("ReadPhysicalInventoryFingerprint(") &&
+             edgeExporter.Contains("physicalInventoryFingerprint"),
+             "Xeneon Edge must retain unchanged deck artwork, respond to saved changes, " +
+             "and invalidate physical set progress only for inventory/catalog changes.");
+
         Must(matchAnalytics.Contains("Content = new ScrollViewer") &&
              matchAnalytics.Contains("Grid.SetColumn(gameplayColumn, 0)") &&
              matchAnalytics.Contains("Grid.SetColumn(resultsColumn, 1)") &&
