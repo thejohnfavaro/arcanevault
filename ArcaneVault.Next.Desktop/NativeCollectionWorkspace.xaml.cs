@@ -1041,6 +1041,19 @@ public partial class NativeCollectionWorkspace : UserControl
                     ? x with { CoverArtworkUrl = url } : x).ToArray();
             deckCoversReady = true;
             RefreshDeckRows();
+            if (DeckLibraryList.SelectedItem is NativeDeckEditing.DeckRow current)
+            {
+                string name = current.EffectiveCoverCard;
+                string coverSource = current.DeckCoverMode == "Custom" &&
+                    current.CustomCoverCardStillInDeck ? "custom" : "automatic";
+                DeckLibraryStatus.Text = string.IsNullOrWhiteSpace(current.CoverArtworkUrl)
+                    ? "No official image URL resolved for " + current.Name +
+                      " (" + name + ", " + coverSource +
+                      "). Check the local Scryfall catalog or selected printing."
+                    : "Official artwork URL resolved for " + current.Name +
+                      " (" + name + ", " + coverSource +
+                      "). If the image is still blank, hover the cover for its download error, then Retry selected artwork.";
+            }
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or
             UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or
@@ -1056,6 +1069,23 @@ public partial class NativeCollectionWorkspace : UserControl
             if (!closing && loadVersion != deckCoversVersion)
                 _ = LoadDeckCoversAsync();
         }
+    }
+
+    private void OnRetryDeckArtworkClicked(object sender, RoutedEventArgs e)
+    {
+        if (closing || DeckLibraryList.SelectedItem is not NativeDeckEditing.DeckRow selected)
+            return;
+        // Cosmetic bytes and metadata only. Never alter the workspace, saved
+        // card/printing choice, owned quantities, or match history.
+        NativeCardArtwork.InvalidateCachedImage(selected.CoverArtworkUrl);
+        deckCoversReady = false;
+        deckCoversVersion++;
+        deckRows = deckRows.Select(x => x.Id == selected.Id
+            ? x with { CoverArtworkUrl = "" } : x).ToArray();
+        RefreshDeckRows();
+        DeckLibraryStatus.Text = "Re-resolving saved cover for " + selected.Name +
+            " (" + selected.EffectiveCoverCard + "). The chosen card and printing are unchanged.";
+        _ = LoadDeckCoversAsync();
     }
 
     private void OnDeckFilterChanged(object sender, RoutedEventArgs e) => RefreshDeckRows();
@@ -1094,6 +1124,9 @@ public partial class NativeCollectionWorkspace : UserControl
         if (DeckLibraryList is null || EditDeckButton is null ||
             DeleteDeckButton is null || DuplicateDeckButton is null) return;
         var selectedDeck = DeckLibraryList.SelectedItem as NativeDeckEditing.DeckRow;
+        RetryDeckArtworkButton.IsEnabled = !closing && selectedDeck is not null &&
+            !string.IsNullOrWhiteSpace(catalogPath) &&
+            !string.IsNullOrWhiteSpace(expectedBackupSha);
         if (!ReferenceEquals(selectedDeck, inspectedSavedDeck))
             ShowDeckInspector(selectedDeck);
         bool editable = selectedDeck?.Editable == true && !deckBusy &&
