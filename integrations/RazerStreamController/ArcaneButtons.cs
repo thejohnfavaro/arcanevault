@@ -2,6 +2,9 @@ namespace Loupedeck.ArcaneVaultRazer;
 
 public sealed class ArcaneButtons : PluginDynamicCommand
 {
+    private readonly System.Threading.Timer snapshotWatcher;
+    private long lastSnapshotStamp;
+
     public ArcaneButtons() : base()
     {
         this.AddParameter("deck", "Selected Deck W/L", "Arcane Vault");
@@ -10,6 +13,30 @@ public sealed class ArcaneButtons : PluginDynamicCommand
         this.AddParameter("previous", "Previous Deck", "Arcane Vault");
         this.AddParameter("next", "Next Deck", "Arcane Vault");
         this.AddParameter("refresh", "Refresh Arcane Vault", "Arcane Vault");
+        ArcaneSnapshot.SelectionChanged += RefreshLabels;
+        // Re-read the existing local snapshot on file changes. This watcher
+        // never opens the app's SQLite data and does not trigger new exports.
+        snapshotWatcher = new System.Threading.Timer(_ =>
+        {
+            try
+            {
+                long stamp = File.Exists(ArcaneSnapshot.SnapshotPath)
+                    ? File.GetLastWriteTimeUtc(ArcaneSnapshot.SnapshotPath).Ticks : 0;
+                if (stamp == System.Threading.Interlocked.Read(ref lastSnapshotStamp)) return;
+                System.Threading.Interlocked.Exchange(ref lastSnapshotStamp, stamp);
+                RefreshLabels();
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Info("Arcane Vault snapshot update unavailable: " + ex.Message);
+            }
+        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3));
+    }
+
+    private void RefreshLabels()
+    {
+        foreach (var action in new[] { "deck", "rank", "value", "previous", "next", "refresh" })
+            this.ActionImageChanged(action);
     }
 
     protected override string GetCommandDisplayName(string actionParameter, PluginImageSize imageSize)
@@ -39,12 +66,11 @@ public sealed class ArcaneButtons : PluginDynamicCommand
                 case "next": ArcaneSnapshot.Move(1); break;
                 case "refresh": ArcaneSnapshot.RequestRefresh(); break;
             }
-            foreach (var action in new[] { "deck", "rank", "value", "previous", "next", "refresh" })
-                this.ActionImageChanged(action);
+            RefreshLabels();
         }
         catch (Exception ex)
         {
-            PluginLog.Warning("Arcane Vault command failed: " + ex.Message);
+            PluginLog.Info("Arcane Vault command failed: " + ex.Message);
         }
     }
 }
