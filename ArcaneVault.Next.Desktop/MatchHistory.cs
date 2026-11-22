@@ -149,7 +149,11 @@ internal sealed class MatchHistory : IDisposable
 
     internal sealed record PlayDrawSummary(int OnPlayWins,int OnPlayLosses,
         int OnDrawWins,int OnDrawLosses, int Unattributed);
-    internal PlayDrawSummary ReadVerifiedPlayDraw()
+    internal PlayDrawSummary ReadVerifiedPlayDraw() => ReadVerifiedPlayDrawForDeck(null);
+
+    // Never infer historical name-only matches for deck-scoped performance.
+    // Only the exact persisted native ID counts toward a specific deck.
+    internal PlayDrawSummary ReadVerifiedPlayDrawForDeck(string? nativeDeckId)
     {
         lock (gate)
         {
@@ -163,7 +167,11 @@ internal sealed class MatchHistory : IDisposable
                     FROM arena_match_telemetry t
                     INNER JOIN matches m ON m.match_id=t.match_id
                     INNER JOIN arena_verified_local_seats s ON s.match_id=t.match_id
-                    WHERE s.seat_id>=0 ORDER BY t.id";
+                    WHERE s.seat_id>=0" +
+                    (nativeDeckId is null ? "" : " AND m.native_deck_id=$native") +
+                    " ORDER BY t.id";
+                if (nativeDeckId is not null)
+                    cmd.Parameters.AddWithValue("$native", nativeDeckId);
                 using var reader = cmd.ExecuteReader();
                 while(reader.Read())
                 {
@@ -191,7 +199,10 @@ internal sealed class MatchHistory : IDisposable
             matches.CommandText=@"SELECT m.match_id,m.result,s.seat_id,
                 m.game_wins,m.game_losses FROM matches m
                 LEFT JOIN arena_verified_local_seats s ON s.match_id=m.match_id
-                WHERE m.result IN ('win','loss')";
+                WHERE m.result IN ('win','loss')" +
+                (nativeDeckId is null ? "" : " AND m.native_deck_id=$native");
+            if (nativeDeckId is not null)
+                matches.Parameters.AddWithValue("$native", nativeDeckId);
             using var rows=matches.ExecuteReader();
             while(rows.Read())
             {
