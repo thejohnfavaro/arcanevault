@@ -9,6 +9,19 @@ internal static class MatchDeckAttribution
     internal sealed record Deck(string Id, string Name, string ArenaId);
     internal sealed record Match(string MatchId, string DeckName, string ArenaId,
         string NativeId, string Note);
+    // An older Match History row may preserve a verified Arena submission
+    // or explicit manual assignment in its note but lack native_deck_id.
+    // Only these existing attribution markers may supplement exact ID matches.
+    internal static bool HasVerifiedAssignmentNote(string? note)
+    {
+        note ??= "";
+        return note.Contains("manually confirmed", StringComparison.OrdinalIgnoreCase) ||
+            note.Equals("Deck assignment: manual", StringComparison.OrdinalIgnoreCase) ||
+            note.StartsWith("Deck assignment: recent_arena_", StringComparison.OrdinalIgnoreCase) ||
+            note.StartsWith("Deck assignment: verified_arena_", StringComparison.OrdinalIgnoreCase) ||
+            note.StartsWith("Deck assignment: match_deck_name", StringComparison.OrdinalIgnoreCase);
+    }
+
     internal static string? Resolve(Match match, IReadOnlyList<Deck> decks,
         IReadOnlyDictionary<string, string> arenaToNative,
         IReadOnlySet<string>? blockedArenaIds = null)
@@ -34,13 +47,6 @@ internal static class MatchDeckAttribution
         // labels and ambiguous IDs must NOT be matched merely by name.
         if (string.IsNullOrWhiteSpace(match.ArenaId))
             return byName[0].Id;
-        var note = match.Note ?? "";
-        bool explicitAssignment =
-            note.Contains("manually confirmed", StringComparison.OrdinalIgnoreCase) ||
-            note.Equals("Deck assignment: manual", StringComparison.OrdinalIgnoreCase) ||
-            note.StartsWith("Deck assignment: recent_arena_", StringComparison.OrdinalIgnoreCase) ||
-            note.StartsWith("Deck assignment: verified_arena_", StringComparison.OrdinalIgnoreCase) ||
-            note.StartsWith("Deck assignment: match_deck_name", StringComparison.OrdinalIgnoreCase);
-        return explicitAssignment ? byName[0].Id : null;
+        return HasVerifiedAssignmentNote(match.Note) ? byName[0].Id : null;
     }
 }
