@@ -67,7 +67,13 @@ public sealed class NativeCardArtImage : Image
     private async void Start()
     {
         Stop();
-        if (!IsLoaded || !NativeCardArtwork.IsTrustedArtworkUrl(ArtUrl)) return;
+        if (!IsLoaded) return;
+        if (!NativeCardArtwork.IsTrustedArtworkUrl(ArtUrl))
+        {
+            ToolTip = "No supported official artwork URL was resolved for this card. " +
+                "The selected deck art is still saved.";
+            return;
+        }
         var request = new CancellationTokenSource();
         current = request;
         var serial = version;
