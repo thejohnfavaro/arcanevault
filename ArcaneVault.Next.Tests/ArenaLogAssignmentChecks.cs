@@ -347,6 +347,80 @@ internal static class ArenaLogAssignmentChecks
                 "Deck-scoped play/draw must require an exact stable saved deck ID.");
         }
 
+        // Only cards in public zones with a verified non-local owner can
+        // contribute to observed opponent colors. Hand, own cards and hidden
+        // public-zone cards cannot leak into opponent classification.
+        var observedDb = Path.Combine(local, "opponent-evidence.sqlite3");
+        var observedCatalog = Path.Combine(local, "opponent-evidence-catalog.sqlite3");
+        using (var catalog = new SqliteConnection("Data Source=" + observedCatalog))
+        {
+            catalog.Open();
+            using var build = catalog.CreateCommand();
+            build.CommandText = @"CREATE TABLE cards(name TEXT PRIMARY KEY,colors TEXT NOT NULL);
+                CREATE TABLE variants(arena_id INTEGER,name TEXT);
+                INSERT INTO cards(name,colors) VALUES ('Public Opponent Card','WU'),
+                    ('Own Card','R'),('Hidden Opponent Card','G');
+                INSERT INTO variants(arena_id,name) VALUES (555,'Public Opponent Card'),
+                    (666,'Own Card'),(777,'Hidden Opponent Card');";
+            build.ExecuteNonQuery();
+        }
+        var publicSnapshot = new {
+            zones = new[] {
+                new { zoneId=7, type="ZoneType_Battlefield",
+                    visibility="Visibility_Public" },
+                new { zoneId=8, type="ZoneType_Hand",
+                    visibility="Visibility_Public" }
+            },
+            objects = new[] {
+                new { instanceId=1, grpId=555, zoneId=7, ownerSeatId=2,
+                    visibility="Visibility_Public" },
+                new { instanceId=2, grpId=666, zoneId=7, ownerSeatId=1,
+                    visibility="Visibility_Public" },
+                new { instanceId=3, grpId=777, zoneId=8, ownerSeatId=2,
+                    visibility="Visibility_Public" },
+                new { instanceId=4, grpId=777, zoneId=7, ownerSeatId=2,
+                    visibility="Visibility_Hidden" },
+                new { instanceId=5, grpId=999, zoneId=7, ownerSeatId=2,
+                    visibility="Visibility_Public" }
+            }
+        };
+        var publicPayload = JsonSerializer.Serialize(publicSnapshot);
+        using (var observedHistory = new MatchHistory(observedDb))
+        {
+            observedHistory.RecordVerifiedSeat("observed-match", 1);
+            observedHistory.AddTelemetry(new[] {
+                new ArenaMatchTelemetry.Observed("observed-match",
+                    "GREMessageType_GameStateMessage", 1, 1,
+                    publicPayload, "public-opponent-evidence")
+            }, t);
+            var rawIds = OpponentColorObservation.PublicOpponentCardIds(
+                JsonSerializer.SerializeToElement(publicSnapshot), 1);
+            Assert(rawIds.SetEquals(new HashSet<long> { 555, 999 }),
+                "Public cards must belong to a verified opponent seat; own cards, hand and hidden cards are excluded.");
+            var seen = observedHistory.ReadObservedOpponentColors(observedCatalog,
+                new HashSet<string>(StringComparer.Ordinal) { "observed-match" });
+            Assert(seen.CatalogHasArenaIds && seen.Matches.Count == 1 &&
+                seen.Matches["observed-match"].Colors == "WU" &&
+                seen.Matches["observed-match"].DistinctArenaCards == 1 &&
+                seen.UnresolvedCardIds == 1,
+                "Opponent observed colors must come only from catalog-resolved public opponent cards.");
+            var notSelected = observedHistory.ReadObservedOpponentColors(observedCatalog,
+                new HashSet<string>(StringComparer.Ordinal));
+            Assert(notSelected.Matches.Count == 0 && notSelected.ObservedCardIds == 0,
+                "Deck scopes must not show observed cards from other matches.");
+            var oldCatalog = Path.Combine(local, "old-opponent-catalog.sqlite3");
+            using (var legacy = new SqliteConnection("Data Source=" + oldCatalog))
+            {
+                legacy.Open();
+                using var init = legacy.CreateCommand();
+                init.CommandText = "CREATE TABLE variants(name TEXT);";
+                init.ExecuteNonQuery();
+            }
+            var unavailable = observedHistory.ReadObservedOpponentColors(oldCatalog);
+            Assert(!unavailable.CatalogHasArenaIds && unavailable.Matches.Count == 0,
+                "Older catalogs without Scryfall Arena IDs must be unknown, never guessed.");
+        }
+
         // A real submission without a saved mapping must STILL preserve the
         // Arena ID, allowing a reusable mapping to be created by the user.
         var unknownLog = Path.Combine(local,"unmapped","Player.log");
