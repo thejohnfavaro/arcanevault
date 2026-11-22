@@ -58,6 +58,7 @@ public static class NativeDeckEditing
 
         public string FavoriteLabel => Favorite ? "★ Favorite" : "";
         // Exact per-deck display choice; independent of collection ownership.
+        public string CommanderPrintingId { get; init; } = "";
         public IReadOnlyDictionary<string, string> EntryPrintingIds { get; init; } =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
@@ -263,6 +264,9 @@ public static class NativeDeckEditing
                 AiReviewStale = savedMarkdown.Length > 0 &&
                     !string.Equals(storedFingerprint, actualFingerprint, StringComparison.Ordinal),
                 ArenaDeckId = GetString(deck, "arenaDeckId"),
+                CommanderPrintingId = Guid.TryParse(GetString(deck, "commanderDisplayPrintId"),
+                    out var commanderId) && commanderId != Guid.Empty
+                    ? commanderId.ToString("D") : "",
                 EntryPrintingIds = entries.OfType<JsonObject>()
                     .Where(x => GetString(x, "name").Length > 0 &&
                         Guid.TryParse(GetString(x, "displayPrintId"), out var printingId) &&
@@ -407,7 +411,8 @@ public static class NativeDeckEditing
         string name, string commander, string mainboardText,
         DeckRow? selected = null, string? format = null,
         string? folder = null, bool? favorite = null,
-        IReadOnlyDictionary<string, string>? displayPrintIds = null)
+        IReadOnlyDictionary<string, string>? displayPrintIds = null,
+        string? commanderDisplayPrintId = null)
     {
         ArgumentNullException.ThrowIfNull(backup);
         string safeName = CheckedText(name, nameof(name), 120, true);
@@ -431,6 +436,11 @@ public static class NativeDeckEditing
                     throw new InvalidDataException(
                         "A selected display printing has an invalid ID or card name.");
         }
+        if (commanderDisplayPrintId is not null &&
+            commanderDisplayPrintId.Length > 0 &&
+            (!Guid.TryParse(commanderDisplayPrintId, out var commanderGuid) ||
+             commanderGuid == Guid.Empty || safeCommander.Length == 0))
+            throw new InvalidDataException("Invalid commander display printing.");
         var before = NativeBackupReader.Read(backup);
         var currentRows = Describe(backup, out var root, out var library);
         int expectedCount = library.Count, expectedRevisions = before.DeckRevisions;
@@ -447,6 +457,8 @@ public static class NativeDeckEditing
                 ["id"] = id,
                 ["name"] = safeName,
                 ["commander"] = safeCommander,
+                ["commanderDisplayPrintId"] = commanderDisplayPrintId is { Length: > 0 }
+                    ? Guid.Parse(commanderDisplayPrintId).ToString("D") : "",
                 ["format"] = safeFormat,
                 ["entries"] = WithDisplayPrints(EntriesForSave(entries, null),
                     displayPrintIds),
@@ -478,7 +490,10 @@ public static class NativeDeckEditing
                 parsedOld.Folder == safeFolder &&
                 parsedOld.Favorite == safeFavorite &&
                 (displayPrintIds is null ||
-                 SamePrintingMap(parsedOld.EntryPrintingIds, displayPrintIds)))
+                 SamePrintingMap(parsedOld.EntryPrintingIds, displayPrintIds)) &&
+                (commanderDisplayPrintId is null ||
+                 string.Equals(parsedOld.CommanderPrintingId, commanderDisplayPrintId,
+                     StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException("The deck has no changes; nothing was saved.");
 
             var history = row["revisions"] as JsonArray;
@@ -495,6 +510,12 @@ public static class NativeDeckEditing
             var previousEntries = row["entries"] as JsonArray;
             row["name"] = safeName;
             row["commander"] = safeCommander;
+            if (commanderDisplayPrintId is not null)
+                row["commanderDisplayPrintId"] = commanderDisplayPrintId.Length == 0 ? "" :
+                    Guid.Parse(commanderDisplayPrintId).ToString("D");
+            else if (!parsedOld.Commander.Equals(safeCommander,
+                StringComparison.OrdinalIgnoreCase))
+                row["commanderDisplayPrintId"] = "";
             row["format"] = safeFormat;
             row["folder"] = safeFolder;
             row["favorite"] = safeFavorite;
