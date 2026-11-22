@@ -157,7 +157,7 @@ internal sealed class NativeMatchHistoryView : UserControl
     private static IReadOnlyList<MatchItem> ReadMatches()
     {
         var result = new List<MatchItem>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var positions = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var file in HistoryFiles())
         {
             using var db = new SqliteConnection(new SqliteConnectionStringBuilder {
@@ -183,7 +183,22 @@ internal sealed class NativeMatchHistoryView : UserControl
             while (rd.Read())
             {
                 string id = rd.GetString(0);
-                if (string.IsNullOrWhiteSpace(id) || !seen.Add(id)) continue;
+                if (string.IsNullOrWhiteSpace(id)) continue;
+                // The native history is authoritative for results and deck
+                // identity. A legacy duplicate can still contain an older,
+                // explicit opponent-color annotation omitted from the native
+                // copy. Read it without overwriting any match outcomes.
+                if (positions.TryGetValue(id, out int priorIndex))
+                {
+                    string earlier = result[priorIndex].OpponentColors;
+                    string alternate = rd.IsDBNull(10) ? "" : rd.GetString(10);
+                    string resolved = PreferExplicitOpponentColors(earlier, alternate);
+                    if (!string.Equals(earlier, resolved, StringComparison.Ordinal))
+                        result[priorIndex] = result[priorIndex] with
+                            { OpponentColors = resolved };
+                    continue;
+                }
+                positions[id] = result.Count;
                 result.Add(new MatchItem(file, id,
                     rd.IsDBNull(1) ? "" : rd.GetString(1),
                     rd.IsDBNull(2) ? "unknown" : rd.GetString(2),
@@ -201,6 +216,12 @@ internal sealed class NativeMatchHistoryView : UserControl
         return result.OrderByDescending(x => x.Played, StringComparer.Ordinal)
             .Take(2000).ToArray();
     }
+
+    // Read-only reconciliation of explicit opponent annotations on duplicate
+    // native/legacy match IDs. Never infer opponent colors from own deck colors,
+    // nor replace an existing primary annotation with a secondary one.
+    internal static string PreferExplicitOpponentColors(string primary, string secondary) =>
+        string.IsNullOrWhiteSpace(primary) ? secondary : primary;
 
     // Shared read-only view of the same native-first, deduplicated rows shown
     // in Match History. Analytics never opens the database for writing.
