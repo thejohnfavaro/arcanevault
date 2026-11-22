@@ -172,6 +172,14 @@ internal static class NativeVisualShellChecks
         string v65OracleHelper = File.ReadAllText(
             Path.Combine(dir, "NativeOracleReading.cs"));
 
+        // Optional badges/reviews must never reflow saved deck card baselines.
+        Must(v65DeckUi.Contains("Width=\"500\" Height=\"167\"") &&
+             v65DeckUi.Contains("<RowDefinition Height=\"29\"/>") &&
+             v65DeckUi.Contains("Text=\"{Binding AiReviewLabel}\"") &&
+             v65DeckUi.Contains("Grid.Row=\"4\" Text=\"{Binding AiReviewLabel}\"") &&
+             v65DeckUi.Contains("Margin=\"10,37,0,0\"") &&
+             !v65DeckUi.Contains("<WrapPanel>\n                                                <Border Background=\"{DynamicResource VaultAccentSurface}\""),
+             "Deck Library cards must align titles, badges, reviews and counts in fixed tracks.");
         Must(v65DeckUi.Contains("x:Name=\"DeckInspectorPanel\"") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorCardsList\"") &&
              v65DeckUi.Contains("x:Name=\"DeckInspectorArt\"") &&
