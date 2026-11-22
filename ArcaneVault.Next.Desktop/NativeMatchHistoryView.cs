@@ -16,7 +16,8 @@ internal sealed class NativeMatchHistoryView : UserControl
 {
     private sealed record MatchItem(string Database, string MatchId, string Played,
         string Result, string DeckName, string DeckId, string Source, string Note,
-        int GameWins, int GameLosses, string Format, string OpponentColors)
+        int GameWins, int GameLosses, string Format, string OpponentColors,
+        string NativeDeckId = "")
     {
         public string Date => DateTimeOffset.TryParse(Played, out var date)
             ? date.ToLocalTime().ToString("g") : Played;
@@ -167,11 +168,16 @@ internal sealed class NativeMatchHistoryView : UserControl
             using var schema = db.CreateCommand();
             schema.CommandText = "PRAGMA table_info(matches)";
             bool hasOpponentColors = false;
+            bool hasNativeDeckId = false;
             using (var columns = schema.ExecuteReader())
                 while (columns.Read())
+                {
                     if (columns.GetString(1) == "opponent_colors") hasOpponentColors = true;
+                    if (columns.GetString(1) == "native_deck_id") hasNativeDeckId = true;
+                }
             cmd.CommandText = "SELECT match_id,played_utc,result,deck_name,deck_id,result_source,note,game_wins,game_losses,format,"+
-                (hasOpponentColors ? "opponent_colors" : "''")+
+                (hasOpponentColors ? "opponent_colors" : "''")+","+
+                (hasNativeDeckId ? "native_deck_id" : "''")+
                 " FROM matches ORDER BY played_utc DESC LIMIT 2000";
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
@@ -188,7 +194,8 @@ internal sealed class NativeMatchHistoryView : UserControl
                     rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
                     rd.IsDBNull(8) ? 0 : rd.GetInt32(8),
                     rd.IsDBNull(9) ? "" : ArenaQueueInfo.Label(rd.GetString(9)),
-                    rd.IsDBNull(10) ? "" : rd.GetString(10)));
+                    rd.IsDBNull(10) ? "" : rd.GetString(10),
+                    rd.IsDBNull(11) ? "" : rd.GetString(11)));
             }
         }
         return result.OrderByDescending(x => x.Played, StringComparer.Ordinal)
@@ -202,7 +209,7 @@ internal sealed class NativeMatchHistoryView : UserControl
             .Where(x => DateTimeOffset.TryParse(x.Played, out _))
             .Select(x => new MatchPerformanceAnalytics.Entry(
                 x.MatchId, DateTimeOffset.Parse(x.Played),
-                x.DeckName, "", x.Format, x.Result, x.OpponentColors))
+                x.DeckName, x.NativeDeckId, x.Format, x.Result, x.OpponentColors))
             .ToArray();
 
     private void FilterRows()
