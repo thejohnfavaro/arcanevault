@@ -73,10 +73,12 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
         }
         // Name-only historical assignments are linked only if exactly one
         // saved deck has that name. Never guess between duplicate deck names.
-        foreach (var group in colorByDeck.GroupBy(x => x.Name,
-            StringComparer.OrdinalIgnoreCase))
-            if (group.Count() == 1)
-                result["name:" + group.Key] = group.First().Colors;
+        var nameCounts = decks.GroupBy(x => x.Name,
+            StringComparer.OrdinalIgnoreCase).ToDictionary(x => x.Key, x => x.Count(),
+                StringComparer.OrdinalIgnoreCase);
+        foreach (var item in colorByDeck)
+            if (nameCounts.GetValueOrDefault(item.Name) == 1)
+                result["name:" + item.Name] = item.Colors;
         return result;
     }
 
