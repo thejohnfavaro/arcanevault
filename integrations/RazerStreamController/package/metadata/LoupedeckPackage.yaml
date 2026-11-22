@@ -5,7 +5,7 @@ description: Arcane Vault deck statistics, rank and collection value on Razer St
 pluginFileName: ArcaneVaultRazer.dll
 version: 0.1.0
 author: Arcane Vault
-minimumLoupedeckVersion: 6.0
+minimumLoupedeckVersion: 6.4
 pluginFolderWin: bin
 supportedDevices:
   - LoupedeckCtFamily
