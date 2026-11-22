@@ -283,6 +283,14 @@ public static class NativeScryfallCatalogSync
         Set(card, "$a", arena ? 1 : 0);
         card.ExecuteNonQuery();
 
+        // Scryfall's arena_id corresponds to Arena GRE grpId. Preserve it
+        // per printing so public opponent objects can be resolved offline.
+        // Missing or malformed IDs are deliberately not invented.
+        long arenaCardId = element.TryGetProperty("arena_id", out var arenaIdElement) &&
+            arenaIdElement.ValueKind == JsonValueKind.Number &&
+            arenaIdElement.TryGetInt64(out long numberId) && numberId > 0
+                ? numberId : 0;
+        Set(print, "$aid", arenaCardId);
         Set(print, "$id", guid.ToString("D"));
         Set(print, "$n", name);
         Set(print, "$s", set);
@@ -441,12 +449,14 @@ public static class NativeScryfallCatalogSync
                           setcode TEXT NOT NULL,setname TEXT NOT NULL,collector TEXT NOT NULL,
                           rarity TEXT NOT NULL,image TEXT NOT NULL,image_back TEXT NOT NULL,
                           art_id TEXT NOT NULL,games TEXT NOT NULL,arena INTEGER NOT NULL,
+                          arena_id INTEGER NOT NULL DEFAULT 0,
                           digital INTEGER NOT NULL,promo INTEGER NOT NULL,
                           full_art INTEGER NOT NULL,border TEXT NOT NULL,
                           release TEXT NOT NULL,url TEXT NOT NULL,
                           usd TEXT NOT NULL DEFAULT '',usd_foil TEXT NOT NULL DEFAULT '',
                           usd_etched TEXT NOT NULL DEFAULT ''
                         );
+                        CREATE INDEX idx_variants_arena_id ON variants(arena_id);
                         CREATE TABLE state(key TEXT PRIMARY KEY,value TEXT NOT NULL);
                         """;
                     ddl.ExecuteNonQuery();
@@ -465,12 +475,12 @@ public static class NativeScryfallCatalogSync
                         """, "$n","$t","$o","$r","$mv","$mc","$c","$i","$u","$l","$ly","$s","$a");
                     using var art = Prepare(db, tx, """
                         INSERT INTO variants(print_id,name,setcode,setname,collector,rarity,
-                            image,image_back,art_id,games,arena,digital,promo,full_art,border,release,url,
+                            image,image_back,art_id,games,arena,arena_id,digital,promo,full_art,border,release,url,
                             usd,usd_foil,usd_etched)
-                        VALUES($id,$n,$s,$sn,$cn,$r,$i,$ib,$ai,$g,$a,$d,$p,$f,$b,$rel,$u,
+                        VALUES($id,$n,$s,$sn,$cn,$r,$i,$ib,$ai,$g,$a,$aid,$d,$p,$f,$b,$rel,$u,
                             $usd,$foil,$etched)
                         """, "$id","$n","$s","$sn","$cn","$r","$i","$ib","$ai","$g",
-                             "$a","$d","$p","$f","$b","$rel","$u","$usd","$foil","$etched");
+                             "$a","$aid","$d","$p","$f","$b","$rel","$u","$usd","$foil","$etched");
                     long count = await ReadBulkAsync(bulkFile, card, art, progress, cancellation);
                     Check(count >= minimumPrintings,
                         "Bulk data contains too few printings. Existing catalog preserved.");
