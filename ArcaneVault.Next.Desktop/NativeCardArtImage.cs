@@ -113,9 +113,7 @@ public sealed class NativeCardArtImage : Image
                 {
                     return;
                 }
-                catch (Exception ex) when (ex is IOException or HttpRequestException or
-                    TimeoutException or System.Runtime.InteropServices.COMException or
-                    System.NotSupportedException or System.IO.FileFormatException)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     if (request.IsCancellationRequested || serial != version || !IsLoaded)
                         return;
