@@ -972,10 +972,7 @@ public partial class NativeCollectionWorkspace : UserControl
             string.IsNullOrWhiteSpace(catalogPath) ||
             string.IsNullOrWhiteSpace(expectedBackupSha)) return;
         static string CoverName(NativeDeckEditing.DeckRow deck) =>
-            !string.IsNullOrWhiteSpace(deck.Commander) ? deck.Commander :
-            deck.Format.Equals("Arena Standard", StringComparison.OrdinalIgnoreCase)
-                ? NativeDeckEditing.ParseMainboard(deck.MainboardText)
-                    .Select(x => x.Name).FirstOrDefault() ?? "" : "";
+            deck.EffectiveCoverCard;
         string[] coverNames = deckRows
             .Select(CoverName)
             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -995,19 +992,21 @@ public partial class NativeCollectionWorkspace : UserControl
                 var byDeck = new Dictionary<string, string>(StringComparer.Ordinal);
                 foreach (var deck in deckRows)
                 {
-                    string url = defaults.GetValueOrDefault(CoverName(deck), "");
-                    if (deck.Commander.Length > 0 && deck.CommanderPrintingId.Length > 0 &&
-                        Guid.TryParse(deck.CommanderPrintingId, out var printingId))
+                    string cardName = CoverName(deck);
+                    string url = defaults.GetValueOrDefault(cardName, "");
+                    if (deck.EffectiveCoverPrintingId.Length > 0 &&
+                        Guid.TryParse(deck.EffectiveCoverPrintingId, out var printingId))
                     {
                         try
                         {
                             url = NativePrintingArtwork.Require(catalogPath!,
-                                deck.Commander, printingId).ImageUrl;
+                                cardName, printingId).ImageUrl;
                         }
                         catch (Exception ex) when (ex is InvalidDataException or
                             Microsoft.Data.Sqlite.SqliteException)
                         {
-                            // Keep the saved cosmetic choice for a future catalog refresh.
+                            // Preserve saved cosmetic choice and display default art
+                            // if the local Scryfall printing is temporarily unavailable.
                         }
                     }
                     byDeck[deck.Id] = url;
