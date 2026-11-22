@@ -88,7 +88,13 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             Text = "Orange: primary deck     •     Blue: comparison deck",
             Foreground = Brushes.LightGray, Margin = new Thickness(0,5,0,0) });
         root.Children.Add(coverage);
-        root.Children.Add(new TextBlock { Text = "BY FORMAT", FontSize = 13,
+        var firstRow = new WrapPanel { Margin = new Thickness(0,5,0,9) };
+        var formatPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
+        var ownColorPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
+        firstRow.Children.Add(formatPanel);
+        firstRow.Children.Add(ownColorPanel);
+        root.Children.Add(firstRow);
+        formatPanel.Children.Add(new TextBlock { Text = "BY FORMAT", FontSize = 13,
             FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var formatView = new GridView();
         formatView.Columns.Add(Column("Format", "Format", 220));
@@ -96,8 +102,8 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         formatView.Columns.Add(Column("W–L", "Record", 75));
         formatView.Columns.Add(Column("Win %", "WinRate", 80));
         formats.View = formatView;
-        root.Children.Add(formats);
-        root.Children.Add(new TextBlock { Text = "BY YOUR DECK COLOR IDENTITY",
+        formatPanel.Children.Add(formats);
+        ownColorPanel.Children.Add(new TextBlock { Text = "BY YOUR DECK COLOR IDENTITY",
             FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var ownColorsView = new GridView();
         ownColorsView.Columns.Add(Column("Your colors", "Identity", 155));
@@ -105,9 +111,15 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         ownColorsView.Columns.Add(Column("W–L", "Record", 75));
         ownColorsView.Columns.Add(Column("Win %", "WinRate", 85));
         deckColorIdentities.View = ownColorsView;
-        root.Children.Add(deckColorIdentities);
-        root.Children.Add(deckColorCoverage);
-        root.Children.Add(new TextBlock { Text = "AGAINST OPPONENT COLOR IDENTITY",
+        ownColorPanel.Children.Add(deckColorIdentities);
+        ownColorPanel.Children.Add(deckColorCoverage);
+        var secondRow = new WrapPanel { Margin = new Thickness(0,4,0,9) };
+        var opponentPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
+        var weeklyPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
+        secondRow.Children.Add(opponentPanel);
+        secondRow.Children.Add(weeklyPanel);
+        root.Children.Add(secondRow);
+        opponentPanel.Children.Add(new TextBlock { Text = "AGAINST OPPONENT COLOR IDENTITY",
             FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var opponentView = new GridView();
         opponentView.Columns.Add(Column("Opponent", "Identity", 155));
@@ -115,9 +127,9 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         opponentView.Columns.Add(Column("W–L", "Record", 75));
         opponentView.Columns.Add(Column("Win %", "WinRate", 85));
         opponentMatchups.View = opponentView;
-        root.Children.Add(opponentMatchups);
-        root.Children.Add(opponentColorCoverage);
-        root.Children.Add(new TextBlock { Text = "WEEKLY PERFORMANCE (UTC)", FontSize = 13,
+        opponentPanel.Children.Add(opponentMatchups);
+        opponentPanel.Children.Add(opponentColorCoverage);
+        weeklyPanel.Children.Add(new TextBlock { Text = "WEEKLY PERFORMANCE (UTC)", FontSize = 13,
             FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var weekView = new GridView();
         weekView.Columns.Add(Column("Week of", "Week", 140));
@@ -125,7 +137,7 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         weekView.Columns.Add(Column("W–L", "Record", 80));
         weekView.Columns.Add(Column("Win %", "WinRate", 90));
         weeks.View = weekView;
-        root.Children.Add(weeks);
+        weeklyPanel.Children.Add(weeks);
         root.Children.Add(new TextBlock { Text = "RECENT CONFIRMED MATCHES",
             FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var timelineView = new GridView();
