@@ -47,6 +47,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         public string arenaDeckId { get; set; } = "";
         public string commanderDisplayPrintId { get; set; } = "";
         public string coverCardName { get; set; } = "";
+        public string coverMode { get; set; } = "Auto";
+        public string coverPrintingId { get; set; } = "";
         public string keyImagePath { get; set; } = "";
         public string imagePath { get; set; } = "";
         public string artUrl { get; set; } = "";
@@ -189,11 +191,11 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     id = d.Id, name = d.Name, commander = d.Commander,
                     format = d.Format, arenaDeckId = d.ArenaDeckId,
                     commanderDisplayPrintId = d.CommanderPrintingId,
-                    // Non-Commander Arena decks use a representative mainboard
-                    // card for artwork without inventing a commander.
-                    coverCardName = d.Commander.Length > 0 ? d.Commander :
-                        NativeDeckEditing.ParseMainboard(d.MainboardText)
-                            .Select(x => x.Name).FirstOrDefault() ?? ""
+                    // A custom cover outranks commander and automatic
+                    // non-Commander fallback; never changes printing ownership.
+                    coverMode = d.DeckCoverMode,
+                    coverPrintingId = d.EffectiveCoverPrintingId,
+                    coverCardName = d.EffectiveCoverCard
                 }).ToList();
 
             decks = read;
@@ -351,15 +353,14 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             {
                 cancel.ThrowIfCancellationRequested();
                 string? url = covers.GetValueOrDefault(deck.coverCardName);
-                // The saved deck's cosmetic printing outranks generic commander
-                // art. This is an exact Scryfall printing, not MTGA style ownership.
-                if (deck.commander.Length > 0 &&
-                    Guid.TryParse(deck.commanderDisplayPrintId, out var printId))
+                // The saved deck's custom cover printing outranks its default
+                // card art; fallback uses commander printing for Auto mode.
+                if (Guid.TryParse(deck.coverPrintingId, out var printId))
                 {
                     try
                     {
                         url = NativePrintingArtwork.Require(catalog,
-                            deck.commander, printId).ImageUrl;
+                            deck.coverCardName, printId).ImageUrl;
                     }
                     catch (Exception ex) when (ex is SqliteException or
                         InvalidDataException or IOException or ArgumentException)
