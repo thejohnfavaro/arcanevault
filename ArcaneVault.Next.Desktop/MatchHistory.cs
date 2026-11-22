@@ -264,6 +264,17 @@ internal sealed class MatchHistory : IDisposable
     internal sealed record TelemetryOverview(int RecordedMatches, int MatchesWithTelemetry,
         int ArchivedEvents, IReadOnlyList<TelemetryCoverage> Recent);
 
+    /// <summary>
+    /// Observed opponent colors are partial public-card evidence only.
+    /// The result never modifies stored match outcomes or manual annotations.
+    /// </summary>
+    internal OpponentColorObservation.Report ReadObservedOpponentColors(
+        string? catalogPath, IReadOnlySet<string>? selectedMatchIds = null)
+    {
+        lock (gate)
+            return OpponentColorObservation.Read(db, catalogPath, selectedMatchIds);
+    }
+
     internal TelemetryOverview ReadTelemetryOverview() => ReadTelemetryOverviewForDeck(null);
 
     internal TelemetryOverview ReadTelemetryOverviewForDeck(string? nativeDeckId,
