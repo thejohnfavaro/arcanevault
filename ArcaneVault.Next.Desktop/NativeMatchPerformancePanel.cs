@@ -202,22 +202,12 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             .GroupBy(x => x.MatchId, StringComparer.Ordinal)
             .Select(g => g.OrderByDescending(x => x.Played).First())
             .ToArray();
-        string OwnColors(MatchPerformanceAnalytics.Entry match)
-        {
-            if (!string.IsNullOrWhiteSpace(match.NativeDeckId) &&
-                deckIdentityById.TryGetValue(match.NativeDeckId, out var byId))
-                return byId;
-            return deckIdentityById.TryGetValue("name:" + match.DeckName.Trim(),
-                out var byName) ? byName : "Unknown";
-        }
-        deckColorIdentities.ItemsSource = matchScope
-            .GroupBy(OwnColors, StringComparer.OrdinalIgnoreCase)
-            .Select(g => new OpponentRow(g.Key, g.Count(x => x.Result == "win"),
-                g.Count(x => x.Result == "loss")))
-            .OrderBy(x => x.Identity == "Unknown" ? 1 : 0)
-            .ThenByDescending(x => x.Matches).ThenBy(x => x.Identity)
-            .ToArray();
-        int unidentified = matchScope.Count(x => OwnColors(x) == "Unknown");
+        var ownColorRows = MatchPerformanceAnalytics.ByOwnColorIdentity(
+            matchScope, deckIdentityById);
+        deckColorIdentities.ItemsSource = ownColorRows
+            .Select(x => new OpponentRow(x.Format, x.Wins, x.Losses)).ToArray();
+        int unidentified = ownColorRows.Where(x => x.Format == "Unknown")
+            .Sum(x => x.Matches);
         deckColorCoverage.Text = unidentified == 0
             ? "Your deck color identity is based on the saved commander's official catalog entry."
             : unidentified + " confirmed match(es) lack a uniquely resolved saved commander identity. " +
