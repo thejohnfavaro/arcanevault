@@ -23,6 +23,11 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
     private readonly TextBlock gameplayStatus = new() {
         Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
         Margin = new Thickness(0,5,0,10) };
+    private readonly ComboBox deckScope = new() {
+        MinWidth = 230, Margin = new Thickness(0,4,0,7) };
+    private readonly TextBlock scopedPlayDrawStatus = new() {
+        Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0,0,0,10) };
     private readonly ListView telemetryRows = new() {
         Height = 180, Margin = new Thickness(0,0,0,12) };
     private readonly Button refresh = new() { Content = "Refresh match analytics",
@@ -117,6 +122,12 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
             Margin = new Thickness(0,3,0,3) });
         header.Children.Add(playDrawStatus);
+        header.Children.Add(new TextBlock { Text = "SAVED DECK PLAY / DRAW",
+            Foreground = Brushes.White, FontWeight = FontWeights.SemiBold,
+            FontSize = 14, Margin = new Thickness(0,3,0,3) });
+        header.Children.Add(deckScope);
+        header.Children.Add(scopedPlayDrawStatus);
+        deckScope.SelectionChanged += OnScopedDeckSelectionChanged;
         var telemetryGrid = new GridView();
         telemetryGrid.Columns.Add(TelemetryColumn("Played (UTC)", "PlayedUtc", 175));
         telemetryGrid.Columns.Add(TelemetryColumn("Deck", "DeckName", 170));
@@ -185,6 +196,14 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             reset;
     }
 
+    private sealed record SavedDeckOption(string Id, string Name)
+    {
+        public override string ToString() => Name;
+    }
+
+    private async void OnScopedDeckSelectionChanged(object sender,
+        SelectionChangedEventArgs e) => await ReloadAsync();
+
     internal async Task ReloadAsync()
     {
         if (reading) return;
@@ -193,8 +212,23 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
         status.Text="Reading locally recorded Arena matches…";
         try
         {
+            string selectedDeckId = (deckScope.SelectedItem as SavedDeckOption)?.Id ?? "";
             var data = await Task.Run(() => {
                 var matches = NativeMatchHistoryView.ReadPerformance();
+                var savedDecks = new List<SavedDeckOption>();
+                if (File.Exists(ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath))
+                {
+                    try
+                    {
+                        savedDecks = ArcaneVault.Next.Collection.NativeWorkspaceSafety.ListDecks(
+                            ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath)
+                            .Where(d => !string.IsNullOrWhiteSpace(d.Id))
+                            .Select(d => new SavedDeckOption(d.Id, d.Name))
+                            .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase).ToList();
+                    }
+                    catch (Exception ex) when (ex is IOException or SqliteException or
+                        InvalidDataException or UnauthorizedAccessException or ArgumentException) { }
+                }
                 using var history = new MatchHistory();
                 IReadOnlyDictionary<string,string> identities;
                 try { identities = ReadSavedDeckColors(); }
@@ -203,11 +237,20 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                 {
                     identities = new Dictionary<string,string>();
                 }
-                return (matches, identities, coverage: history.ReadTelemetryOverview(),
+                return (matches, identities, savedDecks,
+                    scoped: selectedDeckId.Length == 0 ? null :
+                        history.ReadVerifiedPlayDrawForDeck(selectedDeckId),
+                    coverage: history.ReadTelemetryOverview(),
                     gameplay: history.ReadGameplayObservation(),
                     playDraw: history.ReadVerifiedPlayDraw());
             });
             dashboard.SetMatches(data.matches, data.identities);
+            // Preserve the current deck by stable ID, not by row position or
+            // name. A missing exact ID means no verified deck-scoped totals.
+            deckScope.SelectionChanged -= OnScopedDeckSelectionChanged;
+            deckScope.ItemsSource = data.savedDecks;
+            deckScope.SelectedItem = data.savedDecks.FirstOrDefault(d => d.Id == selectedDeckId);
+            deckScope.SelectionChanged += OnScopedDeckSelectionChanged;
             status.Text=$"{data.matches.Count} distinct match row(s) available for review. " +
                 "All calculations exclude unassigned rows and unconfirmed outcomes.";
             var coverage = data.coverage;
@@ -227,6 +270,18 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                 $"{playDraw.Unattributed} recorded results excluded (missing or ambiguous evidence). " +
                 "Only single-game matches with an authenticated room seat and an explicit " +
                 "turn-one active seat are attributed; multi-game matches are excluded.";
+            var scoped = data.scoped;
+            scopedPlayDrawStatus.Text = selectedDeckId.Length == 0
+                ? "Choose a saved deck to view verified play/draw results. No deck is selected."
+                : scoped is null
+                    ? "No saved deck identity available."
+                    : $"Selected deck: {data.savedDecks.FirstOrDefault(d => d.Id == selectedDeckId)?.Name ?? selectedDeckId}. " +
+                      $"On play: {scoped.OnPlayWins} W / {scoped.OnPlayLosses} L " +
+                      $"({Rate(scoped.OnPlayWins,scoped.OnPlayLosses)}). " +
+                      $"On draw: {scoped.OnDrawWins} W / {scoped.OnDrawLosses} L " +
+                      $"({Rate(scoped.OnDrawWins,scoped.OnDrawLosses)}). " +
+                      $"{scoped.Unattributed} results lack sufficient seat/turn evidence. " +
+                      "Only exact recorded native deck IDs count here; missing or ambiguous records are excluded.";
             var gameplay = data.gameplay;
             gameplayStatus.Text = gameplay.GamesWithTurnData == 0
                 ? "No game-numbered turn observations yet. Enable Arena Detailed Logs to collect future evidence."
