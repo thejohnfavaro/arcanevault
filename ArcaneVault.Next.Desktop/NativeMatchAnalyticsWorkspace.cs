@@ -233,16 +233,33 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                         Resolve(m) != selectedDeckId);
                 IReadOnlySet<string>? selectedMatchIds = selectedDeckId.Length == 0 ? null :
                     matches.Select(m => m.MatchId).ToHashSet(StringComparer.Ordinal);
+                OpponentColorObservation.Report observedOpponentColors;
+                try
+                {
+                    observedOpponentColors = history.ReadObservedOpponentColors(
+                        ArcaneVault.Next.Collection.NativeWorkspace.CatalogPath, selectedMatchIds);
+                }
+                catch (Exception ex) when (ex is IOException or SqliteException or
+                    UnauthorizedAccessException or InvalidDataException or ArgumentException)
+                {
+                    // A missing or outdated catalog never prevents verified
+                    // match history and analytics from loading.
+                    observedOpponentColors = new OpponentColorObservation.Report(
+                        new Dictionary<string, OpponentColorObservation.MatchEvidence>(),
+                        0, 0, false);
+                }
                 return (matches, savedDecks, needsReview,
                     recovered: selectedDeckId.Length == 0 ? 0 :
                         matches.Count(m => !m.NativeDeckId.Equals(selectedDeckId,
                             StringComparison.Ordinal)),
+                    observedOpponentColors,
                     coverage: history.ReadTelemetryOverviewForDeck(null, selectedMatchIds),
                     gameplay: history.ReadGameplayObservationForDeck(null, selectedMatchIds),
                     playDraw: history.ReadVerifiedPlayDrawForDeck(null, selectedMatchIds));
             });
             dashboard.SetMatches(data.matches,
-                singleDeck: selectedDeckId.Length > 0);
+                singleDeck: selectedDeckId.Length > 0,
+                observations: data.observedOpponentColors);
             // Preserve the current deck by stable ID, not by row position or
             // name. A missing exact ID means no verified deck-scoped totals.
             deckScope.SelectionChanged -= OnScopedDeckSelectionChanged;
