@@ -28,6 +28,12 @@ internal static class NativeDeckCoverCacheChecks
                    'https://cards.scryfall.io/normal/front/a/1/a1111111.jpg'),
                   ('Unsafe Commander','https://example.invalid/card.jpg'),
                   ('No Art','');
+                CREATE TABLE variants (name TEXT, setcode TEXT, collector TEXT, image TEXT);
+                INSERT INTO variants(name,setcode,collector,image) VALUES
+                  ('Optimistic Scavenger','DSK','21',
+                   'https://cards.scryfall.io/normal/front/c/3/c3333333.jpg'),
+                  ('Optimistic Scavenger','ABC','99',
+                   'https://cards.scryfall.io/normal/front/d/4/d4444444.jpg');
                 """;
             command.ExecuteNonQuery();
         }
@@ -42,6 +48,19 @@ internal static class NativeDeckCoverCacheChecks
              initial["Unsafe Commander"] == "" &&
              initial["No Art"] == "" && initial["Unknown Commander"] == "",
              "Missing and nonofficial images must fall back to branded deck covers.");
+        var parsed = NativeDeckCoverCache.ParseArenaPrintingHint(
+            "Optimistic Scavenger (DSK) 21");
+        Must(parsed.Name == "Optimistic Scavenger" &&
+             parsed.SetCode == "DSK" && parsed.CollectorNumber == "21",
+             "Arena set/collector suffix must be separated for artwork lookup.");
+        var arenaCover = NativeDeckCoverCache.Get(
+            new[] { "Optimistic Scavenger (DSK) 21" }, catalog, sha, cache);
+        Must(arenaCover["Optimistic Scavenger (DSK) 21"].Contains("c3333333"),
+             "Arena-decorated card names must load the exact indicated printing.");
+        Must(NativeDeckCoverCache.ParseArenaPrintingHint("The One Ring").Name ==
+             "The One Ring" &&
+             NativeDeckCoverCache.ParseArenaPrintingHint("Fire // Ice").SetCode == "",
+             "Ordinary and split card names must stay unchanged.");
         var cached = NativeDeckCoverCache.Get(names, catalog, sha, cache);
         Must(cached.SequenceEqual(initial) ||
              cached.All(x => initial.TryGetValue(x.Key, out var v) && v == x.Value),
