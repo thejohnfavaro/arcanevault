@@ -202,6 +202,11 @@ internal static class NativeVisualShellChecks
              v65DeckShell.Contains("deckInspectVersion++;"),
              "Deck Library must show a persistent, read-only card inspector with stale-load protection.");
 
+        Must(v65DeckCode.Contains("ParseArenaPrintingHint(selected.Name)") &&
+             v65DeckCode.Contains("NativeDeckCoverCache.Get(new[] { selected.Name }") &&
+             v65DeckCode.Contains("CollectionCatalogReview.ReadDetails(catalogPath!, catalogName)"),
+             "Standard card inspector must resolve Arena set-number card names using the official printing catalog.");
+
         // A Commander or Arena Brawl leader is saved separately from mainboard
         // entries. The inspector must display the command-zone card without
         // manufacturing ownership or changing the authoritative deck text.
