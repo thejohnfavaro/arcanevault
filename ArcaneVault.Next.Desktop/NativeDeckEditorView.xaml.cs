@@ -601,6 +601,14 @@ public partial class NativeDeckEditorView : UserControl
         System.Windows.Controls.SelectionChangedEventArgs e) =>
         Dispatcher.BeginInvoke(new Action(() =>
         {
+            if (edhLabCommander is null && OwnedPoolBox is not null &&
+                FormatBox is not null)
+            {
+                string selectedFormat = FormatBox.Text.Trim();
+                if (selectedFormat.Equals("Arena Standard", StringComparison.OrdinalIgnoreCase) ||
+                    selectedFormat.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase))
+                    OwnedPoolBox.SelectedIndex = 1;
+            }
             InvalidateAnalytics();
             RefreshDraftSummary();
         }));
@@ -2129,6 +2137,8 @@ public partial class NativeDeckEditorView : UserControl
         };*/
         OwnedPoolBox.SelectedIndex = edhLabFormat == EdhLabFormat.ArenaBrawl ||
             selected?.Format.Equals("Arena Brawl",
+                StringComparison.OrdinalIgnoreCase) == true ||
+            selected?.Format.Equals("Arena Standard",
                 StringComparison.OrdinalIgnoreCase) == true ? 1 : 0;
         RefreshOwnedCards();
         FormatBox.Text = selected?.Format ?? (edhLabFormat is null
