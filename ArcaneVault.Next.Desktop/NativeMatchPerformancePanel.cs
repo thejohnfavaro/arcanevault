@@ -28,6 +28,13 @@ internal sealed class NativeMatchPerformancePanel : UserControl
     private readonly ListView formats = new() { Height = 145, Margin = new Thickness(0,6,0,10) };
     private readonly ListView timeline = new() { Height = 190, Margin = new Thickness(0,6,0,0) };
     private readonly ListView weeks = new() { Height = 154, Margin = new Thickness(0,6,0,10) };
+    private readonly ListView deckColorIdentities = new() { Height = 175,
+        Margin = new Thickness(0,6,0,10) };
+    private readonly TextBlock deckColorCoverage = new() {
+        Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0,0,0,8) };
+    private IReadOnlyDictionary<string,string> deckIdentityById =
+        new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
     private readonly ListView opponentMatchups = new() { Height = 175,
         Margin = new Thickness(0,6,0,10) };
     private sealed record OpponentRow(string Identity, int Wins, int Losses)
@@ -85,6 +92,16 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         formatView.Columns.Add(Column("Win %", "WinRate", 80));
         formats.View = formatView;
         root.Children.Add(formats);
+        root.Children.Add(new TextBlock { Text = "BY YOUR DECK COLOR IDENTITY",
+            FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+        var ownColorsView = new GridView();
+        ownColorsView.Columns.Add(Column("Your colors", "Identity", 155));
+        ownColorsView.Columns.Add(Column("Matches", "Matches", 75));
+        ownColorsView.Columns.Add(Column("W–L", "Record", 75));
+        ownColorsView.Columns.Add(Column("Win %", "WinRate", 85));
+        deckColorIdentities.View = ownColorsView;
+        root.Children.Add(deckColorIdentities);
+        root.Children.Add(deckColorCoverage);
         root.Children.Add(new TextBlock { Text = "AGAINST OPPONENT COLOR IDENTITY",
             FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var opponentView = new GridView();
@@ -128,8 +145,10 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         new() { Header = label, Width = width,
             DisplayMemberBinding = new System.Windows.Data.Binding(key) };
 
-    internal void SetMatches(IEnumerable<MatchPerformanceAnalytics.Entry> matches)
+    internal void SetMatches(IEnumerable<MatchPerformanceAnalytics.Entry> matches,
+        IReadOnlyDictionary<string,string>? deckColors = null)
     {
+        deckIdentityById = deckColors ?? new Dictionary<string,string>();
         var priorDeck = deckFilter.SelectedItem as string;
         var priorCompare = compareFilter.SelectedItem as string;
         var priorFormat = formatFilter.SelectedItem as string;
@@ -171,7 +190,7 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             DateTimeOffset.Now, format);
         var cutoff = days > 0 ? DateTimeOffset.Now.AddDays(-days) :
             DateTimeOffset.MinValue;
-        opponentMatchups.ItemsSource = records
+        var matchScope = records
             .Where(x => x.Result is "win" or "loss" &&
                 !string.IsNullOrWhiteSpace(x.DeckName) &&
                 x.Played >= cutoff && x.Played <= DateTimeOffset.Now &&
@@ -182,6 +201,28 @@ internal sealed class NativeMatchPerformancePanel : UserControl
                     StringComparison.OrdinalIgnoreCase)))
             .GroupBy(x => x.MatchId, StringComparer.Ordinal)
             .Select(g => g.OrderByDescending(x => x.Played).First())
+            .ToArray();
+        string OwnColors(MatchPerformanceAnalytics.Entry match)
+        {
+            if (!string.IsNullOrWhiteSpace(match.NativeDeckId) &&
+                deckIdentityById.TryGetValue(match.NativeDeckId, out var byId))
+                return byId;
+            return deckIdentityById.TryGetValue("name:" + match.DeckName.Trim(),
+                out var byName) ? byName : "Unknown";
+        }
+        deckColorIdentities.ItemsSource = matchScope
+            .GroupBy(OwnColors, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new OpponentRow(g.Key, g.Count(x => x.Result == "win"),
+                g.Count(x => x.Result == "loss")))
+            .OrderBy(x => x.Identity == "Unknown" ? 1 : 0)
+            .ThenByDescending(x => x.Matches).ThenBy(x => x.Identity)
+            .ToArray();
+        int unidentified = matchScope.Count(x => OwnColors(x) == "Unknown");
+        deckColorCoverage.Text = unidentified == 0
+            ? "Your deck color identity is based on the saved commander's official catalog entry."
+            : unidentified + " confirmed match(es) lack a uniquely resolved saved commander identity. " +
+              "Unknown is not colorless. Refresh your local Scryfall catalog or check deck assignment.";
+        opponentMatchups.ItemsSource = matchScope
             .GroupBy(x => string.IsNullOrWhiteSpace(x.OpponentColors) ?
                 "Unknown" : x.OpponentColors, StringComparer.OrdinalIgnoreCase)
             .Select(g => new OpponentRow(g.Key, g.Count(x => x.Result == "win"),
