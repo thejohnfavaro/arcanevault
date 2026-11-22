@@ -190,12 +190,28 @@ internal sealed class NativeMatchHistoryView : UserControl
                 // copy. Read it without overwriting any match outcomes.
                 if (positions.TryGetValue(id, out int priorIndex))
                 {
-                    string earlier = result[priorIndex].OpponentColors;
+                    var primary = result[priorIndex];
                     string alternate = rd.IsDBNull(10) ? "" : rd.GetString(10);
-                    string resolved = MatchPerformanceAnalytics.PreferExplicitOpponentColors(earlier, alternate);
-                    if (!string.Equals(earlier, resolved, StringComparison.Ordinal))
-                        result[priorIndex] = result[priorIndex] with
-                            { OpponentColors = resolved };
+                    string resolved = MatchPerformanceAnalytics.PreferExplicitOpponentColors(
+                        primary.OpponentColors, alternate);
+                    // A legacy duplicate may retain an Arena deck ID and a
+                    // verified assignment note missing from the native copy.
+                    // Use only missing metadata for the same named deck; never
+                    // replace a native result, assignment or existing Arena ID.
+                    bool sameDeck = primary.DeckName.Trim().Equals(
+                        (rd.IsDBNull(3) ? "" : rd.GetString(3)).Trim(),
+                        StringComparison.OrdinalIgnoreCase);
+                    string secondaryId = rd.IsDBNull(4) ? "" : rd.GetString(4);
+                    string secondaryNote = rd.IsDBNull(6) ? "" : rd.GetString(6);
+                    result[priorIndex] = primary with {
+                        OpponentColors = resolved,
+                        DeckId = sameDeck && string.IsNullOrWhiteSpace(primary.DeckId)
+                            ? secondaryId : primary.DeckId,
+                        Note = sameDeck &&
+                            !MatchDeckAttribution.HasVerifiedAssignmentNote(primary.Note) &&
+                            MatchDeckAttribution.HasVerifiedAssignmentNote(secondaryNote)
+                            ? secondaryNote : primary.Note
+                    };
                     continue;
                 }
                 positions[id] = result.Count;
