@@ -137,6 +137,43 @@ internal static class NativeDeckEditingChecks
                  NativeDeckEditing.ParseMainboard("1 Sol Ring\n13 Island")),
             "A format change must invalidate a previously saved AI review.");
 
+        // Custom deck art is per-deck presentation only. A removed card resets
+        // to Auto and does not change inventory or the saved mainboard.
+        const string customPrint = "00000000-0000-4000-8000-000000000772";
+        var coverChoice = NativeDeckEditing.Save(source,"Legacy Commander",
+            "Test Commander",list[0].MainboardText,list[0],
+            deckCoverMode:"Custom",deckCoverCardName:"Sol Ring",
+            deckCoverPrintingId:customPrint);
+        var coverRows = NativeDeckEditing.List(coverChoice);
+        Must(coverRows[0].DeckCoverMode == "Custom" &&
+             coverRows[0].DeckCoverCardName == "Sol Ring" &&
+             coverRows[0].DeckCoverPrintingId == customPrint &&
+             coverRows[0].EffectiveCoverCard == "Sol Ring" &&
+             coverRows[0].EffectiveCoverPrintingId == customPrint &&
+             coverRows[0].MainboardText == list[0].MainboardText &&
+             coverRows[1].SourceSha256 == list[1].SourceSha256,
+            "Custom deck art must save independently of commander and collection.");
+        var removedCard = NativeDeckEditing.Save(coverChoice,"Legacy Commander",
+            "Test Commander","13 Island\\n1 Split // Back",coverRows[0]);
+        var fallback = NativeDeckEditing.List(removedCard)[0];
+        Must(fallback.DeckCoverMode == "Auto" &&
+             fallback.DeckCoverCardName == "" &&
+             fallback.DeckCoverPrintingId == "" &&
+             fallback.EffectiveCoverCard == "Test Commander",
+             "Removing a cover card must safely reset its cover to Auto.");
+        Reject(()=>NativeDeckEditing.Save(source,"Legacy Commander",
+            "Test Commander",list[0].MainboardText,list[0],
+            deckCoverMode:"Custom",deckCoverCardName:"Not In Deck"));
+        Reject(()=>NativeDeckEditing.Save(source,"Legacy Commander",
+            "Test Commander",list[0].MainboardText,list[0],
+            deckCoverMode:"Custom",deckCoverCardName:"Sol Ring",
+            deckCoverPrintingId:"not-guid"));
+        var standardCover = NativeDeckEditing.Save(source,"Standard Test",
+            "", "4 Sol Ring\\n60 Island", null, format:"Arena Standard",
+            deckCoverMode:"Custom",deckCoverCardName:"Island");
+        Must(NativeDeckEditing.List(standardCover).Last().EffectiveCoverCard=="Island",
+            "Standard decks must support custom mainboard art without a commander.");
+
         Console.WriteLine("  CHECK B: duplicate mainboard lines combine without losing split cards");
         var mainboard = NativeDeckEditing.ParseMainboard(
             "1 Sol Ring\n11 Island\n2 island\n1 Split // Back\n");
