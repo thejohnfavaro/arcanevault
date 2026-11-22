@@ -48,9 +48,13 @@ public partial class NativeDeckEditorWindow
         MainboardPrintingStatus.Text = "Reading official printings from the local catalog…";
         try
         {
-            bool arena = edhLabFormat == EdhLabFormat.ArenaBrawl;
+            bool arena = edhLabFormat == EdhLabFormat.ArenaBrawl ||
+                FormatBox.Text.Trim().Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase);
+            // These are deck-cover / preview art choices, NOT Arena cosmetic
+            // ownership. Browse all verified official Scryfall printings even
+            // when the saved deck format is Arena Brawl.
             var gallery = await Task.Run(() => NativePrintingArtwork.Read(
-                catalogPath!, cardName, arenaOnly: arena));
+                catalogPath!, cardName));
             if (version != printingSelectionVersion || !IsLoaded ||
                 MainboardManagerList.SelectedItem is not
                     ArcaneVault.Next.EDHLab.EdhLabMainboardView.Row current ||
@@ -74,7 +78,8 @@ public partial class NativeDeckEditorWindow
                 string label = realCount > 0
                     ? $"OWNED ×{realCount} · {printing.Title} · {printing.SetName}"
                     : $"{printing.Title} · {printing.SetName}" +
-                        (arena ? " · Arena preview only" : " · not verified owned");
+                        (arena ? " · deck artwork only (not Arena style)" :
+                            " · not verified owned");
                 options.Add(new(printing.Id.ToString("D"), label));
             }
             // This is a display choice, never an assertion of ownership.
@@ -99,7 +104,7 @@ public partial class NativeDeckEditorWindow
             MainboardPrintingBox.IsEnabled = options.Count > 1;
             MainboardPrintingApply.IsEnabled = options.Count > 0;
             MainboardPrintingStatus.Text = arena
-                ? "Arena uses a representative official preview, not a verified cosmetic style."
+                ? "Cosmetic deck artwork only · not an MTG Arena card style or owned cosmetic."
                 : "OWNED is matched by exact printing ID. Other selections are display-only." +
                   (gallery.Truncated ? " Printing list limited; sync/search may be needed." : "");
         }
