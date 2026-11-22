@@ -46,6 +46,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         public string format { get; set; } = "";
         public string arenaDeckId { get; set; } = "";
         public string commanderDisplayPrintId { get; set; } = "";
+        public string coverCardName { get; set; } = "";
         public string keyImagePath { get; set; } = "";
         public string imagePath { get; set; } = "";
         public string artUrl { get; set; } = "";
@@ -184,7 +185,12 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 {
                     id = d.Id, name = d.Name, commander = d.Commander,
                     format = d.Format, arenaDeckId = d.ArenaDeckId,
-                    commanderDisplayPrintId = d.CommanderPrintingId
+                    commanderDisplayPrintId = d.CommanderPrintingId,
+                    // Non-Commander Arena decks use a representative mainboard
+                    // card for artwork without inventing a commander.
+                    coverCardName = d.Commander.Length > 0 ? d.Commander :
+                        NativeDeckEditing.ParseMainboard(d.MainboardText)
+                            .Select(x => x.Name).FirstOrDefault() ?? ""
                 }).ToList();
 
             decks = read;
@@ -318,11 +324,11 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private void RefreshCommanderArtwork(CancellationToken cancel)
     {
         var missing = decks.Where(d => string.IsNullOrWhiteSpace(d.artUrl)
-                && !string.IsNullOrWhiteSpace(d.commander))
+                && !string.IsNullOrWhiteSpace(d.coverCardName))
             .OrderByDescending(d => d.id == selectedRefreshDeckId)
             .Take(12).ToArray();
-        foreach (var empty in decks.Where(d => string.IsNullOrWhiteSpace(d.commander)))
-            empty.artStatus = "No commander assigned to saved deck";
+        foreach (var empty in decks.Where(d => string.IsNullOrWhiteSpace(d.coverCardName)))
+            empty.artStatus = "No eligible deck cover card in saved mainboard";
         if (missing.Length == 0) return;
 
         string catalog = NativeWorkspace.CatalogPath;
@@ -336,15 +342,16 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         {
             var verified = NativeWorkspace.Open(NativeWorkspace.DefaultPath, cancel);
             var covers = NativeDeckCoverCache.Get(
-                missing.Select(d => d.commander), catalog, verified.BackupSha256,
+                missing.Select(d => d.coverCardName), catalog, verified.BackupSha256,
                 cancellation: cancel);
             foreach (var deck in missing)
             {
                 cancel.ThrowIfCancellationRequested();
-                string? url = covers.GetValueOrDefault(deck.commander);
+                string? url = covers.GetValueOrDefault(deck.coverCardName);
                 // The saved deck's cosmetic printing outranks generic commander
                 // art. This is an exact Scryfall printing, not MTGA style ownership.
-                if (Guid.TryParse(deck.commanderDisplayPrintId, out var printId))
+                if (deck.commander.Length > 0 &&
+                    Guid.TryParse(deck.commanderDisplayPrintId, out var printId))
                 {
                     try
                     {
@@ -364,7 +371,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     try
                     {
                         url = NativePrintingArtwork.Read(catalog,
-                            deck.commander, limit: 20, cancellation: cancel)
+                            deck.coverCardName, limit: 20, cancellation: cancel)
                             .Printings.Select(p => p.ImageUrl)
                             .FirstOrDefault(NativeCardArtwork.IsTrustedArtworkUrl);
                     }
@@ -378,8 +385,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     deck.artStatus = "Artwork URL found; preparing key image";
                 }
                 else
-                    deck.artStatus = "No official artwork for commander: " +
-                        deck.commander;
+                    deck.artStatus = "No official artwork for saved deck card: " +
+                        deck.coverCardName;
             }
         }
         catch (Exception ex) when (ex is SqliteException or
@@ -609,7 +616,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                             hasNativeDeckId = true;
                 cmd.CommandText = "SELECT match_id,result,deck_name,played_utc,deck_id," +
                     (hasNativeDeckId ? "native_deck_id" : "''") +
-                    ",note FROM matches WHERE result IN ('win','loss') " +
+                    ",note,format FROM matches WHERE result IN ('win','loss') " +
                     "ORDER BY played_utc DESC LIMIT 25000";
                 using var reader = cmd.ExecuteReader();
                 bool used = false;
@@ -625,10 +632,18 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     // cannot replace the same match with different evidence.
                     if (id.Length == 0 || !knownMatches.Add(id)) continue;
                     string note = reader.IsDBNull(6) ? "" : reader.GetString(6);
+                    string queue = reader.IsDBNull(7) ? "" :
+                        ArenaQueueInfo.Label(reader.GetString(7));
                     string? resolvedId = MatchDeckAttribution.Resolve(
                         new MatchDeckAttribution.Match(id, name, arenaId, nativeId, note),
                         resolvedDecks, arenaMap, blockedArenaIds);
                     if (resolvedId is null || !byNativeId.TryGetValue(resolvedId, out var deck))
+                        continue;
+                    // Arena Standard widgets track Ranked Standard only.
+                    // Neither missing queue evidence nor Standard Play/Historic
+                    // results may be silently counted as Ranked Standard.
+                    if (deck.format.Equals("Arena Standard", StringComparison.OrdinalIgnoreCase) &&
+                        !queue.Equals("Standard Ranked", StringComparison.OrdinalIgnoreCase))
                         continue;
                     used = true;
                     if (result == "win") deck.wins++; else deck.losses++;
