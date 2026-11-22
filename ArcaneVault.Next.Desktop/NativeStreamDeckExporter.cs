@@ -45,6 +45,7 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         public string commander { get; set; } = "";
         public string format { get; set; } = "";
         public string arenaDeckId { get; set; } = "";
+        public string commanderDisplayPrintId { get; set; } = "";
         public string keyImagePath { get; set; } = "";
         public string imagePath { get; set; } = "";
         public string artUrl { get; set; } = "";
@@ -182,7 +183,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 .Select(d => new Deck
                 {
                     id = d.Id, name = d.Name, commander = d.Commander,
-                    format = d.Format, arenaDeckId = d.ArenaDeckId
+                    format = d.Format, arenaDeckId = d.ArenaDeckId,
+                    commanderDisplayPrintId = d.CommanderPrintingId
                 }).ToList();
 
             decks = read;
@@ -340,6 +342,21 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             {
                 cancel.ThrowIfCancellationRequested();
                 string? url = covers.GetValueOrDefault(deck.commander);
+                // The saved deck's cosmetic printing outranks generic commander
+                // art. This is an exact Scryfall printing, not MTGA style ownership.
+                if (Guid.TryParse(deck.commanderDisplayPrintId, out var printId))
+                {
+                    try
+                    {
+                        url = NativePrintingArtwork.Require(catalog,
+                            deck.commander, printId).ImageUrl;
+                    }
+                    catch (Exception ex) when (ex is SqliteException or
+                        InvalidDataException or IOException or ArgumentException)
+                    {
+                        Log("Deck-selected commander artwork unavailable", ex);
+                    }
+                }
                 // The cards table may have no canonical image for a special
                 // multi-face name. Fall back to the official printings table.
                 if (!NativeCardArtwork.IsTrustedArtworkUrl(url))
