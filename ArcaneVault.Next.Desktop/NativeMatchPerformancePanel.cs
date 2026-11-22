@@ -28,16 +28,9 @@ internal sealed class NativeMatchPerformancePanel : UserControl
     private readonly ListView formats = new() { Height = 145, Margin = new Thickness(0,6,0,10) };
     private readonly ListView timeline = new() { Height = 190, Margin = new Thickness(0,6,0,0) };
     private readonly ListView weeks = new() { Height = 154, Margin = new Thickness(0,6,0,10) };
-    private readonly ListView deckColorIdentities = new() { Height = 175,
-        Margin = new Thickness(0,6,0,10) };
     private readonly TextBlock opponentColorCoverage = new() {
         Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
         Margin = new Thickness(0,0,0,8) };
-    private readonly TextBlock deckColorCoverage = new() {
-        Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
-        Margin = new Thickness(0,0,0,8) };
-    private IReadOnlyDictionary<string,string> deckIdentityById =
-        new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
     private readonly ListView opponentMatchups = new() { Height = 175,
         Margin = new Thickness(0,6,0,10) };
     private sealed record OpponentRow(string Identity, int Wins, int Losses)
@@ -88,12 +81,14 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             Text = "Orange: primary deck     •     Blue: comparison deck",
             Foreground = Brushes.LightGray, Margin = new Thickness(0,5,0,0) });
         root.Children.Add(coverage);
-        var firstRow = new WrapPanel { Margin = new Thickness(0,5,0,9) };
+        // One color-identity metric: the OPPONENT'S recorded colors.
+        // Do not substitute the player's commander colors for missing data.
+        var breakdownRow = new WrapPanel { Margin = new Thickness(0,5,0,9) };
         var formatPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
-        var ownColorPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
-        firstRow.Children.Add(formatPanel);
-        firstRow.Children.Add(ownColorPanel);
-        root.Children.Add(firstRow);
+        var opponentPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
+        breakdownRow.Children.Add(formatPanel);
+        breakdownRow.Children.Add(opponentPanel);
+        root.Children.Add(breakdownRow);
         formatPanel.Children.Add(new TextBlock { Text = "BY FORMAT", FontSize = 13,
             FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var formatView = new GridView();
@@ -103,22 +98,6 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         formatView.Columns.Add(Column("Win %", "WinRate", 80));
         formats.View = formatView;
         formatPanel.Children.Add(formats);
-        ownColorPanel.Children.Add(new TextBlock { Text = "BY YOUR DECK COLOR IDENTITY",
-            FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
-        var ownColorsView = new GridView();
-        ownColorsView.Columns.Add(Column("Your colors", "Identity", 155));
-        ownColorsView.Columns.Add(Column("Matches", "Matches", 75));
-        ownColorsView.Columns.Add(Column("W–L", "Record", 75));
-        ownColorsView.Columns.Add(Column("Win %", "WinRate", 85));
-        deckColorIdentities.View = ownColorsView;
-        ownColorPanel.Children.Add(deckColorIdentities);
-        ownColorPanel.Children.Add(deckColorCoverage);
-        var secondRow = new WrapPanel { Margin = new Thickness(0,4,0,9) };
-        var opponentPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
-        var weeklyPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
-        secondRow.Children.Add(opponentPanel);
-        secondRow.Children.Add(weeklyPanel);
-        root.Children.Add(secondRow);
         opponentPanel.Children.Add(new TextBlock { Text = "AGAINST OPPONENT COLOR IDENTITY",
             FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var opponentView = new GridView();
@@ -129,7 +108,7 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         opponentMatchups.View = opponentView;
         opponentPanel.Children.Add(opponentMatchups);
         opponentPanel.Children.Add(opponentColorCoverage);
-        weeklyPanel.Children.Add(new TextBlock { Text = "WEEKLY PERFORMANCE (UTC)", FontSize = 13,
+        root.Children.Add(new TextBlock { Text = "WEEKLY PERFORMANCE (UTC)", FontSize = 13,
             FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var weekView = new GridView();
         weekView.Columns.Add(Column("Week of", "Week", 140));
@@ -137,7 +116,7 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         weekView.Columns.Add(Column("W–L", "Record", 80));
         weekView.Columns.Add(Column("Win %", "WinRate", 90));
         weeks.View = weekView;
-        weeklyPanel.Children.Add(weeks);
+        root.Children.Add(weeks);
         root.Children.Add(new TextBlock { Text = "RECENT CONFIRMED MATCHES",
             FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var timelineView = new GridView();
@@ -160,9 +139,8 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             DisplayMemberBinding = new System.Windows.Data.Binding(key) };
 
     internal void SetMatches(IEnumerable<MatchPerformanceAnalytics.Entry> matches,
-        IReadOnlyDictionary<string,string>? deckColors = null, bool singleDeck = false)
+        bool singleDeck = false)
     {
-        deckIdentityById = deckColors ?? new Dictionary<string,string>();
         compareFilter.Visibility = singleDeck ? Visibility.Collapsed : Visibility.Visible;
         var priorDeck = deckFilter.SelectedItem as string;
         var priorCompare = compareFilter.SelectedItem as string;
@@ -218,16 +196,6 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             .GroupBy(x => x.MatchId, StringComparer.Ordinal)
             .Select(g => g.OrderByDescending(x => x.Played).First())
             .ToArray();
-        var ownColorRows = MatchPerformanceAnalytics.ByOwnColorIdentity(
-            matchScope, deckIdentityById);
-        deckColorIdentities.ItemsSource = ownColorRows
-            .Select(x => new OpponentRow(x.Format, x.Wins, x.Losses)).ToArray();
-        int unidentified = ownColorRows.Where(x => x.Format == "Unknown")
-            .Sum(x => x.Matches);
-        deckColorCoverage.Text = unidentified == 0
-            ? "Your deck color identity is based on the saved commander's official catalog entry."
-            : unidentified + " confirmed match(es) lack a uniquely resolved saved commander identity. " +
-              "Unknown is not colorless. Refresh your local Scryfall catalog or check deck assignment.";
         int untaggedOpponents = matchScope.Count(x =>
             string.IsNullOrWhiteSpace(x.OpponentColors));
         opponentColorCoverage.Text = untaggedOpponents == 0
