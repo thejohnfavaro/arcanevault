@@ -127,14 +127,7 @@ public partial class NativeDeckEditorWindow
     {
         if (updatingMainboardManager) return;
         UpdateMainboardManagerSelection();
-        if (MainboardManagerList.SelectedItem is EdhLabMainboardView.Row { IsCommander: true })
-        {
-            if (MainboardPrintingBox is not null) MainboardPrintingBox.IsEnabled = false;
-            if (MainboardPrintingApply is not null) MainboardPrintingApply.IsEnabled = false;
-            if (MainboardPrintingStatus is not null)
-                MainboardPrintingStatus.Text = "Commander is edited in the Commander field.";
-        }
-        else RefreshSelectedMainboardPrintings();
+        RefreshSelectedMainboardPrintings();
         if (busy || edhLabCommander is null ||
             MainboardManagerList.SelectedItem is not
                 EdhLabMainboardView.Row { IsHeader: false } selected ||
