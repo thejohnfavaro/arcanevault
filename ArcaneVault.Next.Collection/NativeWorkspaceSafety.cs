@@ -709,8 +709,25 @@ public static class NativeWorkspaceSafety
     /// </summary>
     public static IReadOnlyList<string> ListShortlist(string nativePath)
     {
-        _ = NativeWorkspace.Open(nativePath);
-        return NativeShortlist.Read(ReadPreservedBackup(nativePath));
+        var verified = NativeWorkspace.Open(nativePath);
+        return ListShortlistFromVerified(verified);
+    }
+
+    /// <summary>
+    /// Read the saved shortlist after a complete verified open without
+    /// rerunning SQLite quick_check and the native row-by-row comparison.
+    /// A fresh preserved-backup checksum still rejects concurrent changes.
+    /// </summary>
+    public static IReadOnlyList<string> ListShortlistFromVerified(
+        NativeWorkspace.Workspace verified)
+    {
+        ArgumentNullException.ThrowIfNull(verified);
+        byte[] bytes = ReadPreservedBackup(verified.DatabasePath);
+        if (!Digest(bytes).Equals(verified.BackupSha256,
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException(
+                "Native shortlist changed after verification. Reload the collection.");
+        return NativeShortlist.Read(bytes);
     }
 
     /// <summary>
