@@ -30,6 +30,18 @@ internal static class NativeVisualShellChecks
         string dir = FindDesktop();
         string mainShell = File.ReadAllText(Path.Combine(dir, "MainWindow.xaml"));
         string deckStudio = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorView.xaml"));
+        var matchAnalytics = File.ReadAllText(Path.Combine(dir,
+            "NativeMatchAnalyticsWorkspace.cs"));
+        var performancePanel = File.ReadAllText(Path.Combine(dir,
+            "NativeMatchPerformancePanel.cs"));
+        Must(matchAnalytics.Contains("All Decks — aggregate") &&
+             matchAnalytics.Contains("ReadTelemetryOverviewForDeck(scope)") &&
+             matchAnalytics.Contains("ReadGameplayObservationForDeck(scope)") &&
+             matchAnalytics.Contains("ReadVerifiedPlayDrawForDeck(scope)") &&
+             matchAnalytics.Contains("singleDeck: selectedDeckId.Length > 0") &&
+             performancePanel.Contains("deckFilter.SelectedItem = decks[0]"),
+             "Match Analytics must use one shared deck selector for all reports.");
+
         foreach (var heading in new[] { "DISCOVER", "COLLECTION", "BUILD &amp; PLAY", "SYSTEM" })
             Must(mainShell.Contains("Text=" + (char)34 + heading + (char)34),
                 "Windows navigation must expose the shared workspace grouping: " + heading);
