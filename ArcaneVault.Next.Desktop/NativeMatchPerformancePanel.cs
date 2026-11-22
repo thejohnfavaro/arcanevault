@@ -28,6 +28,15 @@ internal sealed class NativeMatchPerformancePanel : UserControl
     private readonly ListView formats = new() { Height = 145, Margin = new Thickness(0,6,0,10) };
     private readonly ListView timeline = new() { Height = 190, Margin = new Thickness(0,6,0,0) };
     private readonly ListView weeks = new() { Height = 154, Margin = new Thickness(0,6,0,10) };
+    private readonly ListView opponentMatchups = new() { Height = 175,
+        Margin = new Thickness(0,6,0,10) };
+    private sealed record OpponentRow(string Identity, int Wins, int Losses)
+    {
+        public int Matches => Wins + Losses;
+        public string Record => Wins + "–" + Losses;
+        public string WinRate => Matches == 0 ? "—" :
+            (100d * Wins / Matches).ToString("0.#") + "%";
+    }
     private readonly TextBlock streaks = new() { Foreground = Brushes.LightGray,
         TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,2,0,8) };
     private IReadOnlyList<MatchPerformanceAnalytics.Entry> records =
@@ -76,6 +85,19 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         formatView.Columns.Add(Column("Win %", "WinRate", 80));
         formats.View = formatView;
         root.Children.Add(formats);
+        root.Children.Add(new TextBlock { Text = "AGAINST OPPONENT COLOR IDENTITY",
+            FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+        var opponentView = new GridView();
+        opponentView.Columns.Add(Column("Opponent", "Identity", 155));
+        opponentView.Columns.Add(Column("Matches", "Matches", 75));
+        opponentView.Columns.Add(Column("W–L", "Record", 75));
+        opponentView.Columns.Add(Column("Win %", "WinRate", 85));
+        opponentMatchups.View = opponentView;
+        root.Children.Add(opponentMatchups);
+        root.Children.Add(new TextBlock {
+            Text = "Based on explicitly tagged opponent identities in Match History. Unknown is separate.",
+            Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0,0,0,8) });
         root.Children.Add(new TextBlock { Text = "WEEKLY PERFORMANCE (UTC)", FontSize = 13,
             FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var weekView = new GridView();
@@ -147,6 +169,26 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         string? selected = primary == AllDecks ? null : primary;
         var report = MatchPerformanceAnalytics.Build(records, selected, days,
             DateTimeOffset.Now, format);
+        var cutoff = days > 0 ? DateTimeOffset.Now.AddDays(-days) :
+            DateTimeOffset.MinValue;
+        opponentMatchups.ItemsSource = records
+            .Where(x => x.Result is "win" or "loss" &&
+                !string.IsNullOrWhiteSpace(x.DeckName) &&
+                x.Played >= cutoff && x.Played <= DateTimeOffset.Now &&
+                (selected is null || x.DeckName.Equals(selected,
+                    StringComparison.OrdinalIgnoreCase)) &&
+                (format is null || (string.IsNullOrWhiteSpace(x.Format) ?
+                    "Unknown format" : x.Format.Trim()).Equals(format,
+                    StringComparison.OrdinalIgnoreCase)))
+            .GroupBy(x => x.MatchId, StringComparer.Ordinal)
+            .Select(g => g.OrderByDescending(x => x.Played).First())
+            .GroupBy(x => string.IsNullOrWhiteSpace(x.OpponentColors) ?
+                "Unknown" : x.OpponentColors, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new OpponentRow(g.Key, g.Count(x => x.Result == "win"),
+                g.Count(x => x.Result == "loss")))
+            .OrderBy(x => x.Identity == "Unknown" ? 1 : 0)
+            .ThenByDescending(x => x.Matches).ThenBy(x => x.Identity)
+            .ToArray();
         headline.Text = report.Matches == 0
             ? "No confirmed matches for this selection"
             : $"{primary}: {report.Wins} W / {report.Losses} L  •  {report.Rate:0.#}% win rate";
