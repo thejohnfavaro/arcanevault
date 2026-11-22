@@ -5,7 +5,8 @@ namespace ArcaneVault.Next.Desktop;
 internal static class MatchPerformanceAnalytics
 {
     internal sealed record Entry(string MatchId, DateTimeOffset Played,
-        string DeckName, string NativeDeckId, string Format, string Result);
+        string DeckName, string NativeDeckId, string Format, string Result,
+        string OpponentColors = "");
     internal sealed record FormatRow(string Format, int Wins, int Losses)
     {
         public int Matches => Wins + Losses;
