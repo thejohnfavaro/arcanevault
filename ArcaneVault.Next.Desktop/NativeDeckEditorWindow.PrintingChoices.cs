@@ -11,6 +11,7 @@ public partial class NativeDeckEditorWindow
     private sealed record MainboardPrintingOption(string Id, string Display);
     private readonly Dictionary<string, string> deckPrintingChoices =
         new(StringComparer.OrdinalIgnoreCase);
+    private string commanderPrintingChoice = "";
     private int printingSelectionVersion;
     private bool populatingPrintingChoices;
 
@@ -19,6 +20,7 @@ public partial class NativeDeckEditorWindow
         if (original is null) return;
         foreach (var pair in original.EntryPrintingIds)
             deckPrintingChoices[pair.Key] = pair.Value;
+        commanderPrintingChoice = original.CommanderPrintingId;
     }
 
     private async void RefreshSelectedMainboardPrintings()
@@ -32,10 +34,11 @@ public partial class NativeDeckEditorWindow
         if (MainboardManagerList?.SelectedItem is not
             ArcaneVault.Next.EDHLab.EdhLabMainboardView.Row { IsHeader: false } selected)
         {
-            MainboardPrintingStatus.Text = "Select a mainboard card to browse printings.";
+            MainboardPrintingStatus.Text = "Select a mainboard card or commander to browse printings.";
             return;
         }
-        string cardName = selected.Name;
+        bool isCommander = selected.IsCommander;
+        string cardName = isCommander ? CommanderBox.Text.Trim() : selected.Name;
         if (string.IsNullOrWhiteSpace(catalogPath))
         {
             MainboardPrintingStatus.Text =
@@ -51,7 +54,9 @@ public partial class NativeDeckEditorWindow
             if (version != printingSelectionVersion || !IsLoaded ||
                 MainboardManagerList.SelectedItem is not
                     ArcaneVault.Next.EDHLab.EdhLabMainboardView.Row current ||
-                !current.Name.Equals(cardName, StringComparison.OrdinalIgnoreCase))
+                (current.IsCommander != isCommander ||
+                 !(isCommander ? CommanderBox.Text.Trim() : current.Name)
+                    .Equals(cardName, StringComparison.OrdinalIgnoreCase)))
                 return;
             var options = new List<MainboardPrintingOption>
             {
@@ -76,9 +81,11 @@ public partial class NativeDeckEditorWindow
             options = options.Take(1).Concat(options.Skip(1)
                 .OrderByDescending(x => x.Display.StartsWith("OWNED ×",
                     StringComparison.Ordinal))).ToList();
-            if (deckPrintingChoices.TryGetValue(cardName, out var savedId) &&
-                !options.Any(x => x.Id.Equals(savedId, StringComparison.OrdinalIgnoreCase)))
-                options.Add(new(savedId,
+            string selectedId = isCommander ? commanderPrintingChoice :
+                deckPrintingChoices.GetValueOrDefault(cardName, "");
+            if (selectedId.Length > 0 &&
+                !options.Any(x => x.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase)))
+                options.Add(new(selectedId,
                     "Previously selected printing unavailable in current catalog (not editable)"));
             // Programmatic selection must not be mistaken for a user edit.
             populatingPrintingChoices = true;
@@ -86,8 +93,7 @@ public partial class NativeDeckEditorWindow
             {
                 MainboardPrintingBox.ItemsSource = options;
                 MainboardPrintingBox.SelectedItem = options.FirstOrDefault(x =>
-                    deckPrintingChoices.TryGetValue(cardName, out var id) &&
-                    x.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) ?? options[0];
+                    x.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase)) ?? options[0];
             }
             finally { populatingPrintingChoices = false; }
             MainboardPrintingBox.IsEnabled = options.Count > 1;
@@ -119,11 +125,16 @@ public partial class NativeDeckEditorWindow
     {
         if (busy ||
             MainboardManagerList?.SelectedItem is not
-                ArcaneVault.Next.EDHLab.EdhLabMainboardView.Row { IsHeader: false, IsCommander: false } row ||
+                ArcaneVault.Next.EDHLab.EdhLabMainboardView.Row { IsHeader: false } row ||
             MainboardPrintingBox?.SelectedItem is not MainboardPrintingOption selected)
             return;
+        string cardName = row.IsCommander ? CommanderBox.Text.Trim() : row.Name;
+        if (cardName.Length == 0) return;
         if (selected.Id.Length == 0)
-            deckPrintingChoices.Remove(row.Name);
+        {
+            if (row.IsCommander) commanderPrintingChoice = "";
+            else deckPrintingChoices.Remove(row.Name);
+        }
         else
         {
             if (!Guid.TryParse(selected.Id, out var id) || id == Guid.Empty ||
@@ -132,7 +143,8 @@ public partial class NativeDeckEditorWindow
                 MainboardPrintingStatus.Text = "Select a verified current catalog entry.";
                 return;
             }
-            deckPrintingChoices[row.Name] = id.ToString("D");
+            if (row.IsCommander) commanderPrintingChoice = id.ToString("D");
+            else deckPrintingChoices[row.Name] = id.ToString("D");
         }
         MainboardPrintingStatus.Text = selected.Id.Length == 0
             ? "Default artwork selected for this unsaved deck. Review and save to persist."
@@ -140,7 +152,7 @@ public partial class NativeDeckEditorWindow
               "No ownership, proxy ledger or card price was changed.";
         StatusText.Text = MainboardPrintingStatus.Text;
         if (previewedCard is { } visible &&
-            visible.Name.Equals(row.Name, StringComparison.OrdinalIgnoreCase))
+            visible.Name.Equals(cardName, StringComparison.OrdinalIgnoreCase))
             _ = ShowCardPreviewAsync(visible);
     }
 }
