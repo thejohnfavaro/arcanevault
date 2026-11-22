@@ -2380,6 +2380,19 @@ public partial class NativeDeckEditorView : UserControl
             int omitted = Math.Max(0, report.Findings.Count - 18);
             string reportText = string.Join("\n", details);
             if (omitted > 0) reportText += $"\n…plus {omitted} additional review notes.";
+            string selectedCoverMode = coverModeChoice;
+            string selectedCoverCard = coverCardChoice;
+            string selectedCoverPrinting = coverPrintingChoice;
+            bool coverCardMissing = selectedCoverMode == "Custom" &&
+                !entries.Any(x => x.Name.Equals(selectedCoverCard,
+                    StringComparison.OrdinalIgnoreCase)) &&
+                !commander.Equals(selectedCoverCard, StringComparison.OrdinalIgnoreCase);
+            if (coverCardMissing)
+            {
+                selectedCoverMode = "Auto";
+                selectedCoverCard = "";
+                selectedCoverPrinting = "";
+            }
             string prompt =
                 $"{action} \"{name}\" ({format}) with {copies:N0} mainboard copies across " +
                 $"{entries.Count:N0} distinct card names · Folder: {folder}" +
@@ -2412,19 +2425,6 @@ public partial class NativeDeckEditorView : UserControl
                     StringComparison.OrdinalIgnoreCase)))
                 .ToDictionary(x => x.Key, x => x.Value,
                     StringComparer.OrdinalIgnoreCase);
-            string selectedCoverMode = coverModeChoice;
-            string selectedCoverCard = coverCardChoice;
-            string selectedCoverPrinting = coverPrintingChoice;
-            bool coverCardMissing = selectedCoverMode == "Custom" &&
-                !entries.Any(x => x.Name.Equals(selectedCoverCard,
-                    StringComparison.OrdinalIgnoreCase)) &&
-                !commander.Equals(selectedCoverCard, StringComparison.OrdinalIgnoreCase);
-            if (coverCardMissing)
-            {
-                selectedCoverMode = "Auto";
-                selectedCoverCard = "";
-                selectedCoverPrinting = "";
-            }
             var saveResult = await Task.Run(() =>
             {
                 // Name-only historical matches must be pinned while we still
