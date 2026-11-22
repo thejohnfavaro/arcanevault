@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace ArcaneVault.Next.Collection;
 
@@ -10,7 +11,7 @@ namespace ArcaneVault.Next.Collection;
 /// </summary>
 public static class NativeDeckCoverCache
 {
-    private const int Schema = 1;
+    private const int Schema = 2;
     public static string DefaultDirectory =>
         Path.Combine(NativeWorkspace.RootDirectory, "cache", "deck-covers");
 
@@ -84,12 +85,55 @@ public static class NativeDeckCoverCache
             using var cmd = db.CreateCommand();
             cmd.CommandText = "SELECT image FROM cards WHERE name=$name COLLATE NOCASE LIMIT 1";
             var name = cmd.Parameters.AddWithValue("$name", "");
+            // Arena deck exports often preserve the set and collector number
+            // inside a mainboard name: "Optimistic Scavenger (DSK) 21".
+            // The catalog indexes the card as "Optimistic Scavenger" and stores
+            // DSK/21 in separate printing fields. Do not rewrite saved decks.
+            using var edition = db.CreateCommand();
+            edition.CommandText = """
+                SELECT image FROM variants
+                WHERE name=$name COLLATE NOCASE AND setcode=$set COLLATE NOCASE
+                  AND collector=$number COLLATE NOCASE LIMIT 1
+                """;
+            var editionName = edition.Parameters.AddWithValue("$name", "");
+            var editionSet = edition.Parameters.AddWithValue("$set", "");
+            var editionNumber = edition.Parameters.AddWithValue("$number", "");
+            using var anyPrinting = db.CreateCommand();
+            anyPrinting.CommandText =
+                "SELECT image FROM variants WHERE name=$name COLLATE NOCASE AND image <> '' LIMIT 1";
+            var anyName = anyPrinting.Parameters.AddWithValue("$name", "");
             foreach (string commander in requested)
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (covers.ContainsKey(commander)) continue;
-                name.Value = commander;
-                var image = cmd.ExecuteScalar()?.ToString() ?? "";
+                var parsed = ParseArenaPrintingHint(commander);
+                string cardName = parsed.Name;
+                string image = "";
+                if (parsed.SetCode.Length > 0)
+                {
+                    editionName.Value = cardName;
+                    editionSet.Value = parsed.SetCode;
+                    editionNumber.Value = parsed.CollectorNumber;
+                    try { image = edition.ExecuteScalar()?.ToString() ?? ""; }
+                    catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
+                    {
+                        // Legacy catalog without variants table: use base card art.
+                    }
+                }
+                if (!Trusted(image))
+                {
+                    name.Value = cardName;
+                    image = cmd.ExecuteScalar()?.ToString() ?? "";
+                }
+                if (!Trusted(image))
+                {
+                    anyName.Value = cardName;
+                    try { image = anyPrinting.ExecuteScalar()?.ToString() ?? ""; }
+                    catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
+                    {
+                        // Older catalogs may not contain printing metadata.
+                    }
+                }
                 covers[commander] = Trusted(image) ? image : "";
             }
         }
@@ -120,6 +164,24 @@ public static class NativeDeckCoverCache
         }
         return requested.ToDictionary(x => x, x => covers[x],
             StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Split an Arena decklist printing hint only for Scryfall artwork lookup.
+    /// The actual saved mainboard name and user-selected printing remain intact.
+    /// </summary>
+    public static (string Name, string SetCode, string CollectorNumber)
+        ParseArenaPrintingHint(string raw)
+    {
+        string text = (raw ?? "").Trim();
+        var match = Regex.Match(text,
+            @"^(?<name>.+)\s+\((?<set>[A-Za-z0-9]{2,8})\)\s+(?<collector>[0-9]{1,6}[A-Za-z]?)$",
+            RegexOptions.CultureInvariant);
+        return match.Success
+            ? (match.Groups["name"].Value.Trim(),
+               match.Groups["set"].Value,
+               match.Groups["collector"].Value)
+            : (text, "", "");
     }
 
     private static bool Trusted(string? raw) =>
