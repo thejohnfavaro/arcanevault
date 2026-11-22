@@ -34,6 +34,23 @@ internal static class MatchDeckAttributionChecks
             "Name-only legacy record must count when name is unique");
         Assert(Resolve("eight","Borg","","missing-native","Deck assignment: manually confirmed in Arcane Vault Match History") is null,
             "An invalid explicit native deck ID must not fall back to a name");
+        // A generic Ladder match may be recovered only when older stored
+        // history preserves an explicit confirmed assignment, not from an
+        // ordinary name-only match or a passive Arena inventory label.
+        Assert(MatchDeckAttribution.HasVerifiedAssignmentNote(
+                "Deck assignment: recent_arena_deck_submission") &&
+            MatchDeckAttribution.HasVerifiedAssignmentNote(
+                "Deck assignment: manually confirmed in Arcane Vault Match History") &&
+            !MatchDeckAttribution.HasVerifiedAssignmentNote("Passive inventory label") &&
+            !MatchDeckAttribution.HasVerifiedAssignmentNote(""),
+            "Historical Standard W/L recovery must require recorded verification.");
+        Assert(ArenaQueueInfo.IsRankedStandardMatch("Ladder",
+                MatchDeckAttribution.HasVerifiedAssignmentNote(
+                    "Deck assignment: recent_arena_deck_submission")) &&
+            !ArenaQueueInfo.IsRankedStandardMatch("Ladder",
+                MatchDeckAttribution.HasVerifiedAssignmentNote("Passive inventory label")) &&
+            !ArenaQueueInfo.IsRankedStandardMatch("Standard_Play", true),
+            "Only verified generic ranked matches count, never casual play.");
     }
     private static void Assert(bool ok,string message)
     {
