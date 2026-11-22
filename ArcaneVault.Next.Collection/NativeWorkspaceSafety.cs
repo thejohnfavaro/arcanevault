@@ -743,7 +743,8 @@ public static class NativeWorkspaceSafety
         NativeDeckEditing.DeckRow? selected, string expectedCurrentBackupSha,
         CancellationToken cancellation = default, string? format = null,
         string? folder = null, bool? favorite = null,
-        IReadOnlyDictionary<string, string>? displayPrintIds = null)
+        IReadOnlyDictionary<string, string>? displayPrintIds = null,
+        string? commanderDisplayPrintId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedCurrentBackupSha);
         lock (UpdateGate)
@@ -753,7 +754,7 @@ public static class NativeWorkspaceSafety
             CheckCurrent(path, expectedCurrentBackupSha);
             var changed = NativeDeckEditing.Save(ReadPreservedBackup(path),
                 name, commander, mainboard, selected, format, folder, favorite,
-                displayPrintIds);
+                displayPrintIds, commanderDisplayPrintId);
             cancellation.ThrowIfCancellationRequested();
             return Refresh(path, changed, "native-deck-library-save",
                 expectedCurrentBackupSha, cancellation);
