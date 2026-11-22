@@ -23,6 +23,9 @@ internal static class ArcaneSnapshot
 
     private static readonly object Gate = new();
     private static string selectedDeckId = "";
+    internal static event Action? SelectionChanged;
+
+    private static void NotifyChanged() => SelectionChanged?.Invoke();
 
     internal static State Read()
     {
@@ -88,6 +91,7 @@ internal static class ArcaneSnapshot
 
     internal static Deck? Move(int diff)
     {
+        Deck? selected;
         lock (Gate)
         {
             var state = Read();
@@ -97,13 +101,16 @@ internal static class ArcaneSnapshot
             else index = ((index + diff) % state.Decks.Count + state.Decks.Count) %
                 state.Decks.Count;
             selectedDeckId = state.Decks[index].Id;
-            return state.Decks[index];
+            selected = state.Decks[index];
         }
+        NotifyChanged();
+        return selected;
     }
 
     internal static void ResetSelection()
     {
         lock (Gate) selectedDeckId = "";
+        NotifyChanged();
     }
 
     internal static void RequestRefresh()
