@@ -652,8 +652,18 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                         !blockedArenaIds.Contains(arenaId) &&
                         arenaMap.TryGetValue(arenaId, out string? mappedId) &&
                         mappedId.Equals(deck.id, StringComparison.Ordinal);
+                    // Historical Arena submissions and explicit Match History
+                    // corrections can retain their verified assignment in
+                    // the note even when their native deck ID was not stored.
+                    // Resolve already requires a unique matching saved deck;
+                    // never allow an unknown or conflicting Arena ID to count.
+                    bool verifiedHistoricalAssignment =
+                        name.Equals(deck.name, StringComparison.OrdinalIgnoreCase) &&
+                        !blockedArenaIds.Contains(arenaId) &&
+                        MatchDeckAttribution.HasVerifiedAssignmentNote(note);
                     if (deck.format.Equals("Arena Standard", StringComparison.OrdinalIgnoreCase) &&
-                        !ArenaQueueInfo.IsRankedStandardMatch(rawQueue, exactNative || exactArena))
+                        !ArenaQueueInfo.IsRankedStandardMatch(rawQueue,
+                            exactNative || exactArena || verifiedHistoricalAssignment))
                         continue;
                     if (deck.format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase) &&
                         (queue.Equals("Standard", StringComparison.OrdinalIgnoreCase) ||
