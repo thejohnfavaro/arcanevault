@@ -53,6 +53,10 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         public string imagePath { get; set; } = "";
         public string artUrl { get; set; } = "";
         public string artStatus { get; set; } = "Pending artwork lookup";
+        [System.Text.Json.Serialization.JsonIgnore]
+        public int? lastRenderedWins { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public int? lastRenderedLosses { get; set; }
         public int wins { get; set; }
         public int losses { get; set; }
         public IReadOnlyList<MatchEvent> matchHistory { get; set; } = Array.Empty<MatchEvent>();
@@ -183,25 +187,51 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         string stamp = info.Length + ":" + info.LastWriteTimeUtc.Ticks;
         if (stamp != lastWorkspaceStamp)
         {
+            // A deck edit changes the workspace timestamp, but must not
+            // discard downloaded cover art, key-image paths or the rotation
+            // position for every unchanged deck. Carry cosmetic state forward
+            // by immutable deck ID and exact saved cover choice.
+            var oldById = decks.ToDictionary(d => d.id, StringComparer.Ordinal);
             var read = NativeWorkspaceSafety.ListDecks(workspace, cancel)
                 .Where(d => !string.IsNullOrWhiteSpace(d.Id) && !string.IsNullOrWhiteSpace(d.Name))
                 .Take(1000)
-                .Select(d => new Deck
+                .Select(d =>
                 {
-                    id = d.Id, name = d.Name, commander = d.Commander,
-                    format = d.Format, arenaDeckId = d.ArenaDeckId,
-                    commanderDisplayPrintId = d.CommanderPrintingId,
-                    // A custom cover outranks commander and automatic
-                    // non-Commander fallback; never changes printing ownership.
-                    coverMode = d.DeckCoverMode,
-                    coverPrintingId = d.EffectiveCoverPrintingId,
-                    coverCardName = d.EffectiveCoverCard
+                    var next = new Deck
+                    {
+                        id = d.Id, name = d.Name, commander = d.Commander,
+                        format = d.Format, arenaDeckId = d.ArenaDeckId,
+                        commanderDisplayPrintId = d.CommanderPrintingId,
+                        coverMode = d.DeckCoverMode,
+                        coverPrintingId = d.EffectiveCoverPrintingId,
+                        coverCardName = d.EffectiveCoverCard
+                    };
+                    if (oldById.TryGetValue(next.id, out var prior) &&
+                        prior.coverCardName == next.coverCardName &&
+                        prior.coverPrintingId == next.coverPrintingId &&
+                        prior.coverMode == next.coverMode)
+                    {
+                        next.artUrl = prior.artUrl;
+                        next.artStatus = prior.artStatus;
+                        next.imagePath = prior.imagePath;
+                        // A rename or W/L change must create an updated key
+                        // tile, but its existing artwork need not be fetched.
+                        if (prior.name == next.name)
+                        {
+                            next.keyImagePath = prior.keyImagePath;
+                            next.lastRenderedWins = prior.lastRenderedWins;
+                            next.lastRenderedLosses = prior.lastRenderedLosses;
+                        }
+                    }
+                    return next;
                 }).ToList();
 
             decks = read;
-            artworkCursor = 0;
+            artworkCursor = decks.Count == 0 ? 0 : artworkCursor % decks.Count;
             lastWorkspaceStamp = stamp;
             lastKnownArenaDeckStamp = null;
+            // Art on unchanged decks is already resolved. New/changed covers
+            // still receive an immediate lookup.
             nextCoverRetry = DateTimeOffset.MinValue;
         }
 
