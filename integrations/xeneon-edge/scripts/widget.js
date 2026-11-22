@@ -295,21 +295,20 @@
     renderSeason(snapshot);
   }
 
-  // The EDGE displays Arena match performance, so only Arena Brawl decks
-  // belong in its selector. Tabletop Commander stays in Arcane Vault and
-  // Stream Deck snapshots, but must not be interpreted as Arena Brawl.
-  function arenaBrawlDecks(snapshot) {
+  // The EDGE only tracks verified digital Arena Brawl and Arena Standard
+  // decks, never tabletop Commander or generic 60-card formats.
+  function eligibleArenaDecks(snapshot) {
     return Array.isArray(snapshot?.decks) ?
       snapshot.decks.filter(d => d && d.id &&
         typeof d.format === "string" &&
-        d.format.trim().toLowerCase() === "arena brawl") : [];
+        ["arena brawl","arena standard"].includes(d.format.trim().toLowerCase())) : [];
   }
 
   function render(snapshot) {
-    const decks = arenaBrawlDecks(snapshot);
+    const decks = eligibleArenaDecks(snapshot);
     if (!decks.length) {
-      $("deckName").textContent = "No Arena Brawl decks";
-      $("commander").textContent = "Save an Arena Brawl deck in Arcane Vault";
+      $("deckName").textContent = "No Arena decks";
+      $("commander").textContent = "Save an Arena Brawl or Arena Standard deck";
       $("deckCount").textContent = "0 / 0";
       $("wins").textContent = "—"; $("losses").textContent = "—";
       $("rate").textContent = "—"; $("rateFill").style.width = "0%";
@@ -317,7 +316,7 @@
       renderSetProgress(snapshot);
       renderRanks(snapshot);
       $("art").removeAttribute("src"); $("art").classList.remove("ready");
-      status("Connected · no Arena Brawl decks in this snapshot.", true);
+      status("Connected · no tracked Arena decks in this snapshot.", true);
       return;
     }
     let index = decks.findIndex(d => String(d.id) === selectedId);
@@ -326,7 +325,9 @@
     const deck = decks[index];
     selectedId = String(deck.id);
     $("deckName").textContent = String(deck.name || "Unnamed deck");
-    $("commander").textContent = deck.commander ? "Commander: " + deck.commander : "No commander assigned";
+    $("commander").textContent = deck.commander ? "Commander: " + deck.commander :
+      deck.format.trim().toLowerCase() === "arena standard" ? "Format: Ranked Standard" :
+      "No commander assigned";
     $("deckCount").textContent = (index + 1) + " / " + decks.length;
     const wins = Math.max(0, Number(deck.wins) || 0);
     const losses = Math.max(0, Number(deck.losses) || 0);
@@ -336,7 +337,9 @@
     $("losses").textContent = String(losses);
     $("rate").textContent = total ? rate + "%" : "—";
     $("rateFill").style.width = (total ? rate : 0) + "%";
-    $("recordSummary").textContent = total ? "Confirmed Arena matches" : "No associated matches";
+    $("recordSummary").textContent = deck.format.trim().toLowerCase() === "arena standard"
+      ? (total ? "Confirmed Ranked Standard matches" : "No verified Ranked Standard matches")
+      : (total ? "Confirmed Arena matches" : "No associated matches");
     renderMatchHistory(deck);
     renderSetProgress(snapshot);
     renderRanks(snapshot);
@@ -373,11 +376,11 @@
     };
     if (url) image.src = url;
     else { image.removeAttribute("src"); status("Arcane Vault connected · " +
-      String(deck.artStatus || "commander art unavailable"), true); }
+      String(deck.artStatus || "deck artwork unavailable"), true); }
   }
 
   function cycle(direction) {
-    const decks = arenaBrawlDecks(lastSnapshot);
+    const decks = eligibleArenaDecks(lastSnapshot);
     if (!decks.length) return;
     currentIndex = (currentIndex + direction + decks.length) % decks.length;
     selectedId = String(decks[currentIndex].id);
@@ -406,9 +409,9 @@
 
   function newlyUpdatedDeck(previous, incoming) {
     if (!previous || !autoSwitchOnMatch) return null;
-    const before = new Map(arenaBrawlDecks(previous).map(d => [String(d.id), d]));
+    const before = new Map(eligibleArenaDecks(previous).map(d => [String(d.id), d]));
     const updated = [];
-    for (const deck of arenaBrawlDecks(incoming)) {
+    for (const deck of eligibleArenaDecks(incoming)) {
       const original = before.get(String(deck.id));
       if (!original) continue; // Newly discovered/synced decks aren't new match events.
       const priorWins = deckMatchCount(original, "wins");
