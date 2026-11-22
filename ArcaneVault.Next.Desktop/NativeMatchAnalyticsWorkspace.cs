@@ -221,11 +221,11 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                 {
                     try
                     {
-                        savedDecks = ArcaneVault.Next.Collection.NativeWorkspaceSafety.ListDecks(
+                        savedDecks.AddRange(ArcaneVault.Next.Collection.NativeWorkspaceSafety.ListDecks(
                             ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath)
                             .Where(d => !string.IsNullOrWhiteSpace(d.Id))
                             .Select(d => new SavedDeckOption(d.Id, d.Name))
-                            .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase).ToList();
+                            .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase));
                     }
                     catch (Exception ex) when (ex is IOException or SqliteException or
                         InvalidDataException or UnauthorizedAccessException or ArgumentException) { }
