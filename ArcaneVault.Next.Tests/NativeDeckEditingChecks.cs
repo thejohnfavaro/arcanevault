@@ -218,6 +218,30 @@ internal static class NativeDeckEditingChecks
             "Test Commander", list[0].MainboardText, list[0],
             displayPrintIds: new Dictionary<string, string> { ["Sol Ring"] = "bogus" }));
 
+        // A commander is a dedicated deck field; its cosmetic printing must
+        // round-trip without inserting it into the 99-card mainboard.
+        const string commanderPrint="00000000-0000-4000-8000-000000000773";
+        var commanderSaved=NativeDeckEditing.Save(source,"Legacy Commander",
+            "Test Commander",list[0].MainboardText,list[0],
+            commanderDisplayPrintId:commanderPrint);
+        var commanderRows=NativeDeckEditing.List(commanderSaved);
+        Must(commanderRows[0].CommanderPrintingId==commanderPrint &&
+            commanderRows[0].MainboardText==list[0].MainboardText &&
+            commanderRows[0].TotalCopies==list[0].TotalCopies &&
+            commanderRows[1].SourceSha256==list[1].SourceSha256,
+            "Commander printing should be independent of mainboard and ownership.");
+        Reject(()=>NativeDeckEditing.Save(commanderSaved,"Legacy Commander",
+            "Test Commander",commanderRows[0].MainboardText,commanderRows[0],
+            commanderDisplayPrintId:commanderPrint));
+        var resetCommander=NativeDeckEditing.Save(commanderSaved,"Legacy Commander",
+            "Test Commander",commanderRows[0].MainboardText,commanderRows[0],
+            commanderDisplayPrintId:"");
+        Must(NativeDeckEditing.List(resetCommander)[0].CommanderPrintingId=="",
+            "Resetting commander artwork should persist the default.");
+        Reject(()=>NativeDeckEditing.Save(source,"Legacy Commander",
+            "Test Commander",list[0].MainboardText,list[0],
+            commanderDisplayPrintId:"invalid-guid"));
+
         Console.WriteLine("  CHECK C: deck saves append history and preserve physical and Arena ownership");
         var updated = NativeWorkspaceSafety.SaveDeck(path,
             "Legacy Commander Revised", "Test Commander",
