@@ -2014,6 +2014,7 @@ public partial class NativeDeckEditorWindow : Window
             selected is null ? draftFormat : savedLabFormat;
         edhLabColors = selected is null ? draftColors : savedLabColors;
         InitializeComponent();
+        CommanderNameSuggestions.Attach(CommanderBox, FormatBox, catalogPath);
         InitializeDeckPrintingChoices();
         // Load independent proxy coverage asynchronously. It does not
         // rewrite the deck, own an official printing or fetch any price.
