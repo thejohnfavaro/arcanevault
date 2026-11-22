@@ -9,7 +9,7 @@
     <AssemblyName>ArcaneVault.Next.Desktop</AssemblyName>
     <RootNamespace>ArcaneVault.Next.Desktop</RootNamespace>
     <ApplicationTitle>Arcane Vault — Native Windows</ApplicationTitle>
-    <Version>0.9.207</Version>
+    <Version>0.9.208</Version>
     <ApplicationIcon>Assets\ArcaneVault.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
