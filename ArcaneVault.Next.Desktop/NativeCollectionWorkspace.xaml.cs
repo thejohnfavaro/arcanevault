@@ -1009,6 +1009,28 @@ public partial class NativeCollectionWorkspace : UserControl
                             // if the local Scryfall printing is temporarily unavailable.
                         }
                     }
+                    // Some cards have no canonical cards.image URL even though the
+                    // local Scryfall printing catalog includes official artwork.
+                    // Use the same printing fallback as the Edge exporter so
+                    // saved custom covers render consistently across surfaces.
+                    if (!NativeCardArtwork.IsTrustedArtworkUrl(url) &&
+                        !string.IsNullOrWhiteSpace(cardName))
+                    {
+                        try
+                        {
+                            url = NativePrintingArtwork.Read(catalogPath!,
+                                cardName, limit: 20)
+                                .Printings.Select(p => p.ImageUrl)
+                                .FirstOrDefault(NativeCardArtwork.IsTrustedArtworkUrl) ?? "";
+                        }
+                        catch (Exception ex) when (ex is InvalidDataException or
+                            Microsoft.Data.Sqlite.SqliteException or IOException or
+                            ArgumentException)
+                        {
+                            // A missing catalog printing cannot invalidate
+                            // saved deck settings or its actual collection.
+                        }
+                    }
                     byDeck[deck.Id] = url;
                 }
                 return byDeck;
