@@ -606,6 +606,7 @@ public partial class NativeDeckEditorWindow : Window
                     selectedFormat.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase))
                     OwnedPoolBox.SelectedIndex = 1;
             }
+            UpdateCommanderFieldVisibility();
             InvalidateAnalytics();
             RefreshDraftSummary();
         }));
@@ -2027,7 +2028,7 @@ public partial class NativeDeckEditorWindow : Window
         InitializeComponent();
         CommanderNameSuggestions.Attach(CommanderBox, FormatBox, catalogPath);
         InitializeDeckPrintingChoices();
-        Dispatcher.BeginInvoke(new Action(() => { InitializeDeckCoverChoice();
+        Dispatcher.BeginInvoke(new Action(() => { UpdateCommanderFieldVisibility(); InitializeDeckCoverChoice();
             _ = RefreshDeckCoverPrintings(); }));
         // Load independent proxy coverage asynchronously. It does not
         // rewrite the deck, own an official printing or fetch any price.
@@ -2241,8 +2242,8 @@ public partial class NativeDeckEditorWindow : Window
     {
         if (busy) return;
         string name = DeckNameBox.Text.Trim();
-        string commander = CommanderBox.Text.Trim();
         string format = FormatBox.Text.Trim();
+        string commander = UsesCommanderZone(format) ? CommanderBox.Text.Trim() : "";
         string folder = FolderBox.Text.Trim();
         bool favorite = FavoriteDeckBox.IsChecked == true;
         string mainboard = MainboardBox.Text;
@@ -2336,7 +2337,7 @@ public partial class NativeDeckEditorWindow : Window
                     mainboard, original, expectedSha, format: format,
                     folder: folder, favorite: favorite,
                     displayPrintIds: savedPrintingChoices,
-                    commanderDisplayPrintId: commanderPrintingChoice,
+                    commanderDisplayPrintId: UsesCommanderZone(format) ? commanderPrintingChoice : "",
                     deckCoverMode: selectedCoverMode,
                     deckCoverCardName: selectedCoverCard,
                     deckCoverPrintingId: selectedCoverPrinting);
