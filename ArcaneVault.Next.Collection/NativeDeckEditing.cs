@@ -59,6 +59,15 @@ public static class NativeDeckEditing
         public string FavoriteLabel => Favorite ? "★ Favorite" : "";
         // Exact per-deck display choice; independent of collection ownership.
         public string CommanderPrintingId { get; init; } = "";
+        public string DeckCoverMode { get; init; } = "Auto";
+        public string DeckCoverCardName { get; init; } = "";
+        public string DeckCoverPrintingId { get; init; } = "";
+        public string EffectiveCoverCard => DeckCoverMode == "Custom" &&
+            DeckCoverCardName.Length > 0 ? DeckCoverCardName :
+            Commander.Length > 0 ? Commander :
+            ParseMainboard(MainboardText).FirstOrDefault()?.Name ?? "";
+        public string EffectiveCoverPrintingId => DeckCoverMode == "Custom"
+            ? DeckCoverPrintingId : Commander.Length > 0 ? CommanderPrintingId : "";
         public IReadOnlyDictionary<string, string> EntryPrintingIds { get; init; } =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
@@ -264,6 +273,11 @@ public static class NativeDeckEditing
                 AiReviewStale = savedMarkdown.Length > 0 &&
                     !string.Equals(storedFingerprint, actualFingerprint, StringComparison.Ordinal),
                 ArenaDeckId = GetString(deck, "arenaDeckId"),
+                DeckCoverMode = GetString(deck, "deckCoverMode").Equals("Custom",
+                    StringComparison.OrdinalIgnoreCase) ? "Custom" : "Auto",
+                DeckCoverCardName = GetString(deck, "deckCoverCardName"),
+                DeckCoverPrintingId = Guid.TryParse(GetString(deck, "deckCoverPrintingId"),
+                    out var coverId) && coverId != Guid.Empty ? coverId.ToString("D") : "",
                 CommanderPrintingId = Guid.TryParse(GetString(deck, "commanderDisplayPrintId"),
                     out var commanderId) && commanderId != Guid.Empty
                     ? commanderId.ToString("D") : "",
@@ -374,7 +388,9 @@ public static class NativeDeckEditing
             ["savedAt"] = DateTimeOffset.UtcNow.ToString("O"),
             ["label"] = "Before native deck edit"
         };
-        foreach (string key in new[] { "coverCard", "folder", "tags", "favorite" })
+        foreach (string key in new[] { "coverCard", "deckCoverMode",
+            "deckCoverCardName", "deckCoverPrintingId", "commanderDisplayPrintId",
+            "folder", "tags", "favorite" })
             if (deck[key] is not null)
                 previous[key] = deck[key]!.DeepClone();
         return previous;
@@ -412,7 +428,9 @@ public static class NativeDeckEditing
         DeckRow? selected = null, string? format = null,
         string? folder = null, bool? favorite = null,
         IReadOnlyDictionary<string, string>? displayPrintIds = null,
-        string? commanderDisplayPrintId = null)
+        string? commanderDisplayPrintId = null,
+        string? deckCoverMode = null, string? deckCoverCardName = null,
+        string? deckCoverPrintingId = null)
     {
         ArgumentNullException.ThrowIfNull(backup);
         string safeName = CheckedText(name, nameof(name), 120, true);
@@ -441,6 +459,32 @@ public static class NativeDeckEditing
             (!Guid.TryParse(commanderDisplayPrintId, out var commanderGuid) ||
              commanderGuid == Guid.Empty || safeCommander.Length == 0))
             throw new InvalidDataException("Invalid commander display printing.");
+        string requestedCoverMode = deckCoverMode ?? selected?.DeckCoverMode ?? "Auto";
+        if (requestedCoverMode != "Auto" && requestedCoverMode != "Custom")
+            throw new InvalidDataException("Deck cover mode must be Auto or Custom.");
+        string requestedCoverCard = CheckedText(deckCoverCardName ??
+            selected?.DeckCoverCardName ?? "", nameof(deckCoverCardName), 255, false);
+        string requestedCoverPrinting = deckCoverPrintingId ??
+            selected?.DeckCoverPrintingId ?? "";
+        if (requestedCoverPrinting.Length > 0 &&
+            (!Guid.TryParse(requestedCoverPrinting, out var validatedCoverPrint) ||
+             validatedCoverPrint == Guid.Empty))
+            throw new InvalidDataException("The custom deck cover printing ID is invalid.");
+        bool cardPresent = entries.Any(x =>
+            x.Name.Equals(requestedCoverCard, StringComparison.OrdinalIgnoreCase)) ||
+            (safeCommander.Length > 0 &&
+             safeCommander.Equals(requestedCoverCard, StringComparison.OrdinalIgnoreCase));
+        // A removed card must never leave a stale cover. Auto is safe even when
+        // old revisions preserve the original custom artwork choice.
+        if (requestedCoverMode == "Custom" && (!cardPresent || requestedCoverCard.Length == 0))
+            requestedCoverMode = "Auto";
+        if (requestedCoverMode != "Custom")
+        {
+            requestedCoverCard = "";
+            requestedCoverPrinting = "";
+        }
+        if (requestedCoverPrinting.Length > 0)
+            requestedCoverPrinting = Guid.Parse(requestedCoverPrinting).ToString("D");
         var before = NativeBackupReader.Read(backup);
         var currentRows = Describe(backup, out var root, out var library);
         int expectedCount = library.Count, expectedRevisions = before.DeckRevisions;
@@ -457,6 +501,9 @@ public static class NativeDeckEditing
                 ["id"] = id,
                 ["name"] = safeName,
                 ["commander"] = safeCommander,
+                ["deckCoverMode"] = requestedCoverMode,
+                ["deckCoverCardName"] = requestedCoverCard,
+                ["deckCoverPrintingId"] = requestedCoverPrinting,
                 ["commanderDisplayPrintId"] = commanderDisplayPrintId is { Length: > 0 }
                     ? Guid.Parse(commanderDisplayPrintId).ToString("D") : "",
                 ["format"] = safeFormat,
@@ -493,7 +540,12 @@ public static class NativeDeckEditing
                  SamePrintingMap(parsedOld.EntryPrintingIds, displayPrintIds)) &&
                 (commanderDisplayPrintId is null ||
                  string.Equals(parsedOld.CommanderPrintingId, commanderDisplayPrintId,
-                     StringComparison.OrdinalIgnoreCase)))
+                     StringComparison.OrdinalIgnoreCase)) &&
+                string.Equals(parsedOld.DeckCoverMode, requestedCoverMode, StringComparison.Ordinal) &&
+                string.Equals(parsedOld.DeckCoverCardName, requestedCoverCard,
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(parsedOld.DeckCoverPrintingId, requestedCoverPrinting,
+                    StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("The deck has no changes; nothing was saved.");
 
             var history = row["revisions"] as JsonArray;
@@ -516,6 +568,9 @@ public static class NativeDeckEditing
             else if (!parsedOld.Commander.Equals(safeCommander,
                 StringComparison.OrdinalIgnoreCase))
                 row["commanderDisplayPrintId"] = "";
+            row["deckCoverMode"] = requestedCoverMode;
+            row["deckCoverCardName"] = requestedCoverCard;
+            row["deckCoverPrintingId"] = requestedCoverPrinting;
             row["format"] = safeFormat;
             row["folder"] = safeFolder;
             row["favorite"] = safeFavorite;
