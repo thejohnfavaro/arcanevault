@@ -10,7 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- SDK 6.4+ uses a NuGet reference rather than a manually located DLL. -->
-    <PackageReference Include="LogiPluginApi" Version="6.4.2.3599" />
+    <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" />
   </ItemGroup>
   <Target Name="CopyPackage" AfterTargets="Build">
     <ItemGroup><PackageFiles Include="package\**\*" /></ItemGroup>
