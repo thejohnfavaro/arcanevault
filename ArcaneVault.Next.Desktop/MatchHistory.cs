@@ -42,6 +42,29 @@ internal sealed class MatchHistory : IDisposable
             source TEXT NOT NULL DEFAULT 'Arena'
         );";
         command.ExecuteNonQuery();
+        // Optional exact Arena rank-progress fields. Historical rows remain
+        // unknown instead of guessing steps from wins and losses.
+        var rankColumns = new[] {
+            ("constructed_step", "INTEGER"), ("limited_step", "INTEGER"),
+            ("constructed_percentile", "REAL"), ("limited_percentile", "REAL"),
+            ("constructed_leaderboard_place", "INTEGER"),
+            ("limited_leaderboard_place", "INTEGER")
+        };
+        var existingRank = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var schema = db.CreateCommand())
+        {
+            schema.CommandText = "PRAGMA table_info(rank_snapshots)";
+            using var reader = schema.ExecuteReader();
+            while (reader.Read()) existingRank.Add(reader.GetString(1));
+        }
+        foreach (var (column, sqlType) in rankColumns)
+        {
+            if (existingRank.Contains(column)) continue;
+            using var migration = db.CreateCommand();
+            migration.CommandText = "ALTER TABLE rank_snapshots ADD COLUMN " +
+                column + " " + sqlType;
+            migration.ExecuteNonQuery();
+        }
         // Add optional opponent identity without touching existing result attribution.
         using (var opponentSchema = db.CreateCommand())
         {
@@ -324,7 +347,10 @@ internal sealed class MatchHistory : IDisposable
     }
 
     internal sealed record RankSnapshot(string WhenUtc, string ConstructedClass,
-        int ConstructedLevel, string LimitedClass, int LimitedLevel);
+        int ConstructedLevel, string LimitedClass, int LimitedLevel,
+        int? ConstructedStep = null, int? LimitedStep = null,
+        double? ConstructedPercentile = null, double? LimitedPercentile = null,
+        int? ConstructedLeaderboardPlace = null, int? LimitedLeaderboardPlace = null);
 
     public bool AddRankSnapshot(DateTimeOffset time, ArenaRankInfo.Snapshot rank)
     {
@@ -332,14 +358,22 @@ internal sealed class MatchHistory : IDisposable
         {
             using var cmd = db.CreateCommand();
             cmd.CommandText = @"INSERT OR IGNORE INTO rank_snapshots
-                (captured_utc,constructed_class,constructed_level,limited_class,limited_level,source)
-                VALUES($at,$c,$cl,$l,$ll,$source)";
+                (captured_utc,constructed_class,constructed_level,limited_class,limited_level,source,
+                 constructed_step,limited_step,constructed_percentile,limited_percentile,
+                 constructed_leaderboard_place,limited_leaderboard_place)
+                VALUES($at,$c,$cl,$l,$ll,$source,$cs,$ls,$cp,$lp,$cr,$lr)";
             cmd.Parameters.AddWithValue("$at", time.ToUniversalTime().ToString("O"));
             cmd.Parameters.AddWithValue("$c", rank.ConstructedClass);
             cmd.Parameters.AddWithValue("$cl", rank.ConstructedLevel);
             cmd.Parameters.AddWithValue("$l", rank.LimitedClass);
             cmd.Parameters.AddWithValue("$ll", rank.LimitedLevel);
             cmd.Parameters.AddWithValue("$source", rank.Source);
+            cmd.Parameters.AddWithValue("$cs", (object?)rank.ConstructedStep ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$ls", (object?)rank.LimitedStep ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$cp", (object?)rank.ConstructedPercentile ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$lp", (object?)rank.LimitedPercentile ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$cr", (object?)rank.ConstructedLeaderboardPlace ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$lr", (object?)rank.LimitedLeaderboardPlace ?? DBNull.Value);
             return cmd.ExecuteNonQuery() == 1;
         }
     }
@@ -350,12 +384,20 @@ internal sealed class MatchHistory : IDisposable
         {
             using var cmd = db.CreateCommand();
             cmd.CommandText = @"SELECT captured_utc,constructed_class,constructed_level,
-                limited_class,limited_level FROM rank_snapshots
-                ORDER BY captured_utc DESC LIMIT 1";
+                limited_class,limited_level,constructed_step,limited_step,
+                constructed_percentile,limited_percentile,
+                constructed_leaderboard_place,limited_leaderboard_place
+                FROM rank_snapshots ORDER BY captured_utc DESC LIMIT 1";
             using var reader = cmd.ExecuteReader();
             return reader.Read()
                 ? new RankSnapshot(reader.GetString(0),reader.GetString(1),reader.GetInt32(2),
-                    reader.GetString(3),reader.GetInt32(4)) : null;
+                    reader.GetString(3),reader.GetInt32(4),
+                    reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                    reader.IsDBNull(6) ? null : reader.GetInt32(6),
+                    reader.IsDBNull(7) ? null : reader.GetDouble(7),
+                    reader.IsDBNull(8) ? null : reader.GetDouble(8),
+                    reader.IsDBNull(9) ? null : reader.GetInt32(9),
+                    reader.IsDBNull(10) ? null : reader.GetInt32(10)) : null;
         }
     }
 
