@@ -141,8 +141,20 @@ internal static class NativeVisualShellChecks
         // A deck-only EDH Lab save must not tear down and fully rescan the
         // collection/catalog for the common case. Keep the existing safety
         // fallback for inventory changes and failed verified refreshes.
+        // Startup must not repeat full SQLite integrity and row projection
+        // for each independent UI projection after Workspace.Open succeeds.
+        string workspaceSafetyCode = File.ReadAllText(
+            Path.Combine(dir, "..", "ArcaneVault.Next.Collection", "NativeWorkspaceSafety.cs"));
+        Must(workspaceSafetyCode.Contains("ListShortlistFromVerified(") &&
+             workspaceSafetyCode.Contains("Digest(bytes).Equals(verified.BackupSha256"),
+             "Verified shortlist projection must retain SHA safety without rescanning SQLite.");
+
         string mainWindowCode = File.ReadAllText(
             Path.Combine(dir, "MainWindow.xaml.cs"));
+        Must(mainWindowCode.Contains("NativeWorkspaceSafety.ListDecksFromVerified(workspace)") &&
+             mainWindowCode.Contains("NativeWorkspaceSafety.ListProxiesFromVerified(workspace)") &&
+             mainWindowCode.Contains("NativeWorkspaceSafety.ListShortlistFromVerified(workspace)"),
+             "Startup must reuse one validated workspace for UI deck, proxy and shortlist projection.");
         int embeddedSaved = mainWindowCode.IndexOf(
             "private async void OnEmbeddedEdhDraftSaved(", StringComparison.Ordinal);
         int embeddedEnd = mainWindowCode.IndexOf(
