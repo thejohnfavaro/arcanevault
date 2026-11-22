@@ -161,8 +161,8 @@ internal static class NativeDeckEditingChecks
              fallback.DeckCoverPrintingId == "" &&
              fallback.EffectiveCoverCard == "Test Commander",
              "Removing a cover card must safely reset its cover to Auto.");
-        var missingCover = NativeDeckEditing.Save(source,"Legacy Commander",
-            "Test Commander",list[0].MainboardText,list[0],
+        var missingCover = NativeDeckEditing.Save(coverChoice,"Legacy Commander",
+            "Test Commander",coverRows[0].MainboardText,coverRows[0],
             deckCoverMode:"Custom",deckCoverCardName:"Not In Deck");
         Must(NativeDeckEditing.List(missingCover)[0].DeckCoverMode == "Auto",
             "An unavailable custom cover must gracefully return to Auto.");
