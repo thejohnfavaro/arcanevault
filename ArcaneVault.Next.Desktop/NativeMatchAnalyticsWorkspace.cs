@@ -33,6 +33,53 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
     private readonly DispatcherTimer countdownTimer = new() {
         Interval = TimeSpan.FromMinutes(1) };
     private bool reading;
+    private static IReadOnlyDictionary<string,string> ReadSavedDeckColors()
+    {
+        var result = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+        if (!File.Exists(ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath) ||
+            !File.Exists(ArcaneVault.Next.Collection.NativeWorkspace.CatalogPath))
+            return result;
+        var decks = ArcaneVault.Next.Collection.NativeWorkspaceSafety.ListDecks(
+            ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath);
+        using var db = new SqliteConnection(new SqliteConnectionStringBuilder {
+            DataSource = ArcaneVault.Next.Collection.NativeWorkspace.CatalogPath,
+            Mode = SqliteOpenMode.ReadOnly, Pooling = false
+        }.ToString());
+        db.Open();
+        using var query = db.CreateCommand();
+        query.CommandText = @"SELECT colors FROM cards WHERE name=$name COLLATE NOCASE
+            OR name LIKE $front ESCAPE '\' COLLATE NOCASE
+            ORDER BY CASE WHEN name=$name COLLATE NOCASE THEN 0 ELSE 1 END LIMIT 1";
+        var exact = query.Parameters.AddWithValue("$name","");
+        var front = query.Parameters.AddWithValue("$front","");
+        var colorByDeck = new List<(string Id,string Name,string Colors)>();
+        foreach (var deck in decks.Where(d => !string.IsNullOrWhiteSpace(d.Commander)))
+        {
+            exact.Value = deck.Commander.Trim();
+            string escape = deck.Commander.Trim().Replace(@"\",@"\\")
+                .Replace("%",@"\%").Replace("_",@"\_");
+            front.Value = escape + " // %";
+            var raw = query.ExecuteScalar()?.ToString();
+            if (raw is null) continue; // Unknown is not colorless.
+            string colors;
+            try
+            {
+                colors = ArcaneVault.Next.Domain.EdhLabCommanderRules.CanonicalColors(raw);
+                if (colors.Length == 0) colors = "C";
+            }
+            catch (ArgumentException) { continue; }
+            colorByDeck.Add((deck.Id,deck.Name,colors));
+            result[deck.Id] = colors;
+        }
+        // Name-only historical assignments are linked only if exactly one
+        // saved deck has that name. Never guess between duplicate deck names.
+        foreach (var group in colorByDeck.GroupBy(x => x.Name,
+            StringComparer.OrdinalIgnoreCase))
+            if (group.Count() == 1)
+                result["name:" + group.Key] = group.First().Colors;
+        return result;
+    }
+
     internal NativeMatchAnalyticsWorkspace()
     {
         var root = new DockPanel { Margin = new Thickness(24,18,24,18) };
@@ -147,11 +194,18 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             var data = await Task.Run(() => {
                 var matches = NativeMatchHistoryView.ReadPerformance();
                 using var history = new MatchHistory();
-                return (matches, coverage: history.ReadTelemetryOverview(),
+                IReadOnlyDictionary<string,string> identities;
+                try { identities = ReadSavedDeckColors(); }
+                catch (Exception ex) when (ex is IOException or SqliteException or
+                    InvalidDataException or UnauthorizedAccessException or ArgumentException)
+                {
+                    identities = new Dictionary<string,string>();
+                }
+                return (matches, identities, coverage: history.ReadTelemetryOverview(),
                     gameplay: history.ReadGameplayObservation(),
                     playDraw: history.ReadVerifiedPlayDraw());
             });
-            dashboard.SetMatches(data.matches);
+            dashboard.SetMatches(data.matches, data.identities);
             status.Text=$"{data.matches.Count} distinct match row(s) available for review. " +
                 "All calculations exclude unassigned rows and unconfirmed outcomes.";
             var coverage = data.coverage;
