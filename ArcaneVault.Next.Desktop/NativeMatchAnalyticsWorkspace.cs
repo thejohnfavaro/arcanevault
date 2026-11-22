@@ -225,9 +225,15 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                         m.AttributionNote), knownDecks, approved, blocked);
                 var matches = selectedDeckId.Length == 0 ? allMatches :
                     allMatches.Where(m => Resolve(m) == selectedDeckId).ToArray();
+                string selectedName = savedDecks.FirstOrDefault(d => d.Id == selectedDeckId)?.Name ?? "";
+                int needsReview = selectedDeckId.Length == 0 ? 0 :
+                    allMatches.Count(m => selectedName.Length > 0 &&
+                        m.DeckName.Trim().Equals(selectedName.Trim(),
+                            StringComparison.OrdinalIgnoreCase) &&
+                        Resolve(m) != selectedDeckId);
                 IReadOnlySet<string>? selectedMatchIds = selectedDeckId.Length == 0 ? null :
                     matches.Select(m => m.MatchId).ToHashSet(StringComparer.Ordinal);
-                return (matches, savedDecks,
+                return (matches, savedDecks, needsReview,
                     recovered: selectedDeckId.Length == 0 ? 0 :
                         matches.Count(m => !m.NativeDeckId.Equals(selectedDeckId,
                             StringComparison.Ordinal)),
@@ -250,7 +256,9 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                 (selectedDeckId.Length == 0
                     ? "Aggregate across assigned decks; unconfirmed outcomes are excluded from W/L totals."
                     : $"{data.recovered} historical match(es) included using verified Arena mappings " +
-                      "or unambiguous recorded assignments. Conflicting and unverified entries remain excluded.");
+                      $"or uniquely recorded assignments. {data.needsReview} name-matched record(s) " +
+                      "remain excluded because their assignment is unverified or conflicts with an exact ID; " +
+                      "review these in Match History.");
             var coverage = data.coverage;
             telemetryStatus.Text = $"{scopeLabel}: {coverage.MatchesWithTelemetry} of {coverage.RecordedMatches} recorded matches " +
                 $"have GRE observations ({coverage.ArchivedEvents} retained events). " +
