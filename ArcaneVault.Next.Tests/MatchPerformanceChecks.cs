@@ -105,9 +105,9 @@ internal static class MatchPerformanceChecks
         // record carries an explicit opponent-color annotation missing from
         // the native copy. Unknown is never guessed from your own colors.
         RegressionExpect.That(
-            NativeMatchHistoryView.PreferExplicitOpponentColors("", "WU") == "WU" &&
-            NativeMatchHistoryView.PreferExplicitOpponentColors("BR", "WU") == "BR" &&
-            NativeMatchHistoryView.PreferExplicitOpponentColors("", "") == "",
+            MatchPerformanceAnalytics.PreferExplicitOpponentColors("", "WU") == "WU" &&
+            MatchPerformanceAnalytics.PreferExplicitOpponentColors("BR", "WU") == "BR" &&
+            MatchPerformanceAnalytics.PreferExplicitOpponentColors("", "") == "",
             "Native-first match reconciliation must retain explicitly recorded " +
             "opponent colors from historical duplicate rows without inventing colors.");
         var shortRange = MatchPerformanceAnalytics.Build(rows,"Deck A",1,now);
