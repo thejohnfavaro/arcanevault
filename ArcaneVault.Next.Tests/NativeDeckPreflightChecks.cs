@@ -40,20 +40,22 @@ internal static class NativeDeckPreflightChecks
             foreach (string n in new[] { "$name","$type","$oracle","$colors","$legal","$arena" })
                 add.Parameters.AddWithValue(n, "");
             void Card(string name, string type, string colors, string oracle = "",
-                string legality = "legal", long arena = 1)
+                string legality = "legal", long arena = 1, string standardLegality = "legal")
             {
                 add.Parameters["$name"].Value = name;
                 add.Parameters["$type"].Value = type;
                 add.Parameters["$oracle"].Value = oracle;
                 add.Parameters["$colors"].Value = colors;
-                add.Parameters["$legal"].Value = "{\"commander\":\"" + legality + "\"}";
+                add.Parameters["$legal"].Value = "{\"commander\":\"" + legality +
+                    "\",\"standard\":\"" + standardLegality + "\"}";
                 add.Parameters["$arena"].Value = arena;
                 add.ExecuteNonQuery();
             }
             Card("Test Leader", "Legendary Creature — Human", "BG");
             Card("Black Spell", "Instant", "B", arena: 1);
             Card("White Spell", "Sorcery", "W", arena: 1);
-            Card("Banned Spell", "Instant", "B", legality: "banned", arena: 0);
+            Card("Banned Spell", "Instant", "B", legality: "banned", arena: 0,
+                standardLegality: "not_legal");
             Card("Relentless Rats", "Creature — Rat", "B",
                 "A deck can have any number of cards named Relentless Rats.");
             Card("Seven Dwarves", "Creature — Dwarf", "R",
@@ -122,6 +124,27 @@ internal static class NativeDeckPreflightChecks
         Must(!Contains(constructed, "expected at least 60"),
             "61-card constructed deck incorrectly flagged.");
 
+        var standard = NativeDeckPreflight.Check(backup,
+            NativeDeckEditing.ParseMainboard("5 Black Spell\n1 Banned Spell\n56 Forest"),
+            "", "Arena Standard", catalog);
+        Must(standard.OwnershipPool == "Arena" && standard.CatalogChecked &&
+             Contains(standard, "Black Spell: 5 copies exceed", NativeDeckPreflight.Level.Warning) &&
+             Contains(standard, "Banned Spell: cached Scryfall Standard legality", NativeDeckPreflight.Level.Warning) &&
+             Contains(standard, "Banned Spell: no Arena printing", NativeDeckPreflight.Level.Warning) &&
+             Contains(standard, "Arena inventory: Black Spell", NativeDeckPreflight.Level.Warning) &&
+             Contains(standard, "rotation, live bans and Ranked queue eligibility", NativeDeckPreflight.Level.Review) &&
+             !Contains(standard, "Custom format"),
+             "Arena Standard must use 60-card/four-of/Standard legality/Arena inventory checks.");
+        var shortStandard = NativeDeckPreflight.Check(backup,
+            NativeDeckEditing.ParseMainboard("59 Forest"),
+            "", "Arena Standard", catalog);
+        Must(Contains(shortStandard, "expected at least 60", NativeDeckPreflight.Level.Warning),
+             "Arena Standard must reject fewer than 60 mainboard cards.");
+        var leaderInStandard = NativeDeckPreflight.Check(backup,
+            NativeDeckEditing.ParseMainboard("60 Forest"),
+            "Test Leader", "Arena Standard", catalog);
+        Must(Contains(leaderInStandard, "no commander zone", NativeDeckPreflight.Level.Warning),
+             "Arena Standard must not silently add a commander.");
         var unknown = NativeDeckPreflight.Check(backup,
             NativeDeckEditing.ParseMainboard("1 Entirely Unknown Card"), "",
             "Commander", null);
