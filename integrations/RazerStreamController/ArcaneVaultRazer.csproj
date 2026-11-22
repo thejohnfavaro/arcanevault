@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Loupedeck.ArcaneVaultRazer</RootNamespace>
+    <AssemblyName>ArcaneVaultRazer</AssemblyName>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <PluginApiDir Condition="'$(PluginApiDir)' == '' and '$(OS)' == 'Windows_NT'">C:\Program Files\Logi\LogiPluginService\</PluginApiDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="PluginApi">
+      <HintPath>$(PluginApiDir)PluginApi.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+  <Target Name="CopyPackage" AfterTargets="Build">
+    <ItemGroup><PackageFiles Include="package\**\*" /></ItemGroup>
+    <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(TargetDir)\..\%(RecursiveDir)" />
+  </Target>
+</Project>
