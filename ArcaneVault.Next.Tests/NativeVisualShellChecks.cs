@@ -49,9 +49,8 @@ internal static class NativeVisualShellChecks
              matchAnalytics.Contains("ReadVerifiedPlayDrawForDeck(null, selectedMatchIds)"),
              "Per-deck analytics must include historical verified assignments in both results and telemetry.");
         Must(performancePanel.Contains("OBSERVED OPPONENT COLORS (PARTIAL)") &&
-             performancePanel.Contains("Against") == false ||
-             performancePanel.Contains("OBSERVED OPPONENT COLORS (PARTIAL)"),
-             "Opponent observed-color matchup panel must be present.");
+             performancePanel.Contains("AGAINST OPPONENT COLOR IDENTITY"),
+             "Observed opponent colors and explicitly recorded identities must remain separate.");
         Must(matchAnalytics.Contains("ReadObservedOpponentColors(") &&
              matchAnalytics.Contains("observations: data.observedOpponentColors") &&
              performancePanel.Contains("opponentObservations?.Matches"),
