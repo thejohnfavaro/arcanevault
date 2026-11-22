@@ -16,17 +16,19 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
         TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,8,0,12) };
     private readonly TextBlock telemetryStatus = new() {
         Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
-        Margin = new Thickness(0,5,0,8) };
+        FontSize = 13, Margin = new Thickness(0,5,0,12) };
     private readonly TextBlock playDrawStatus = new() {
         Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
-        Margin = new Thickness(0,5,0,10) };
+        FontSize = 13, Margin = new Thickness(0,5,0,12) };
     private readonly TextBlock gameplayStatus = new() {
         Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
-        Margin = new Thickness(0,5,0,10) };
+        FontSize = 13, Margin = new Thickness(0,5,0,12) };
     private readonly ComboBox deckScope = new() {
-        MinWidth = 230, Margin = new Thickness(0,4,0,7) };
+        MinWidth = 260, MaxWidth = 380, HorizontalAlignment = HorizontalAlignment.Left,
+        Margin = new Thickness(0,5,0,12), Padding = new Thickness(9,6,9,6) };
     private readonly ListView telemetryRows = new() {
-        Height = 180, Margin = new Thickness(0,0,0,12) };
+        Height = 190, Margin = new Thickness(0,4,0,12),
+        HorizontalContentAlignment = HorizontalAlignment.Stretch };
     private readonly Button refresh = new() { Content = "Refresh match analytics",
         Padding = new Thickness(12,8,12,8), HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBlock seasonStatus = new() {
@@ -86,10 +88,15 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
 
     internal NativeMatchAnalyticsWorkspace()
     {
-        var root = new DockPanel { Margin = new Thickness(24,18,24,18) };
-        Content = root;
+        // One page-level scroller: the analytics header is no longer fixed
+        // above a cramped dashboard viewport at ordinary window heights.
+        var root = new StackPanel { Margin = new Thickness(24,18,24,18) };
+        Content = new ScrollViewer {
+            Content = root,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
         var header = new StackPanel();
-        DockPanel.SetDock(header,Dock.Top);
         root.Children.Add(header);
         header.Children.Add(new TextBlock { Text = "DECK ANALYTICS",
             Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 27 });
@@ -113,18 +120,32 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
         header.Children.Add(deckScope);
         deckScope.SelectionChanged += OnScopedDeckSelectionChanged;
 
-        header.Children.Add(new TextBlock { Text = "GAMEPLAY TELEMETRY COVERAGE",
+        // Put the most useful high-level evidence side by side on wide screens.
+        var summaries = new Grid { Margin = new Thickness(0,4,0,10) };
+        summaries.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        summaries.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var gameplayColumn = new StackPanel { Margin = new Thickness(0,0,20,0) };
+        var resultsColumn = new StackPanel { Margin = new Thickness(20,0,0,0) };
+        Grid.SetColumn(gameplayColumn, 0);
+        Grid.SetColumn(resultsColumn, 1);
+        summaries.Children.Add(gameplayColumn);
+        summaries.Children.Add(resultsColumn);
+        header.Children.Add(summaries);
+        gameplayColumn.Children.Add(new TextBlock { Text = "GAMEPLAY TELEMETRY COVERAGE",
             Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
             Margin = new Thickness(0,3,0,3) });
-        header.Children.Add(telemetryStatus);
-        header.Children.Add(new TextBlock { Text = "OBSERVED GAMEPLAY",
+        gameplayColumn.Children.Add(telemetryStatus);
+        gameplayColumn.Children.Add(new TextBlock { Text = "OBSERVED GAMEPLAY",
             Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
             Margin = new Thickness(0,3,0,3) });
-        header.Children.Add(gameplayStatus);
-        header.Children.Add(new TextBlock { Text = "VERIFIED PLAY / DRAW",
+        gameplayColumn.Children.Add(gameplayStatus);
+        resultsColumn.Children.Add(new TextBlock { Text = "VERIFIED PLAY / DRAW",
             Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
             Margin = new Thickness(0,3,0,3) });
-        header.Children.Add(playDrawStatus);
+        resultsColumn.Children.Add(playDrawStatus);
+        header.Children.Add(new TextBlock { Text = "RECENT GAMEPLAY OBSERVATIONS",
+            Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 14,
+            Margin = new Thickness(0,5,0,3) });
         var telemetryGrid = new GridView();
         telemetryGrid.Columns.Add(TelemetryColumn("Played (UTC)", "PlayedUtc", 175));
         telemetryGrid.Columns.Add(TelemetryColumn("Deck", "DeckName", 170));
@@ -134,10 +155,8 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
         telemetryGrid.Columns.Add(TelemetryColumn("Highest turn", "HighestTurn", 105));
         telemetryRows.View = telemetryGrid;
         header.Children.Add(telemetryRows);
-        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        scroll.Content = dashboard;
-        root.Children.Add(scroll);
+        dashboard.Margin = new Thickness(0,16,0,8);
+        root.Children.Add(dashboard);
         refresh.Click += async (_,_) => await ReloadAsync();
         countdownTimer.Tick += (_,_) => RenderSeason();
         Loaded += async (_,_) => {
