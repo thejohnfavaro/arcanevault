@@ -123,6 +123,7 @@
                           Background="#D7E4EB" Foreground="#0D1017">
                     <ComboBoxItem Content="Commander"/>
                     <ComboBoxItem Content="Arena Brawl"/>
+                    <ComboBoxItem Content="Arena Standard"/>
                     <ComboBoxItem Content="60-card"/>
                     <ComboBoxItem Content="Other"/>
                 </ComboBox>
