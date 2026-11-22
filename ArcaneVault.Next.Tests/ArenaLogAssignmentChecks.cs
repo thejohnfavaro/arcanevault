@@ -263,6 +263,18 @@ internal static class ArenaLogAssignmentChecks
                 "Persist useful game mechanics without any personally identifying log data.");
         }
 
+        // Pin the known synthetic match to one exact saved deck before
+        // evaluating deck-scoped analysis. A different deck must never inherit
+        // this win from name similarity or unrelated telemetry.
+        using (var scopedDb = new SqliteConnection("Data Source=" + telemetryDb))
+        {
+            scopedDb.Open();
+            using var setDeck = scopedDb.CreateCommand();
+            setDeck.CommandText = "UPDATE matches SET native_deck_id='test-native-a' " +
+                "WHERE match_id='telemetry-match'";
+            Assert(setDeck.ExecuteNonQuery() == 1,
+                "Synthetic telemetry match should exist before deck-scoped analysis.");
+        }
         using (var telemetryHistory = new MatchHistory(telemetryDb))
         {
             var coverage = telemetryHistory.ReadTelemetryOverview();
@@ -283,6 +295,12 @@ internal static class ArenaLogAssignmentChecks
                 playDraw.OnDrawWins == 0 && playDraw.OnDrawLosses == 0 &&
                 playDraw.Unattributed == 0,
                 "Authenticated local seat and turn-one GRE active seat must identify on-play result.");
+            var scoped = telemetryHistory.ReadVerifiedPlayDrawForDeck("test-native-a");
+            var unrelated = telemetryHistory.ReadVerifiedPlayDrawForDeck("test-native-b");
+            Assert(scoped.OnPlayWins == 1 && scoped.Unattributed == 0 &&
+                unrelated.OnPlayWins == 0 && unrelated.OnDrawWins == 0 &&
+                unrelated.Unattributed == 0,
+                "Deck-scoped play/draw must require an exact stable saved deck ID.");
         }
 
         // A real submission without a saved mapping must STILL preserve the
