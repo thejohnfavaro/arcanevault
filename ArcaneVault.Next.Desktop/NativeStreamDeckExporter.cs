@@ -636,18 +636,24 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                     // cannot replace the same match with different evidence.
                     if (id.Length == 0 || !knownMatches.Add(id)) continue;
                     string note = reader.IsDBNull(6) ? "" : reader.GetString(6);
-                    string queue = reader.IsDBNull(7) ? "" :
-                        ArenaQueueInfo.Label(reader.GetString(7));
+                    string rawQueue = reader.IsDBNull(7) ? "" : reader.GetString(7);
+                    string queue = ArenaQueueInfo.Label(rawQueue);
                     string? resolvedId = MatchDeckAttribution.Resolve(
                         new MatchDeckAttribution.Match(id, name, arenaId, nativeId, note),
                         resolvedDecks, arenaMap, blockedArenaIds);
                     if (resolvedId is null || !byNativeId.TryGetValue(resolvedId, out var deck))
                         continue;
-                    // Arena Standard widgets track Ranked Standard only.
-                    // Neither missing queue evidence nor Standard Play/Historic
-                    // results may be silently counted as Ranked Standard.
+                    // The generic Arena "Ladder" queue does not identify its
+                    // Constructed format. Accept it only with a stable, uniquely
+                    // mapped Arena deck ID or already-confirmed native deck ID;
+                    // never assume format from a deck name alone.
+                    bool exactNative = nativeId.Equals(deck.id, StringComparison.Ordinal);
+                    bool exactArena = arenaId.Length > 0 &&
+                        !blockedArenaIds.Contains(arenaId) &&
+                        arenaMap.TryGetValue(arenaId, out string? mappedId) &&
+                        mappedId.Equals(deck.id, StringComparison.Ordinal);
                     if (deck.format.Equals("Arena Standard", StringComparison.OrdinalIgnoreCase) &&
-                        !queue.Equals("Standard Ranked", StringComparison.OrdinalIgnoreCase))
+                        !ArenaQueueInfo.IsRankedStandardMatch(rawQueue, exactNative || exactArena))
                         continue;
                     if (deck.format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase) &&
                         (queue.Equals("Standard", StringComparison.OrdinalIgnoreCase) ||
