@@ -33,6 +33,12 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         Margin = new Thickness(0,0,0,8) };
     private readonly ListView opponentMatchups = new() { Height = 175,
         Margin = new Thickness(0,6,0,10) };
+    private readonly ListView observedOpponentMatchups = new() { Height = 175,
+        Margin = new Thickness(0,6,0,10) };
+    private readonly TextBlock observedOpponentCoverage = new() {
+        Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0,0,0,8) };
+    private OpponentColorObservation.Report? opponentObservations;
     private sealed record OpponentRow(string Identity, int Wins, int Losses)
     {
         public int Matches => Wins + Losses;
@@ -108,6 +114,19 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         opponentMatchups.View = opponentView;
         opponentPanel.Children.Add(opponentMatchups);
         opponentPanel.Children.Add(opponentColorCoverage);
+        var observedPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
+        observedPanel.Children.Add(new TextBlock {
+            Text = "OBSERVED OPPONENT COLORS (PARTIAL)",
+            FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+        var observedView = new GridView();
+        observedView.Columns.Add(Column("Seen colors", "Identity", 155));
+        observedView.Columns.Add(Column("Matches", "Matches", 75));
+        observedView.Columns.Add(Column("W–L", "Record", 75));
+        observedView.Columns.Add(Column("Win %", "WinRate", 85));
+        observedOpponentMatchups.View = observedView;
+        observedPanel.Children.Add(observedOpponentMatchups);
+        observedPanel.Children.Add(observedOpponentCoverage);
+        root.Children.Add(observedPanel);
         root.Children.Add(new TextBlock { Text = "WEEKLY PERFORMANCE (UTC)", FontSize = 13,
             FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var weekView = new GridView();
@@ -139,8 +158,10 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             DisplayMemberBinding = new System.Windows.Data.Binding(key) };
 
     internal void SetMatches(IEnumerable<MatchPerformanceAnalytics.Entry> matches,
-        bool singleDeck = false)
+        bool singleDeck = false,
+        OpponentColorObservation.Report? observations = null)
     {
+        opponentObservations = observations;
         compareFilter.Visibility = singleDeck ? Visibility.Collapsed : Visibility.Visible;
         var priorDeck = deckFilter.SelectedItem as string;
         var priorCompare = compareFilter.SelectedItem as string;
@@ -212,6 +233,33 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             .OrderBy(x => x.Identity == "Unknown" ? 1 : 0)
             .ThenByDescending(x => x.Matches).ThenBy(x => x.Identity)
             .ToArray();
+        // Observed colors represent only public cards with verified opponent
+        // ownership, never a complete deck identity. Do not fill the manually
+        // tagged table from this inference or infer hidden colors.
+        var observations = opponentObservations?.Matches;
+        int observedCount = matchScope.Count(m =>
+            observations is not null &&
+            observations.TryGetValue(m.MatchId, out var evidence) &&
+            evidence.Colors.Length > 0);
+        observedOpponentMatchups.ItemsSource = matchScope
+            .GroupBy(m => observations is not null &&
+                observations.TryGetValue(m.MatchId, out var evidence) &&
+                evidence.Colors.Length > 0 ? evidence.Colors : "Unknown",
+                StringComparer.OrdinalIgnoreCase)
+            .Select(g => new OpponentRow(g.Key, g.Count(x => x.Result == "win"),
+                g.Count(x => x.Result == "loss")))
+            .OrderBy(x => x.Identity == "Unknown" ? 1 : 0)
+            .ThenByDescending(x => x.Matches).ThenBy(x => x.Identity).ToArray();
+        observedOpponentCoverage.Text = opponentObservations is null ||
+            !opponentObservations.CatalogHasArenaIds
+            ? "Refresh the local Scryfall card catalog to enable Arena card-ID " +
+              "lookup. Existing matches remain unchanged."
+            : observedCount + " of " + matchScope.Length +
+              " confirmed match(es) have observable opponent colors. " +
+              "Public cards show only a subset of possible deck colors; " +
+              "missing colors and unrevealed cards stay unknown. " +
+              opponentObservations.UnresolvedCardIds +
+              " distinct observed Arena card ID(s) lack a catalog match.";
         headline.Text = report.Matches == 0
             ? "No confirmed matches for this selection"
             : $"{primary}: {report.Wins} W / {report.Losses} L  •  {report.Rate:0.#}% win rate";
