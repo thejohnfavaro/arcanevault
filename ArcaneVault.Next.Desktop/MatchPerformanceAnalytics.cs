@@ -4,6 +4,12 @@ namespace ArcaneVault.Next.Desktop;
 /// A match is counted once by its Arena match ID. Unknown results are never losses.</summary>
 internal static class MatchPerformanceAnalytics
 {
+    // Shared with the headless regression project. A historical duplicate's
+    // explicit opponent-color annotation can fill an empty primary field;
+    // the native match result and deck identity remain authoritative.
+    internal static string PreferExplicitOpponentColors(string primary, string secondary) =>
+        string.IsNullOrWhiteSpace(primary) ? secondary : primary;
+
     internal sealed record Entry(string MatchId, DateTimeOffset Played,
         string DeckName, string NativeDeckId, string Format, string Result,
         string OpponentColors = "");
