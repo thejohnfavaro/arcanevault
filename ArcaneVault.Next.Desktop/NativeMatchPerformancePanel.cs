@@ -64,10 +64,12 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         root.Children.Add(new TextBlock { Text = "DECK PERFORMANCE", FontSize = 18,
             FontWeight = FontWeights.Bold, Foreground = Brushes.White,
             Margin = new Thickness(0,0,0,8) });
-        root.Children.Add(new TextBlock { Text = "Primary deck  •  Compare with  •  Format  •  Period",
+        root.Children.Add(new TextBlock { Text = "Optional comparison  •  Format  •  Period",
             Foreground = Brushes.LightGray, Margin = new Thickness(0,0,0,4) });
         var controls = new WrapPanel();
-        controls.Children.Add(deckFilter);
+        // The parent workspace is the sole authority for deck scope.
+        // This internal filter is retained for reporting compatibility but
+        // intentionally not shown as a competing deck selector.
         controls.Children.Add(compareFilter);
         controls.Children.Add(formatFilter);
         rangeFilter.ItemsSource = new[] { "Last 30 days", "Last 90 days", "All time" };
@@ -146,9 +148,10 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             DisplayMemberBinding = new System.Windows.Data.Binding(key) };
 
     internal void SetMatches(IEnumerable<MatchPerformanceAnalytics.Entry> matches,
-        IReadOnlyDictionary<string,string>? deckColors = null)
+        IReadOnlyDictionary<string,string>? deckColors = null, bool singleDeck = false)
     {
         deckIdentityById = deckColors ?? new Dictionary<string,string>();
+        compareFilter.Visibility = singleDeck ? Visibility.Collapsed : Visibility.Visible;
         var priorDeck = deckFilter.SelectedItem as string;
         var priorCompare = compareFilter.SelectedItem as string;
         var priorFormat = formatFilter.SelectedItem as string;
@@ -162,10 +165,11 @@ internal sealed class NativeMatchPerformancePanel : UserControl
                 .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
             var decks = new[] { AllDecks }.Concat(names).ToArray();
             deckFilter.ItemsSource = decks;
-            deckFilter.SelectedItem = Find(decks, priorDeck) ?? decks[0];
+            deckFilter.SelectedItem = decks[0]; // Global deck scope already applied.
             var compares = new[] { NoComparison }.Concat(names).ToArray();
             compareFilter.ItemsSource = compares;
-            compareFilter.SelectedItem = Find(compares, priorCompare) ?? compares[0];
+            compareFilter.SelectedItem = singleDeck ? compares[0] :
+                Find(compares, priorCompare) ?? compares[0];
             var formats = new[] { AllFormats }.Concat(records
                 .Where(x => !string.IsNullOrWhiteSpace(x.DeckName))
                 .Select(x => string.IsNullOrWhiteSpace(x.Format) ? "Unknown format" : x.Format.Trim())
