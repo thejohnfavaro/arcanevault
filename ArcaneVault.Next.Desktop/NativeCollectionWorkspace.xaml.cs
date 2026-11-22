@@ -971,14 +971,17 @@ public partial class NativeCollectionWorkspace : UserControl
         if (closing || deckCoversLoading || deckCoversReady ||
             string.IsNullOrWhiteSpace(catalogPath) ||
             string.IsNullOrWhiteSpace(expectedBackupSha)) return;
-        string[] commanders = deckRows
-            .Where(x => x.Format.Equals("Commander", StringComparison.OrdinalIgnoreCase) ||
-                        x.Format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase))
-            .Select(x => x.Commander)
+        static string CoverName(NativeDeckEditing.DeckRow deck) =>
+            !string.IsNullOrWhiteSpace(deck.Commander) ? deck.Commander :
+            deck.Format.Equals("Arena Standard", StringComparison.OrdinalIgnoreCase)
+                ? NativeDeckEditing.ParseMainboard(deck.MainboardText)
+                    .Select(x => x.Name).FirstOrDefault() ?? "" : "";
+        string[] coverNames = deckRows
+            .Select(CoverName)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        if (commanders.Length == 0) { deckCoversReady = true; return; }
+        if (coverNames.Length == 0) { deckCoversReady = true; return; }
         deckCoversLoading = true;
         int loadVersion = deckCoversVersion;
         try
@@ -988,12 +991,12 @@ public partial class NativeCollectionWorkspace : UserControl
             var covers = await Task.Run(() =>
             {
                 var defaults = NativeDeckCoverCache.Get(
-                    commanders, catalogPath!, expectedBackupSha!);
+                    coverNames, catalogPath!, expectedBackupSha!);
                 var byDeck = new Dictionary<string, string>(StringComparer.Ordinal);
                 foreach (var deck in deckRows)
                 {
-                    string url = defaults.GetValueOrDefault(deck.Commander, "");
-                    if (deck.CommanderPrintingId.Length > 0 &&
+                    string url = defaults.GetValueOrDefault(CoverName(deck), "");
+                    if (deck.Commander.Length > 0 && deck.CommanderPrintingId.Length > 0 &&
                         Guid.TryParse(deck.CommanderPrintingId, out var printingId))
                     {
                         try
