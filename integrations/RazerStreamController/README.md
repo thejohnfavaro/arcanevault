@@ -1,6 +1,6 @@
 # Arcane Vault - Original Razer Stream Controller Plugin (MVP)
 
-**Status: source prototype committed; Windows plugin build and physical hardware testing pending.**
+**Status: source prototype updated for Loupedeck 6.4.1 / Logi Plugin Service 6.4+ (.NET 10); compilation and device testing pending.**
 
 Uses the official Loupedeck / Logitech Actions SDK and the existing read-only
 Arcane Vault snapshot at %LOCALAPPDATA%\ArcaneVault\streamdeck.json.
@@ -26,20 +26,21 @@ rendering is not included in this first version.
 ## Building on Windows
 
 1. Verify Arcane Vault runs and the streamdeck.json snapshot exists.
-2. Install a version of Loupedeck / Logi Plugin Service that detects the
-   original Razer Stream Controller, and install the .NET 8 SDK.
+2. Install Loupedeck 6.4.1 (the current official Windows release) and the
+   .NET 10 SDK. LogiPluginApi is restored from NuGet rather than from the
+   installed Plugin Service directory.
 3. In this directory, run: .\Build-RazerPlugin.ps1
-4. If PluginApi.dll is not found, supply the SDK directory with
-   -PluginApiDir 'C:\path\to\PluginApi.dll folder'.
+4. The current SDK retrieves LogiPluginApi 6.4.2.3567 through NuGet;
+   no manual PluginApi.dll path is needed.
 5. To create the installer package, install the official plugin tool:
-   dotnet tool install -g Loupedeck.PluginTool
+   dotnet tool install -g LogiPluginTool
    Then run: .\Build-RazerPlugin.ps1 -Package
 6. Install the resulting .lplug4 via the Loupedeck package installer.
 7. Assign buttons and a dial from the Arcane Vault plugin action group.
 
 Package validation and device compatibility are not yet verified.
-The plugin uses a .NET 8 SDK reference; software versions that only support
-older plugin runtimes may need a separate compatibility build.
+This plugin now targets .NET 10 / Logi Plugin Service 6.4 or later;
+older host versions would require a separately built compatibility target.
 
 ## Suggested layout
 
