@@ -1,0 +1,11 @@
+type: plugin4
+name: ArcaneVaultRazer
+displayName: Arcane Vault
+description: Arcane Vault deck statistics, rank and collection value on Razer Stream Controller.
+pluginFileName: ArcaneVaultRazer.dll
+version: 0.1.0
+author: Arcane Vault
+minimumLoupedeckVersion: 6.0
+pluginFolderWin: bin
+supportedDevices:
+  - LoupedeckCtFamily
