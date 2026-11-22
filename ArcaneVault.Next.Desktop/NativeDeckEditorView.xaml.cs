@@ -411,8 +411,10 @@ public partial class NativeDeckEditorView : UserControl
                     ArenaDeckCardName.Identity(card.Name);
                 var info = CollectionCatalogReview.ReadDetails(catalogPath!, identity);
                 string imageUrl = arena ? "" : info?.ArtworkUrl ?? "";
-                if (!arena && deckPrintingChoices.TryGetValue(card.Name, out var chosenId) &&
-                    Guid.TryParse(chosenId, out var exactPrintId))
+                string chosenId = card.Name.Equals(CommanderBox.Text.Trim(),
+                    StringComparison.OrdinalIgnoreCase) && commanderPrintingChoice.Length > 0
+                    ? commanderPrintingChoice : deckPrintingChoices.GetValueOrDefault(card.Name, "");
+                if (!arena && Guid.TryParse(chosenId, out var exactPrintId))
                 {
                     // Per-deck artwork is presentation only. Invalid or
                     // unavailable printings fall back safely to catalog art.
@@ -2406,7 +2408,8 @@ public partial class NativeDeckEditorView : UserControl
                 var replacement = NativeWorkspaceSafety.SaveDeck(nativePath, name, commander,
                     mainboard, original, expectedSha, format: format,
                     folder: folder, favorite: favorite,
-                    displayPrintIds: savedPrintingChoices);
+                    displayPrintIds: savedPrintingChoices,
+                    commanderDisplayPrintId: commanderPrintingChoice);
                 string? matchWarning = null;
                 if (uniqueOldName)
                 {
