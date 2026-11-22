@@ -66,7 +66,10 @@ internal sealed class NativeStreamDeckExporter : IDisposable
     private sealed record SyncInfo(string status, string? lastSync = null);
     private sealed record RecentMatch(string result, string deckName);
     private sealed record RankDisplay(string constructedClass, int constructedLevel,
-        string limitedClass, int limitedLevel, string asOfUtc);
+        string limitedClass, int limitedLevel, string asOfUtc,
+        int? constructedStep = null, int? limitedStep = null,
+        double? constructedPercentile = null, double? limitedPercentile = null,
+        int? constructedLeaderboardPlace = null, int? limitedLeaderboardPlace = null);
     private sealed record Snapshot(
         int schemaVersion, string appPath, string? activeDeckId,
         IReadOnlyList<Deck> decks, CollectionValue collection,
@@ -706,7 +709,11 @@ internal sealed class NativeStreamDeckExporter : IDisposable
             if (recentRank is not null)
                 rank = new RankDisplay(recentRank.ConstructedClass,
                     recentRank.ConstructedLevel, recentRank.LimitedClass,
-                    recentRank.LimitedLevel, recentRank.WhenUtc);
+                    recentRank.LimitedLevel, recentRank.WhenUtc,
+                    recentRank.ConstructedStep, recentRank.LimitedStep,
+                    recentRank.ConstructedPercentile, recentRank.LimitedPercentile,
+                    recentRank.ConstructedLeaderboardPlace,
+                    recentRank.LimitedLeaderboardPlace);
         }
         catch (Exception ex) when (ex is IOException or SqliteException or
             InvalidOperationException or UnauthorizedAccessException)
