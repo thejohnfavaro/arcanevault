@@ -192,6 +192,24 @@ public static class NativeScryfallCatalogSync
         return false;
     }
 
+    /// <summary>
+    /// Existing Scryfall caches may predate preservation of official Arena
+    /// card IDs. Force a bulk rebuild on the next sync, even if the upstream
+    /// dataset timestamp is unchanged. Never mutate the active cache in place.
+    /// </summary>
+    public static bool HasArenaIdColumn(string catalogPath)
+    {
+        if (!File.Exists(catalogPath)) return false;
+        using var db = Connect(catalogPath, SqliteOpenMode.ReadOnly);
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info(variants)";
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+            if (reader.GetString(1).Equals("arena_id",
+                StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
     private static void Record(JsonElement element, SqliteCommand card, SqliteCommand print,
         ref long inserted)
     {
@@ -600,7 +618,8 @@ public static class NativeScryfallCatalogSync
                     var current = Verify(targetPath, minimumPrintings);
                     if (current.UpdatedAt == chosen.UpdatedAt &&
                         current.Printings >= minimumPrintings &&
-                        HasManaCostColumn(targetPath))
+                        HasManaCostColumn(targetPath) &&
+                        HasArenaIdColumn(targetPath))
                         return new Result(false, current.Printings,
                             current.CardNames, current.UpdatedAt, null);
                 }
