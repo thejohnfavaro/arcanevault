@@ -42,6 +42,38 @@ internal static class ArenaQueueInfo
         return value; // Keep raw event ID visible, never mislabel an event.
     }
 
+    /// <summary>
+    /// An explicitly identified Standard Ranked queue counts outright. Some
+    /// Arena builds call the *constructed ranked ladder* merely "Ladder" or
+    /// "ConstructedRanked". These generic IDs require a verified mapping to a
+    /// specific saved Arena Standard deck; an untrusted name-only assignment is
+    /// never enough. Do not turn Standard Play into a ranked result.
+    /// </summary>
+    internal static bool IsRankedStandardMatch(string? rawQueue,
+        bool verifiedStandardDeckIdentity)
+    {
+        string queue = (rawQueue ?? "").Trim();
+        if (queue.Length is 0 or > 180) return false;
+        string normalized = queue.ToLowerInvariant()
+            .Replace('-', '_').Replace(' ', '_');
+        if (normalized.Contains("play") || normalized.Contains("unranked") ||
+            normalized.Contains("casual") || normalized.Contains("event") ||
+            normalized.Contains("draft") || normalized.Contains("sealed") ||
+            normalized.Contains("brawl")) return false;
+        if (new[] {"historic","timeless","explorer","pioneer","alchemy",
+                "modern","pauper"}.Any(normalized.Contains))
+            return false;
+        bool ranked = normalized.Contains("ranked") ||
+            normalized.Contains("ladder");
+        if (!ranked) return false;
+        if (normalized.Contains("standard")) return true;
+        if (!verifiedStandardDeckIdentity) return false;
+        return normalized is "ladder" or "traditional_ladder" or
+            "constructed_ladder" or "constructed_ranked" or
+            "ranked_constructed" or "constructedranked" or
+            "traditional_constructed_ladder";
+    }
+
     public static string EventId(JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object) return "";
