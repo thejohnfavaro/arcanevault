@@ -240,14 +240,18 @@ internal sealed class MatchHistory : IDisposable
     internal sealed record TelemetryOverview(int RecordedMatches, int MatchesWithTelemetry,
         int ArchivedEvents, IReadOnlyList<TelemetryCoverage> Recent);
 
-    internal TelemetryOverview ReadTelemetryOverview()
+    internal TelemetryOverview ReadTelemetryOverview() => ReadTelemetryOverviewForDeck(null);
+
+    internal TelemetryOverview ReadTelemetryOverviewForDeck(string? nativeDeckId)
     {
         lock (gate)
         {
             int recorded;
             using (var count = db.CreateCommand())
             {
-                count.CommandText = "SELECT COUNT(*) FROM matches";
+                count.CommandText = "SELECT COUNT(*) FROM matches" +
+                    (nativeDeckId is null ? "" : " WHERE native_deck_id=$native");
+                if (nativeDeckId is not null) count.Parameters.AddWithValue("$native", nativeDeckId);
                 recorded = Convert.ToInt32(count.ExecuteScalar());
             }
             int covered, events;
@@ -255,7 +259,9 @@ internal sealed class MatchHistory : IDisposable
             {
                 totals.CommandText = @"SELECT COUNT(DISTINCT t.match_id), COUNT(*)
                     FROM arena_match_telemetry t
-                    INNER JOIN matches m ON m.match_id=t.match_id";
+                    INNER JOIN matches m ON m.match_id=t.match_id" +
+                    (nativeDeckId is null ? "" : " WHERE m.native_deck_id=$native");
+                if (nativeDeckId is not null) totals.Parameters.AddWithValue("$native", nativeDeckId);
                 using var reader = totals.ExecuteReader();
                 reader.Read();
                 covered = reader.GetInt32(0);
@@ -269,8 +275,10 @@ internal sealed class MatchHistory : IDisposable
                     MAX(t.turn_number)
                     FROM matches m
                     INNER JOIN arena_match_telemetry t ON t.match_id=m.match_id
+                    " + (nativeDeckId is null ? "" : "WHERE m.native_deck_id=$native ") + @"
                     GROUP BY m.match_id
                     ORDER BY m.played_utc DESC, m.match_id DESC LIMIT 20";
+                if (nativeDeckId is not null) query.Parameters.AddWithValue("$native", nativeDeckId);
                 using var reader = query.ExecuteReader();
                 while (reader.Read())
                     recent.Add(new TelemetryCoverage(reader.GetString(0),
@@ -289,7 +297,9 @@ internal sealed class MatchHistory : IDisposable
         double AverageHighestObservedTurn, int GamesWithMulliganData,
         int SeatsWithMulligans, int? HighestObservedMulligans);
 
-    internal GameplayObservation ReadGameplayObservation()
+    internal GameplayObservation ReadGameplayObservation() => ReadGameplayObservationForDeck(null);
+
+    internal GameplayObservation ReadGameplayObservationForDeck(string? nativeDeckId)
     {
         lock (gate)
         {
@@ -301,8 +311,10 @@ internal sealed class MatchHistory : IDisposable
                 query.CommandText = @"SELECT MAX(t.turn_number)
                     FROM arena_match_telemetry t
                     INNER JOIN matches m ON m.match_id=t.match_id
-                    WHERE t.game_number IS NOT NULL AND t.turn_number BETWEEN 1 AND 1000
-                    GROUP BY t.match_id,t.game_number";
+                    WHERE t.game_number IS NOT NULL AND t.turn_number BETWEEN 1 AND 1000" +
+                    (nativeDeckId is null ? "" : " AND m.native_deck_id=$native") +
+                    " GROUP BY t.match_id,t.game_number";
+                if (nativeDeckId is not null) query.Parameters.AddWithValue("$native", nativeDeckId);
                 using var reader = query.ExecuteReader();
                 while (reader.Read())
                     if (!reader.IsDBNull(0)) gameTurns.Add(reader.GetInt32(0));
@@ -316,8 +328,10 @@ internal sealed class MatchHistory : IDisposable
                 query.CommandText = @"SELECT t.match_id,t.game_number,t.payload_json
                     FROM arena_match_telemetry t
                     INNER JOIN matches m ON m.match_id=t.match_id
-                    WHERE t.game_number IS NOT NULL
-                    ORDER BY t.id DESC LIMIT 10000";
+                    WHERE t.game_number IS NOT NULL" +
+                    (nativeDeckId is null ? "" : " AND m.native_deck_id=$native") +
+                    " ORDER BY t.id DESC LIMIT 10000";
+                if (nativeDeckId is not null) query.Parameters.AddWithValue("$native", nativeDeckId);
                 using var reader = query.ExecuteReader();
                 while (reader.Read())
                 {
