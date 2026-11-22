@@ -130,8 +130,8 @@
             </StackPanel>
         </Grid>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12"
-                    VerticalAlignment="Center">
+        <StackPanel Grid.Row="3" Margin="0,0,0,12">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <TextBlock Text="Folder" VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox x:Name="FolderBox" Width="235" Padding="10,2"
                      Text="Unfiled"
@@ -149,6 +149,34 @@
                       VerticalAlignment="Center" Margin="23,0,0,0"
                       Foreground="#E5BF79"
                       ToolTip="Show this deck first in the saved library"/>
+          </StackPanel>
+          <Grid Margin="0,9,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="145"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Deck cover" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <ComboBox x:Name="DeckCoverModeBox" Grid.Column="1"
+                      SelectionChanged="OnDeckCoverModeChanged"
+                      Background="#D7E4EB" Foreground="#0D1017" Margin="0,0,8,0" Padding="5,5">
+              <ComboBoxItem Content="Auto"/>
+              <ComboBoxItem Content="Custom"/>
+            </ComboBox>
+            <ComboBox x:Name="DeckCoverCardBox" Grid.Column="2"
+                      SelectionChanged="OnDeckCoverCardChanged"
+                      Background="#D7E4EB" Foreground="#0D1017" Margin="0,0,8,0" Padding="5,5"
+                      ToolTip="Choose a commander or any card in the current mainboard"/>
+            <ComboBox x:Name="DeckCoverPrintingBox" Grid.Column="3"
+                      SelectionChanged="OnDeckCoverPrintingChanged"
+                      DisplayMemberPath="Display"
+                      Background="#D7E4EB" Foreground="#0D1017" Padding="5,5"
+                      ToolTip="Choose a specific official printing for this deck cover"/>
+          </Grid>
+          <TextBlock x:Name="DeckCoverStatus" FontSize="11" Margin="0,5,0,0"
+                     Foreground="{DynamicResource VaultMuted}" TextWrapping="Wrap"
+                     Text="Auto uses commander artwork, or a mainboard card when no commander exists."/>
         </StackPanel>
         <Grid x:Name="EdhEditorColumns" Grid.Row="4" MinWidth="0" MinHeight="0"
               SizeChanged="OnEdhEditorColumnsSizeChanged">
