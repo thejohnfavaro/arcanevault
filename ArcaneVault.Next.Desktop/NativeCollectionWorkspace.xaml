@@ -425,9 +425,13 @@
                               ScrollViewer.CanContentScroll="True">
                         <ListView.ItemTemplate>
                             <DataTemplate>
+                                <!-- Keep every saved-deck tile the same footprint.
+                                     The previous content-measured border changed width for
+                                     decks with badges, favorites or AI review metadata. -->
                                 <Border BorderBrush="{DynamicResource VaultEdgeLift}"
                                         BorderThickness="1" CornerRadius="12"
                                         Background="{DynamicResource VaultTileWash}"
+                                        Width="470" Height="167" HorizontalAlignment="Left"
                                         Margin="5,5" Padding="10">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
