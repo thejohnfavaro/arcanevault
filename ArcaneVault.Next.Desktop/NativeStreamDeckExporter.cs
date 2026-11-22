@@ -415,6 +415,12 @@ internal sealed class NativeStreamDeckExporter : IDisposable
                 }
                 if (NativeCardArtwork.IsTrustedArtworkUrl(url))
                 {
+                    if (!string.Equals(deck.artUrl, url, StringComparison.Ordinal))
+                    {
+                        deck.keyImagePath = "";
+                        deck.lastRenderedWins = null;
+                        deck.lastRenderedLosses = null;
+                    }
                     deck.artUrl = url!;
                     deck.artStatus = "Artwork URL found; preparing key image";
                 }
@@ -481,6 +487,14 @@ internal sealed class NativeStreamDeckExporter : IDisposable
 
     private async Task RenderDeckAsync(Deck deck, CancellationToken cancel)
     {
+        // The exporter runs at least every 15 seconds. A fully rendered key
+        // with unchanged saved artwork, name, and W/L needs no network access,
+        // image decoding or new PNG. The file path is validated on every use.
+        if (deck.lastRenderedWins == deck.wins &&
+            deck.lastRenderedLosses == deck.losses &&
+            !string.IsNullOrWhiteSpace(deck.keyImagePath) &&
+            File.Exists(deck.keyImagePath)) return;
+
         byte[]? art = null;
         bool fullCardFallback = false;
         string? selectedArtworkUrl = null;
@@ -549,6 +563,8 @@ internal sealed class NativeStreamDeckExporter : IDisposable
         if (File.Exists(keyFile))
         {
             deck.keyImagePath = keyFile;
+            deck.lastRenderedWins = deck.wins;
+            deck.lastRenderedLosses = deck.losses;
             if (art is not null) deck.artStatus = fullCardFallback
                 ? "Illustration extracted from full card; key tile ready"
                 : "Commander art crop tile ready";
