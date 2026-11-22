@@ -16,7 +16,7 @@ internal sealed class NativeMatchHistoryView : UserControl
 {
     private sealed record MatchItem(string Database, string MatchId, string Played,
         string Result, string DeckName, string DeckId, string Source, string Note,
-        int GameWins, int GameLosses, string Format)
+        int GameWins, int GameLosses, string Format, string OpponentColors)
     {
         public string Date => DateTimeOffset.TryParse(Played, out var date)
             ? date.ToLocalTime().ToString("g") : Played;
@@ -44,6 +44,11 @@ internal sealed class NativeMatchHistoryView : UserControl
         MaxWidth = 420 };
     private readonly ComboBox resultPicker = new() { MinWidth = 150,
         Margin = new Thickness(0, 0, 10, 0) };
+    private readonly TextBox opponentColors = new() { Width = 125, MinHeight = 32,
+        Margin = new Thickness(8, 0, 8, 0),
+        ToolTip = "Opponent color identity: W, U, B, R, G or C. Blank means unknown." };
+    private readonly Button saveOpponentColors = new() { Content = "Save opponent colors",
+        Padding = new Thickness(12, 7, 12, 7), IsEnabled = false };
     private readonly Button assign = new() { Content = "Assign selected match",
         MinWidth = 170, Padding = new Thickness(14, 9, 14, 9), IsEnabled = false };
     private readonly Button refresh = new() { Content = "Refresh",
@@ -100,6 +105,13 @@ internal sealed class NativeMatchHistoryView : UserControl
         actions.Children.Add(assign);
         footer.Children.Add(actions);
         footer.Children.Add(rememberMapping);
+        var colorsRow = new WrapPanel { Margin = new Thickness(0, 9, 0, 0) };
+        colorsRow.Children.Add(new TextBlock { Text = "Opponent colors (WUBRG / C):",
+            VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.LightGray });
+        colorsRow.Children.Add(opponentColors);
+        colorsRow.Children.Add(saveOpponentColors);
+        footer.Children.Add(colorsRow);
+        saveOpponentColors.Click += async (_, _) => await SaveOpponentColorsAsync();
 
         var grid = new GridView();
         grid.Columns.Add(new GridViewColumn { Header = "When", Width = 145,
@@ -114,6 +126,8 @@ internal sealed class NativeMatchHistoryView : UserControl
             DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.ArenaIdStatus)) });
         grid.Columns.Add(new GridViewColumn { Header = "Status", Width = 170,
             DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.Status)) });
+        grid.Columns.Add(new GridViewColumn { Header = "Opp. colors", Width = 90,
+            DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.OpponentColors)) });
         grid.Columns.Add(new GridViewColumn { Header = "Origin", Width = 125,
             DisplayMemberBinding = new System.Windows.Data.Binding(nameof(MatchItem.Origin)) });
         rows.View = grid;
@@ -150,8 +164,15 @@ internal sealed class NativeMatchHistoryView : UserControl
             }.ToString());
             db.Open();
             using var cmd = db.CreateCommand();
-            cmd.CommandText = "SELECT match_id,played_utc,result,deck_name,deck_id,result_source,note,game_wins,game_losses,format "+
-                "FROM matches ORDER BY played_utc DESC LIMIT 2000";
+            using var schema = db.CreateCommand();
+            schema.CommandText = "PRAGMA table_info(matches)";
+            bool hasOpponentColors = false;
+            using (var columns = schema.ExecuteReader())
+                while (columns.Read())
+                    if (columns.GetString(1) == "opponent_colors") hasOpponentColors = true;
+            cmd.CommandText = "SELECT match_id,played_utc,result,deck_name,deck_id,result_source,note,game_wins,game_losses,format,"+
+                (hasOpponentColors ? "opponent_colors" : "''")+
+                " FROM matches ORDER BY played_utc DESC LIMIT 2000";
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
             {
@@ -166,7 +187,8 @@ internal sealed class NativeMatchHistoryView : UserControl
                     rd.IsDBNull(6) ? "" : rd.GetString(6),
                     rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
                     rd.IsDBNull(8) ? 0 : rd.GetInt32(8),
-                    rd.IsDBNull(9) ? "" : ArenaQueueInfo.Label(rd.GetString(9))));
+                    rd.IsDBNull(9) ? "" : ArenaQueueInfo.Label(rd.GetString(9)),
+                    rd.IsDBNull(10) ? "" : rd.GetString(10)));
             }
         }
         return result.OrderByDescending(x => x.Played, StringComparer.Ordinal)
@@ -180,7 +202,7 @@ internal sealed class NativeMatchHistoryView : UserControl
             .Where(x => DateTimeOffset.TryParse(x.Played, out _))
             .Select(x => new MatchPerformanceAnalytics.Entry(
                 x.MatchId, DateTimeOffset.Parse(x.Played),
-                x.DeckName, "", x.Format, x.Result))
+                x.DeckName, "", x.Format, x.Result, x.OpponentColors))
             .ToArray();
 
     private void FilterRows()
@@ -208,12 +230,14 @@ internal sealed class NativeMatchHistoryView : UserControl
         resolveVerified.IsEnabled = !busy && loaded.Any(x =>
             string.IsNullOrWhiteSpace(x.DeckName) &&
             !string.IsNullOrWhiteSpace(x.DeckId));
+        saveOpponentColors.IsEnabled = !busy && rows.SelectedItem is MatchItem;
         rememberMapping.IsEnabled = !busy && rows.SelectedItem is MatchItem selected &&
             !string.IsNullOrWhiteSpace(selected.DeckId);
         rememberMapping.Visibility = rememberMapping.IsEnabled
             ? Visibility.Visible : Visibility.Collapsed;
         if (rows.SelectedItem is MatchItem item)
         {
+            opponentColors.Text = item.OpponentColors;
             status.Text = item.Status + (string.IsNullOrWhiteSpace(item.DeckId) ?
                 " · Arena deck ID absent" : " · Arena deck ID: " + item.DeckId) + " · " +
                 (string.IsNullOrWhiteSpace(item.Note) ? "No diagnostic note" : item.Note);
@@ -340,6 +364,38 @@ internal sealed class NativeMatchHistoryView : UserControl
               "Older matches with no ID still require manual review."
             : "Safely assigned " + changed + " existing match(es) using verified Arena IDs. " +
               "No match results or game totals were changed.";
+    }
+
+    private async Task SaveOpponentColorsAsync()
+    {
+        if (busy || rows.SelectedItem is not MatchItem item) return;
+        var entered = opponentColors.Text;
+        busy = true;
+        try
+        {
+            bool changed = await Task.Run(() =>
+            {
+                using var history = new MatchHistory(item.Database);
+                return history.UpdateOpponentColors(item.MatchId, entered);
+            });
+            if (changed)
+            {
+                await ReloadAsyncAfterColors();
+                status.Text = "Opponent color identity saved to existing match only.";
+            }
+            else status.Text = "Match no longer exists.";
+        }
+        catch (Exception error)
+        {
+            status.Text = "Opponent colors not saved: " + error.Message;
+        }
+        finally { busy = false; UpdateSelection(); }
+    }
+
+    private async Task ReloadAsyncAfterColors()
+    {
+        loaded = await Task.Run(ReadMatches);
+        FilterRows();
     }
 
     private async Task AssignAsync()
