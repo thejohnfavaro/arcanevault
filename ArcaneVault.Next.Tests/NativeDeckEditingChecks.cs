@@ -154,7 +154,7 @@ internal static class NativeDeckEditingChecks
              coverRows[1].SourceSha256 == list[1].SourceSha256,
             "Custom deck art must save independently of commander and collection.");
         var removedCard = NativeDeckEditing.Save(coverChoice,"Legacy Commander",
-            "Test Commander","13 Island\\n1 Split // Back",coverRows[0]);
+            "Test Commander","13 Island\n1 Split // Back",coverRows[0]);
         var fallback = NativeDeckEditing.List(removedCard)[0];
         Must(fallback.DeckCoverMode == "Auto" &&
              fallback.DeckCoverCardName == "" &&
@@ -171,7 +171,7 @@ internal static class NativeDeckEditingChecks
             deckCoverMode:"Custom",deckCoverCardName:"Sol Ring",
             deckCoverPrintingId:"not-guid"));
         var standardCover = NativeDeckEditing.Save(source,"Standard Test",
-            "", "4 Sol Ring\\n60 Island", null, format:"Arena Standard",
+            "", "4 Sol Ring\n60 Island", null, format:"Arena Standard",
             deckCoverMode:"Custom",deckCoverCardName:"Island");
         Must(NativeDeckEditing.List(standardCover).Single(x => x.Name == "Standard Test").EffectiveCoverCard=="Island",
             "Standard decks must support custom mainboard art without a commander.");
