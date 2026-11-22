@@ -259,7 +259,7 @@ public static class NativeDeckPreflight
 
         if (edh && commander.Length > 0 && records.TryGetValue(commander, out var leader))
         {
-            string? status = CommanderLegality(leader);
+            string? status = CachedLegality(leader, "commander");
             if (status is "banned" or "not_legal")
                 Warn($"{commander}: cached Scryfall Commander legality is '{status}'.");
         }
