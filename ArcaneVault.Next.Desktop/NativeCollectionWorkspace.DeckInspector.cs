@@ -251,10 +251,32 @@ public partial class NativeCollectionWorkspace
         }
 
         CollectionCatalogReview.CardDetails? details;
+        string selectedArt = "";
         try
         {
-            details = await Task.Run(() =>
-                CollectionCatalogReview.ReadDetails(catalogPath, selected.Name));
+            var loaded = await Task.Run(() =>
+            {
+                var cardDetails = CollectionCatalogReview.ReadDetails(catalogPath!, selected.Name);
+                string art = cardDetails?.ArtworkUrl ?? "";
+                if (selected.IsCommander && deck.CommanderPrintingId.Length > 0 &&
+                    Guid.TryParse(deck.CommanderPrintingId, out var printingId))
+                {
+                    try
+                    {
+                        art = NativePrintingArtwork.Require(catalogPath!,
+                            deck.Commander, printingId).ImageUrl;
+                    }
+                    catch (Exception ex) when (ex is InvalidDataException or
+                        Microsoft.Data.Sqlite.SqliteException)
+                    {
+                        // Keep the saved printing ID; use the verified default
+                        // artwork until the local Scryfall catalog is refreshed.
+                    }
+                }
+                return (Details: cardDetails, Artwork: art);
+            });
+            details = loaded.Details;
+            selectedArt = loaded.Artwork;
         }
         catch (Exception) { details = null; }
         if (closing || version != deckInspectVersion ||
@@ -267,15 +289,17 @@ public partial class NativeCollectionWorkspace
                 "No local card metadata for this name. The saved deck and inventory are unchanged.";
             return;
         }
-        DeckInspectorArt.ArtUrl = NativeCardArtwork.IsTrustedArtworkUrl(details.ArtworkUrl)
-            ? details.ArtworkUrl : "";
+        DeckInspectorArt.ArtUrl = NativeCardArtwork.IsTrustedArtworkUrl(selectedArt)
+            ? selectedArt : "";
         DeckInspectorCardType.Text = details.TypeLine;
         DeckInspectorManaCost.Value = details.ManaCost;
         DeckInspectorOracle.Document =
             NativeOracleReading.Build(details.OracleText);
         DeckInspectorStatus.Text =
             (selected.IsCommander ? "Command zone · " : "") +
-            "Read-only card identity · illustration is not verification of your owned printing.";
+            (selected.IsCommander && deck.CommanderPrintingId.Length > 0
+                ? "Deck-selected official printing · cosmetic only, not verified ownership."
+                : "Read-only card identity · illustration is not verification of your owned printing.");
     }
 
     private void OnDeckInspectorCardDoubleClick(object sender, MouseButtonEventArgs e)
@@ -307,10 +331,23 @@ public partial class NativeCollectionWorkspace
             !ReferenceEquals(deck, inspectedSavedDeck) ||
             !ReferenceEquals(card, inspectedDeckCard)) return;
 
+        string chosenArtwork = "";
+        if (card.IsCommander && deck.CommanderPrintingId.Length > 0 &&
+            Guid.TryParse(deck.CommanderPrintingId, out var chosenPrintingId) &&
+            !string.IsNullOrWhiteSpace(catalogPath))
+        {
+            try
+            {
+                chosenArtwork = NativePrintingArtwork.Require(catalogPath!,
+                    deck.Commander, chosenPrintingId).ImageUrl;
+            }
+            catch (Exception ex) when (ex is InvalidDataException or
+                Microsoft.Data.Sqlite.SqliteException) { }
+        }
         var dialog = new NativeCardDetailsWindow(card.Name,
             (card.IsCommander ? "Commander in " : $"{card.Quantity} saved in ") +
             $"{deck.Name} · saved deck entry, not verified ownership",
-            details, catalogPath)
+            details, catalogPath, selectedArtworkUrl: chosenArtwork)
         { Owner = Window.GetWindow(this) };
         dialog.Show();
     }
