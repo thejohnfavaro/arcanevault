@@ -2,6 +2,11 @@
 
 Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for the working Companion v0.9. Built for XENEON EDGE `dashboard_lcd` in 2560×720, responsive down to 840×344. No full-screen window or localhost server is required.
 
+## Observed rank-step progress on XENEON EDGE (widget v1.0.4; Windows native v0.9.196+)
+- The Constructed and Limited panels now show the *observed division step* when Arena supplies `constructedStep` or `limitedStep` in a verified rank response. Mythic displays the verified leaderboard position when supplied.
+- Missing rank-progress fields are shown as *not captured*; no pip thresholds or promotions/demotions are inferred from deck win/loss results.
+- Rank progress is account-level Constructed/Limited, not separate per Standard deck. Ranked Standard matches continue to be tracked by their corresponding saved-deck identity.
+
 ## Ranked Standard on XENEON EDGE (widget v1.0.3; Windows Native v0.9.195+)
 - The deck selector includes saved **Arena Standard** decks alongside Arena Brawl, but still excludes tabletop Commander and generic 60-card decks.
 - An Arena Standard deck displays verified **Ranked Standard** wins/losses only. Play queue, other formats, and unknown queue IDs are excluded rather than inferred to be ranked.
