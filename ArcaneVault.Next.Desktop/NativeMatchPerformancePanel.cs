@@ -30,6 +30,9 @@ internal sealed class NativeMatchPerformancePanel : UserControl
     private readonly ListView weeks = new() { Height = 154, Margin = new Thickness(0,6,0,10) };
     private readonly ListView deckColorIdentities = new() { Height = 175,
         Margin = new Thickness(0,6,0,10) };
+    private readonly TextBlock opponentColorCoverage = new() {
+        Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0,0,0,8) };
     private readonly TextBlock deckColorCoverage = new() {
         Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
         Margin = new Thickness(0,0,0,8) };
@@ -111,10 +114,7 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         opponentView.Columns.Add(Column("Win %", "WinRate", 85));
         opponentMatchups.View = opponentView;
         root.Children.Add(opponentMatchups);
-        root.Children.Add(new TextBlock {
-            Text = "Based on explicitly tagged opponent identities in Match History. Unknown is separate.",
-            Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0,0,0,8) });
+        root.Children.Add(opponentColorCoverage);
         root.Children.Add(new TextBlock { Text = "WEEKLY PERFORMANCE (UTC)", FontSize = 13,
             FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var weekView = new GridView();
@@ -212,6 +212,14 @@ internal sealed class NativeMatchPerformancePanel : UserControl
             ? "Your deck color identity is based on the saved commander's official catalog entry."
             : unidentified + " confirmed match(es) lack a uniquely resolved saved commander identity. " +
               "Unknown is not colorless. Refresh your local Scryfall catalog or check deck assignment.";
+        int untaggedOpponents = matchScope.Count(x =>
+            string.IsNullOrWhiteSpace(x.OpponentColors));
+        opponentColorCoverage.Text = untaggedOpponents == 0
+            ? "Opponent colors are explicitly tagged in Match History (not inferred from Arena)."
+            : untaggedOpponents + " of " + matchScope.Length +
+              " confirmed match(es) have unknown opponent colors. " +
+              "Select a match in Match History and use Save opponent colors to classify it; " +
+              "Unknown is not colorless.";
         opponentMatchups.ItemsSource = matchScope
             .GroupBy(x => string.IsNullOrWhiteSpace(x.OpponentColors) ?
                 "Unknown" : x.OpponentColors, StringComparer.OrdinalIgnoreCase)
