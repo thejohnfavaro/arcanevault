@@ -49,12 +49,12 @@ internal static class NativeVisualShellChecks
              matchAnalytics.Contains("ReadVerifiedPlayDrawForDeck(null, selectedMatchIds)"),
              "Per-deck analytics must include historical verified assignments in both results and telemetry.");
         Must(matchAnalytics.Contains("All Decks — aggregate") &&
-             matchAnalytics.Contains("ReadTelemetryOverviewForDeck(scope)") &&
-             matchAnalytics.Contains("ReadGameplayObservationForDeck(scope)") &&
-             matchAnalytics.Contains("ReadVerifiedPlayDrawForDeck(scope)") &&
+             matchAnalytics.Contains("ReadTelemetryOverviewForDeck(null, selectedMatchIds)") &&
+             matchAnalytics.Contains("ReadGameplayObservationForDeck(null, selectedMatchIds)") &&
+             matchAnalytics.Contains("ReadVerifiedPlayDrawForDeck(null, selectedMatchIds)") &&
              matchAnalytics.Contains("singleDeck: selectedDeckId.Length > 0") &&
              performancePanel.Contains("deckFilter.SelectedItem = decks[0]"),
-             "Match Analytics must use one shared deck selector for all reports.");
+             "Match Analytics must use one shared deck selector for all reports, including historical verified match IDs.");
 
         foreach (var heading in new[] { "DISCOVER", "COLLECTION", "BUILD &amp; PLAY", "SYSTEM" })
             Must(mainShell.Contains("Text=" + (char)34 + heading + (char)34),
