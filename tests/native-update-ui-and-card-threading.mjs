@@ -24,4 +24,14 @@ assert.match(window,/await ConfirmNativeUpdateAsync/);
 assert.doesNotMatch(window.slice(window.indexOf('private async void OnCheckNativeUpdatesClicked'),window.indexOf('First-party native Scryfall sync')),/MessageBox\.Show|NativeInAppDialog\.Show/);
 assert.match(retention,/CleanupAfterVerifiedLaunch/);
 assert.match(xaml,/ActivityHistoryButton/);
-console.log('PASS: WPF card details captured before background work; in-app update prompts, shortlist and safe binary retention are wired');
+// Deck Library cover and inspector must resolve the SAME saved commander
+// printing, not show a generic card image beside a deck-specific tile.
+const inspector=read('ArcaneVault.Next.Desktop/NativeCollectionWorkspace.DeckInspector.cs');
+const library=read('ArcaneVault.Next.Desktop/NativeCollectionWorkspace.xaml.cs');
+assert.match(library,/deck\.CommanderPrintingId\.Length > 0/);
+assert.match(library,/NativePrintingArtwork\.Require\(catalogPath!,\s*deck\.Commander, printingId\)\.ImageUrl/);
+assert.match(inspector,/selected\.IsCommander && deck\.CommanderPrintingId\.Length > 0/);
+assert.match(inspector,/NativePrintingArtwork\.Require\(catalogPath!,\s*deck\.Commander, printingId\)\.ImageUrl/);
+assert.match(inspector,/DeckInspectorArt\.ArtUrl = NativeCardArtwork\.IsTrustedArtworkUrl\(selectedArt\)/);
+assert.match(inspector,/selectedArtworkUrl: chosenArtwork/);
+console.log('PASS: WPF card details, unified commander printing in Library and Inspector, in-app update prompts and retention are wired');
