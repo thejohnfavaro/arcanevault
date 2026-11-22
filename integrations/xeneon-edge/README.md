@@ -2,6 +2,12 @@
 
 Source for a native **iCUE widget**, not a Stream Deck plugin or replacement for the working Companion v0.9. Built for XENEON EDGE `dashboard_lcd` in 2560×720, responsive down to 840×344. No full-screen window or localhost server is required.
 
+## Automatic deck switching (EDGE widget v1.0.2)
+- **Settings → Auto-switch on new W/L** is enabled by default and persists on the EDGE. Disable it to keep manual deck selection until you navigate again.
+- When a verified Arena Brawl deck’s recorded wins or losses increase, the widget displays that deck even if another deck was showing. With multiple updated decks, it prefers the most recent confirmed match timestamp, then the larger positive result change. Manual navigation still works.
+- The first snapshot after widget startup sets the comparison baseline: existing historical wins and losses do **not** trigger a switch. Routine heartbeat, artwork refresh, deck reorder, or a newly synchronized deck with past results will not trigger a switch. This changes only the widget’s visible deck; it does not modify deck data, match history, or your last manually chosen deck.
+- Requires an Arcane Vault snapshot with per-deck Arena Brawl win/loss totals; no Windows exporter or Stream Deck companion changes are needed.
+
 ## Arena Brawl deck filtering (native v0.9.181+)
 - The Xeneon EDGE deck selector now shows only decks explicitly saved as **Arena Brawl**, not tabletop **Commander** or unrelated formats.
 - The native read-only `streamdeck.json` snapshot now includes each deck's `format`. This leaves the full deck library and Stream Deck Companion untouched.
