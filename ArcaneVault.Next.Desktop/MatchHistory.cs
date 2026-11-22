@@ -42,6 +42,24 @@ internal sealed class MatchHistory : IDisposable
             source TEXT NOT NULL DEFAULT 'Arena'
         );";
         command.ExecuteNonQuery();
+        // Add optional opponent identity without touching existing result attribution.
+        using (var opponentSchema = db.CreateCommand())
+        {
+            opponentSchema.CommandText = "PRAGMA table_info(matches)";
+            using var reader = opponentSchema.ExecuteReader();
+            bool exists = false;
+            while (reader.Read())
+                if (reader.GetString(1).Equals("opponent_colors",
+                    StringComparison.OrdinalIgnoreCase)) exists = true;
+            reader.Close();
+            if (!exists)
+            {
+                using var migrateOpponent = db.CreateCommand();
+                migrateOpponent.CommandText =
+                    "ALTER TABLE matches ADD COLUMN opponent_colors TEXT NOT NULL DEFAULT ''";
+                migrateOpponent.ExecuteNonQuery();
+            }
+        }
         ArenaMatchTelemetry.EnsureSchema(db);
         using (var seatSchema = db.CreateCommand())
         {
@@ -579,5 +597,28 @@ internal sealed class MatchHistory : IDisposable
             return cmd.ExecuteNonQuery() > 0;
         }
     }
+    /// <summary>Manual opponent color-identity annotation, independent of a match result.
+    /// Empty identity means unknown; colorless is represented by C.</summary>
+    public bool UpdateOpponentColors(string matchId, string colors)
+    {
+        if (string.IsNullOrWhiteSpace(matchId)) return false;
+        string raw = (colors ?? "").Trim().ToUpperInvariant();
+        if (raw != "" && raw != "C" && raw.Any(c =>
+                !"WUBRG ,/".Contains(c)))
+            throw new ArgumentException("Use W, U, B, R, G, C or leave blank for unknown.");
+        if (raw.Contains('C') && raw != "C")
+            throw new ArgumentException("Colorless C cannot be combined with other colors.");
+        string normalized = raw == "C" ? "C" :
+            string.Concat("WUBRG".Where(raw.Contains));
+        lock (gate)
+        {
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "UPDATE matches SET opponent_colors=$colors WHERE match_id=$id";
+            cmd.Parameters.AddWithValue("$colors", normalized);
+            cmd.Parameters.AddWithValue("$id", matchId);
+            return cmd.ExecuteNonQuery() == 1;
+        }
+    }
+
     public void Dispose() => db.Dispose();
 }
