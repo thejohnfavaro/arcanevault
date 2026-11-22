@@ -32,7 +32,11 @@ const make=(id="")=>{
     dataset:{}, options:[], children:[],
     classList:{add:c=>classes.add(c),remove:c=>classes.delete(c),
       contains:c=>classes.has(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c)},
-    addEventListener:()=>{},
+    listeners:new Map(),
+    addEventListener(type,callback){this.listeners.set(type,callback);},
+    dispatch(type,value){const callback=this.listeners.get(type);
+      assert.equal(typeof callback,"function","Missing "+type+" handler for "+this.id);
+      callback({target:{checked:value}});},
     setAttribute:(k,v)=>attrs.set(k,v),getAttribute:k=>attrs.get(k),
     removeAttribute:k=>attrs.delete(k),
     replaceChildren(...items){this.children=items;this.options=items;},
@@ -54,9 +58,12 @@ const provider={
   watchPath(p){assert.match(p,/streamdeck\.json$/);watches++;},
   unwatchPath(){unwatches++;}
 };
+const storage=new Map();
 const box={
   document,window:{plugins:{Filesystemprovider:provider}},
-  localStorage:{getItem:()=>null,setItem(){},removeItem(){}},
+  localStorage:{getItem:key=>storage.get(key)??null,
+    setItem(key,value){storage.set(key,String(value));},
+    removeItem(key){storage.delete(key);}},
   Option:class {constructor(label,value){this.textContent=label;this.value=value;}},
   Date:class extends Date {static now(){return now;}},
   setInterval(fn,ms){assert.equal(ms,5000);tick=fn;},
@@ -106,6 +113,55 @@ assert.equal(document.getElementById("deckName").textContent,"Arena Brawl",
   "Only Arena Brawl should be available in the EDGE selector");
 assert.equal(document.getElementById("deckCount").textContent,"1 / 1");
 assert.equal(document.getElementById("wins").textContent,"2");
+assert.match(markup,/id="autoSwitchDeck"/,
+  "Widget settings must expose auto-switch deck toggle");
+const settings=document.getElementById("autoSwitchDeck");
+assert.equal(settings.checked,true,"Automatic switching should start enabled");
+const path="C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json";
+const first={id:"brawl-1",name:"Borg",format:"Arena Brawl",wins:2,losses:1,
+  matchHistory:[{result:"win",playedUtc:"2026-11-22T08:00:00Z"}]};
+const second={id:"brawl-2",name:"Etali",format:"Arena Brawl",wins:0,losses:0,
+  matchHistory:[]};
+const emit=(decks,extras={})=>listener(path,JSON.stringify({schemaVersion:1,
+  publishedUtc:"2026-11-22T14:00:00Z",decks,...extras}));
+// First seen snapshot establishes baseline, never switches to a historical winner.
+emit([first,second]);
+assert.equal(document.getElementById("deckName").textContent,"Borg");
+document.getElementById("next").dispatch("click");
+assert.equal(document.getElementById("deckName").textContent,"Etali");
+assert.equal(storage.get("arcanevault.edge.deckId.v1"),"brawl-2");
+// Unrelated heartbeats and changes in artwork should not steal the selection.
+emit([{...first,artUrl:"https://cards.scryfall.io/normal/front/a/a/new.jpg"},second]);
+assert.equal(document.getElementById("deckName").textContent,"Etali");
+emit([{...first,wins:3,matchHistory:[{result:"win",playedUtc:"2026-11-22T10:00:00Z"}]},
+  second]);
+assert.equal(document.getElementById("deckName").textContent,"Borg",
+  "A new confirmed result should switch to the updated deck");
+assert.equal(storage.get("arcanevault.edge.deckId.v1"),"brawl-2",
+  "Automatic display changes must not overwrite manual deck preference");
+// A continued heartbeat with the same results must be stable.
+emit([{...first,wins:3},second]);
+assert.equal(document.getElementById("deckName").textContent,"Borg");
+// Turning off must persist; manual arrows continue to work.
+settings.dispatch("change",false);
+assert.equal(storage.get("arcanevault.edge.autoSwitchOnMatch.v1"),"false");
+emit([{...first,wins:3},{...second,losses:1,
+  matchHistory:[{result:"loss",playedUtc:"2026-11-22T11:00:00Z"}]}]);
+assert.equal(document.getElementById("deckName").textContent,"Borg");
+document.getElementById("next").dispatch("click");
+assert.equal(document.getElementById("deckName").textContent,"Etali");
+settings.dispatch("change",true);
+assert.equal(storage.get("arcanevault.edge.autoSwitchOnMatch.v1"),"true");
+emit([{...first,wins:3},{...second,losses:1}]);
+assert.equal(document.getElementById("deckName").textContent,"Etali",
+  "Enabling the option must not replay past changes");
+emit([{...first,wins:3,losses:2},{...second,losses:1}]);
+assert.equal(document.getElementById("deckName").textContent,"Borg",
+  "A new loss on another deck should switch to it");
+// A newly added saved deck with old matches is not a new match.
+emit([{...first,wins:3,losses:2},{...second,losses:1},
+  {id:"brawl-3",name:"Newly synced",format:"Arena Brawl",wins:9,losses:1}]);
+assert.equal(document.getElementById("deckName").textContent,"Borg");
 listener("C:\\\\Users\\\\Test\\\\AppData\\\\Local\\\\ArcaneVault\\\\streamdeck.json",
   JSON.stringify({schemaVersion:1,decks:[
     {id:"paper-only",name:"Paper Commander",format:"Commander",commander:"Atraxa"}
