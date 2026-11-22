@@ -37,55 +37,6 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
     private readonly DispatcherTimer countdownTimer = new() {
         Interval = TimeSpan.FromMinutes(1) };
     private bool reading;
-    private static IReadOnlyDictionary<string,string> ReadSavedDeckColors()
-    {
-        var result = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-        if (!File.Exists(ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath) ||
-            !File.Exists(ArcaneVault.Next.Collection.NativeWorkspace.CatalogPath))
-            return result;
-        var decks = ArcaneVault.Next.Collection.NativeWorkspaceSafety.ListDecks(
-            ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath);
-        using var db = new SqliteConnection(new SqliteConnectionStringBuilder {
-            DataSource = ArcaneVault.Next.Collection.NativeWorkspace.CatalogPath,
-            Mode = SqliteOpenMode.ReadOnly, Pooling = false
-        }.ToString());
-        db.Open();
-        using var query = db.CreateCommand();
-        query.CommandText = @"SELECT colors FROM cards WHERE name=$name COLLATE NOCASE
-            OR name LIKE $front ESCAPE '\' COLLATE NOCASE
-            ORDER BY CASE WHEN name=$name COLLATE NOCASE THEN 0 ELSE 1 END LIMIT 1";
-        var exact = query.Parameters.AddWithValue("$name","");
-        var front = query.Parameters.AddWithValue("$front","");
-        var colorByDeck = new List<(string Id,string Name,string Colors)>();
-        foreach (var deck in decks.Where(d => !string.IsNullOrWhiteSpace(d.Commander)))
-        {
-            exact.Value = deck.Commander.Trim();
-            string escape = deck.Commander.Trim().Replace(@"\",@"\\")
-                .Replace("%",@"\%").Replace("_",@"\_");
-            front.Value = escape + " // %";
-            var raw = query.ExecuteScalar()?.ToString();
-            if (raw is null) continue; // Unknown is not colorless.
-            string colors;
-            try
-            {
-                colors = ArcaneVault.Next.Domain.EdhLabCommanderRules.CanonicalColors(raw);
-                if (colors.Length == 0) colors = "C";
-            }
-            catch (ArgumentException) { continue; }
-            colorByDeck.Add((deck.Id,deck.Name,colors));
-            result[deck.Id] = colors;
-        }
-        // Name-only historical assignments are linked only if exactly one
-        // saved deck has that name. Never guess between duplicate deck names.
-        var nameCounts = decks.GroupBy(x => x.Name,
-            StringComparer.OrdinalIgnoreCase).ToDictionary(x => x.Key, x => x.Count(),
-                StringComparer.OrdinalIgnoreCase);
-        foreach (var item in colorByDeck)
-            if (nameCounts.GetValueOrDefault(item.Name) == 1)
-                result["name:" + item.Name] = item.Colors;
-        return result;
-    }
-
     internal NativeMatchAnalyticsWorkspace()
     {
         // One page-level scroller: the analytics header is no longer fixed
@@ -250,20 +201,13 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                         InvalidDataException or UnauthorizedAccessException or ArgumentException) { }
                 }
                 using var history = new MatchHistory();
-                IReadOnlyDictionary<string,string> identities;
-                try { identities = ReadSavedDeckColors(); }
-                catch (Exception ex) when (ex is IOException or SqliteException or
-                    InvalidDataException or UnauthorizedAccessException or ArgumentException)
-                {
-                    identities = new Dictionary<string,string>();
-                }
                 string? scope = selectedDeckId.Length == 0 ? null : selectedDeckId;
-                return (matches, identities, savedDecks,
+                return (matches, savedDecks,
                     coverage: history.ReadTelemetryOverviewForDeck(scope),
                     gameplay: history.ReadGameplayObservationForDeck(scope),
                     playDraw: history.ReadVerifiedPlayDrawForDeck(scope));
             });
-            dashboard.SetMatches(data.matches, data.identities,
+            dashboard.SetMatches(data.matches,
                 singleDeck: selectedDeckId.Length > 0);
             // Preserve the current deck by stable ID, not by row position or
             // name. A missing exact ID means no verified deck-scoped totals.
