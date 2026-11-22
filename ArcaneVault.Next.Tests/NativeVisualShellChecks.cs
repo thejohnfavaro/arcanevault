@@ -37,8 +37,10 @@ internal static class NativeVisualShellChecks
         Must(matchAnalytics.Contains("Content = new ScrollViewer") &&
              matchAnalytics.Contains("Grid.SetColumn(gameplayColumn, 0)") &&
              matchAnalytics.Contains("Grid.SetColumn(resultsColumn, 1)") &&
-             performancePanel.Contains("var firstRow = new WrapPanel") &&
-             performancePanel.Contains("var secondRow = new WrapPanel"),
+             performancePanel.Contains("var breakdownRow = new WrapPanel") &&
+             performancePanel.Contains("AGAINST OPPONENT COLOR IDENTITY") &&
+             !performancePanel.Contains("BY YOUR DECK COLOR IDENTITY") &&
+             !matchAnalytics.Contains("ReadSavedDeckColors"),
              "Analytics must scroll as one page and use horizontal space for paired summaries and tables.");
         Must(matchAnalytics.Contains("All Decks — aggregate") &&
              matchAnalytics.Contains("ReadTelemetryOverviewForDeck(scope)") &&
