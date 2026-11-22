@@ -192,7 +192,7 @@ internal sealed class NativeMatchHistoryView : UserControl
                 {
                     string earlier = result[priorIndex].OpponentColors;
                     string alternate = rd.IsDBNull(10) ? "" : rd.GetString(10);
-                    string resolved = PreferExplicitOpponentColors(earlier, alternate);
+                    string resolved = MatchPerformanceAnalytics.PreferExplicitOpponentColors(earlier, alternate);
                     if (!string.Equals(earlier, resolved, StringComparison.Ordinal))
                         result[priorIndex] = result[priorIndex] with
                             { OpponentColors = resolved };
@@ -216,12 +216,6 @@ internal sealed class NativeMatchHistoryView : UserControl
         return result.OrderByDescending(x => x.Played, StringComparer.Ordinal)
             .Take(2000).ToArray();
     }
-
-    // Read-only reconciliation of explicit opponent annotations on duplicate
-    // native/legacy match IDs. Never infer opponent colors from own deck colors,
-    // nor replace an existing primary annotation with a secondary one.
-    internal static string PreferExplicitOpponentColors(string primary, string secondary) =>
-        string.IsNullOrWhiteSpace(primary) ? secondary : primary;
 
     // Shared read-only view of the same native-first, deduplicated rows shown
     // in Match History. Analytics never opens the database for writing.
