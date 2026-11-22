@@ -287,6 +287,22 @@
     };
     showRank("constructed", rank?.constructedClass, rank?.constructedLevel);
     showRank("limited", rank?.limitedClass, rank?.limitedLevel);
+    // The Arena rank endpoint reports current division steps, not a guaranteed
+    // number of wins to promotion or losses to demotion. Never infer a
+    // denominator from historical win/loss or the currently visible deck.
+    function progressText(lane) {
+      const tier = String(rank?.[lane + "Class"] || "").trim().toLowerCase();
+      const step = rank?.[lane + "Step"];
+      const place = rank?.[lane + "LeaderboardPlace"];
+      if (tier === "mythic" && Number.isInteger(place) && place > 0)
+        return "Leaderboard #" + place + " · verified";
+      if (["bronze","silver","gold","platinum","diamond"].includes(tier) &&
+          Number.isInteger(step) && step >= 0 && step <= 100)
+        return "Division step " + step + " · observed";
+      return "Division progress not captured";
+    }
+    $("constructedProgress").textContent = progressText("constructed");
+    $("limitedProgress").textContent = progressText("limited");
     const asOf = rank && typeof rank.asOfUtc === "string" ?
       Date.parse(rank.asOfUtc) : NaN;
     $("rankAge").textContent = Number.isFinite(asOf) ?
