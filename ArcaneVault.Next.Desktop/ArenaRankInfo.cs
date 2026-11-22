@@ -7,7 +7,10 @@ namespace ArcaneVault.Next.Desktop;
 internal static class ArenaRankInfo
 {
     internal sealed record Snapshot(string ConstructedClass, int ConstructedLevel,
-        string LimitedClass, int LimitedLevel, string Source);
+        string LimitedClass, int LimitedLevel, string Source,
+        int? ConstructedStep = null, int? LimitedStep = null,
+        double? ConstructedPercentile = null, double? LimitedPercentile = null,
+        int? ConstructedLeaderboardPlace = null, int? LimitedLeaderboardPlace = null);
 
     internal static Snapshot? TryRead(JsonElement root, string source)
     {
@@ -30,7 +33,12 @@ internal static class ArenaRankInfo
         var limitedClass = ReadClass(candidate, "limitedClass");
         if (constructedClass.Length == 0 && limitedClass.Length == 0) return null;
         return new Snapshot(constructedClass, ReadLevel(candidate, "constructedLevel"),
-            limitedClass, ReadLevel(candidate, "limitedLevel"), "Arena rank response");
+            limitedClass, ReadLevel(candidate, "limitedLevel"), "Arena rank response",
+            ReadStep(candidate, "constructedStep"), ReadStep(candidate, "limitedStep"),
+            ReadPercentile(candidate, "constructedPercentile"),
+            ReadPercentile(candidate, "limitedPercentile"),
+            ReadLeaderboard(candidate, "constructedLeaderboardPlace"),
+            ReadLeaderboard(candidate, "limitedLeaderboardPlace"));
     }
 
     private static bool HasRankKeys(JsonElement candidate) =>
@@ -51,4 +59,24 @@ internal static class ArenaRankInfo
             !v.TryGetInt32(out int n) || n is < 0 or > 10) return 0;
         return n;
     }
+    private static int? ReadStep(JsonElement source, string key)
+    {
+        if (!source.TryGetProperty(key, out var v) || v.ValueKind != JsonValueKind.Number ||
+            !v.TryGetInt32(out int n) || n is < 0 or > 100) return null;
+        return n;
+    }
+    private static double? ReadPercentile(JsonElement source, string key)
+    {
+        if (!source.TryGetProperty(key, out var v) || v.ValueKind != JsonValueKind.Number ||
+            !v.TryGetDouble(out var value) || !double.IsFinite(value) ||
+            value is < 0 or > 100) return null;
+        return value;
+    }
+    private static int? ReadLeaderboard(JsonElement source, string key)
+    {
+        if (!source.TryGetProperty(key, out var v) || v.ValueKind != JsonValueKind.Number ||
+            !v.TryGetInt32(out int n) || n is < 0 or > 10_000_000) return null;
+        return n == 0 ? null : n;
+    }
+
 }
