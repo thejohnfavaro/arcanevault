@@ -19,8 +19,9 @@ No collection records, match records, Arena logs, or saved decks are written.
 
 Deck choice is local to the plugin and does not change Arcane Vault's
 selected deck or the existing Xeneon Edge selection.
-Actions update their text when invoked or redrawn; live polling and custom
-image-backed touch-key rendering are not included in this first version.
+Touch-key labels refresh when the selected deck changes and periodically
+when the exported snapshot file changes. Custom image-backed touch-key
+rendering is not included in this first version.
 
 ## Building on Windows
 
