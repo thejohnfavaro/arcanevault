@@ -19,13 +19,16 @@ internal static class ArenaQueueRankChecks
         Assert(ArenaQueueInfo.Label("mystery-event-88") == "mystery-event-88",
             "Unrecognized event IDs must not be guessed.");
         using var document=JsonDocument.Parse("""
-            {"constructedClass":"Gold","constructedLevel":2,
-             "limitedClass":"Platinum","limitedLevel":3}
+            {"constructedClass":"Gold","constructedLevel":2,"constructedStep":4,
+             "limitedClass":"Platinum","limitedLevel":3,"limitedStep":2,
+             "constructedPercentile":0,"constructedLeaderboardPlace":0}
             """);
         var snap=ArenaRankInfo.TryRead(document.RootElement, "rank_response");
         Assert(snap is not null && snap.ConstructedClass=="Gold" &&
             snap.ConstructedLevel==2 && snap.LimitedClass=="Platinum" &&
-            snap.LimitedLevel==3, "Rank payload must preserve both lanes.");
+            snap.LimitedLevel==3 && snap.ConstructedStep==4 &&
+            snap.LimitedStep==2 && snap.ConstructedLeaderboardPlace is null,
+            "Rank payload must preserve verified progress for both lanes.");
         var local=Path.Combine(folder,"arena-ranked-queue-check");
         Directory.CreateDirectory(local);
         var db=Path.Combine(local,"rank-history.sqlite3");
@@ -63,8 +66,8 @@ internal static class ArenaQueueRankChecks
             Event(time,"Auth",new {authenticateResponse=new {
                 clientId="me",screenName="Tester"}}),
             Event(time.AddMinutes(1),"RankGetCombinedRankInfo",new {
-                constructedClass="Gold",constructedLevel=2,
-                limitedClass="Platinum",limitedLevel=3
+                constructedClass="Gold",constructedLevel=2,constructedStep=4,
+                limitedClass="Platinum",limitedLevel=3,limitedStep=2
             }),
             Event(time.AddMinutes(2),"EventSetDeckV3",new {request=submit}),
             Event(time.AddMinutes(3),"matchGameRoomStateChangedEvent",match)
@@ -93,7 +96,9 @@ internal static class ArenaQueueRankChecks
             Assert(!store.AddRankSnapshot(time,snap!),"Timestamp duplicate must be idempotent.");
             var read=store.LatestRank();
             Assert(read is not null && read.ConstructedClass=="Gold" &&
-                read.LimitedLevel==3, "Saved rank snapshots must survive readback.");
+                read.LimitedLevel==3 && read.ConstructedStep==4 &&
+                read.LimitedStep==2,
+                "Saved rank snapshots and exact steps must survive readback.");
         }
     }
 }
