@@ -379,9 +379,11 @@ public partial class MainWindow : Window
             var loaded = await Task.Run(() =>
             {
                 var workspace = NativeWorkspace.Open(NativeWorkspace.DefaultPath);
-                var proxies = NativeWorkspaceSafety.ListProxies(workspace.DatabasePath);
+                // Catalog startup performs one full verification. Reuse its
+                // verified identity for proxy and favorites projections.
+                var proxies = NativeWorkspaceSafety.ListProxiesFromVerified(workspace);
                 var ownership = NativeCatalogOwnership.From(workspace.Collection, proxies);
-                var favorites = NativeWorkspaceSafety.ListShortlist(workspace.DatabasePath);
+                var favorites = NativeWorkspaceSafety.ListShortlistFromVerified(workspace);
                 return (Ownership: ownership, Favorites: favorites);
             });
             if (closing || version != modeVersion || nativeWorkspaceRequested) return;
