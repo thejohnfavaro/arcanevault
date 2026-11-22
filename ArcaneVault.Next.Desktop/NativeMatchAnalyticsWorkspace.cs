@@ -182,30 +182,58 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
             string selectedDeckId = (deckScope.SelectedItem as SavedDeckOption)?.Id ?? "";
             var data = await Task.Run(() => {
                 var allMatches = NativeMatchHistoryView.ReadPerformance();
-                var matches = selectedDeckId.Length == 0 ? allMatches :
-                    allMatches.Where(m => m.NativeDeckId.Equals(selectedDeckId,
-                        StringComparison.OrdinalIgnoreCase)).ToArray();
                 var savedDecks = new List<SavedDeckOption> {
                     new("", "All Decks — aggregate") };
+                var knownDecks = new List<MatchDeckAttribution.Deck>();
                 if (File.Exists(ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath))
                 {
                     try
                     {
-                        savedDecks.AddRange(ArcaneVault.Next.Collection.NativeWorkspaceSafety.ListDecks(
+                        var rows = ArcaneVault.Next.Collection.NativeWorkspaceSafety.ListDecks(
                             ArcaneVault.Next.Collection.NativeWorkspace.DefaultPath)
-                            .Where(d => !string.IsNullOrWhiteSpace(d.Id))
+                            .Where(d => !string.IsNullOrWhiteSpace(d.Id)).ToArray();
+                        savedDecks.AddRange(rows
                             .Select(d => new SavedDeckOption(d.Id, d.Name))
                             .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase));
+                        knownDecks.AddRange(rows.Select(d =>
+                            new MatchDeckAttribution.Deck(d.Id, d.Name, d.ArenaDeckId)));
                     }
                     catch (Exception ex) when (ex is IOException or SqliteException or
                         InvalidDataException or UnauthorizedAccessException or ArgumentException) { }
                 }
                 using var history = new MatchHistory();
-                string? scope = selectedDeckId.Length == 0 ? null : selectedDeckId;
+                // Reuse the previously validated, read-only match attribution
+                // rules. A name alone cannot override an existing native ID or
+                // a conflicting Arena ID mapping. Ambiguous IDs stay excluded.
+                var candidateMappings = history.Mappings()
+                    .Select(m => (Arena: m.ArenaId, Native: m.NativeId))
+                    .Concat(knownDecks.Where(d => !string.IsNullOrWhiteSpace(d.ArenaId))
+                        .Select(d => (Arena: d.ArenaId, Native: d.Id)))
+                    .Where(m => !string.IsNullOrWhiteSpace(m.Arena) &&
+                        !string.IsNullOrWhiteSpace(m.Native))
+                    .GroupBy(m => m.Arena.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var blocked = candidateMappings
+                    .Where(g => g.Select(m => m.Native).Distinct(StringComparer.Ordinal).Count() != 1)
+                    .Select(g => g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var approved = candidateMappings.Where(g => !blocked.Contains(g.Key))
+                    .ToDictionary(g => g.Key, g => g.First().Native,
+                        StringComparer.OrdinalIgnoreCase);
+                string? Resolve(MatchPerformanceAnalytics.Entry m) =>
+                    MatchDeckAttribution.Resolve(new MatchDeckAttribution.Match(
+                        m.MatchId, m.DeckName, m.ArenaDeckId, m.NativeDeckId,
+                        m.AttributionNote), knownDecks, approved, blocked);
+                var matches = selectedDeckId.Length == 0 ? allMatches :
+                    allMatches.Where(m => Resolve(m) == selectedDeckId).ToArray();
+                IReadOnlySet<string>? selectedMatchIds = selectedDeckId.Length == 0 ? null :
+                    matches.Select(m => m.MatchId).ToHashSet(StringComparer.Ordinal);
                 return (matches, savedDecks,
-                    coverage: history.ReadTelemetryOverviewForDeck(scope),
-                    gameplay: history.ReadGameplayObservationForDeck(scope),
-                    playDraw: history.ReadVerifiedPlayDrawForDeck(scope));
+                    recovered: selectedDeckId.Length == 0 ? 0 :
+                        matches.Count(m => !m.NativeDeckId.Equals(selectedDeckId,
+                            StringComparison.Ordinal)),
+                    coverage: history.ReadTelemetryOverviewForDeck(null, selectedMatchIds),
+                    gameplay: history.ReadGameplayObservationForDeck(null, selectedMatchIds),
+                    playDraw: history.ReadVerifiedPlayDrawForDeck(null, selectedMatchIds));
             });
             dashboard.SetMatches(data.matches,
                 singleDeck: selectedDeckId.Length > 0);
@@ -220,9 +248,9 @@ internal sealed class NativeMatchAnalyticsWorkspace : UserControl
                 ?? "All Decks — aggregate";
             status.Text = $"{scopeLabel}: {data.matches.Count} recorded match row(s). " +
                 (selectedDeckId.Length == 0
-                    ? "Aggregate across saved decks; unassigned matches remain excluded from performance totals."
-                    : "Only matches with this exact saved deck ID are included. " +
-                      "Name-only and ambiguous historical assignments are excluded.");
+                    ? "Aggregate across assigned decks; unconfirmed outcomes are excluded from W/L totals."
+                    : $"{data.recovered} historical match(es) included using verified Arena mappings " +
+                      "or unambiguous recorded assignments. Conflicting and unverified entries remain excluded.");
             var coverage = data.coverage;
             telemetryStatus.Text = $"{scopeLabel}: {coverage.MatchesWithTelemetry} of {coverage.RecordedMatches} recorded matches " +
                 $"have GRE observations ({coverage.ArchivedEvents} retained events). " +
