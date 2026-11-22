@@ -35,11 +35,11 @@ internal static class NativeScryfallCatalogSyncChecks
     }
 
     private static string Card(string id, string name, string set,
-        string collector, string games, bool digital = false)
+        string collector, string games, bool digital = false, long arenaId = 0)
         => JsonSerializer.Serialize(new
         {
             @object = "card",
-            id, name,
+            id, name, arena_id = arenaId,
             set,
             set_name = set == "TST" ? "Test Set" : "Test Second Set",
             collector_number = collector,
@@ -126,7 +126,7 @@ internal static class NativeScryfallCatalogSyncChecks
         const string d = "00000000-0000-4000-8000-000000000884";
         var initial = new[]
         {
-            Card(a, "Catalog Test", "TST", "1", "paper,arena"),
+            Card(a, "Catalog Test", "TST", "1", "paper,arena", arenaId: 12345),
             Card(b, "Catalog Test", "XYZ", "2", "paper"),
             Card(c, "Digital Only", "TST", "3", "arena", digital: true)
         };
@@ -150,6 +150,11 @@ internal static class NativeScryfallCatalogSyncChecks
             command.CommandText = "SELECT mana_cost FROM cards WHERE name='Catalog Test'";
             Must(command.ExecuteScalar()?.ToString() == "{1}{U}{B}",
                  "Scryfall mana symbols must persist unmodified in the offline cards table.");
+            using var arenaCardId = manaDb.CreateCommand();
+            arenaCardId.CommandText = "SELECT arena_id FROM variants WHERE print_id=$id";
+            arenaCardId.Parameters.AddWithValue("$id", a);
+            Must(Convert.ToInt64(arenaCardId.ExecuteScalar()) == 12345,
+                 "Offline Scryfall printing metadata must preserve Arena grpId for opponent observations.");
         }
         Must(info.Printings == 3 && info.CardNames == 2 && info.UpdatedAt == stampOne,
             "Native catalog was not re-openable and verified.");
