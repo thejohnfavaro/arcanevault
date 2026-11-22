@@ -161,9 +161,11 @@ internal static class NativeDeckEditingChecks
              fallback.DeckCoverPrintingId == "" &&
              fallback.EffectiveCoverCard == "Test Commander",
              "Removing a cover card must safely reset its cover to Auto.");
-        Reject(()=>NativeDeckEditing.Save(source,"Legacy Commander",
+        var missingCover = NativeDeckEditing.Save(source,"Legacy Commander",
             "Test Commander",list[0].MainboardText,list[0],
-            deckCoverMode:"Custom",deckCoverCardName:"Not In Deck"));
+            deckCoverMode:"Custom",deckCoverCardName:"Not In Deck");
+        Must(NativeDeckEditing.List(missingCover)[0].DeckCoverMode == "Auto",
+            "An unavailable custom cover must gracefully return to Auto.");
         Reject(()=>NativeDeckEditing.Save(source,"Legacy Commander",
             "Test Commander",list[0].MainboardText,list[0],
             deckCoverMode:"Custom",deckCoverCardName:"Sol Ring",
@@ -171,7 +173,7 @@ internal static class NativeDeckEditingChecks
         var standardCover = NativeDeckEditing.Save(source,"Standard Test",
             "", "4 Sol Ring\\n60 Island", null, format:"Arena Standard",
             deckCoverMode:"Custom",deckCoverCardName:"Island");
-        Must(NativeDeckEditing.List(standardCover).Last().EffectiveCoverCard=="Island",
+        Must(NativeDeckEditing.List(standardCover).Single(x => x.Name == "Standard Test").EffectiveCoverCard=="Island",
             "Standard decks must support custom mainboard art without a commander.");
 
         Console.WriteLine("  CHECK B: duplicate mainboard lines combine without losing split cards");
