@@ -111,7 +111,7 @@
                          Foreground="{DynamicResource VaultText}"
                          BorderBrush="{DynamicResource VaultEdgeLift}"/>
             </StackPanel>
-            <StackPanel Grid.Column="2">
+            <StackPanel x:Name="CommanderFieldPanel" Grid.Column="2">
                 <TextBlock Text="Commander (optional)" Margin="0,0,0,6"/>
                 <TextBox x:Name="CommanderBox" TextChanged="OnDraftChanged" Padding="10,2" FontSize="14"
                          Background="{DynamicResource VaultPanelRaised}"
