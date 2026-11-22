@@ -994,8 +994,7 @@ public partial class NativeCollectionWorkspace : UserControl
                 {
                     string url = defaults.GetValueOrDefault(deck.Commander, "");
                     if (deck.CommanderPrintingId.Length > 0 &&
-                        Guid.TryParse(deck.CommanderPrintingId, out var printingId) &&
-                        !deck.Format.Equals("Arena Brawl", StringComparison.OrdinalIgnoreCase))
+                        Guid.TryParse(deck.CommanderPrintingId, out var printingId))
                     {
                         try
                         {
