@@ -414,7 +414,7 @@ public partial class NativeDeckEditorView : UserControl
                 string chosenId = card.Name.Equals(CommanderBox.Text.Trim(),
                     StringComparison.OrdinalIgnoreCase) && commanderPrintingChoice.Length > 0
                     ? commanderPrintingChoice : deckPrintingChoices.GetValueOrDefault(card.Name, "");
-                if (!arena && Guid.TryParse(chosenId, out var exactPrintId))
+                if (Guid.TryParse(chosenId, out var exactPrintId))
                 {
                     // Per-deck artwork is presentation only. Invalid or
                     // unavailable printings fall back safely to catalog art.
@@ -430,11 +430,11 @@ public partial class NativeDeckEditorView : UserControl
                         // The user's selection remains saved for later sync.
                     }
                 }
-                if (arena && info is not null)
+                if (arena && info is not null && string.IsNullOrWhiteSpace(imageUrl))
                 {
-                    // Never use a potentially paper-only card image for Arena.
-                    // Printing gallery returns one representative Arena image,
-                    // not a claimed owned digital cosmetic style.
+                    // Without a selected deck-art printing, prefer the representative
+                    // Arena card image. A user-selected official printing is purely
+                    // cosmetic in Arcane Vault, never a claim of an owned Arena style.
                     try
                     {
                         imageUrl = NativePrintingArtwork.Read(catalogPath!,
