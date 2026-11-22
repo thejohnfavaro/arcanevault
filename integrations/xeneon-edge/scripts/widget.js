@@ -1,12 +1,13 @@
 "use strict";
 /*
  * Arcane Vault XENEON EDGE: read-only file watcher for the existing Stream Deck
- * compatibility snapshot. Only current visual deck selection is stored locally.
+ * compatibility snapshot. Only local visual preferences are persisted.
  * No collection writes, local web servers or elevated OS permissions.
  */
 (function () {
   const SNAPSHOT_PATH = "{Runtime}/AppData/Local/ArcaneVault/streamdeck.json";
   const selectionKey = "arcanevault.edge.deckId.v1";
+  const autoSwitchKey = "arcanevault.edge.autoSwitchOnMatch.v1";
   const $ = id => document.getElementById(id);
   // Chromium/iCUE touch zoom guard: CSS and the viewport are primary; these
   // cancel browser-specific gesture zoom and trackpad Ctrl+wheel fallback.
@@ -22,6 +23,7 @@
   }, {passive:false});
   let lastSnapshot = null;
   let selectedId = "";
+  let autoSwitchOnMatch = true;
   let currentIndex = 0;
   let listening = false;
   let retryImage = false;
@@ -37,11 +39,13 @@
   let setListIdentity = "";
   try {
     selectedId = localStorage.getItem(selectionKey) || "";
+    autoSwitchOnMatch = localStorage.getItem(autoSwitchKey) !== "false";
     selectedSetCode = localStorage.getItem(setKey) || "";
     const saved = JSON.parse(localStorage.getItem(layoutKey) || "{}");
     for (const key of Object.keys(layoutDefaults))
       if (typeof saved[key] === "boolean") layout[key] = saved[key];
   } catch (_) {}
+  $("autoSwitchDeck").checked = autoSwitchOnMatch;
 
   function applyLayout() {
     for (const [key, element] of Object.entries({
@@ -381,13 +385,56 @@
     render(lastSnapshot);
   }
 
+  // Compare only consecutive verified snapshots, never historical totals from the
+  // first event after startup. A heartbeat, artwork refresh, changed deck order,
+  // or removing/correcting a match without a new win/loss cannot switch decks.
+  function deckMatchCount(deck, key) {
+    const count = Number(deck?.[key]);
+    return Number.isSafeInteger(count) && count >= 0 ? count : 0;
+  }
+
+  function mostRecentMatchTimestamp(deck) {
+    if (!Array.isArray(deck.matchHistory)) return 0;
+    let mostRecent = 0;
+    for (const event of deck.matchHistory) {
+      if (event?.result !== "win" && event?.result !== "loss") continue;
+      const time = Date.parse(event.playedUtc);
+      if (Number.isFinite(time) && time > mostRecent) mostRecent = time;
+    }
+    return mostRecent;
+  }
+
+  function newlyUpdatedDeck(previous, incoming) {
+    if (!previous || !autoSwitchOnMatch) return null;
+    const before = new Map(arenaBrawlDecks(previous).map(d => [String(d.id), d]));
+    const updated = [];
+    for (const deck of arenaBrawlDecks(incoming)) {
+      const original = before.get(String(deck.id));
+      if (!original) continue; // Newly discovered/synced decks aren't new match events.
+      const priorWins = deckMatchCount(original, "wins");
+      const priorLosses = deckMatchCount(original, "losses");
+      const wins = deckMatchCount(deck, "wins");
+      const losses = deckMatchCount(deck, "losses");
+      // Only upward W/L movement means a newly attributed result (or an
+      // explicitly corrected outcome); heartbeat and unrelated fields don't.
+      if (wins <= priorWins && losses <= priorLosses) continue;
+      updated.push({deck, latest:mostRecentMatchTimestamp(deck),
+        delta:Math.max(0, wins - priorWins) + Math.max(0, losses - priorLosses)});
+    }
+    updated.sort((a,b) => b.latest - a.latest || b.delta - a.delta ||
+      String(a.deck.id).localeCompare(String(b.deck.id)));
+    return updated.length ? String(updated[0].deck.id) : null;
+  }
+
   function readSnapshot(content) {
     try {
       if (typeof content !== "string" || content.length > 8 * 1024 * 1024)
         throw Error("Missing or oversized snapshot");
       const data = JSON.parse(content);
       if (!data || !Array.isArray(data.decks)) throw Error("Invalid deck list");
+      const updatedId = newlyUpdatedDeck(lastSnapshot, data);
       lastSnapshot = data;
+      if (updatedId) selectedId = updatedId;
       lastSnapshotSignal = Date.now();
       status("Arcane Vault connected", false);
       render(lastSnapshot);
@@ -478,6 +525,12 @@
     layout = {...layoutDefaults};
     try { localStorage.removeItem(layoutKey); } catch (_) {}
     applyLayout();
+  });
+  $("autoSwitchDeck").addEventListener("change", event => {
+    autoSwitchOnMatch = !!event.target.checked;
+    try { localStorage.setItem(autoSwitchKey, String(autoSwitchOnMatch)); } catch (_) {}
+    // The newly enabled option applies only to later match changes, not any
+    // historical mismatch from when auto-switch was disabled.
   });
   $("settingsToggle").addEventListener("click", () => {
     const panel = $("settingsPanel");
