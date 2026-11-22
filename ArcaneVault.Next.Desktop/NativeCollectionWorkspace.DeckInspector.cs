@@ -172,10 +172,12 @@ public partial class NativeCollectionWorkspace
         DeckInspectorBracket.Text = deck.BracketExplanation;
         DeckInspectorBracket.Visibility = deck.BracketMinimum is null
             ? Visibility.Collapsed : Visibility.Visible;
-        // Arena Brawl defaults to Arena; all other formats start Physical.
-        // Either pool remains independently selectable for comparison.
+        // Arena Brawl and Arena Standard draw from the digital inventory.
+        // Users can still compare the separate physical inventory manually.
         DeckInspectorOwnershipPool.SelectedIndex =
             string.Equals(deck.Format?.Trim(), "Arena Brawl",
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(deck.Format?.Trim(), "Arena Standard",
                 StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         bool hasCommander = UsesSeparateCommander(deck.Format) &&
             !string.IsNullOrWhiteSpace(deck.Commander);
