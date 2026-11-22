@@ -83,7 +83,11 @@ internal static class NativePrintingArtworkChecks
                  'paper,arena',0,'2026-11-13'),
                 ('00000000-0000-4000-8000-000000000908','Sol Ring','trk','438',
                  'Shared Set','https://cards.scryfall.io/normal/front/8/8/paper-showcase.jpg',
-                 'paper,arena',0,'2026-11-13');
+                 'paper,arena',0,'2026-11-13'),
+                ('00000000-0000-4000-8000-000000000909',
+                 'Etali, Primal Conqueror // Etali, Primal Sickness','mom','137',
+                 'March of the Machine','https://cards.scryfall.io/normal/front/9/9/etali.jpg',
+                 'paper,arena',0,'2023-04-21');
                 """;
             cmd.ExecuteNonQuery();
         }
@@ -94,6 +98,14 @@ internal static class NativePrintingArtworkChecks
              gallery.Printings.Any(p => p.Id.ToString("D") == Preferred) &&
              gallery.Printings.Any(p => !NativePrintingArtwork.TrustedImage(p.ImageUrl)),
             "Gallery must show exact printings ordered newest first, even with unavailable artwork.");
+        var etali = NativePrintingArtwork.Read(catalogPath, "Etali, Primal Conqueror");
+        Must(etali.Printings.Count == 1 &&
+             etali.Printings[0].Name ==
+                "Etali, Primal Conqueror // Etali, Primal Sickness" &&
+             NativePrintingArtwork.Require(catalogPath, "Etali, Primal Conqueror",
+                Guid.Parse("00000000-0000-4000-8000-000000000909")).Id ==
+                etali.Printings[0].Id,
+             "Double-faced commanders must resolve a front-face alias to their exact printing.");
         var arenaStyles = NativePrintingArtwork.Read(catalogPath, "Sol Ring",
             arenaOnly: true);
         Must(arenaStyles.Printings.Count == 1 &&
