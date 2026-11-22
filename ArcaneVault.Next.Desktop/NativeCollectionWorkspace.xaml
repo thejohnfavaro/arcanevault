@@ -397,6 +397,13 @@
                                 IsEnabled="False" Margin="0,0,10,0"
                                 Background="#382438" Foreground="White"
                                 BorderBrush="#79516C"/>
+                        <Button x:Name="RetryDeckArtworkButton" Content="Retry selected artwork"
+                                Click="OnRetryDeckArtworkClicked" Padding="12,8"
+                                IsEnabled="False" Margin="0,0,10,0"
+                                Background="{DynamicResource VaultPanelRaised}"
+                                Foreground="{DynamicResource VaultText}"
+                                BorderBrush="{DynamicResource VaultAccentBorder}"
+                                ToolTip="Re-resolve the selected saved deck's custom or automatic cover from the local catalog and retry the official image. Does not change the saved deck or collection."/>
                         <TextBox x:Name="DeckSearchBox" Style="{StaticResource VaultSearchTextBox}" Width="160" Height="35"
                                  ToolTip="Search saved deck names, commanders and folders"
                                  TextChanged="OnDeckFilterChanged"
