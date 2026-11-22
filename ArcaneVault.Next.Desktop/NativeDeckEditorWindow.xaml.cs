@@ -543,6 +543,7 @@ public partial class NativeDeckEditorWindow : Window
         if (edhLabCommander is not null && edhCatalog is not null &&
             EdhAutoBalanceLands?.IsChecked == true)
             ApplyManaBalance(automatic: true);
+        Dispatcher.BeginInvoke(new Action(RefreshDeckCoverCandidates));
         InvalidateAnalytics();
         if (edhLabCommander is not null && edhCatalog is not null)
             ScheduleEdhAnalysis();
@@ -2026,6 +2027,8 @@ public partial class NativeDeckEditorWindow : Window
         InitializeComponent();
         CommanderNameSuggestions.Attach(CommanderBox, FormatBox, catalogPath);
         InitializeDeckPrintingChoices();
+        Dispatcher.BeginInvoke(new Action(() => { InitializeDeckCoverChoice();
+            _ = RefreshDeckCoverPrintings(); }));
         // Load independent proxy coverage asynchronously. It does not
         // rewrite the deck, own an official printing or fetch any price.
         Loaded += async (_, _) => await LoadProxyCoverageAsync();
@@ -2281,6 +2284,7 @@ public partial class NativeDeckEditorWindow : Window
                 $"{entries.Count:N0} distinct card names · Folder: {folder}" +
                 (favorite ? " · ★ Favorite" : "") +
                 (commander.Length > 0 ? $", Commander: {commander}" : ", no commander") +
+                (coverCardMissing ? "\\nCustom cover card left the deck; saving will reset Deck Cover to Auto." : "") +
                 $"?\n\nRead-only deck preflight: {report.Summary}\n" +
                 (report.CatalogChecked
                     ? "Metadata from the offline Scryfall catalog.\n"
@@ -2307,6 +2311,19 @@ public partial class NativeDeckEditorWindow : Window
                     StringComparison.OrdinalIgnoreCase)))
                 .ToDictionary(x => x.Key, x => x.Value,
                     StringComparer.OrdinalIgnoreCase);
+            string selectedCoverMode = coverModeChoice;
+            string selectedCoverCard = coverCardChoice;
+            string selectedCoverPrinting = coverPrintingChoice;
+            bool coverCardMissing = selectedCoverMode == "Custom" &&
+                !entries.Any(x => x.Name.Equals(selectedCoverCard,
+                    StringComparison.OrdinalIgnoreCase)) &&
+                !commander.Equals(selectedCoverCard, StringComparison.OrdinalIgnoreCase);
+            if (coverCardMissing)
+            {
+                selectedCoverMode = "Auto";
+                selectedCoverCard = "";
+                selectedCoverPrinting = "";
+            }
             var saveResult = await Task.Run(() =>
             {
                 // Name-only historical matches must be pinned while we still
@@ -2319,7 +2336,10 @@ public partial class NativeDeckEditorWindow : Window
                     mainboard, original, expectedSha, format: format,
                     folder: folder, favorite: favorite,
                     displayPrintIds: savedPrintingChoices,
-                    commanderDisplayPrintId: commanderPrintingChoice);
+                    commanderDisplayPrintId: commanderPrintingChoice,
+                    deckCoverMode: selectedCoverMode,
+                    deckCoverCardName: selectedCoverCard,
+                    deckCoverPrintingId: selectedCoverPrinting);
                 string? matchWarning = null;
                 if (uniqueOldName)
                 {
