@@ -50,6 +50,21 @@ public static class NativeCardArtwork
             "artwork-cache", hash + ".img");
     }
 
+    // A damaged local image should not permanently hide a valid saved deck
+    // cover. This deletes only disposable downloaded artwork bytes; collection
+    // records, card selections, and official printing metadata are untouched.
+    public static void InvalidateCachedImage(string? url)
+    {
+        if (!IsTrustedArtworkUrl(url)) return;
+        try
+        {
+            string path = CachePath(url!);
+            if (File.Exists(path)) File.Delete(path);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
     private static void LimitCache(string directory)
     {
         try
