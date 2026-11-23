@@ -17,69 +17,69 @@ if(-not $SourceRoot -and $defaultSource -and
 }
 $reports=Join-Path $toolRoot 'Reports'
 New-Item -ItemType Directory -Path $reports -Force | Out-Null
-$form=New-Object Windows.Forms.Form
+$form=New-Object System.Windows.Forms.Form
 $form.Text='Arcane Vault - Offline Test Center'
 $form.StartPosition='CenterScreen'
-$form.Size=New-Object Drawing.Size(830,655)
-$form.MinimumSize=New-Object Drawing.Size(760,600)
-$form.Font=New-Object Drawing.Font('Segoe UI',9)
+$form.Size=New-Object System.Drawing.Size(830,655)
+$form.MinimumSize=New-Object System.Drawing.Size(760,600)
+$form.Font=New-Object System.Drawing.Font('Segoe UI',9)
 $form.AutoScaleMode='Font'
 
 function Label([string]$txt,[int]$x,[int]$y,[int]$w,[int]$h=25){
-  $l=New-Object Windows.Forms.Label
-  $l.Text=$txt;$l.Location=New-Object Drawing.Point($x,$y)
-  $l.Size=New-Object Drawing.Size($w,$h)
+  $l=New-Object System.Windows.Forms.Label
+  $l.Text=$txt;$l.Location=New-Object System.Drawing.Point($x,$y)
+  $l.Size=New-Object System.Drawing.Size($w,$h)
   $form.Controls.Add($l)
   return $l
 }
 function Button([string]$txt,[int]$x,[int]$y,[int]$w){
-  $b=New-Object Windows.Forms.Button
-  $b.Text=$txt;$b.Location=New-Object Drawing.Point($x,$y)
-  $b.Size=New-Object Drawing.Size($w,30)
+  $b=New-Object System.Windows.Forms.Button
+  $b.Text=$txt;$b.Location=New-Object System.Drawing.Point($x,$y)
+  $b.Size=New-Object System.Drawing.Size($w,30)
   $form.Controls.Add($b)
   return $b
 }
 Label 'Source checkout (for native test suites):' 20 17 345 | Out-Null
-$sourceBox=New-Object Windows.Forms.TextBox
-$sourceBox.Location=New-Object Drawing.Point(20,43)
-$sourceBox.Size=New-Object Drawing.Size(640,26)
+$sourceBox=New-Object System.Windows.Forms.TextBox
+$sourceBox.Location=New-Object System.Drawing.Point(20,43)
+$sourceBox.Size=New-Object System.Drawing.Size(640,26)
 $sourceBox.Anchor='Top,Left,Right'
 $sourceBox.Text=$SourceRoot
 $form.Controls.Add($sourceBox)
 $browse=Button 'Browse' 670 41 120
 $browse.Anchor='Top,Right'
 $browse.Add_Click({
-  $folder=New-Object Windows.Forms.FolderBrowserDialog
+  $folder=New-Object System.Windows.Forms.FolderBrowserDialog
   $folder.Description='Choose an Arcane Vault source checkout'
   if(Test-Path -LiteralPath $sourceBox.Text){$folder.SelectedPath=$sourceBox.Text}
   if($folder.ShowDialog() -eq 'OK'){$sourceBox.Text=$folder.SelectedPath}
 })
-$tabs=New-Object Windows.Forms.TabControl
-$tabs.Location=New-Object Drawing.Point(20,85)
-$tabs.Size=New-Object Drawing.Size(770,350)
+$tabs=New-Object System.Windows.Forms.TabControl
+$tabs.Location=New-Object System.Drawing.Point(20,85)
+$tabs.Size=New-Object System.Drawing.Size(770,350)
 $tabs.Anchor='Top,Left,Right'
 $form.Controls.Add($tabs)
-$native=New-Object Windows.Forms.TabPage
+$native=New-Object System.Windows.Forms.TabPage
 $native.Text='Native regression suites'
 $tabs.TabPages.Add($native)
-$ui=New-Object Windows.Forms.TabPage
+$ui=New-Object System.Windows.Forms.TabPage
 $ui.Text='Desktop UI checks'
 $tabs.TabPages.Add($ui)
-$coverage=New-Object Windows.Forms.TabPage
+$coverage=New-Object System.Windows.Forms.TabPage
 $coverage.Text='Setup and safety'
 $tabs.TabPages.Add($coverage)
 
 function TabLabel($tab,[string]$txt,[int]$y,[int]$h=26){
- $l=New-Object Windows.Forms.Label;$l.Text=$txt
- $l.Location=New-Object Drawing.Point(16,$y);$l.Size=New-Object Drawing.Size(710,$h)
+ $l=New-Object System.Windows.Forms.Label;$l.Text=$txt
+ $l.Location=New-Object System.Drawing.Point(16,$y);$l.Size=New-Object System.Drawing.Size(710,$h)
  $tab.Controls.Add($l)
  return $l
 }
 TabLabel $native 'Choose a friendly test group. Native suites use disposable synthetic data.' 18 | Out-Null
-$area=New-Object Windows.Forms.ComboBox
+$area=New-Object System.Windows.Forms.ComboBox
 $area.DropDownStyle='DropDownList'
-$area.Location=New-Object Drawing.Point(16,58)
-$area.Size=New-Object Drawing.Size(430,28)
+$area.Location=New-Object System.Drawing.Point(16,58)
+$area.Size=New-Object System.Drawing.Size(430,28)
 @(
   'DeckArtwork — Card artwork and deck covers',
   'MatchTracking — Match attribution and analytics',
@@ -89,70 +89,70 @@ $area.Size=New-Object Drawing.Size(430,28)
 )|ForEach-Object{[void]$area.Items.Add($_)}
 $area.SelectedIndex=0
 $native.Controls.Add($area)
-$offline=New-Object Windows.Forms.CheckBox
+$offline=New-Object System.Windows.Forms.CheckBox
 $offline.Text='Offline (no package restore; requires cached dependencies)'
-$offline.Location=New-Object Drawing.Point(16,107)
-$offline.Size=New-Object Drawing.Size(590,27)
+$offline.Location=New-Object System.Drawing.Point(16,107)
+$offline.Size=New-Object System.Drawing.Size(590,27)
 $native.Controls.Add($offline)
-$runNative=New-Object Windows.Forms.Button
+$runNative=New-Object System.Windows.Forms.Button
 $runNative.Text='Run selected native checks'
-$runNative.Location=New-Object Drawing.Point(16,161)
-$runNative.Size=New-Object Drawing.Size(260,36)
+$runNative.Location=New-Object System.Drawing.Point(16,161)
+$runNative.Size=New-Object System.Drawing.Size(260,36)
 $native.Controls.Add($runNative)
 TabLabel $native 'Native test requirements: Windows + .NET 10 SDK and a full source checkout.' 218 48 | Out-Null
 
 TabLabel $ui 'Connects to Arcane Vault already running on this Windows desktop.' 14 | Out-Null
-$mode=New-Object Windows.Forms.ComboBox
+$mode=New-Object System.Windows.Forms.ComboBox
 $mode.DropDownStyle='DropDownList'
-$mode.Location=New-Object Drawing.Point(16,51)
-$mode.Size=New-Object Drawing.Size(450,27)
+$mode.Location=New-Object System.Drawing.Point(16,51)
+$mode.Size=New-Object System.Drawing.Size(450,27)
 @('All','Interaction','Visual','Responsive') | ForEach-Object{[void]$mode.Items.Add($_)}
 $mode.SelectedIndex=0
 $ui.Controls.Add($mode)
 TabLabel $ui 'Test category (Interaction selects a card; Visual compares screenshots).' 85 | Out-Null
-$pidLabel=New-Object Windows.Forms.Label
+$pidLabel=New-Object System.Windows.Forms.Label
 $pidLabel.Text='Arcane Vault process ID (optional):'
-$pidLabel.Location=New-Object Drawing.Point(16,123)
-$pidLabel.Size=New-Object Drawing.Size(225,24)
+$pidLabel.Location=New-Object System.Drawing.Point(16,123)
+$pidLabel.Size=New-Object System.Drawing.Size(225,24)
 $ui.Controls.Add($pidLabel)
-$pidBox=New-Object Windows.Forms.NumericUpDown
+$pidBox=New-Object System.Windows.Forms.NumericUpDown
 $pidBox.Minimum=0;$pidBox.Maximum=2147483647
-$pidBox.Location=New-Object Drawing.Point(240,120)
-$pidBox.Size=New-Object Drawing.Size(130,26)
+$pidBox.Location=New-Object System.Drawing.Point(240,120)
+$pidBox.Size=New-Object System.Drawing.Size(130,26)
 $ui.Controls.Add($pidBox)
-$approve=New-Object Windows.Forms.CheckBox
+$approve=New-Object System.Windows.Forms.CheckBox
 $approve.Text='Approve new local screenshot baseline (replaces previous baseline)'
-$approve.Location=New-Object Drawing.Point(16,158)
-$approve.Size=New-Object Drawing.Size(660,27)
+$approve.Location=New-Object System.Drawing.Point(16,158)
+$approve.Size=New-Object System.Drawing.Size(660,27)
 $ui.Controls.Add($approve)
-$runUi=New-Object Windows.Forms.Button
+$runUi=New-Object System.Windows.Forms.Button
 $runUi.Text='Run desktop UI checks'
-$runUi.Location=New-Object Drawing.Point(16,204)
-$runUi.Size=New-Object Drawing.Size(245,34)
+$runUi.Location=New-Object System.Drawing.Point(16,204)
+$runUi.Size=New-Object System.Drawing.Size(245,34)
 $ui.Controls.Add($runUi)
 TabLabel $ui 'Resize manually, then rerun Responsive. Screenshots and reports stay local.' 250 43 | Out-Null
 
 TabLabel $coverage 'Setup verifies the checkout and scripts. It does not access your collection.' 20 45 | Out-Null
-$check=New-Object Windows.Forms.Button
+$check=New-Object System.Windows.Forms.Button
 $check.Text='Check setup'
-$check.Location=New-Object Drawing.Point(16,75)
-$check.Size=New-Object Drawing.Size(190,36)
+$check.Location=New-Object System.Drawing.Point(16,75)
+$check.Size=New-Object System.Drawing.Size(190,36)
 $coverage.Controls.Add($check)
-$testComparator=New-Object Windows.Forms.Button
+$testComparator=New-Object System.Windows.Forms.Button
 $testComparator.Text='Test screenshot comparator'
-$testComparator.Location=New-Object Drawing.Point(230,75)
-$testComparator.Size=New-Object Drawing.Size(245,36)
+$testComparator.Location=New-Object System.Drawing.Point(230,75)
+$testComparator.Size=New-Object System.Drawing.Size(245,36)
 $coverage.Controls.Add($testComparator)
 TabLabel $coverage 'PASS means the check ran successfully. SKIP means prerequisites were not met.' 135 37 | Out-Null
 TabLabel $coverage 'Screenshots may contain private card names. Never share a report without reviewing it.' 180 50 | Out-Null
 $openReports=Button 'Open reports folder' 20 455 190
 $status=Label 'Ready. Select a check to begin.' 225 462 550
 $status.Anchor='Top,Left,Right'
-$log=New-Object Windows.Forms.TextBox
+$log=New-Object System.Windows.Forms.TextBox
 $log.Multiline=$true;$log.ReadOnly=$true;$log.ScrollBars='Both'
 $log.WordWrap=$false
-$log.Location=New-Object Drawing.Point(20,505)
-$log.Size=New-Object Drawing.Size(770,100)
+$log.Location=New-Object System.Drawing.Point(20,505)
+$log.Size=New-Object System.Drawing.Size(770,100)
 $log.Anchor='Top,Bottom,Left,Right'
 $form.Controls.Add($log)
 $openReports.Add_Click({Start-Process explorer.exe -ArgumentList @($reports)})
@@ -160,7 +160,7 @@ function Write-Ui([string]$line){
   $log.AppendText($line+[Environment]::NewLine)
 }
 $state=[pscustomobject]@{Process=$null;Output='';Error='';RunLabel='';Started=$false}
-$timer=New-Object Windows.Forms.Timer
+$timer=New-Object System.Windows.Forms.Timer
 $timer.Interval=450
 $timer.Add_Tick({
   if($null -eq $state.Process){return}
@@ -187,7 +187,7 @@ $timer.Add_Tick({
 function Begin-Test([string]$script,[string[]]$scriptArguments,[string]$label){
   if($null -ne $state.Process){return}
   if(-not (Test-Path -LiteralPath $script)){
-    [Windows.Forms.MessageBox]::Show("Missing test script: $script",'Test Center')|Out-Null
+    [System.Windows.Forms.MessageBox]::Show("Missing test script: $script",'Test Center')|Out-Null
     return
   }
   $stamp=(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N').Substring(0,6)
@@ -224,7 +224,7 @@ $runNative.Add_Click({
   $root=$sourceBox.Text.Trim()
   $runner=Join-Path $root 'tools\Run-GuidedChecks.ps1'
   if(-not (Test-Path -LiteralPath (Join-Path $root 'ArcaneVault.Next.Tests\Program.cs'))){
-    [Windows.Forms.MessageBox]::Show('Select a full Arcane Vault source checkout first.','Test Center')|Out-Null
+    [System.Windows.Forms.MessageBox]::Show('Select a full Arcane Vault source checkout first.','Test Center')|Out-Null
     return
   }
   $areas=@('DeckArtwork','MatchTracking','DeckEditing','DataSafety','Everything')
@@ -234,7 +234,7 @@ $runNative.Add_Click({
 })
 $runUi.Add_Click({
   if($approve.Checked){
-    $answer=[Windows.Forms.MessageBox]::Show(
+    $answer=[System.Windows.Forms.MessageBox]::Show(
       'Overwrite the local screenshot baseline using the currently visible Arcane Vault window?',
       'Approve screenshot baseline','YesNo','Warning')
     if($answer -ne 'Yes'){return}
@@ -261,7 +261,7 @@ $check.Add_Click({
 })
 $form.Add_FormClosing({
   if($null -ne $state.Process -and -not $state.Process.HasExited){
-    $decision=[Windows.Forms.MessageBox]::Show(
+    $decision=[System.Windows.Forms.MessageBox]::Show(
       'A check is still running. Closing the GUI will not stop that check. Close anyway?',
       'Test Center','YesNo','Question')
     if($decision -ne 'Yes'){$_.Cancel=$true}
