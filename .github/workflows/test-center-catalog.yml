@@ -1,0 +1,44 @@
+name: Offline Test Center - Catalog Contract
+
+on:
+  pull_request:
+    paths:
+      - 'ArcaneVault.Next.Tests/Program.cs'
+      - 'tools/TestCenter/**'
+      - 'tools/Run-GuidedChecks.ps1'
+      - '.github/workflows/test-center-catalog.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ArcaneVault.Next.Tests/Program.cs'
+      - 'tools/TestCenter/**'
+      - 'tools/Run-GuidedChecks.ps1'
+      - '.github/workflows/test-center-catalog.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  suite-inventory:
+    name: Verify readable offline test inventory
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify catalog exactly matches current named C# suites
+        shell: powershell
+        run: |
+          & .\tools\TestCenter\Sync-TestCatalog.ps1 -Check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Confirm catalog updater is deterministic and offline
+        shell: powershell
+        run: |
+          $temp = Join-Path $env:RUNNER_TEMP 'generated-test-catalog.json'
+          & .\tools\TestCenter\Sync-TestCatalog.ps1 -CatalogPath $temp
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\tools\TestCenter\Sync-TestCatalog.ps1 -Check -CatalogPath $temp
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $committed = (Get-Content .\tools\TestCenter\Tests-Catalog.json -Raw | ConvertFrom-Json)
+          $generated = (Get-Content $temp -Raw | ConvertFrom-Json)
+          if ($committed.tests.Count -ne $generated.tests.Count) { throw 'Generated inventory count changed' }
+          Write-Host ('PASS: ' + $generated.tests.Count + ' discoverable suites; no dotnet or network used.')
