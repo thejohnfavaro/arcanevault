@@ -10,3 +10,7 @@ publish/
 *mtga_collection*.csv
 *ManaBox*.csv
 arcanevault-github-clone/
+
+# Local UI screenshots may contain private deck and collection information.
+tools/TestCenter/Reports/
+tools/TestCenter/Local-Baselines/

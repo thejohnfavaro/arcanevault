@@ -64,6 +64,49 @@ jobs:
             'AV.Analytics.ObservedColorsHeading')) {
             if (-not $analytics.Contains($id)) { throw "Missing UIA analytics hook: $id" }
           }
+      - name: Verify screenshot comparator self-test (synthetic images only)
+        shell: powershell
+        run: |
+          & .\\tools\\TestCenter\\Run-UiRegression.ps1 -SelfTest -ReportDir $env:RUNNER_TEMP
+          if ($LASTEXITCODE -ne 0) { throw 'UI screenshot comparator self-test failed' }
+          $report = Get-ChildItem $env:RUNNER_TEMP -Filter 'ui-regression-*.json' |
+            Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+          if (-not $report) { throw 'UI regression self-test produced no JSON report' }
+          $data = Get-Content $report.FullName -Raw | ConvertFrom-Json
+          if ($data.status -ne 'PASS' -or $data.tests[0].id -ne 'UI-REGRESSION-SELFTEST') {
+            throw 'UI regression self-test did not report PASS'
+          }
+      - name: Parse standalone PowerShell GUI and packaging scripts
+        shell: powershell
+        run: |
+          foreach ($file in @(
+            '.\\tools\\TestCenter\\Open-TestCenter.ps1',
+            '.\\tools\\TestCenter\\Package-Standalone.ps1',
+            '.\\tools\\TestCenter\\Run-UiRegression.ps1'
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file).Path, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Host ("PARSE {0}:{1} {2}" -f $file, $_.Extent.StartLineNumber, $_.Message) }
+              throw "PowerShell parse errors in $file"
+            }
+          }
+      - name: Package standalone Windows Test Center GUI
+        shell: powershell
+        run: |
+          & .\\tools\\TestCenter\\Package-Standalone.ps1 -OutputPath "$env:RUNNER_TEMP\\ArcaneVault-TestCenter-Standalone.zip"
+          if (-not (Test-Path "$env:RUNNER_TEMP\\ArcaneVault-TestCenter-Standalone.zip")) {
+            throw 'Standalone Test Center archive missing'
+          }
+      - name: Upload standalone Test Center ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArcaneVault-TestCenter-Standalone
+          path: ${{ runner.temp }}/ArcaneVault-TestCenter-Standalone.zip
+          if-no-files-found: error
+          retention-days: 14
       - name: Confirm catalog updater is deterministic and offline
         shell: powershell
         run: |

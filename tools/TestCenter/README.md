@@ -80,3 +80,70 @@ are **curated** and must be reviewed, not blindly auto-generated.
 
 An inventory item is **not** a passing test. The GUI must report non-executed
 tests as SKIP and report manual tests separately.
+
+## Interactive UI regression checks (proposed v0.6.2)
+
+Run on a Windows desktop with Arcane Vault already open:
+
+```powershell
+powershell -NoProfile -File tools/TestCenter/Run-UiRegression.ps1 -Mode All
+```
+
+These tests attach to the running app; they do not open databases or save decks.
+Interaction testing selects a visible card in **Deck Editor → Manage** using
+Windows UI Automation, then attempts to restore the previous selection.
+Responsive testing checks the **current** app viewport. Resize the window
+yourself (for example, compact, medium, maximized) and rerun with
+`-Mode Responsive` at each size; the runner does not resize your app.
+Analytics heading assertions need the relevant headings scrolled into view.
+If prerequisites are absent, results are **SKIP**, not falsely PASS.
+
+For screenshot tests, open a reproducible deck/view and keep the same theme,
+DPI scaling, viewport, data, and scroll position. First **review** the intended
+screen and explicitly approve a local baseline:
+
+```powershell
+powershell -NoProfile -File tools/TestCenter/Run-UiRegression.ps1 -Mode Visual -ApproveBaseline
+powershell -NoProfile -File tools/TestCenter/Run-UiRegression.ps1 -Mode Visual
+```
+
+The screenshot comparator checks dimensions and counts pixels whose red,
+green, or blue channels differ by more than 18; the default allowed changed
+fraction is 2%. Dynamic fields, hover effects, and changing art will produce
+legitimate differences. No screenshot baseline is auto-approved.
+
+Reports are local JSON files under `tools/TestCenter/Reports/`. Latest
+screenshots and locally approved baselines are gitignored because they may
+contain private user deck/card information. CI runs only synthetic image
+comparison self-tests; it **cannot** verify a real WPF desktop interaction
+or image. Run `-SelfTest` anywhere PowerShell and System.Drawing are present.
+
+## Standalone graphical launcher (new integration)
+
+The repository now includes a source-controlled Windows launcher:
+`tools/TestCenter/Open-TestCenter.ps1`. It is a **companion/alternative
+launcher**, not a modification to the earlier separately distributed Test
+Center GUI (whose original GUI source is not in this repository).
+
+The **Native regression suites** tab starts the existing friendly
+`tools/Run-GuidedChecks.ps1` groups against a selected full checkout.
+The **Desktop UI checks** tab runs `Run-UiRegression.ps1` against a currently
+open Arcane Vault window, with modes All, Interaction, Visual and Responsive.
+The **Setup and safety** tab checks prerequisites and runs the synthetic
+screenshot comparator self-test. All tabs display status and save console
+logs locally. Use **Open reports folder** for the generated JSON reports,
+screenshots and logs. Nonzero exit codes are shown as failures; individual
+SKIP results are retained in the JSON.
+
+On Windows, build the self-contained launcher ZIP using:
+
+```powershell
+powershell -NoProfile -File tools/TestCenter/Package-Standalone.ps1
+```
+
+The package includes `Open-TestCenter.cmd`; double-click it after
+extraction. Native checks need a separate full Arcane Vault source checkout
+and .NET 10 SDK. Desktop checks can run independently from the package.
+The GitHub Test Center workflow also publishes the standalone ZIP as a
+build artifact for 14 days. Neither the package nor the repository ZIP
+contains private screenshot baselines or collection data.
