@@ -163,3 +163,4 @@ $summary|ConvertTo-Json -Depth 6|Set-Content -LiteralPath ($prefix+'.json') -Enc
     Set-Content -LiteralPath ($prefix+'.txt') -Encoding UTF8
 Write-Host ('Reports: '+$prefix+'.json and .txt')
 if($state -eq 'FAIL'){exit 1}
+exit 0
