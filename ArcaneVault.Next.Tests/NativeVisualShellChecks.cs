@@ -100,6 +100,26 @@ internal static class NativeVisualShellChecks
         foreach (var code in new[] { savedEditorCode, draftEditorPreviewCode })
             Must(code.Contains("ReadArenaPrintingImage("),
                  "Editor card preview must resolve exact Arena set-number art.");
+        foreach (var code in new[] { savedEditorCode, draftEditorPreviewCode })
+        {
+            int previewStart = code.IndexOf("private async Task ShowCardPreviewAsync(",
+                StringComparison.Ordinal);
+            int taskStart = code.IndexOf("var preview = await Task.Run(", previewStart,
+                StringComparison.Ordinal);
+            int taskEnd = code.IndexOf("return (Info: info, ImageUrl: imageUrl);",
+                taskStart, StringComparison.Ordinal);
+            Must(previewStart >= 0 && taskStart > previewStart && taskEnd > taskStart &&
+                 code.Contains("string commanderName = CommanderBox.Text.Trim();") &&
+                 code.Contains("string chosenId = selectedPrintingId;") &&
+                 !code[taskStart..taskEnd].Contains("CommanderBox.Text") &&
+                 !code[taskStart..taskEnd].Contains("deckPrintingChoices.GetValueOrDefault"),
+                 "Editor preview must capture WPF fields on the UI thread before Task.Run.");
+        }
+        Must(performancePanel.Contains("breakdownRow.Children.Add(observedPanel)") &&
+             !performancePanel.Contains("root.Children.Add(observedPanel)") &&
+             performancePanel.Contains("breakdownRow.Children.Add(opponentPanel)"),
+             "Opponent observed-color matchups must stay beside the other tables.");
+
         Must(deckStudio.Contains("VaultAccentSurface") &&
              deckStudio.Contains("VaultNavHoverWash") &&
              deckStudio.Contains("VaultPanelRaised"),
