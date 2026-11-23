@@ -410,43 +410,52 @@ public partial class NativeDeckEditorView : UserControl
                 string identity = edhCatalog?.Find(card.Name)?.Name ??
                     ArenaDeckCardName.Identity(card.Name);
                 var info = CollectionCatalogReview.ReadDetails(catalogPath!, identity);
-                string imageUrl = arena ? "" : info?.ArtworkUrl ?? "";
+                string imageUrl = "";
                 string chosenId = card.Name.Equals(CommanderBox.Text.Trim(),
                     StringComparison.OrdinalIgnoreCase) && commanderPrintingChoice.Length > 0
                     ? commanderPrintingChoice : deckPrintingChoices.GetValueOrDefault(card.Name, "");
+                // Exact explicit selection or the Arena (SET) number takes
+                // priority. Neither is an assertion about physical ownership.
                 if (Guid.TryParse(chosenId, out var exactPrintId))
                 {
-                    // Per-deck artwork is presentation only. Invalid or
-                    // unavailable printings fall back safely to catalog art.
                     try
                     {
-                        var choice = NativePrintingArtwork.Require(catalogPath!,
-                            identity, exactPrintId);
-                        imageUrl = choice.ImageUrl;
+                        imageUrl = NativePrintingArtwork.Require(catalogPath!,
+                            identity, exactPrintId).ImageUrl;
                     }
                     catch (Exception ex) when (ex is InvalidDataException or
-                        Microsoft.Data.Sqlite.SqliteException)
-                    {
-                        // The user's selection remains saved for later sync.
-                    }
+                        Microsoft.Data.Sqlite.SqliteException or IOException) { }
                 }
-                if (arena && info is not null && string.IsNullOrWhiteSpace(imageUrl))
+                var hint = NativeDeckCoverCache.ParseArenaPrintingHint(card.Name);
+                if (!NativeCardArtwork.IsTrustedArtworkUrl(imageUrl) &&
+                    hint.SetCode.Length > 0)
                 {
-                    // Without a selected deck-art printing, prefer the representative
-                    // Arena card image. A user-selected official printing is purely
-                    // cosmetic in Arcane Vault, never a claim of an owned Arena style.
                     try
                     {
-                        imageUrl = NativePrintingArtwork.Read(catalogPath!,
-                            identity, limit: 1, cancellation: token,
-                            arenaOnly: true).Printings.FirstOrDefault()?.ImageUrl ?? "";
+                        var candidates = NativePrintingArtwork.Read(catalogPath!, identity,
+                            limit: 300, cancellation: token).Printings;
+                        imageUrl = candidates.FirstOrDefault(p =>
+                            p.SetCode.Equals(hint.SetCode, StringComparison.OrdinalIgnoreCase) &&
+                            p.CollectorNumber.Equals(hint.CollectorNumber, StringComparison.OrdinalIgnoreCase))
+                            ?.ImageUrl ?? "";
                     }
                     catch (Exception ex) when (ex is InvalidDataException or
-                        Microsoft.Data.Sqlite.SqliteException)
-                    {
-                        imageUrl = "";
-                    }
+                        Microsoft.Data.Sqlite.SqliteException or IOException) { }
                 }
+                if (!NativeCardArtwork.IsTrustedArtworkUrl(imageUrl) && arena)
+                {
+                    try
+                    {
+                        imageUrl = NativePrintingArtwork.Read(catalogPath!, identity,
+                            limit: 20, cancellation: token, arenaOnly: true)
+                            .Printings.Select(p => p.ImageUrl)
+                            .FirstOrDefault(NativeCardArtwork.IsTrustedArtworkUrl) ?? "";
+                    }
+                    catch (Exception ex) when (ex is InvalidDataException or
+                        Microsoft.Data.Sqlite.SqliteException or IOException) { }
+                }
+                if (!NativeCardArtwork.IsTrustedArtworkUrl(imageUrl))
+                    imageUrl = info?.ArtworkUrl ?? "";
                 return (Info: info, ImageUrl: imageUrl);
             }, token);
             if (token.IsCancellationRequested || version != previewVersion) return;
