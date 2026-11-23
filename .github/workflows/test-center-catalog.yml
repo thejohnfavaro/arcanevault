@@ -89,7 +89,7 @@ jobs:
             [System.Management.Automation.Language.Parser]::ParseFile(
               (Resolve-Path $file).Path, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) {
-              $errors | ForEach-Object { Write-Error $_.Message }
+              $errors | ForEach-Object { Write-Host ("PARSE {0}:{1} {2}" -f $file, $_.Extent.StartLineNumber, $_.Message) }
               throw "PowerShell parse errors in $file"
             }
           }
