@@ -39,6 +39,32 @@ public partial class NativeCollectionWorkspace : UserControl
     private bool deckCoversReady;
     private int deckCoversVersion;
     private bool deckBusy;
+    // A single independent editor across workspace reloads: do not allow a
+    // second window to overwrite a draft based on the same saved deck state.
+    private static NativeDeckEditorWindow? activeSavedDeckEditor;
+
+    private void ShowSavedDeckEditor(NativeDeckEditorWindow editor)
+    {
+        if (activeSavedDeckEditor is { } open)
+        {
+            open.Activate();
+            DeckLibraryStatus.Text = "An editor is already open. Finish or close that draft before opening another.";
+            return;
+        }
+
+        activeSavedDeckEditor = editor;
+        // Do not set Owner. An owned WPF window always stays over its owner,
+        // preventing normal back-and-forth catalog browsing.
+        editor.Closed += async (_, _) =>
+        {
+            if (ReferenceEquals(activeSavedDeckEditor, editor))
+                activeSavedDeckEditor = null;
+            if (editor.SavedReplacement is not null)
+                await FinishSavedDeckChangeAsync(editor.SavedReplacement);
+        };
+        editor.Show();
+    }
+
     private GridView? physicalDetailedView;
     private bool excelBusy;
     private bool arenaImportBusy;
@@ -1158,10 +1184,8 @@ public partial class NativeCollectionWorkspace : UserControl
             DeckLibraryStatus.Text = "Create a native collection before saving a deck.";
             return;
         }
-        var dialog = new NativeDeckEditorWindow(nativePath, expectedBackupSha, backup, catalogPath)
-        { Owner = Window.GetWindow(this) };
-        if (dialog.ShowDialog() != true) return;
-        await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
+        ShowSavedDeckEditor(new NativeDeckEditorWindow(
+            nativePath, expectedBackupSha, backup, catalogPath));
     }
 
     private async void OnEditDeckClicked(object sender, RoutedEventArgs e)
@@ -1179,10 +1203,8 @@ public partial class NativeCollectionWorkspace : UserControl
                 "editing is blocked to prevent data loss.";
             return;
         }
-        var dialog = new NativeDeckEditorWindow(
-            nativePath, expectedBackupSha, backup, catalogPath, selected) { Owner = Window.GetWindow(this) };
-        if (dialog.ShowDialog() != true) return;
-        await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
+        ShowSavedDeckEditor(new NativeDeckEditorWindow(
+            nativePath, expectedBackupSha, backup, catalogPath, selected));
     }
 
     private void OnEditDeckInEdhLabClicked(object sender, RoutedEventArgs e) =>
@@ -1252,14 +1274,11 @@ public partial class NativeCollectionWorkspace : UserControl
                 // Read-only backup preview and older independent hosts keep
                 // their existing editor until they provide a main-workspace
                 // routing callback.
-                var dialog = new NativeDeckEditorWindow(
+                ShowSavedDeckEditor(new NativeDeckEditorWindow(
                     nativePath, expectedBackupSha, backup, catalogPath, selected,
                     savedLabFormat: format, savedLabColors: commander.ColorIdentity,
                     focusShortageReview: focusShortages,
-                    preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null)
-                { Owner = Window.GetWindow(this) };
-                if (dialog.ShowDialog() != true) return;
-                await FinishSavedDeckChangeAsync(dialog.SavedReplacement);
+                    preferredShortageName: focusShortages ? inspectedDeckCard?.Name : null));
             }
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
