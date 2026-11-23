@@ -1471,6 +1471,14 @@
                     <TextBlock Text="EDH LAB" Foreground="{DynamicResource VaultAccent}"
                                FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
                                DockPanel.Dock="Left" Margin="4,0,14,0"/>
+                    <Button x:Name="EdhBrowseCardCatalogButton"
+                            Content="Browse Card Catalog"
+                            Click="OnShowCatalogClicked"
+                            ToolTip="Search exact printings in the Card Catalog without closing this deck draft. Select EDH Lab to return."
+                            Padding="10,5" Margin="0,0,8,0"
+                            DockPanel.Dock="Left"
+                            Background="{DynamicResource VaultPanelRaised}"
+                            Foreground="{DynamicResource VaultText}"/>
                     <Button x:Name="EdhShowCommandersButton"
                             Content="Commander browser"
                             Click="OnEdhShowCommandersClicked"
