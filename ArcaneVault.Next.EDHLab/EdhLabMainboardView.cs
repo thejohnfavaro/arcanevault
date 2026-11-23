@@ -19,6 +19,28 @@ public static class EdhLabMainboardView
         public string DetailsLabel => IsHeader ? "" : Details;
     }
 
+    /// <summary>
+    /// Navigate only visible card rows. Header rows are controls for expanding
+    /// sections, never card targets; navigation wraps safely at list edges.
+    /// </summary>
+    public static int NextCardIndex(IReadOnlyList<Row> visibleRows,
+        int currentIndex, int direction)
+    {
+        ArgumentNullException.ThrowIfNull(visibleRows);
+        if (direction is not (1 or -1))
+            throw new ArgumentOutOfRangeException(nameof(direction));
+        if (visibleRows.Count == 0) return -1;
+        int count = visibleRows.Count;
+        int start = currentIndex >= 0 && currentIndex < count
+            ? currentIndex : direction == 1 ? -1 : 0;
+        for (int offset = 1; offset <= count; offset++)
+        {
+            int index = ((start + direction * offset) % count + count) % count;
+            if (!visibleRows[index].IsHeader) return index;
+        }
+        return -1;
+    }
+
     private static readonly string[] SectionOrder =
     [
         "Creatures", "Instants", "Sorceries", "Artifacts",
