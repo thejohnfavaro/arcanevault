@@ -26,7 +26,7 @@ function Valid-Rect($r) {
 }
 function Get-Control($window,[string]$id) {
   $p=[System.Windows.Automation.AutomationElement]::AutomationIdProperty
-  $c=New-Object System.Windows.Automation.PropertyCondition($p,$id)
+  $c=[System.Windows.Automation.PropertyCondition]::new($p,$id)
   return $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$c)
 }
 function Get-VisibleRect($window,[string]$id) {
