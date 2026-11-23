@@ -2404,7 +2404,7 @@ public partial class NativeDeckEditorWindow : Window
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         // Do not close in the middle of an atomic save/preflight operation.
-        if (busy) e.Cancel = true;
+        if (busy && SavedReplacement is null) e.Cancel = true;
         base.OnClosing(e);
     }
 
