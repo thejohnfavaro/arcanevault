@@ -390,6 +390,18 @@ public partial class NativeDeckEditorWindow : Window
         }
 
         bool arena = OwnedPoolBox.SelectedIndex == 1;
+        // WPF controls must be accessed only on the dispatcher thread.
+        // Capture all mutable UI inputs before entering Task.Run: reading
+        // CommanderBox.Text on a worker caused a cross-thread exception and
+        // left "Loading local card details…" visible indefinitely.
+        string requestedName = card.Name;
+        string commanderName = CommanderBox.Text.Trim();
+        string selectedPrintingId = requestedName.Equals(commanderName,
+            StringComparison.OrdinalIgnoreCase) && commanderPrintingChoice.Length > 0
+            ? commanderPrintingChoice
+            : deckPrintingChoices.GetValueOrDefault(requestedName, "");
+        string catalogIdentity = edhCatalog?.Find(requestedName)?.Name ??
+            ArenaDeckCardName.Identity(requestedName);
         var request = new CancellationTokenSource();
         previewRequest = request;
         var token = request.Token;
@@ -405,13 +417,10 @@ public partial class NativeDeckEditorWindow : Window
                 // The saved draft may still contain an Arena "(SET) number"
                 // suffix. Preview by verified catalog identity, never by the
                 // presentation label; do not modify the saved deck text.
-                string identity = edhCatalog?.Find(card.Name)?.Name ??
-                    ArenaDeckCardName.Identity(card.Name);
+                string identity = catalogIdentity;
                 var info = CollectionCatalogReview.ReadDetails(catalogPath!, identity);
                 string imageUrl = "";
-                string chosenId = card.Name.Equals(CommanderBox.Text.Trim(),
-                    StringComparison.OrdinalIgnoreCase) && commanderPrintingChoice.Length > 0
-                    ? commanderPrintingChoice : deckPrintingChoices.GetValueOrDefault(card.Name, "");
+                string chosenId = selectedPrintingId;
                 // Honor a user-selected printing, then the exact printing
                 // embedded in Arena deck text ("Island (FIN) 297"). The
                 // latter is only an illustration hint, not owned-card proof.
@@ -496,9 +505,7 @@ public partial class NativeDeckEditorWindow : Window
             PreviewStatus.Text = "Illustrative catalog artwork · not verification of an owned printing.";
         }
         catch (OperationCanceledException) { /* Selection changed or editor closed. */ }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
-            InvalidDataException or Microsoft.Data.Sqlite.SqliteException or
-            ArgumentException or System.Net.Http.HttpRequestException or System.NotSupportedException)
+        catch (Exception ex)
         {
             if (!token.IsCancellationRequested && version == previewVersion)
                 PreviewStatus.Text = "Card preview unavailable: " + ex.Message;
