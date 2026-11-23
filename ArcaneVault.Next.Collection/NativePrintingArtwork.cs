@@ -102,6 +102,33 @@ public static class NativePrintingArtwork
         return new Gallery(result.AsReadOnly(), false);
     }
 
+    /// <summary>
+    /// Retrieve exactly the official printing named by an Arena decklist
+    /// suffix, e.g. "Island (FIN) 297". Unlike Read, this query is not
+    /// limited to the newest 300 printings of very common cards.
+    /// </summary>
+    public static string ReadArenaPrintingImage(string catalogPath, string name,
+        string setCode, string collectorNumber)
+    {
+        if (string.IsNullOrWhiteSpace(name) ||
+            string.IsNullOrWhiteSpace(setCode) ||
+            string.IsNullOrWhiteSpace(collectorNumber)) return "";
+        using var db = Open(catalogPath);
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = """
+            SELECT image FROM variants
+            WHERE name=$name COLLATE NOCASE
+              AND setcode=$set COLLATE NOCASE
+              AND collector=$collector COLLATE NOCASE
+            LIMIT 1
+            """;
+        cmd.Parameters.AddWithValue("$name", name.Trim());
+        cmd.Parameters.AddWithValue("$set", setCode.Trim());
+        cmd.Parameters.AddWithValue("$collector", collectorNumber.Trim());
+        string url = cmd.ExecuteScalar()?.ToString() ?? "";
+        return TrustedImage(url) ? url : "";
+    }
+
     public static Printing Require(string catalogPath, string name, Guid id)
     {
         if (id == Guid.Empty)
