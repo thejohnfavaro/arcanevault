@@ -264,6 +264,10 @@
                                         ToolTip="Show all card-type groups without changing the saved or unsaved deck"/>
                             </WrapPanel>
                             </StackPanel>
+                            <TextBlock Grid.Row="1" x:Name="MainboardCompositionSummary"
+                                       Text="Mainboard composition loading…"
+                                       Margin="0,0,0,5" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource VaultText}"/>
                             <TextBlock Grid.Row="1" x:Name="MainboardManagerStatus"
                                        Text="Visual mainboard loading…"
                                        Margin="0,0,0,7" FontSize="11"
@@ -271,6 +275,7 @@
                                        TextWrapping="Wrap"/>
                             <ListBox Grid.Row="2" x:Name="MainboardManagerList"
                                      SelectionChanged="OnMainboardManagerSelected"
+                                     MouseDoubleClick="OnMainboardManagerDoubleClick"
                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
                                      VirtualizingStackPanel.IsVirtualizing="True"
                                      VirtualizingStackPanel.VirtualizationMode="Recycling"
@@ -371,6 +376,12 @@
                                         Background="#202737" Foreground="White"
                                         BorderBrush="#514276"
                                         ToolTip="Increase a selected card only when its local format copy limit allows"/>
+                                <Button x:Name="MainboardManagerFullDetails" Content="Full card details"
+                                        Click="OnMainboardManagerFullDetailsClicked"
+                                        IsEnabled="False" Margin="0,0,7,4" Padding="10,6"
+                                        Background="#202737" Foreground="White"
+                                        BorderBrush="#514276"
+                                        ToolTip="Open full Oracle text, legalities and printing artwork for the selected card"/>
                                 <Button x:Name="MainboardManagerRemove" Content="Remove all"
                                         Click="OnMainboardManagerRemoveClicked" IsEnabled="False"
                                         Margin="0,0,0,4" Padding="9,6"
