@@ -202,8 +202,12 @@ function Begin-Test([string]$script,[string[]]$scriptArguments,[string]$label){
   # Escape PowerShell-quoted arguments using standard Windows command-line rules.
   $quoted=@($args | ForEach-Object {
     $v=[string]$_
-    if($v -match '[\s"]'){
-      $v='"'+($v -replace '(\\*)"', '$1$1\\"' -replace '(\\+) -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    if($v.Contains('"')){throw 'Unexpected quotation mark in launch argument.'}
+    if($v -match '\\s'){$v='"'+$v+'"'}
+    $v
+  })
+  try{
+    $process=Start-Process -FilePath $powershell -ArgumentList $quoted -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
     $state.Process=$process;$state.Output=$stdout;$state.Error=$stderr
     $state.RunLabel=$label
     $log.Clear()
