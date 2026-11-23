@@ -80,3 +80,40 @@ are **curated** and must be reviewed, not blindly auto-generated.
 
 An inventory item is **not** a passing test. The GUI must report non-executed
 tests as SKIP and report manual tests separately.
+
+## Interactive UI regression checks (proposed v0.6.2)
+
+Run on a Windows desktop with Arcane Vault already open:
+
+```powershell
+powershell -NoProfile -File tools/TestCenter/Run-UiRegression.ps1 -Mode All
+```
+
+These tests attach to the running app; they do not open databases or save decks.
+Interaction testing selects a visible card in **Deck Editor → Manage** using
+Windows UI Automation, then attempts to restore the previous selection.
+Responsive testing checks the **current** app viewport. Resize the window
+yourself (for example, compact, medium, maximized) and rerun with
+`-Mode Responsive` at each size; the runner does not resize your app.
+Analytics heading assertions need the relevant headings scrolled into view.
+If prerequisites are absent, results are **SKIP**, not falsely PASS.
+
+For screenshot tests, open a reproducible deck/view and keep the same theme,
+DPI scaling, viewport, data, and scroll position. First **review** the intended
+screen and explicitly approve a local baseline:
+
+```powershell
+powershell -NoProfile -File tools/TestCenter/Run-UiRegression.ps1 -Mode Visual -ApproveBaseline
+powershell -NoProfile -File tools/TestCenter/Run-UiRegression.ps1 -Mode Visual
+```
+
+The screenshot comparator checks dimensions and counts pixels whose red,
+green, or blue channels differ by more than 18; the default allowed changed
+fraction is 2%. Dynamic fields, hover effects, and changing art will produce
+legitimate differences. No screenshot baseline is auto-approved.
+
+Reports are local JSON files under `tools/TestCenter/Reports/`. Latest
+screenshots and locally approved baselines are gitignored because they may
+contain private user deck/card information. CI runs only synthetic image
+comparison self-tests; it **cannot** verify a real WPF desktop interaction
+or image. Run `-SelfTest` anywhere PowerShell and System.Drawing are present.
