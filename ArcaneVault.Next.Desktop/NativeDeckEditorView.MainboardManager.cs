@@ -106,6 +106,8 @@ public partial class NativeDeckEditorView
             }
             finally { updatingMainboardManager = false; }
 
+            MainboardCompositionSummary.Text = EdhLabMainboardView.CompositionSummary(
+                edhCatalog, entries.Select(x => (x.Name, x.Quantity)).ToArray());
             int visible = displayed.Count(x => !x.IsHeader && !x.IsCommander);
             int hidden = rows.Count(x => !x.IsHeader && !x.IsCommander) - visible;
             int all = entries.Count;
@@ -128,6 +130,7 @@ public partial class NativeDeckEditorView
             try { MainboardManagerList.ItemsSource =
                 Array.Empty<EdhLabMainboardView.Row>(); }
             finally { updatingMainboardManager = false; }
+            MainboardCompositionSummary.Text = "Composition unavailable until deck text is valid.";
             MainboardManagerStatus.Text =
                 "Correct the Text tab before managing cards: " + ex.Message;
             UpdateMainboardManagerSelection();
@@ -140,6 +143,8 @@ public partial class NativeDeckEditorView
             MainboardManagerMinus is null || MainboardManagerPlus is null ||
             MainboardManagerRemove is null) return;
         var selected = MainboardManagerList.SelectedItem as EdhLabMainboardView.Row;
+        MainboardManagerFullDetails.IsEnabled =
+            !busy && selected is { IsHeader: false };
         bool usable = !busy && selected is { IsHeader: false, IsCommander: false };
         MainboardManagerMinus.IsEnabled = usable;
         MainboardManagerRemove.IsEnabled = usable;
@@ -197,7 +202,69 @@ public partial class NativeDeckEditorView
             Proxied: CountProxy(selected.Name)));
     }
 
-    private void ChangeManagedMainboardQuantity(int change, bool removeAll = false)
+    private void OnMainboardManagerDoubleClick(object sender,
+        System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (MainboardManagerList.SelectedItem is EdhLabMainboardView.Row
+            { IsHeader: false })
+        {
+            e.Handled = true;
+            OnMainboardManagerFullDetailsClicked(sender, new RoutedEventArgs());
+        }
+    }
+
+    private async void OnMainboardManagerFullDetailsClicked(object sender,
+        RoutedEventArgs e)
+    {
+        if (busy || MainboardManagerList.SelectedItem is not
+            EdhLabMainboardView.Row { IsHeader: false } selected) return;
+        string savedName = selected.Name;
+        string identity = ArenaDeckCardName.Identity(savedName);
+        string status = selected.IsCommander
+            ? "Commander · reference in unsaved deck"
+            : selected.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                " copies in unsaved mainboard · collection unchanged";
+        bool arenaScope = OwnedPoolBox?.SelectedIndex == 1;
+        var printing = NativeDeckCoverCache.ParseArenaPrintingHint(savedName);
+        string? offlineCatalog = catalogPath;
+        CollectionCatalogReview.CardDetails? details = null;
+        string art = "";
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(offlineCatalog))
+            {
+                var result = await Task.Run(() =>
+                {
+                    var info = CollectionCatalogReview.ReadDetails(offlineCatalog!, identity);
+                    string image = printing.SetCode.Length > 0
+                        ? NativePrintingArtwork.ReadArenaPrintingImage(offlineCatalog!,
+                            identity, printing.SetCode, printing.CollectorNumber)
+                        : "";
+                    if (!NativeCardArtwork.IsTrustedArtworkUrl(image))
+                        image = info?.ArtworkUrl ?? "";
+                    return (Info: info, Artwork: image);
+                });
+                details = result.Info;
+                art = result.Artwork;
+            }
+            if (!IsLoaded) return;
+            var dialog = new NativeCardDetailsWindow(identity, status, details,
+                catalogPath: offlineCatalog, selectedSet: printing.SetCode,
+                selectedCollector: printing.CollectorNumber, arenaScope: arenaScope,
+                selectedArtworkUrl: art)
+            {
+                Owner = Window.GetWindow(this)
+            };
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            if (IsLoaded)
+                MainboardManagerStatus.Text = "Unable to open card details: " + ex.Message;
+        }
+    }
+
+        private void ChangeManagedMainboardQuantity(int change, bool removeAll = false)
     {
         if (busy || edhLabCommander is null ||
             MainboardManagerList.SelectedItem is not
