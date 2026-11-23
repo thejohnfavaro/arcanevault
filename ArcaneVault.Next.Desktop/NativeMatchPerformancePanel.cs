@@ -89,9 +89,17 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         root.Children.Add(coverage);
         // One color-identity metric: the OPPONENT'S recorded colors.
         // Do not substitute the player's commander colors for missing data.
-        var breakdownRow = new WrapPanel { Margin = new Thickness(0,5,0,9) };
-        var formatPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
-        var opponentPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
+        // Keep all three matchup tables in ONE wrapping row. The observed
+        // colors panel previously sat outside the row, appearing orphaned in
+        // the middle of a wide Deck Analytics page.
+        var breakdownRow = new WrapPanel {
+            Margin = new Thickness(0,5,0,12),
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        var formatPanel = new StackPanel {
+            Width = 430, Margin = new Thickness(0,0,12,8) };
+        var opponentPanel = new StackPanel {
+            Width = 430, Margin = new Thickness(0,0,12,8) };
         breakdownRow.Children.Add(formatPanel);
         breakdownRow.Children.Add(opponentPanel);
         root.Children.Add(breakdownRow);
@@ -114,7 +122,8 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         opponentMatchups.View = opponentView;
         opponentPanel.Children.Add(opponentMatchups);
         opponentPanel.Children.Add(opponentColorCoverage);
-        var observedPanel = new StackPanel { Width = 500, Margin = new Thickness(0,0,16,0) };
+        var observedPanel = new StackPanel {
+            Width = 430, Margin = new Thickness(0,0,12,8) };
         observedPanel.Children.Add(new TextBlock {
             Text = "OBSERVED OPPONENT COLORS (PARTIAL)",
             FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
@@ -126,7 +135,7 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         observedOpponentMatchups.View = observedView;
         observedPanel.Children.Add(observedOpponentMatchups);
         observedPanel.Children.Add(observedOpponentCoverage);
-        root.Children.Add(observedPanel);
+        breakdownRow.Children.Add(observedPanel);
         root.Children.Add(new TextBlock { Text = "WEEKLY PERFORMANCE (UTC)", FontSize = 13,
             FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
         var weekView = new GridView();
