@@ -80,6 +80,26 @@ internal static class NativeVisualShellChecks
                      "OnOpenNativeClicked", "OnOpenSetProgressClicked",
                      "OnOpenDeckLibraryClicked", "OnEdhLabClicked", "OnShowDataSyncClicked" })
             Must(mainShell.Contains(command), "Unified navigation must preserve " + command);
+        string savedEditor = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
+        string savedEditorCode = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorWindow.xaml.cs"));
+        string draftEditorCode = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorView.xaml.cs"));
+        string savedGroups = File.ReadAllText(Path.Combine(dir,
+            "NativeDeckEditorWindow.MainboardManager.cs"));
+        string draftGroups = File.ReadAllText(Path.Combine(dir,
+            "NativeDeckEditorView.MainboardManager.cs"));
+        foreach (var layout in new[] { savedEditor, deckStudio })
+            Must(layout.Contains("OnCollapseMainboardGroupsClicked") &&
+                 layout.Contains("OnExpandMainboardGroupsClicked") &&
+                 layout.Contains("Select to collapse or expand this card-type group"),
+                 "Both desktop deck editors must provide Android-style collapsible type groups.");
+        foreach (var code in new[] { savedGroups, draftGroups })
+            Must(code.Contains("collapsedMainboardGroups") &&
+                 code.Contains("heading.Category") &&
+                 code.Contains("MainboardManagerList.ItemsSource = displayed"),
+                 "Collapsing type groups must hide read-only visual rows, never mutate mainboard text.");
+        foreach (var code in new[] { savedEditorCode, draftEditorCode })
+            Must(code.Contains("ReadArenaPrintingImage("),
+                 "Editor card preview must resolve exact Arena set-number art.");
         Must(deckStudio.Contains("VaultAccentSurface") &&
              deckStudio.Contains("VaultNavHoverWash") &&
              deckStudio.Contains("VaultPanelRaised"),
