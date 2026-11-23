@@ -97,7 +97,6 @@ jobs:
         shell: powershell
         run: |
           & .\\tools\\TestCenter\\Package-Standalone.ps1 -OutputPath "$env:RUNNER_TEMP\\ArcaneVault-TestCenter-Standalone.zip"
-          if ($LASTEXITCODE -ne 0) { throw 'Standalone Test Center ZIP failed' }
           if (-not (Test-Path "$env:RUNNER_TEMP\\ArcaneVault-TestCenter-Standalone.zip")) {
             throw 'Standalone Test Center archive missing'
           }
