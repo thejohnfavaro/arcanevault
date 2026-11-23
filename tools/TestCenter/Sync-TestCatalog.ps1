@@ -71,7 +71,7 @@ foreach ($match in $matches) {
 }
 $document = [ordered]@{
     schema_version=1
-    test_center_version='0.5.1'
+    test_center_version='0.6.0'
     based_on='ArcaneVault.Next.Tests/Program.cs (generated; do not edit by hand)'
     tests=$tests
 }
