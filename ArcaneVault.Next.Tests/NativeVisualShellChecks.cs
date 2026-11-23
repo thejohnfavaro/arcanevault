@@ -103,6 +103,20 @@ internal static class NativeVisualShellChecks
                  layout.Contains("Click=\"OnMainboardManagerFullDetailsClicked\"") &&
                  layout.Contains("MouseDoubleClick=\"OnMainboardManagerDoubleClick\""),
                  "Both Windows deck editors must show composition and open full card details.");
+        foreach (var layout in new[] { savedEditor, deckStudio })
+            Must(layout.Contains("OnClearMainboardSearchClicked") &&
+                 layout.Contains("OnPreviousMainboardCardClicked") &&
+                 layout.Contains("OnNextMainboardCardClicked") &&
+                 layout.Contains("PreviewKeyDown=\"OnMainboardManagerListKeyDown\"") &&
+                 layout.Contains("PreviewKeyDown=\"OnMainboardManagerSearchKeyDown\""),
+                 "Both editors must expose keyboard-scoped navigation and non-destructive search reset.");
+        foreach (var code in new[] { savedGroups, draftGroups })
+            Must(code.Contains("EdhLabMainboardView.NextCardIndex(") &&
+                 code.Contains("OnMainboardManagerListKeyDown(") &&
+                 code.Contains("OnMainboardManagerSearchKeyDown(") &&
+                 code.Contains("MainboardManagerList.ScrollIntoView(") &&
+                 code.Contains("OnMainboardManagerFullDetailsClicked("),
+                 "Keyboard navigation must operate on visible card rows and open existing read-only details.");
         foreach (var code in new[] { savedGroups, draftGroups })
             Must(code.Contains("EdhLabMainboardView.CompositionSummary(") &&
                  code.Contains("OnMainboardManagerFullDetailsClicked(") &&
