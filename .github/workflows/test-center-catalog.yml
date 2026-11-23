@@ -30,6 +30,11 @@ jobs:
         run: |
           & .\tools\TestCenter\Sync-TestCatalog.ps1 -Check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify system coverage map has reviewed evidence and no unassigned suites
+        shell: powershell
+        run: |
+          & .\tools\TestCenter\Test-CoverageMap.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Confirm catalog updater is deterministic and offline
         shell: powershell
         run: |
