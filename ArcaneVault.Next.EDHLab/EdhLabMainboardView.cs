@@ -58,6 +58,30 @@ public static class EdhLabMainboardView
         _ => throw new ArgumentOutOfRangeException(nameof(section))
     };
 
+    /// <summary>
+    /// A compact type-composition summary of the full unsaved mainboard,
+    /// independent of visual search, sort and collapsed type sections.
+    /// Names and quantities are taken from the same parsed deck text.
+    /// </summary>
+    public static string CompositionSummary(EdhLabDraftCatalog? catalog,
+        IReadOnlyList<(string Name, int Quantity)> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        int total = entries.Sum(x => x.Quantity);
+        if (total == 0) return "Mainboard composition · no cards";
+        var groups = entries
+            .GroupBy(x => CategoryFor(catalog?.Find(x.Name)),
+                StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity),
+                StringComparer.OrdinalIgnoreCase);
+        var labels = SectionOrder.Where(groups.ContainsKey)
+            .Select(name => name + " " + groups[name] + " (" +
+                (100.0 * groups[name] / total).ToString("0.#",
+                    System.Globalization.CultureInfo.InvariantCulture) + "%)");
+        return "Mainboard · " + total + " copies · " +
+            string.Join("   ·   ", labels);
+    }
+
     public static IReadOnlyList<Row> Build(EdhLabDraftCatalog? catalog,
         IReadOnlyList<(string Name, int Quantity)> entries,
         Section section = Section.All, Order order = Order.Type,
