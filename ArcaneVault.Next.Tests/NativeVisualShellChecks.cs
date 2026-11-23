@@ -450,7 +450,7 @@ internal static class NativeVisualShellChecks
              v65DeckShell.Contains("await FinishSavedDeckChangeAsync(editor.SavedReplacement)") &&
              v65DeckShell.Contains("editor.Show();") &&
              v65DeckShell.Contains("activeSavedDeckEditor = editor;") &&
-             !v65DeckShell.Contains("if (dialog.ShowDialog() != true) return;") &&
+             !v65DeckShell.Contains("await FinishSavedDeckChangeAsync(dialog.SavedReplacement)") &&
              v65StudioCode.Contains("SavedReplacement = saved;") &&
              v65StudioCode.Contains("Close();") &&
              v65DeckShell.Contains("await FinishSavedDeckChangeAsync(created)") &&
