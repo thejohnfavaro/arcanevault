@@ -200,38 +200,77 @@ public static class NativeUpdateService
     private static async Task<HttpResponseMessage> TrustedGetAsync(HttpClient http,
         Uri url, CancellationToken cancellation)
     {
-        Uri current = url;
-        for (int redirect = 0; redirect < 5; redirect++)
+        // GitHub's CDN occasionally returns 502/503/504 under load. Retry
+        // only transient HTTP failures, with fresh requests and a bounded delay.
+        // Never retry trust failures, checksum errors, or invalid archives.
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            if (!TrustedRedirect(current) &&
-                !current.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("Unexpected update download host.");
-            using var request = new HttpRequestMessage(HttpMethod.Get, current);
-            request.Headers.UserAgent.ParseAdd("ArcaneVaultNativeUpdater/1.0");
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(
-                current.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase)
-                    ? "application/vnd.github+json" : "application/octet-stream"));
-            var response = await http.SendAsync(request,
-                HttpCompletionOption.ResponseHeadersRead, cancellation);
-            if (response.StatusCode is HttpStatusCode.Redirect or
-                HttpStatusCode.MovedPermanently or
-                HttpStatusCode.TemporaryRedirect or
-                HttpStatusCode.PermanentRedirect)
+            Uri current = url;
+            for (int redirect = 0; redirect < 5; redirect++)
             {
-                var location = response.Headers.Location;
-                response.Dispose();
-                if (location is null)
-                    throw new InvalidDataException("Update download redirect has no location.");
-                Uri next = location.IsAbsoluteUri ? location : new Uri(current, location);
-                if (!TrustedRedirect(next))
-                    throw new InvalidDataException("Update download redirected to an untrusted host.");
-                current = next;
-                continue;
+                if (!TrustedRedirect(current) &&
+                    !current.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Unexpected update download host.");
+                using var request = new HttpRequestMessage(HttpMethod.Get, current);
+                request.Headers.UserAgent.ParseAdd("ArcaneVaultNativeUpdater/1.0");
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(
+                    current.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase)
+                        ? "application/vnd.github+json" : "application/octet-stream"));
+                using var scope = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+                HttpResponseMessage response;
+                try
+                {
+                    response = await http.SendAsync(request,
+                        HttpCompletionOption.ResponseHeadersRead, scope.Token);
+                }
+                catch (HttpRequestException) when (attempt < 2 && !cancellation.IsCancellationRequested)
+                {
+                    // Retry a transient connection failure from the original
+                    // trusted URL, never from an unchecked redirect destination.
+                    break;
+                }
+                if (response.StatusCode is HttpStatusCode.Redirect or
+                    HttpStatusCode.MovedPermanently or
+                    HttpStatusCode.TemporaryRedirect or
+                    HttpStatusCode.PermanentRedirect)
+                {
+                    var location = response.Headers.Location;
+                    response.Dispose();
+                    if (location is null)
+                        throw new InvalidDataException("Update download redirect has no location.");
+                    Uri next = location.IsAbsoluteUri ? location : new Uri(current, location);
+                    if (!TrustedRedirect(next))
+                        throw new InvalidDataException("Update download redirected to an untrusted host.");
+                    current = next;
+                    continue;
+                }
+                if (response.StatusCode is HttpStatusCode.RequestTimeout or
+                    HttpStatusCode.TooManyRequests or HttpStatusCode.InternalServerError or
+                    HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or
+                    HttpStatusCode.GatewayTimeout)
+                {
+                    if (attempt < 2)
+                    {
+                        response.Dispose();
+                        break;
+                    }
+                }
+                try
+                {
+                    response.EnsureSuccessStatusCode();
+                    return response;
+                }
+                catch
+                {
+                    response.Dispose();
+                    throw;
+                }
             }
-            response.EnsureSuccessStatusCode();
-            return response;
+            if (attempt == 2)
+                throw new InvalidDataException("Too many update download redirects or transient failures.");
+            await Task.Delay(TimeSpan.FromSeconds(attempt + 1), cancellation);
         }
-        throw new InvalidDataException("Too many update download redirects.");
+        throw new InvalidDataException("Update download retry limit exceeded.");
     }
 
     private static async Task<byte[]> ReadBoundedAsync(Stream stream, long max,
