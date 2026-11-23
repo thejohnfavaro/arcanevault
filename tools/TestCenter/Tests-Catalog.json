@@ -1,0 +1,371 @@
+{
+  "schema_version": 1,
+  "test_center_version": "0.5.1",
+  "based_on": "ArcaneVault.Next.Tests/Program.cs (generated; do not edit by hand)",
+  "tests": [
+    {
+      "id": "catalog-snapshot",
+      "label": "Synthetic SQLite read-only search and snapshot integrity",
+      "category": "Card catalog & art",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "match-assignment",
+      "label": "Match results attach to the correct saved deck",
+      "category": "Game & match analytics",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "match-performance",
+      "label": "Win rates and match analytics exclude ambiguous results",
+      "category": "Game & match analytics",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "match-deck-attribution",
+      "label": "Arena matches link to verified deck identities",
+      "category": "Game & match analytics",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "arena-log-assignment",
+      "label": "Arena logs record matches and gameplay evidence safely",
+      "category": "Game & match analytics",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "arena-queue-rank",
+      "label": "Queue and rank data is interpreted correctly",
+      "category": "Game & match analytics",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "arena-rank-season",
+      "label": "Ranked seasons and resets are read correctly",
+      "category": "Game & match analytics",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "ownership-golden",
+      "label": "Owned cards reconcile against the reference collection",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "migration-preview",
+      "label": "Legacy migration previews do not mutate live records",
+      "category": "Installation & compatibility",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "offline-staging",
+      "label": "Imported data is safely staged",
+      "category": "Installation & compatibility",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-backup-reader",
+      "label": "Backups can be read and validated",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-large-collection",
+      "label": "Large collections remain supported",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-workspace",
+      "label": "Local collection storage behaves correctly",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-workspace-safety",
+      "label": "Workspace recovery protects user data",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-crash-recovery",
+      "label": "Forced process termination before and after atomic workspace replacement",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-fresh-start",
+      "label": "First-run and recovery paths are safe",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-physical-editing",
+      "label": "Physical inventory changes preserve counts",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-proxy-editing",
+      "label": "Proxy edits preserve real ownership",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-physical-quantity",
+      "label": "Card quantities remain consistent",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-arena-editing",
+      "label": "Arena collection edits stay separate",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-arena-import",
+      "label": "Arena inventory imports correctly",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-scryfall-catalog-sync",
+      "label": "Catalog updates retain data safely",
+      "category": "Card catalog & art",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-deck-editing",
+      "label": "Deck edits and saves preserve card contents",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-deck-owned-picker",
+      "label": "Deck card selection follows ownership rules",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-deck-library-cache",
+      "label": "Saved deck library caches update correctly",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-deck-cover-cache",
+      "label": "Deck artwork caches update correctly",
+      "category": "Card catalog & art",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-theme",
+      "label": "Themes retain expected behavior",
+      "category": "Card catalog & art",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-deck-analytics",
+      "label": "Deck performance metrics calculate correctly",
+      "category": "Game & match analytics",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-deck-preflight",
+      "label": "Deck validation catches invalid lists",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-deck-interchange",
+      "label": "Deck export and import are compatible",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-catalog-filter",
+      "label": "Catalog search and filters work",
+      "category": "Card catalog & art",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-ownership-catalog",
+      "label": "Catalog ownership is shown accurately",
+      "category": "Card catalog & art",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-arena-presentation",
+      "label": "Arena inventory is presented correctly",
+      "category": "Installation & compatibility",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-printing-artwork",
+      "label": "Card printings and artwork match",
+      "category": "Card catalog & art",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-physical-valuation",
+      "label": "Collection values use owned printings",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-shortlist",
+      "label": "Shortlisted cards are maintained correctly",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-card-role",
+      "label": "Card role classification remains stable",
+      "category": "Card catalog & art",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-excel-import",
+      "label": "Excel importing preserves collection data",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-csv-import",
+      "label": "CSV importing handles collection data",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-format-legality",
+      "label": "Deck format rules are enforced",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-update",
+      "label": "App update logic protects installations",
+      "category": "Installation & compatibility",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-full-backup-export",
+      "label": "Full backups include required data",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-peer-sync",
+      "label": "Sync and merge preserve collection integrity",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-visual-shell",
+      "label": "Windows workspace structure remains consistent",
+      "category": "Installation & compatibility",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-release-notes",
+      "label": "Release notes satisfy required fields",
+      "category": "Installation & compatibility",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "legacy-storage-import",
+      "label": "Legacy storage import remains compatible",
+      "category": "Installation & compatibility",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "collection-catalog-review",
+      "label": "Catalog and collection review are accurate",
+      "category": "Card catalog & art",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "native-set-progress",
+      "label": "Set completion totals are correct",
+      "category": "Collection & synchronization",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "edh-lab",
+      "label": "EDH Lab core rules and analysis work",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "edh-lab-draft",
+      "label": "EDH Lab draft workflow behaves correctly",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "edh-lab-land-advisor",
+      "label": "Land recommendations follow mana needs",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    },
+    {
+      "id": "edh-lab-mana-base-builder",
+      "label": "Suggested mana bases meet deck requirements",
+      "category": "Deck editor & EDH Lab",
+      "kind": "native-suite",
+      "manual": false
+    }
+  ]
+}
