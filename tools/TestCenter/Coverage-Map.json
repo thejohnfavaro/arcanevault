@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "version": "0.6.0",
+  "note": "Curated, conservative mapping; presence of a suite does not prove a feature passed or the UI was tested.",
+  "systems": [
+    {
+      "id": "system-01",
+      "system": "Deck editing & validation",
+      "evidence_level": "behavioral",
+      "suite_ids": [
+        "native-deck-editing",
+        "native-deck-owned-picker",
+        "native-deck-preflight",
+        "native-format-legality",
+        "native-deck-interchange"
+      ],
+      "evidence": "Saved deck edits, copy limits, format preflight, import/export.",
+      "manual_check": "Open saved and EDH Lab editors; change test draft, undo, verify save and card counts.",
+      "gap": "Undo/redo and WPF input focus are not demonstrated by headless tests."
+    },
+    {
+      "id": "system-02",
+      "system": "Visual mainboard & card details",
+      "evidence_level": "source-plus-behavior",
+      "suite_ids": [
+        "edh-lab-draft",
+        "native-visual-shell",
+        "native-printing-artwork"
+      ],
+      "evidence": "Grouped draft data and image lookup are behaviorally tested; WPF control presence is source-checked.",
+      "manual_check": "Try collapse/expand, composition, F3/Shift+F3, Ctrl+F, Enter, and full detail dialog.",
+      "gap": "No automated rendered-WPF layout or mouse/keyboard interaction test."
+    },
+    {
+      "id": "system-03",
+      "system": "Artwork, printings & covers",
+      "evidence_level": "behavioral",
+      "suite_ids": [
+        "native-printing-artwork",
+        "native-deck-cover-cache",
+        "native-scryfall-catalog-sync",
+        "collection-catalog-review"
+      ],
+      "evidence": "Printing IDs, official art URLs, offline metadata and cover fallback logic.",
+      "manual_check": "Preview Island (FIN) 297 and several nonbasic/double-face cards; verify real image display.",
+      "gap": "Actual image download, cache display and failures on a real device remain manual."
+    },
+    {
+      "id": "system-04",
+      "system": "Deck library & performance",
+      "evidence_level": "behavioral",
+      "suite_ids": [
+        "native-deck-library-cache",
+        "native-deck-analytics",
+        "match-performance",
+        "match-deck-attribution"
+      ],
+      "evidence": "Cached library, match W/L aggregates and verified deck association.",
+      "manual_check": "Switch between two known tracked decks and All Decks; compare totals with captured matches.",
+      "gap": "Live match-to-screen refresh and Xeneon synchronization need manual validation."
+    },
+    {
+      "id": "system-05",
+      "system": "Arena telemetry & opponent colors",
+      "evidence_level": "behavioral",
+      "suite_ids": [
+        "arena-log-assignment",
+        "match-assignment",
+        "match-deck-attribution",
+        "arena-queue-rank",
+        "arena-rank-season"
+      ],
+      "evidence": "Synthetic logs, match attribution, ranked metadata and conservative public-card opponent evidence.",
+      "manual_check": "Capture a real Arena match and compare rank, W/L and partial observed opponent colors.",
+      "gap": "Live Player.log variants, rotated logs and hidden-information edge cases remain partially covered."
+    },
+    {
+      "id": "system-06",
+      "system": "Collection ownership & proxies",
+      "evidence_level": "behavioral",
+      "suite_ids": [
+        "ownership-golden",
+        "native-physical-editing",
+        "native-physical-quantity",
+        "native-proxy-editing",
+        "native-arena-editing",
+        "native-ownership-catalog",
+        "native-arena-presentation"
+      ],
+      "evidence": "Physical and Arena ownership, proxy isolation, quantity consistency, and the native Arena presentation model.",
+      "manual_check": "Convert a test card to proxy and back; verify no real ownership or valuation drift.",
+      "gap": "Complete mobile peer ownership behavior requires device tests."
+    },
+    {
+      "id": "system-07",
+      "system": "Local storage, backups & recovery",
+      "evidence_level": "behavioral",
+      "suite_ids": [
+        "native-workspace",
+        "native-workspace-safety",
+        "native-crash-recovery",
+        "native-full-backup-export",
+        "native-backup-reader",
+        "native-fresh-start"
+      ],
+      "evidence": "Workspace persistence, synthetic crash boundaries, backup reading and recovery.",
+      "manual_check": "Back up a disposable snapshot and inspect recovery controls without overwriting live data.",
+      "gap": "Real-machine installation/restore across app versions remains manual."
+    },
+    {
+      "id": "system-08",
+      "system": "Sync, import & migration",
+      "evidence_level": "behavioral",
+      "suite_ids": [
+        "native-peer-sync",
+        "native-csv-import",
+        "native-excel-import",
+        "legacy-storage-import",
+        "migration-preview",
+        "offline-staging",
+        "native-arena-import"
+      ],
+      "evidence": "Synthetic merge, bulk import, migration preview and staging paths.",
+      "manual_check": "Sync disposable Windows/Android copies; verify conflict selections and diff behavior.",
+      "gap": "Android side and Wi-Fi/USB transport are not covered by these Windows suites."
+    },
+    {
+      "id": "system-09",
+      "system": "Catalog filtering & set progress",
+      "evidence_level": "behavioral",
+      "suite_ids": [
+        "catalog-snapshot",
+        "native-catalog-filter",
+        "native-set-progress",
+        "native-physical-valuation",
+        "native-shortlist",
+        "native-card-role"
+      ],
+      "evidence": "Search/filter, set totals, pricing-related owned values, shortlist and roles.",
+      "manual_check": "Search keywords and sets; verify one-set progress invalidation, icon/art, and prices.",
+      "gap": "Live Scryfall/network refresh and actual UI redraw timing remain manual."
+    },
+    {
+      "id": "system-10",
+      "system": "EDH Lab mana & recommendations",
+      "evidence_level": "behavioral",
+      "suite_ids": [
+        "edh-lab",
+        "edh-lab-draft",
+        "edh-lab-land-advisor",
+        "edh-lab-mana-base-builder",
+        "native-deck-preflight"
+      ],
+      "evidence": "EDH draft rules, land advisors, mana-base suggestions and validation.",
+      "manual_check": "Review suggested substitutions and mana balance on a sample Commander deck.",
+      "gap": "Quality of recommendations and real-session usability need human review."
+    },
+    {
+      "id": "system-11",
+      "system": "Windows shell, update & installer",
+      "evidence_level": "source-plus-behavior",
+      "suite_ids": [
+        "native-update",
+        "native-visual-shell",
+        "native-theme",
+        "native-release-notes",
+        "native-large-collection"
+      ],
+      "evidence": "Update logic, source structure, themes, release notes and synthetic collection-scale checks.",
+      "manual_check": "Upgrade installed preview, launch from pinned shortcut, resize panels and uninstall.",
+      "gap": "No automated installed-app GUI, keyboard accessibility or rollback drill."
+    },
+    {
+      "id": "system-12",
+      "system": "Xeneon Edge companion widget",
+      "evidence_level": "manual-only",
+      "suite_ids": [
+        "native-deck-cover-cache",
+        "native-deck-analytics",
+        "native-visual-shell"
+      ],
+      "evidence": "Adjacent deck/image source regression only; not an end-to-end widget test.",
+      "manual_check": "Rename a deck, update W/L and artwork, verify Xeneon Edge updates promptly.",
+      "gap": "No dedicated executable/device widget integration test; source tests are not widget coverage."
+    },
+    {
+      "id": "system-13",
+      "system": "Android parity & tabletop companion",
+      "evidence_level": "manual-only",
+      "suite_ids": [],
+      "evidence": "No Android instrumentation tests are part of this Windows-only runner.",
+      "manual_check": "Check Android catalog, EDH Lab, tabletop life tracker and USB/wireless sync separately.",
+      "gap": "Android automated suite and device integration belong to a separate mobile pipeline."
+    }
+  ]
+}
