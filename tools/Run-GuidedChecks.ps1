@@ -57,10 +57,13 @@ $inventoryCheck = Join-Path $PSScriptRoot 'TestCenter\Sync-TestCatalog.ps1'
 if (-not (Test-Path -LiteralPath $inventoryCheck)) {
     throw 'Test Center inventory checker missing. Update the local Arcane Vault checkout.'
 }
+# Keep the checked-in source catalog up to date whenever a developer
+# launches guided checks after adding a new named suite. The generated JSON
+# is reviewable in git; CI still uses read-only -Check to catch omissions.
+& $inventoryCheck
+if (-not $?) { throw 'Could not regenerate the Test Center suite inventory.' }
 & $inventoryCheck -Check
-if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
-    throw 'Test Center catalog is stale. Run tools\TestCenter\Sync-TestCatalog.ps1 and commit the result.'
-}
+if (-not $?) { throw 'Test Center suite inventory failed verification.' }
 if ($Offline -and -not (Test-Path (Join-Path $root 'ArcaneVault.Next.Tests\obj\project.assets.json'))) {
     throw 'Offline test packages are missing. Restore the native tests project once while online.'
 }
