@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:ArcaneVault.Next.Desktop"
         Title="Arcane Vault Next — Saved deck editor" Width="1280" Height="850"
-        MinWidth="1030" MinHeight="650" WindowStartupLocation="CenterOwner"
-        ShowInTaskbar="False"
+        MinWidth="1030" MinHeight="650" WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True"
         Background="{DynamicResource VaultBackground}"
         Foreground="{DynamicResource VaultText}">
     <Window.Resources>
@@ -1568,7 +1568,7 @@
                        Text="Every successful save retains the complete previous native collection as a recovery file."/>
         </Grid>
         <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Cancel" IsCancel="True"
+            <Button Content="Cancel" Click="OnCancelEditorClicked"
                     Padding="18,10" Margin="0,0,12,0"
                     Background="#202737" Foreground="White" BorderBrush="#514276"/>
             <Button x:Name="SaveDeckButton" Content="Review and save deck"

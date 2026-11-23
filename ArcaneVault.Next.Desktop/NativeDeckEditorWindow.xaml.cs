@@ -2381,7 +2381,7 @@ public partial class NativeDeckEditorWindow : Window
                     "\n\nWarning: " + saveResult.matchWarning),
                 "Saved deck verified", MessageBoxButton.OK, MessageBoxImage.Information);
             SavedReplacement = saved;
-            DialogResult = true;
+            Close();
         }
         catch (Exception ex)
         {
@@ -2396,4 +2396,16 @@ public partial class NativeDeckEditorWindow : Window
             SaveDeckButton.IsEnabled = true;
         }
     }
+    private void OnCancelEditorClicked(object sender, RoutedEventArgs e)
+    {
+        if (!busy) Close();
+    }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        // Do not close in the middle of an atomic save/preflight operation.
+        if (busy && SavedReplacement is null) e.Cancel = true;
+        base.OnClosing(e);
+    }
+
 }
