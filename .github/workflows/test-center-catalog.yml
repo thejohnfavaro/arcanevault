@@ -76,6 +76,21 @@ jobs:
           if ($data.status -ne 'PASS' -or $data.tests[0].id -ne 'UI-REGRESSION-SELFTEST') {
             throw 'UI regression self-test did not report PASS'
           }
+      - name: Package standalone Windows Test Center GUI
+        shell: powershell
+        run: |
+          & .\\tools\\TestCenter\\Package-Standalone.ps1 -OutputPath "$env:RUNNER_TEMP\\ArcaneVault-TestCenter-Standalone.zip"
+          if ($LASTEXITCODE -ne 0) { throw 'Standalone Test Center ZIP failed' }
+          if (-not (Test-Path "$env:RUNNER_TEMP\\ArcaneVault-TestCenter-Standalone.zip")) {
+            throw 'Standalone Test Center archive missing'
+          }
+      - name: Upload standalone Test Center ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArcaneVault-TestCenter-Standalone
+          path: ${{ runner.temp }}/ArcaneVault-TestCenter-Standalone.zip
+          if-no-files-found: error
+          retention-days: 14
       - name: Confirm catalog updater is deterministic and offline
         shell: powershell
         run: |
