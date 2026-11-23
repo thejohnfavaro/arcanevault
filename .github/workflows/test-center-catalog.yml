@@ -76,6 +76,23 @@ jobs:
           if ($data.status -ne 'PASS' -or $data.tests[0].id -ne 'UI-REGRESSION-SELFTEST') {
             throw 'UI regression self-test did not report PASS'
           }
+      - name: Parse standalone PowerShell GUI and packaging scripts
+        shell: powershell
+        run: |
+          foreach ($file in @(
+            '.\\tools\\TestCenter\\Open-TestCenter.ps1',
+            '.\\tools\\TestCenter\\Package-Standalone.ps1',
+            '.\\tools\\TestCenter\\Run-UiRegression.ps1'
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file).Path, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              throw "PowerShell parse errors in $file"
+            }
+          }
       - name: Package standalone Windows Test Center GUI
         shell: powershell
         run: |
