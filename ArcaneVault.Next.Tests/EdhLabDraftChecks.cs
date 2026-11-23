@@ -166,6 +166,16 @@ internal static class EdhLabDraftChecks
             "4 Island\n1 Sol Ring\n1 Tiny Insight\n1 Lightning Bolt\n1 Thopter Foundry");
         var managedTuples = managedEntries
             .Select(x => (x.Name, x.Quantity)).ToArray();
+        var composition = EdhLabMainboardView.CompositionSummary(paper, managedTuples);
+        Must(composition.Contains("8 copies") &&
+             composition.Contains("Lands 4 (50%)") &&
+             composition.Contains("Artifacts 2 (25%)") &&
+             composition.Contains("Instants 1 (12.5%)") &&
+             composition.Contains("Unverified 1 (12.5%)") &&
+             EdhLabMainboardView.CompositionSummary(null,
+                 Array.Empty<(string Name, int Quantity)>()) ==
+                 "Mainboard composition · no cards",
+             "Composition must use authoritative unsaved copies, correct type percentages, and explicit unknowns.");
         var managedGroups = EdhLabMainboardView.Build(paper, managedTuples);
         Must(managedGroups.Count(x => x.IsHeader) >= 3 &&
              managedGroups.Count(x => !x.IsHeader) == 5 &&
