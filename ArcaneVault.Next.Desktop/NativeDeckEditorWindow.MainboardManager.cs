@@ -19,6 +19,77 @@ public partial class NativeDeckEditorWindow
     private readonly HashSet<string> collapsedMainboardGroups =
         new(StringComparer.OrdinalIgnoreCase);
 
+    private void OnClearMainboardSearchClicked(object sender, RoutedEventArgs e)
+    {
+        if (MainboardManagerSearchBox is null) return;
+        MainboardManagerSearchBox.Clear();
+        MainboardManagerSearchBox.Focus();
+    }
+
+    private void OnPreviousMainboardCardClicked(object sender, RoutedEventArgs e) =>
+        MoveMainboardCard(-1);
+
+    private void OnNextMainboardCardClicked(object sender, RoutedEventArgs e) =>
+        MoveMainboardCard(1);
+
+    private void MoveMainboardCard(int direction)
+    {
+        if (busy || MainboardManagerList is null) return;
+        var displayed = MainboardManagerList.Items
+            .OfType<EdhLabMainboardView.Row>().ToArray();
+        int position = EdhLabMainboardView.NextCardIndex(displayed,
+            MainboardManagerList.SelectedIndex, direction);
+        if (position < 0) return;
+        MainboardManagerList.SelectedIndex = position;
+        MainboardManagerList.ScrollIntoView(displayed[position]);
+        MainboardManagerList.Focus();
+    }
+
+    private void OnMainboardManagerSearchKeyDown(object sender,
+        System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Escape &&
+            MainboardManagerSearchBox is { Text.Length: > 0 })
+        {
+            MainboardManagerSearchBox.Clear();
+            e.Handled = true;
+        }
+        else if (e.Key == System.Windows.Input.Key.F3)
+        {
+            MoveMainboardCard(
+                System.Windows.Input.Keyboard.Modifiers.HasFlag(
+                    System.Windows.Input.ModifierKeys.Shift) ? -1 : 1);
+            e.Handled = true;
+        }
+    }
+
+    private void OnMainboardManagerListKeyDown(object sender,
+        System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.F &&
+            System.Windows.Input.Keyboard.Modifiers ==
+                System.Windows.Input.ModifierKeys.Control)
+        {
+            MainboardManagerSearchBox?.Focus();
+            MainboardManagerSearchBox?.SelectAll();
+            e.Handled = true;
+        }
+        else if (e.Key == System.Windows.Input.Key.F3)
+        {
+            MoveMainboardCard(
+                System.Windows.Input.Keyboard.Modifiers.HasFlag(
+                    System.Windows.Input.ModifierKeys.Shift) ? -1 : 1);
+            e.Handled = true;
+        }
+        else if (e.Key == System.Windows.Input.Key.Enter &&
+                 MainboardManagerList.SelectedItem is EdhLabMainboardView.Row
+                     { IsHeader: false })
+        {
+            OnMainboardManagerFullDetailsClicked(sender, new RoutedEventArgs());
+            e.Handled = true;
+        }
+    }
+
     private void OnCollapseMainboardGroupsClicked(object sender, RoutedEventArgs e)
     {
         foreach (var section in new[] { "Commander", "Creatures", "Instants",
