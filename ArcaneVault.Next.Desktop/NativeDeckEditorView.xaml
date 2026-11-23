@@ -260,6 +260,14 @@
                                      ToolTip="Filter the unsaved mainboard by card name, type or role; never modifies deck contents"
                                      Background="#202737" Foreground="White"
                                      BorderBrush="#514276"/>
+                            <WrapPanel Margin="0,7,0,0">
+                                <Button Content="Collapse All" Padding="9,4" Margin="0,0,7,0"
+                                        Click="OnCollapseMainboardGroupsClicked"
+                                        ToolTip="Collapse card-type groups without changing the saved or unsaved deck"/>
+                                <Button Content="Expand All" Padding="9,4"
+                                        Click="OnExpandMainboardGroupsClicked"
+                                        ToolTip="Show all card-type groups without changing the saved or unsaved deck"/>
+                            </WrapPanel>
                             </StackPanel>
                             <TextBlock Grid.Row="1" x:Name="MainboardManagerStatus"
                                        Text="Visual mainboard loading…"
