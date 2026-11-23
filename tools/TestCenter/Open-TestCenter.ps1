@@ -203,7 +203,7 @@ function Begin-Test([string]$script,[string[]]$scriptArguments,[string]$label){
   $quoted=@($args | ForEach-Object {
     $v=[string]$_
     if($v.Contains('"')){throw 'Unexpected quotation mark in launch argument.'}
-    if($v -match '\\s'){$v='"'+$v+'"'}
+    if($v.Contains(' ')){$v='"'+$v+'"'}
     $v
   })
   try{
