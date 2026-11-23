@@ -112,6 +112,14 @@ internal static class NativePrintingArtworkChecks
              arenaStyles.Printings.Single().SetCode == "trk" &&
              arenaStyles.Printings.Single().CollectorNumber == "111",
             "Arena scope offers one base-card preview, never unverified Scryfall printings as owned styles.");
+        Must(NativePrintingArtwork.ReadArenaPrintingImage(
+                 catalogPath, "Sol Ring", "TRK", "428") == NewUrl &&
+             NativePrintingArtwork.ReadArenaPrintingImage(
+                 catalogPath, "Sol Ring", "TST", "11") == "" &&
+             NativePrintingArtwork.ReadArenaPrintingImage(
+                 catalogPath, "Sol Ring", "TRK", "999") == "",
+             "Exact Arena-style set/collector hints must resolve trusted art " +
+             "without selecting another printing or accepting untrusted URLs.");
         Must(NativePrintingArtwork.Read(catalogPath, "Sol Ring", 1).Truncated,
             "Gallery must disclose truncated printing lists.");
         Must(NativePrintingArtwork.Require(catalogPath, "Sol Ring",
