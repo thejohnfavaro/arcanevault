@@ -64,6 +64,18 @@ jobs:
             'AV.Analytics.ObservedColorsHeading')) {
             if (-not $analytics.Contains($id)) { throw "Missing UIA analytics hook: $id" }
           }
+      - name: Verify screenshot comparator self-test (synthetic images only)
+        shell: powershell
+        run: |
+          & .\\tools\\TestCenter\\Run-UiRegression.ps1 -SelfTest -ReportDir $env:RUNNER_TEMP
+          if ($LASTEXITCODE -ne 0) { throw 'UI screenshot comparator self-test failed' }
+          $report = Get-ChildItem $env:RUNNER_TEMP -Filter 'ui-regression-*.json' |
+            Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+          if (-not $report) { throw 'UI regression self-test produced no JSON report' }
+          $data = Get-Content $report.FullName -Raw | ConvertFrom-Json
+          if ($data.status -ne 'PASS' -or $data.tests[0].id -ne 'UI-REGRESSION-SELFTEST') {
+            throw 'UI regression self-test did not report PASS'
+          }
       - name: Confirm catalog updater is deterministic and offline
         shell: powershell
         run: |
