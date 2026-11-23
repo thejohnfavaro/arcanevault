@@ -97,6 +97,20 @@ internal static class NativeVisualShellChecks
                  code.Contains("heading.Category") &&
                  code.Contains("MainboardManagerList.ItemsSource = displayed"),
                  "Collapsing type groups must hide read-only visual rows, never mutate mainboard text.");
+        foreach (var layout in new[] { savedEditor, deckStudio })
+            Must(layout.Contains("x:Name=\"MainboardCompositionSummary\"") &&
+                 layout.Contains("x:Name=\"MainboardManagerFullDetails\"") &&
+                 layout.Contains("Click=\"OnMainboardManagerFullDetailsClicked\"") &&
+                 layout.Contains("MouseDoubleClick=\"OnMainboardManagerDoubleClick\""),
+                 "Both Windows deck editors must show composition and open full card details.");
+        foreach (var code in new[] { savedGroups, draftGroups })
+            Must(code.Contains("EdhLabMainboardView.CompositionSummary(") &&
+                 code.Contains("OnMainboardManagerFullDetailsClicked(") &&
+                 code.Contains("new NativeCardDetailsWindow(") &&
+                 code.Contains("OnMainboardManagerDoubleClick(") &&
+                 code.Contains("selectedSet: printing.SetCode"),
+                 "Mainboard full details must resolve offline printing metadata without writing deck text.");
+
         foreach (var code in new[] { savedEditorCode, draftEditorPreviewCode })
             Must(code.Contains("ReadArenaPrintingImage("),
                  "Editor card preview must resolve exact Arena set-number art.");
