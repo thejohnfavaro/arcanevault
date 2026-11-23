@@ -200,6 +200,15 @@ internal static class EdhLabDraftChecks
              withCommander.Where(x => !x.IsHeader && !x.IsCommander)
                  .Sum(x => x.Quantity) == managedEntries.Sum(x => x.Quantity),
              "Commander must display first without altering mainboard quantities.");
+        Must(EdhLabMainboardView.NextCardIndex(withCommander, -1, 1) == 1 &&
+             EdhLabMainboardView.NextCardIndex(withCommander, -1, -1) ==
+                withCommander.Count - 1 &&
+             EdhLabMainboardView.NextCardIndex(withCommander, 1, 1) == 3 &&
+             EdhLabMainboardView.NextCardIndex(withCommander,
+                withCommander.Count - 1, 1) == 1 &&
+             EdhLabMainboardView.NextCardIndex(
+                new[] { withCommander[0], withCommander[2] }, 0, 1) == -1,
+             "Navigation must skip headers, wrap over visible cards, and handle empty groups.");
         var groupedOrder = withCommander.Where(x => x.IsHeader).Select(x => x.Category).ToArray();
         Must(groupedOrder.SequenceEqual(new[]
                 { "Commander", "Instants", "Artifacts", "Unverified", "Lands" }),
