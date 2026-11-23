@@ -249,6 +249,7 @@
                                        Margin="0,7,0,0" FontSize="10"
                                        Foreground="{DynamicResource VaultMuted}"/>
                             <TextBox Style="{StaticResource VaultSearchTextBox}" x:Name="MainboardManagerSearchBox"
+                                     AutomationProperties.AutomationId="AV.Mainboard.Search"
                                      Margin="0,3,0,0" Padding="10,2"
                                      MaxLength="255"
                                      TextChanged="OnMainboardManagerSearchChanged"
@@ -276,16 +277,19 @@
                             </StackPanel>
                             <StackPanel Grid.Row="1" Margin="0,0,0,7">
                                 <TextBlock x:Name="MainboardCompositionSummary"
+                                           AutomationProperties.AutomationId="AV.Mainboard.Composition"
                                            Text="Mainboard composition loading…"
                                            Margin="0,0,0,5" FontSize="11" TextWrapping="Wrap"
                                            Foreground="{DynamicResource VaultText}"/>
                                 <TextBlock x:Name="MainboardManagerStatus"
+                                           AutomationProperties.AutomationId="AV.Mainboard.Status"
                                            Text="Visual mainboard loading…"
                                            FontSize="11"
                                            Foreground="{DynamicResource VaultMuted}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <ListBox Grid.Row="2" x:Name="MainboardManagerList"
+                                     AutomationProperties.AutomationId="AV.Mainboard.Rows"
                                      SelectionChanged="OnMainboardManagerSelected"
                                      MouseDoubleClick="OnMainboardManagerDoubleClick"
                                      PreviewKeyDown="OnMainboardManagerListKeyDown"
@@ -389,7 +393,8 @@
                                         Background="#202737" Foreground="White"
                                         BorderBrush="#514276"
                                         ToolTip="Increase a selected card only when its local format copy limit allows"/>
-                                <Button x:Name="MainboardManagerFullDetails" Content="Full card details"
+                                <Button x:Name="MainboardManagerFullDetails"
+                                        AutomationProperties.AutomationId="AV.Mainboard.FullDetails" Content="Full card details"
                                         Click="OnMainboardManagerFullDetailsClicked"
                                         IsEnabled="False" Margin="0,0,7,4" Padding="10,6"
                                         Background="#202737" Foreground="White"
@@ -1417,7 +1422,8 @@
                     <TextBlock Grid.Row="0" Text="CARD PREVIEW" FontSize="11"
                                Foreground="#E5BF79" FontWeight="SemiBold"
                                Margin="0,0,0,6"/>
-                    <TextBlock x:Name="PreviewCardName" Grid.Row="1"
+                    <TextBlock x:Name="PreviewCardName"
+                               AutomationProperties.AutomationId="AV.Preview.CardName" Grid.Row="1"
                                FontSize="15" FontWeight="SemiBold" Foreground="#F0F1F6"
                                TextWrapping="Wrap" Text="Select an owned card"
                                Margin="0,0,0,5"/>
@@ -1432,10 +1438,12 @@
                                     Padding="6" HorizontalAlignment="Center">
                                 <Grid Width="152" Height="210">
                                     <TextBlock x:Name="PreviewArtFallback"
+                                               AutomationProperties.AutomationId="AV.Preview.Fallback"
                                                Text="ARCANE VAULT&#10;Card artwork"
                                                TextAlignment="Center" VerticalAlignment="Center"
                                                Foreground="#9DA9BD" FontSize="12"/>
-                                    <Image x:Name="PreviewArtwork" Visibility="Collapsed"
+                                    <Image x:Name="PreviewArtwork"
+                                           AutomationProperties.AutomationId="AV.Preview.Artwork" Visibility="Collapsed"
                                            Stretch="Uniform" SnapsToDevicePixels="True"/>
                                 </Grid>
                             </Border>
@@ -1471,7 +1479,8 @@
                                                       AutomationProperties.Name="Draft card Oracle text with official mana symbols"/>
                         </StackPanel>
                     </ScrollViewer>
-                    <TextBlock x:Name="PreviewStatus" Grid.Row="4"
+                    <TextBlock x:Name="PreviewStatus"
+                               AutomationProperties.AutomationId="AV.Preview.Status" Grid.Row="4"
                                Margin="0,8,0,0" FontSize="10"
                                Foreground="#9DA9BD" TextWrapping="Wrap"
                                Text="Preview is read-only. Artwork is illustrative, not proof of an owned printing."/>
