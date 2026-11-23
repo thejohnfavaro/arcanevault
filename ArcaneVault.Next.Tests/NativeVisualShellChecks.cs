@@ -82,7 +82,7 @@ internal static class NativeVisualShellChecks
             Must(mainShell.Contains(command), "Unified navigation must preserve " + command);
         string savedEditor = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
         string savedEditorCode = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorWindow.xaml.cs"));
-        string draftEditorCode = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorView.xaml.cs"));
+        string draftEditorPreviewCode = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorView.xaml.cs"));
         string savedGroups = File.ReadAllText(Path.Combine(dir,
             "NativeDeckEditorWindow.MainboardManager.cs"));
         string draftGroups = File.ReadAllText(Path.Combine(dir,
@@ -97,7 +97,7 @@ internal static class NativeVisualShellChecks
                  code.Contains("heading.Category") &&
                  code.Contains("MainboardManagerList.ItemsSource = displayed"),
                  "Collapsing type groups must hide read-only visual rows, never mutate mainboard text.");
-        foreach (var code in new[] { savedEditorCode, draftEditorCode })
+        foreach (var code in new[] { savedEditorCode, draftEditorPreviewCode })
             Must(code.Contains("ReadArenaPrintingImage("),
                  "Editor card preview must resolve exact Arena set-number art.");
         Must(deckStudio.Contains("VaultAccentSurface") &&
