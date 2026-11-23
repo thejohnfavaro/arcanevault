@@ -3,7 +3,8 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Menu','DeckArtwork','MatchTracking','DeckEditing','DataSafety','Everything')]
-    [string]$Area = 'Menu'
+    [string]$Area = 'Menu',
+    [switch]$Offline
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -50,11 +51,26 @@ if ($Area -eq 'Menu') {
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw 'The .NET 10 SDK is needed. Install it from https://dotnet.microsoft.com/download/dotnet/10.0'
 }
+# Every local test launch enforces the same catalog contract as CI.
+# This check reads source and JSON only; it does not restore packages.
+$inventoryCheck = Join-Path $PSScriptRoot 'TestCenter\Sync-TestCatalog.ps1'
+if (-not (Test-Path -LiteralPath $inventoryCheck)) {
+    throw 'Test Center inventory checker missing. Update the local Arcane Vault checkout.'
+}
+& $inventoryCheck -Check
+if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+    throw 'Test Center catalog is stale. Run tools\TestCenter\Sync-TestCatalog.ps1 and commit the result.'
+}
+if ($Offline -and -not (Test-Path (Join-Path $root 'ArcaneVault.Next.Tests\obj\project.assets.json'))) {
+    throw 'Offline test packages are missing. Restore the native tests project once while online.'
+}
 $target = $areas[$Area]
 Write-Host ''
 Write-Host ("CHECKING: " + $target.Label) -ForegroundColor Cyan
 Write-Host 'The app and personal collection are not modified by this test suite.'
-$arguments = @('run','--project',$project,'-c','Release','--')
+$arguments = @('run','--project',$project,'-c','Release')
+if ($Offline) { $arguments += '--no-restore' }
+$arguments += '--'
 if ($target.Suites) { $arguments += @('--suite',$target.Suites) }
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $reportFolder = Join-Path $env:TEMP 'ArcaneVault-GuidedChecks'
