@@ -13,6 +13,27 @@ namespace ArcaneVault.Next.Desktop;
 public partial class NativeDeckEditorView
 {
     private bool updatingMainboardManager;
+    // Visual-only section state, mirrored from Android's grouped mainboard.
+    // Never changes the editable MainboardBox text or collection ownership.
+    private readonly HashSet<string> collapsedMainboardGroups =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private void OnCollapseMainboardGroupsClicked(object sender, RoutedEventArgs e)
+    {
+        foreach (var section in new[] { "Commander", "Creatures", "Instants",
+            "Sorceries", "Artifacts", "Enchantments", "Planeswalkers",
+            "Other", "Unverified", "Lands" })
+            collapsedMainboardGroups.Add(section);
+        RefreshMainboardManager();
+    }
+
+    private void OnExpandMainboardGroupsClicked(object sender, RoutedEventArgs e)
+    {
+        collapsedMainboardGroups.Clear();
+        RefreshMainboardManager();
+    }
+
+
 
     private EdhLabMainboardView.Section MainboardManagerSection =>
         (MainboardFilterBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() switch
@@ -65,23 +86,35 @@ public partial class NativeDeckEditorView
                 MainboardManagerSection, MainboardManagerOrder,
                 MainboardManagerSearchBox?.Text,
                 commander: edhLabCommander);
+            // Type headings are interactive; keep them visible while hiding
+            // children of collapsed groups. Name/quantity sorts contain no
+            // headers and intentionally bypass section collapsing.
+            var displayed = rows
+                .Where(r => r.IsHeader || !collapsedMainboardGroups.Contains(r.Category))
+                .Select(r => r.IsHeader ? r with {
+                    Name = (collapsedMainboardGroups.Contains(r.Category) ? "▸ " : "▾ ") +
+                        r.Name
+                } : r).ToArray();
             updatingMainboardManager = true;
             try
             {
-                MainboardManagerList.ItemsSource = rows;
+                MainboardManagerList.ItemsSource = displayed;
                 if (selectedName is not null)
-                    MainboardManagerList.SelectedItem = rows.FirstOrDefault(x =>
+                    MainboardManagerList.SelectedItem = displayed.FirstOrDefault(x =>
                         !x.IsHeader && x.Name.Equals(selectedName,
                             StringComparison.OrdinalIgnoreCase));
             }
             finally { updatingMainboardManager = false; }
 
-            int visible = rows.Count(x => !x.IsHeader && !x.IsCommander);
+            int visible = displayed.Count(x => !x.IsHeader && !x.IsCommander);
+            int hidden = rows.Count(x => !x.IsHeader && !x.IsCommander) - visible;
             int all = entries.Count;
             int unverified = entries.Count(x => edhCatalog?.Find(x.Name) is null);
             MainboardManagerStatus.Text =
-                (visible == 0 && all > 0 ? "No matching mainboard cards · " : "") +
-                $"{visible:N0} shown · {all:N0} names · " +
+                (visible == 0 && all > 0 && hidden == 0 ?
+                    "No matching mainboard cards · " : "") +
+                $"{visible:N0} shown" + (hidden > 0 ? $" · {hidden:N0} collapsed" : "") +
+                $" · {all:N0} names · " +
                 $"{entries.Sum(x => x.Quantity):N0} unsaved copies" +
                 (unverified > 0 && edhCatalog is not null
                     ? $" · {unverified:N0} locally unverified" : "") +
@@ -126,6 +159,14 @@ public partial class NativeDeckEditorView
         SelectionChangedEventArgs e)
     {
         if (updatingMainboardManager) return;
+        if (MainboardManagerList.SelectedItem is EdhLabMainboardView.Row
+            { IsHeader: true } heading)
+        {
+            if (!collapsedMainboardGroups.Add(heading.Category))
+                collapsedMainboardGroups.Remove(heading.Category);
+            RefreshMainboardManager();
+            return;
+        }
         UpdateMainboardManagerSelection();
         RefreshSelectedMainboardPrintings();
         if (busy || edhLabCommander is null ||
