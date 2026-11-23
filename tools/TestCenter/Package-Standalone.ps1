@@ -50,7 +50,7 @@ Screenshot baselines and reports remain local.
  try{
    $names=@($zip.Entries | ForEach-Object{$_.FullName})
    foreach($file in @('Open-TestCenter.cmd','Open-TestCenter.ps1','Run-UiRegression.ps1','Tests-Catalog.json')){
-     if(-not (@($names|Where-Object{$_ -like "*/$file"}).Count)){
+     if(-not (@($names|Where-Object{$_.Replace([char]92,[char]47).EndsWith("/$file") -or $_ -eq $file}).Count)){
        throw "Packaged ZIP missing $file"
      }
    }
