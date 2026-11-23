@@ -47,6 +47,29 @@ package creation; the GUI's Refresh test list action can update its local
 copy after a newer source checkout is selected. If an old standalone ZIP is
 still in use, download the updated package to obtain the refresh action.
 
+## Coverage dashboard (v0.6.0)
+
+The standalone offline Test Center v0.6.0 adds a **Coverage dashboard**.
+It reads the reviewed `Coverage-Map.json` mapping and shows:
+
+- Evidence levels (`behavioral`, `source-plus-behavior`, or `manual-only`).
+- The exact named native regression suites associated with each system.
+- PASS, FAIL, SKIP, and NOT RUN counts **only from the latest local test report**.
+- Written manual acceptance steps and known test gaps per system.
+- An exportable Markdown coverage review saved under `Reports/`.
+
+Neither the dashboard nor the mapping claims that test-suite presence proves
+full feature coverage, rendered WPF behavior, Android tests, or Xeneon hardware
+verification. Most recent test runs may select just one suite; unexecuted
+suites must remain NOT RUN.
+
+When creating a new named C# suite, update the reviewed
+`tools/TestCenter/Coverage-Map.json` if it covers a new system or closes a
+coverage gap. CI executes `tools/TestCenter/Test-CoverageMap.ps1`, rejecting
+unknown suite IDs, incomplete manual gaps, and suites not assigned to any
+system. Unlike the generated test inventory, the mapping and its rationale
+are **curated** and must be reviewed, not blindly auto-generated.
+
 ## Source of truth and quality claims
 
 - Test suite IDs and descriptions: `ArcaneVault.Next.Tests/Program.cs`
