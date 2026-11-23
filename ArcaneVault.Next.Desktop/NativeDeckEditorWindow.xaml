@@ -252,10 +252,20 @@
                                      Margin="0,3,0,0" Padding="10,2"
                                      MaxLength="255"
                                      TextChanged="OnMainboardManagerSearchChanged"
+                                     PreviewKeyDown="OnMainboardManagerSearchKeyDown"
                                      ToolTip="Filter the unsaved mainboard by card name, type or role; never modifies deck contents"
                                      Background="#202737" Foreground="White"
                                      BorderBrush="#514276"/>
                             <WrapPanel Margin="0,7,0,0">
+                                <Button Content="Clear search" Padding="9,4" Margin="0,0,7,0"
+                                        Click="OnClearMainboardSearchClicked"
+                                        ToolTip="Clear the mainboard search without changing deck text"/>
+                                <Button Content="Previous card" Padding="9,4" Margin="0,0,7,0"
+                                        Click="OnPreviousMainboardCardClicked"
+                                        ToolTip="Move to the previous visible mainboard card"/>
+                                <Button Content="Next card" Padding="9,4" Margin="0,0,7,0"
+                                        Click="OnNextMainboardCardClicked"
+                                        ToolTip="Move to the next visible mainboard card"/>
                                 <Button Content="Collapse All" Padding="9,4" Margin="0,0,7,0"
                                         Click="OnCollapseMainboardGroupsClicked"
                                         ToolTip="Collapse card-type groups without changing the saved or unsaved deck"/>
@@ -278,6 +288,7 @@
                             <ListBox Grid.Row="2" x:Name="MainboardManagerList"
                                      SelectionChanged="OnMainboardManagerSelected"
                                      MouseDoubleClick="OnMainboardManagerDoubleClick"
+                                     PreviewKeyDown="OnMainboardManagerListKeyDown"
                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
                                      VirtualizingStackPanel.IsVirtualizing="True"
                                      VirtualizingStackPanel.VirtualizationMode="Recycling"
