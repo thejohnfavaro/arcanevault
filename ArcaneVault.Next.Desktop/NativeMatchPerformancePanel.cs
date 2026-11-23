@@ -103,8 +103,11 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         breakdownRow.Children.Add(formatPanel);
         breakdownRow.Children.Add(opponentPanel);
         root.Children.Add(breakdownRow);
-        formatPanel.Children.Add(new TextBlock { Text = "BY FORMAT", FontSize = 13,
-            FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+        var formatHeading = new TextBlock { Text = "BY FORMAT", FontSize = 13,
+            FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(
+            formatHeading, "AV.Analytics.FormatHeading");
+        formatPanel.Children.Add(formatHeading);
         var formatView = new GridView();
         formatView.Columns.Add(Column("Format", "Format", 220));
         formatView.Columns.Add(Column("Matches", "Matches", 75));
@@ -112,8 +115,12 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         formatView.Columns.Add(Column("Win %", "WinRate", 80));
         formats.View = formatView;
         formatPanel.Children.Add(formats);
-        opponentPanel.Children.Add(new TextBlock { Text = "AGAINST OPPONENT COLOR IDENTITY",
-            FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+        var recordedColorHeading = new TextBlock {
+            Text = "AGAINST OPPONENT COLOR IDENTITY", FontSize = 13,
+            FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(
+            recordedColorHeading, "AV.Analytics.RecordedColorsHeading");
+        opponentPanel.Children.Add(recordedColorHeading);
         var opponentView = new GridView();
         opponentView.Columns.Add(Column("Opponent", "Identity", 155));
         opponentView.Columns.Add(Column("Matches", "Matches", 75));
@@ -124,9 +131,12 @@ internal sealed class NativeMatchPerformancePanel : UserControl
         opponentPanel.Children.Add(opponentColorCoverage);
         var observedPanel = new StackPanel {
             Width = 430, Margin = new Thickness(0,0,12,8) };
-        observedPanel.Children.Add(new TextBlock {
+        var observedColorHeading = new TextBlock {
             Text = "OBSERVED OPPONENT COLORS (PARTIAL)",
-            FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+            FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(
+            observedColorHeading, "AV.Analytics.ObservedColorsHeading");
+        observedPanel.Children.Add(observedColorHeading);
         var observedView = new GridView();
         observedView.Columns.Add(Column("Seen colors", "Identity", 155));
         observedView.Columns.Add(Column("Matches", "Matches", 75));
