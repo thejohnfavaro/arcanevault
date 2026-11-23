@@ -198,10 +198,78 @@ function Begin-Test([string]$script,[string[]]$scriptArguments,[string]$label){
     $powershell=Join-Path $PSHOME 'powershell.exe'
   }
   $args=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$script)+$scriptArguments
-  # Start-Process supplies correct Windows argument quoting, including paths
-  # containing whitespace. No user data is passed as shell code.
+  # Start-Process joins ArgumentList entries: quote paths/arguments explicitly.
+  # Escape PowerShell-quoted arguments using standard Windows command-line rules.
+  $quoted=@($args | ForEach-Object {
+    $v=[string]$_
+    if($v -match '[\s"]'){
+      $v='"'+($v -replace '(\\*)"', '$1$1\\"' -replace '(\\+) -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    $state.Process=$process;$state.Output=$stdout;$state.Error=$stderr
+    $state.RunLabel=$label
+    $log.Clear()
+    Write-Ui "Started: $label"
+    Write-Ui "Reports: $reports"
+    $status.Text="Running $label..."
+    $runNative.Enabled=$false;$runUi.Enabled=$false;$testComparator.Enabled=$false
+    $timer.Start()
+  }catch{
+    $status.Text='Launch failed: '+$_.Exception.Message
+  }
+}
+$runNative.Add_Click({
+  $root=$sourceBox.Text.Trim()
+  $runner=Join-Path $root 'tools\Run-GuidedChecks.ps1'
+  if(-not (Test-Path -LiteralPath (Join-Path $root 'ArcaneVault.Next.Tests\Program.cs'))){
+    [Windows.Forms.MessageBox]::Show('Select a full Arcane Vault source checkout first.','Test Center')|Out-Null
+    return
+  }
+  $areas=@('DeckArtwork','MatchTracking','DeckEditing','DataSafety','Everything')
+  $args=@('-Area',$areas[$area.SelectedIndex])
+  if($offline.Checked){$args+='-Offline'}
+  Begin-Test $runner $args $areas[$area.SelectedIndex]
+})
+$runUi.Add_Click({
+  if($approve.Checked){
+    $answer=[Windows.Forms.MessageBox]::Show(
+      'Overwrite the local screenshot baseline using the currently visible Arcane Vault window?',
+      'Approve screenshot baseline','YesNo','Warning')
+    if($answer -ne 'Yes'){return}
+  }
+  $script=Join-Path $toolRoot 'Run-UiRegression.ps1'
+  $args=@('-Mode',[string]$mode.SelectedItem,'-AppProcessId',([string][int]$pidBox.Value),'-ReportDir',$reports)
+  if($approve.Checked){$args+='-ApproveBaseline'}
+  Begin-Test $script $args ('Desktop '+[string]$mode.SelectedItem)
+})
+$testComparator.Add_Click({
+  Begin-Test (Join-Path $toolRoot 'Run-UiRegression.ps1') @('-SelfTest','-ReportDir',$reports) 'Screenshot self-test'
+})
+$check.Add_Click({
+  $log.Clear()
+  $root=$sourceBox.Text.Trim()
+  $checks=[ordered]@{
+    'Desktop regression script'=Test-Path -LiteralPath (Join-Path $toolRoot 'Run-UiRegression.ps1')
+    'Native suite checkout'=Test-Path -LiteralPath (Join-Path $root 'ArcaneVault.Next.Tests\Program.cs')
+    'Guided native launcher'=Test-Path -LiteralPath (Join-Path $root 'tools\Run-GuidedChecks.ps1')
+    '.NET SDK available'=($null -ne (Get-Command dotnet -ErrorAction SilentlyContinue))
+  }
+  foreach($key in $checks.Keys){Write-Ui ("{0}: {1}" -f $(if($checks[$key]){'PASS'}else{'SKIP'}),$key)}
+  $status.Text='Setup check completed. Missing items are prerequisites, not failed regressions.'
+})
+$form.Add_FormClosing({
+  if($null -ne $state.Process -and -not $state.Process.HasExited){
+    $decision=[Windows.Forms.MessageBox]::Show(
+      'A check is still running. Closing the GUI will not stop that check. Close anyway?',
+      'Test Center','YesNo','Question')
+    if($decision -ne 'Yes'){$_.Cancel=$true}
+  }
+})
+[void]$form.ShowDialog()
+, '$1$1')+'"' 
+    }
+    $v
+  })
   try{
-    $process=Start-Process -FilePath $powershell -ArgumentList $args -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    $process=Start-Process -FilePath $powershell -ArgumentList $quoted -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
     $state.Process=$process;$state.Output=$stdout;$state.Error=$stderr
     $state.RunLabel=$label
     $log.Clear()
