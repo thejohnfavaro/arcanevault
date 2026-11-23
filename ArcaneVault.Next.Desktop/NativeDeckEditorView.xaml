@@ -288,8 +288,9 @@
                                         <Setter Property="Padding" Value="5,6"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsHeader}" Value="True">
-                                                <Setter Property="IsEnabled" Value="False"/>
                                                 <Setter Property="Background" Value="#252C3D"/>
+                                                <Setter Property="Cursor" Value="Hand"/>
+                                                <Setter Property="ToolTip" Value="Select to collapse or expand this card-type group"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
