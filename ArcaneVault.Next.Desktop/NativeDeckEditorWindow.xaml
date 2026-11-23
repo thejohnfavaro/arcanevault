@@ -264,15 +264,17 @@
                                         ToolTip="Show all card-type groups without changing the saved or unsaved deck"/>
                             </WrapPanel>
                             </StackPanel>
-                            <TextBlock Grid.Row="1" x:Name="MainboardCompositionSummary"
-                                       Text="Mainboard composition loading…"
-                                       Margin="0,0,0,5" FontSize="11" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource VaultText}"/>
-                            <TextBlock Grid.Row="1" x:Name="MainboardManagerStatus"
-                                       Text="Visual mainboard loading…"
-                                       Margin="0,0,0,7" FontSize="11"
-                                       Foreground="{DynamicResource VaultMuted}"
-                                       TextWrapping="Wrap"/>
+                            <StackPanel Grid.Row="1" Margin="0,0,0,7">
+                                <TextBlock x:Name="MainboardCompositionSummary"
+                                           Text="Mainboard composition loading…"
+                                           Margin="0,0,0,5" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource VaultText}"/>
+                                <TextBlock x:Name="MainboardManagerStatus"
+                                           Text="Visual mainboard loading…"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource VaultMuted}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
                             <ListBox Grid.Row="2" x:Name="MainboardManagerList"
                                      SelectionChanged="OnMainboardManagerSelected"
                                      MouseDoubleClick="OnMainboardManagerDoubleClick"
