@@ -431,12 +431,8 @@ public partial class NativeDeckEditorWindow : Window
                 {
                     try
                     {
-                        var candidates = NativePrintingArtwork.Read(catalogPath!, identity,
-                            limit: 300, cancellation: token).Printings;
-                        imageUrl = candidates.FirstOrDefault(p =>
-                            p.SetCode.Equals(hint.SetCode, StringComparison.OrdinalIgnoreCase) &&
-                            p.CollectorNumber.Equals(hint.CollectorNumber, StringComparison.OrdinalIgnoreCase))
-                            ?.ImageUrl ?? "";
+                        imageUrl = NativePrintingArtwork.ReadArenaPrintingImage(
+                            catalogPath!, identity, hint.SetCode, hint.CollectorNumber);
                     }
                     catch (Exception ex) when (ex is InvalidDataException or
                         Microsoft.Data.Sqlite.SqliteException or IOException) { }
