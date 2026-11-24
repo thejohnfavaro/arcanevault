@@ -92,6 +92,20 @@ public sealed class NativeCatalogOwnership
             unresolved, paperProxies);
     }
 
+    // Name-level totals for AI review links and cards opened without a selected printing.
+    // Identified paper, unresolved paper, Arena and proxy quantities stay distinct.
+    public Counts ForName(string name)
+    {
+        int physical = 0;
+        foreach (var rows in physicalById.Values)
+            foreach (var row in rows)
+                if (row.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    physical = checked(physical + row.Quantity);
+        return new Counts(physical, arenaByName.GetValueOrDefault(name),
+            unresolvedByName.GetValueOrDefault(name),
+            proxiesByName.GetValueOrDefault(name));
+    }
+
     public Counts ForPrinting(string printId, string name,
         string setCode, string collectorNumber, bool isPaper = true)
     {
