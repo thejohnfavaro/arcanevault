@@ -586,10 +586,15 @@
                            TextWrapping="Wrap" Foreground="#E5BF79"
                            Text="Deck totals will appear here."/>
                 <StackPanel Grid.Row="6">
-                    <TextBlock x:Name="DeckShortageText"
-                               TextWrapping="Wrap" Foreground="#C9A9A9"
-                               MaxHeight="100"
-                               ToolTip="Only the selected ownership pool is counted; missing copies are not auto-added."/>
+                    <TextBox x:Name="DeckShortageText"
+                             IsReadOnly="True" AcceptsReturn="True"
+                             TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Disabled"
+                             MinHeight="52" MaxHeight="120"
+                             Background="Transparent" Foreground="#C9A9A9"
+                             BorderThickness="0" Padding="0,2,6,2"
+                             Focusable="True"
+                             ToolTip="Scroll to review all shortages. Only the selected ownership pool is counted; missing copies are not auto-added."/>
                     <TextBlock x:Name="EdhLegalityText"
                                TextWrapping="Wrap" FontSize="11" Margin="0,7,0,0"
                                Foreground="{DynamicResource VaultWarning}"/>
