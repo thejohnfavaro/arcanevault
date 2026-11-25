@@ -305,7 +305,64 @@ jobs:
             Write-Host "Published $tag for the in-app updater."
             exit 0
           }
-          gh release create $tag native-package/ArcaneVaultNative-win-x64.zip native-package/ArcaneVaultNative-win-x64.zip.sha256 native-installer/ArcaneVaultSetup-win-x64.exe native-installer/ArcaneVaultSetup-win-x64.exe.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "Arcane Vault Native Windows v$version (Preview)" --notes-file $notes --prerelease
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to publish native preview $tag"
+          # GitHub release creation occasionally responds HTTP 500, even when
+          # the build and all package checks have succeeded. Retry with a
+          # bounded delay and inspect the exact tag after an ambiguous failure.
+          $packageFiles = @(
+            "native-package/ArcaneVaultNative-win-x64.zip",
+            "native-package/ArcaneVaultNative-win-x64.zip.sha256",
+            "native-installer/ArcaneVaultSetup-win-x64.exe",
+            "native-installer/ArcaneVaultSetup-win-x64.exe.sha256"
+          )
+          $created = $false
+          for ($attempt = 1; $attempt -le 4; $attempt++) {
+            Write-Host "Publishing $tag (attempt $attempt of 4)."
+            gh release create $tag @packageFiles --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "Arcane Vault Native Windows v$version (Preview)" --notes-file $notes --prerelease
+            if ($LASTEXITCODE -eq 0) { $created = $true; break }
+            Write-Warning "Release API returned a failure. Checking for a partially created release."
+            Start-Sleep -Seconds (5 * $attempt)
+            $checkJson = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100"
+            if ($LASTEXITCODE -ne 0) { continue }
+            $found = @($checkJson | ConvertFrom-Json) |
+              Where-Object { $_.tag_name -eq $tag } | Select-Object -First 1
+            if ($null -ne $found) {
+              if (-not $found.draft) { $created = $true; break }
+              $requiredNames = @(
+                "ArcaneVaultNative-win-x64.zip", "ArcaneVaultNative-win-x64.zip.sha256",
+                "ArcaneVaultSetup-win-x64.exe", "ArcaneVaultSetup-win-x64.exe.sha256"
+              )
+              $availableNames = @($found.assets | Where-Object {
+                $_.state -eq "uploaded" -and $_.size -gt 0
+              } | ForEach-Object { $_.name })
+              $missing = @($requiredNames | Where-Object { $_ -notin $availableNames })
+              if ($missing.Count -eq 0) {
+                Write-Host "Publishing complete draft $($found.id) after API failure."
+                $published = gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($found.id)" -f draft=false
+                if ($LASTEXITCODE -eq 0) { $created = $true; break }
+              } else {
+                # Resume uploading missing files rather than creating duplicates.
+                foreach ($assetName in $missing) {
+                  $file = $packageFiles | Where-Object { (Split-Path $_ -Leaf) -eq $assetName } | Select-Object -First 1
+                  gh release upload $tag $file --repo "$env:GITHUB_REPOSITORY"
+                  if ($LASTEXITCODE -ne 0) { Write-Warning "Upload retry failed for $assetName" }
+                }
+                $latest = gh api "repos/$env:GITHUB_REPOSITORY/releases/$($found.id)"
+                if ($LASTEXITCODE -eq 0) {
+                  $check = $latest | ConvertFrom-Json
+                  $present = @($check.assets | Where-Object { $_.state -eq "uploaded" -and $_.size -gt 0 } | ForEach-Object { $_.name })
+                  if (@($requiredNames | Where-Object { $_ -notin $present }).Count -eq 0) {
+                    gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($found.id)" -f draft=false | Out-Null
+                    if ($LASTEXITCODE -eq 0) { $created = $true; break }
+                  }
+                }
+              }
+            }
           }
+          if (-not $created) { throw "Unable to publish $tag after 4 attempts; check GitHub Releases API availability." }
+          # Confirm actual public visibility rather than reporting an artifact-only build.
+          $public = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $public.draft -or $public.tag_name -ne $tag) {
+            throw "Release $tag is not publicly available to the in-app updater."
+          }
+          Write-Host "Published $tag for the in-app updater."
+
