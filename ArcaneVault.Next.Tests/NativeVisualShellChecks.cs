@@ -101,6 +101,14 @@ internal static class NativeVisualShellChecks
                  shortage.Attribute("MaxHeight") is not null,
                  "Deck shortages must be scrollable and read-only in both editor layouts.");
         }
+        // Scrollability is not sufficient if the report itself only includes
+        // a fixed number of shortage rows.
+        foreach (var code in new[] { savedEditorCode, draftEditorPreviewCode })
+            Must(code.Contains("summary.Shortages.Select(x =>") &&
+                 code.Contains("string.Join(\"\\n\", lines)") &&
+                 !code.Contains("summary.Shortages.Take(6)") &&
+                 !code.Contains("more card names."),
+                 "All ownership shortages must be individually listed in both deck editors.");
         foreach (var layout in new[] { savedEditor, deckStudio })
             Must(layout.Contains("OnCollapseMainboardGroupsClicked") &&
                  layout.Contains("OnExpandMainboardGroupsClicked") &&
