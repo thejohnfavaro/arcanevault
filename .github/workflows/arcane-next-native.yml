@@ -260,25 +260,16 @@ jobs:
             throw "Invalid native version $version"
           }
           $tag = "native-v$version"
-          # A failed gh release create can leave an untagged draft with the same
-          # release asset names. That draft is invisible to 'gh release view TAG',
-          # and a retry otherwise fails with ReleaseAsset.name already exists.
-          # Remove ONLY stale drafts for this exact version, never published releases.
-          $releases = @(gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json)
+          # An interrupted 'gh release create' can leave a complete but unpublished
+          # draft. The draft is not discoverable by the in-app updater. Recover it
+          # without deleting good assets or creating duplicate names.
+          $releasesJson = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100"
           if ($LASTEXITCODE -ne 0) { throw "Cannot inspect releases before publishing." }
-          foreach ($release in $releases) {
-            if ($release.tag_name -ne $tag) { continue }
-            if ($release.draft -eq $true) {
-              Write-Host "Removing incomplete draft release $($release.id) for $tag."
-              gh api -X DELETE "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)"
-              if ($LASTEXITCODE -ne 0) { throw "Failed to remove incomplete draft release $($release.id)." }
-            } else {
-              if ($release.target_commitish -ne $env:GITHUB_SHA) {
-                throw "Published native release $tag already belongs to $($release.target_commitish), not this commit."
-              }
-              Write-Host "Native release $tag already published from this exact commit."
-              exit 0
-            }
+          $releases = @($releasesJson | ConvertFrom-Json)
+          $existingRelease = $releases | Where-Object { $_.tag_name -eq $tag } | Select-Object -First 1
+          if ($null -ne $existingRelease -and -not $existingRelease.draft) {
+            Write-Host "Native release $tag already published."
+            exit 0
           }
           $notes = "releases/native-v$version.md"
           if (-not (Test-Path $notes)) {
@@ -289,6 +280,30 @@ jobs:
             if ($content -notmatch "(?m)^## $section\s*$") {
               throw "Native preview notes are missing ## $section"
             }
+          }
+          if ($null -ne $existingRelease -and $existingRelease.draft) {
+            # Publish only when the draft actually contains the full updater payload.
+            $requiredAssets = @(
+              "ArcaneVaultNative-win-x64.zip",
+              "ArcaneVaultNative-win-x64.zip.sha256",
+              "ArcaneVaultSetup-win-x64.exe",
+              "ArcaneVaultSetup-win-x64.exe.sha256"
+            )
+            foreach ($assetName in $requiredAssets) {
+              $asset = $existingRelease.assets | Where-Object {
+                $_.name -eq $assetName -and $_.state -eq "uploaded" -and $_.size -gt 0
+              } | Select-Object -First 1
+              if ($null -eq $asset) { throw "Draft $tag lacks valid asset $assetName" }
+            }
+            Write-Host "Publishing verified complete draft release $($existingRelease.id) for $tag."
+            $publishedJson = gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($existingRelease.id)" -F draft=false
+            if ($LASTEXITCODE -ne 0) { throw "Failed to publish existing complete draft $tag" }
+            $published = $publishedJson | ConvertFrom-Json
+            if ($published.draft -or $published.tag_name -ne $tag) {
+              throw "Draft publishing did not produce a public versioned release for $tag"
+            }
+            Write-Host "Published $tag for the in-app updater."
+            exit 0
           }
           gh release create $tag native-package/ArcaneVaultNative-win-x64.zip native-package/ArcaneVaultNative-win-x64.zip.sha256 native-installer/ArcaneVaultSetup-win-x64.exe native-installer/ArcaneVaultSetup-win-x64.exe.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "Arcane Vault Native Windows v$version (Preview)" --notes-file $notes --prerelease
           if ($LASTEXITCODE -ne 0) {
