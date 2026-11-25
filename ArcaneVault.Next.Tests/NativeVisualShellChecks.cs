@@ -87,6 +87,21 @@ internal static class NativeVisualShellChecks
             "NativeDeckEditorWindow.MainboardManager.cs"));
         string draftGroups = File.ReadAllText(Path.Combine(dir,
             "NativeDeckEditorView.MainboardManager.cs"));
+        // Large ownership shortage reports must remain fully inspectable on
+        // both the separate saved editor and the embedded EDH Lab draft.
+        foreach (var layout in new[] { savedEditor, deckStudio })
+        {
+            var xaml = XDocument.Parse(layout);
+            XNamespace x = XamlNs;
+            var shortage = xaml.Descendants().SingleOrDefault(element =>
+                (string?)element.Attribute(x + "Name") == "DeckShortageText");
+            Must(shortage is not null && shortage.Name.LocalName == "TextBox" &&
+                 (string?)shortage.Attribute("IsReadOnly") == "True" &&
+                 (string?)shortage.Attribute("TextWrapping") == "Wrap" &&
+                 (string?)shortage.Attribute("VerticalScrollBarVisibility") == "Auto" &&
+                 shortage.Attribute("MaxHeight") is not null,
+                 "Deck shortage list must be scrollable and read-only in both editor layouts.");
+        }
         foreach (var layout in new[] { savedEditor, deckStudio })
             Must(layout.Contains("OnCollapseMainboardGroupsClicked") &&
                  layout.Contains("OnExpandMainboardGroupsClicked") &&
