@@ -87,6 +87,20 @@ internal static class NativeVisualShellChecks
             "NativeDeckEditorWindow.MainboardManager.cs"));
         string draftGroups = File.ReadAllText(Path.Combine(dir,
             "NativeDeckEditorView.MainboardManager.cs"));
+        // Both deck editors must expose the full shortage list by scrolling.
+        foreach (var layout in new[] { savedEditor, deckStudio })
+        {
+            var xml = XDocument.Parse(layout);
+            XNamespace ns = XamlNs;
+            var shortage = xml.Descendants().SingleOrDefault(element =>
+                (string?)element.Attribute(ns + "Name") == "DeckShortageText");
+            Must(shortage is not null && shortage.Name.LocalName == "TextBox" &&
+                 (string?)shortage.Attribute("IsReadOnly") == "True" &&
+                 (string?)shortage.Attribute("TextWrapping") == "Wrap" &&
+                 (string?)shortage.Attribute("VerticalScrollBarVisibility") == "Auto" &&
+                 shortage.Attribute("MaxHeight") is not null,
+                 "Deck shortages must be scrollable and read-only in both editor layouts.");
+        }
         foreach (var layout in new[] { savedEditor, deckStudio })
             Must(layout.Contains("OnCollapseMainboardGroupsClicked") &&
                  layout.Contains("OnExpandMainboardGroupsClicked") &&
