@@ -1533,7 +1533,7 @@ public partial class NativeDeckEditorWindow : Window
                 MainboardBox.Text, CommanderBox.Text, FormatBox.Text, proxyLedger);
             DeckSummaryText.Text = summary.Header;
             string poolName = pool == NativeDeckOwnedPicker.Pool.Arena ? "Arena" : "Physical";
-            var lines = summary.Shortages.Take(6).Select(x =>
+            var lines = summary.Shortages.Select(x =>
                 $"{x.Name}: need {x.Required}, owned {x.Owned}" +
                 (pool == NativeDeckOwnedPicker.Pool.Physical && x.Proxy > 0
                     ? $", Proxy {x.Proxy}" : "") +
@@ -1544,10 +1544,7 @@ public partial class NativeDeckEditorWindow : Window
                       ? $" + {summary.ProxyCoveredCopies:N0} Proxy copies (not owned or valued)."
                       : ".")
                 : $"{poolName} shortages ({summary.Shortages.Count} cards):\n" +
-                  string.Join("\n", lines) +
-                  (summary.Shortages.Count > 6
-                      ? $"\n… plus {summary.Shortages.Count - 6} more card names."
-                      : "");
+                  string.Join("\n", lines);
             if (edhLabCommander is not null)
             {
                 RefreshMissingCardReview(summary);
