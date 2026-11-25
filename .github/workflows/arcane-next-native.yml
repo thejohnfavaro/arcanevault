@@ -260,13 +260,25 @@ jobs:
             throw "Invalid native version $version"
           }
           $tag = "native-v$version"
-          $existingTarget = gh release view $tag --repo "$env:GITHUB_REPOSITORY" --json targetCommitish --jq '.targetCommitish' 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            if ($existingTarget.Trim() -ne $env:GITHUB_SHA) {
-              throw "Native release $tag already belongs to $existingTarget, not this commit. Bump the native version before publishing changes."
+          # A failed gh release create can leave an untagged draft with the same
+          # release asset names. That draft is invisible to 'gh release view TAG',
+          # and a retry otherwise fails with ReleaseAsset.name already exists.
+          # Remove ONLY stale drafts for this exact version, never published releases.
+          $releases = @(gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --paginate | ConvertFrom-Json)
+          if ($LASTEXITCODE -ne 0) { throw "Cannot inspect releases before publishing." }
+          foreach ($release in $releases) {
+            if ($release.tag_name -ne $tag) { continue }
+            if ($release.draft -eq $true) {
+              Write-Host "Removing incomplete draft release $($release.id) for $tag."
+              gh api -X DELETE "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)"
+              if ($LASTEXITCODE -ne 0) { throw "Failed to remove incomplete draft release $($release.id)." }
+            } else {
+              if ($release.target_commitish -ne $env:GITHUB_SHA) {
+                throw "Published native release $tag already belongs to $($release.target_commitish), not this commit."
+              }
+              Write-Host "Native release $tag already published from this exact commit."
+              exit 0
             }
-            Write-Host "Native preview $tag is already published from this exact commit."
-            exit 0
           }
           $notes = "releases/native-v$version.md"
           if (-not (Test-Path $notes)) {
