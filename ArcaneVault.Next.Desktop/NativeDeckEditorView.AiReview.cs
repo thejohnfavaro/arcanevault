@@ -156,15 +156,14 @@ public partial class NativeDeckEditorView
     {
         try
         {
-            var format = FormatBox?.Text ?? "";
-            if (!format.Contains("Commander", StringComparison.OrdinalIgnoreCase) ||
-                format.Contains("Brawl", StringComparison.OrdinalIgnoreCase))
-            {
-                AiReviewStatus.Text = "Commander Brackets apply to tabletop Commander, not Arena Brawl.";
-                return;
-            }
-            var cards = NativeDeckEditing.ParseMainboard(MainboardBox?.Text ?? "")
-                .Select(c => c.Name).ToArray();
+            var format = FormatBox?.Text?.Trim() ?? "";
+            // Arena decks can be inspected as hypothetical paper Commander
+            // lists without changing their saved format or assigning them a bracket.
+            bool paperCommander = format.Equals("Commander", StringComparison.OrdinalIgnoreCase);
+            bool arenaDeck = format.Contains("Arena", StringComparison.OrdinalIgnoreCase) ||
+                format.Contains("Brawl", StringComparison.OrdinalIgnoreCase);
+            var entries = NativeDeckEditing.ParseMainboard(MainboardBox?.Text ?? "");
+            var cards = entries.Select(c => c.Name).ToArray();
             if (cards.Length == 0)
             {
                 AiReviewStatus.Text = "Add cards to your deck before assessing its bracket.";
@@ -173,9 +172,29 @@ public partial class NativeDeckEditorView
             var assessment = ArcaneVault.Next.Domain.CommanderBracketAssessment.Evaluate(
                 cards, CommanderBox?.Text);
             var report = new StringBuilder();
-            report.AppendLine("## Commander Bracket — preliminary local assessment");
+            report.AppendLine(paperCommander
+                ? "## Commander Bracket — preliminary local assessment"
+                : "## Hypothetical paper Commander bracket — preliminary assessment");
             report.AppendLine();
-            report.AppendLine("**Rules-backed minimum: Bracket " +
+            if (!paperCommander)
+            {
+                report.AppendLine("**Simulation only:** This " +
+                    (arenaDeck ? "Arena" : "non-Commander") +
+                    " deck has no official Commander bracket. This check only screens the current cards " +
+                    "for paper Commander bracket indicators; it does not convert the deck, validate " +
+                    "paper legality, or write any bracket to its saved record.");
+                report.AppendLine();
+                if (string.IsNullOrWhiteSpace(CommanderBox?.Text))
+                    report.AppendLine("**No commander selected:** Choose a paper-legal commander " +
+                        "and construct a valid 100-card singleton list before treating this as a " +
+                        "paper Commander deck. The result below is card-pool analysis only.");
+                else
+                    report.AppendLine("**Paper conversion required:** Check commander eligibility, " +
+                        "color identity, card legality, singleton rules and deck size before " +
+                        "using this deck at a tabletop Commander game.");
+                report.AppendLine();
+            }
+            report.AppendLine("**Rules-backed minimum based on checked cards: Bracket " +
                 assessment.MinimumBracket + "**");
             report.AppendLine();
             report.AppendLine("Game Changers: **" + assessment.GameChangerCount + "**");
@@ -218,8 +237,9 @@ public partial class NativeDeckEditorView
             aiReviewDeckFingerprint = "";
             AiSaveReviewButton.IsEnabled = false;
             AiReviewResultViewer.Document = AiReviewMarkdown.Render(report.ToString());
-            AiReviewStatus.Text = "Local bracket check complete (no AI or network). " +
-                "This is a floor, not a final bracket.";
+            AiReviewStatus.Text = paperCommander
+                ? "Local bracket check complete (no AI or network). This is a floor, not a final bracket."
+                : "Hypothetical paper Commander card check complete (offline). Arena format unchanged; no bracket saved.";
         }
         catch (Exception ex)
         {
