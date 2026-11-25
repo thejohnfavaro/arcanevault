@@ -219,6 +219,8 @@ public partial class NativeCardDetailsWindow : Window
         CardName.Text = name;
         CardName.ToolTip = name;
         Ownership.Text = ownership;
+        OwnedCount.Text = string.IsNullOrWhiteSpace(nativePath)
+            ? "Owned: collection unavailable" : "Owned: checking local collection…";
         CardRarityBadge.Text = "RARITY UNKNOWN";
         CardRarityBadge.Tag = "";
         ColorIdentitySymbols.ItemsSource = Array.Empty<NativeManaIdentity.Color>();
@@ -266,9 +268,38 @@ public partial class NativeCardDetailsWindow : Window
         {
             AdaptContentHeight();
             _ = RefreshBookmarkAsync();
+            _ = RefreshOwnedCountAsync();
             await ShowPreferredArtworkAsync();
         };
         Closed += (_, _) => artworkCancellation.Cancel();
+    }
+
+    private async Task RefreshOwnedCountAsync()
+    {
+        if (string.IsNullOrWhiteSpace(nativePath) || !File.Exists(nativePath)) return;
+        string name = CardName.Text;
+        try
+        {
+            var counts = await Task.Run(() =>
+            {
+                // Read verified native collection data without modifying any inventory.
+                var workspace = NativeWorkspace.Open(nativePath);
+                var proxies = NativeWorkspaceSafety.ListProxiesFromVerified(workspace);
+                return NativeCatalogOwnership.From(workspace.Collection, proxies).ForName(name);
+            }, artworkCancellation.Token);
+            if (artworkCancellation.IsCancellationRequested) return;
+            OwnedCount.Text = $"Owned: {counts.VerifiedPhysical} physical · {counts.Arena} Arena";
+            if (counts.UnresolvedName > 0)
+                OwnedCount.Text += $" · {counts.UnresolvedName} unresolved physical";
+            if (counts.Proxy > 0)
+                OwnedCount.Text += $" · {counts.Proxy} proxy (not owned)";
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception)
+        {
+            if (!artworkCancellation.IsCancellationRequested)
+                OwnedCount.Text = "Owned: collection count unavailable";
+        }
     }
 
     private void OnAddToCollectionClicked(object sender, RoutedEventArgs e)
@@ -287,6 +318,7 @@ public partial class NativeCardDetailsWindow : Window
             {
                 OwnershipChanged = true;
                 Ownership.Text = "Physical printing added. Collection ownership will refresh.";
+                _ = RefreshOwnedCountAsync();
             }
         }
         catch (Exception ex)
