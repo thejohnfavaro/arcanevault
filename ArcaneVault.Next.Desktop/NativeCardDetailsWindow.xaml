@@ -109,6 +109,11 @@
                         <StackPanel>
                             <TextBlock Style="{StaticResource VaultEyebrow}"
                                        Text="YOUR OWNERSHIP" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="OwnedCount" Text="Owned: checking local collection…"
+                                       FontSize="17" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource VaultText}"
+                                       TextWrapping="Wrap" Margin="0,0,0,5"
+                                       AutomationProperties.Name="Owned card quantities"/>
                             <TextBlock x:Name="Ownership" FontSize="12"
                                        Foreground="{DynamicResource VaultGood}"
                                        TextWrapping="Wrap"/>

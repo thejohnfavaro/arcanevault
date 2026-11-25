@@ -481,8 +481,9 @@ public partial class NativeDeckEditorView
             }
             // Reuse the full native card screen. No deck or inventory writes.
             var window = new NativeCardDetailsWindow(detail.Name,
-                "AI Review recommendation · read-only card details",
-                detail, catalogPath: catalogPath)
+                "AI Review recommendation · local collection ownership",
+                detail, catalogPath: catalogPath,
+                nativePath: File.Exists(nativePath) ? nativePath : null)
             {
                 Owner = Window.GetWindow(this)
             };
