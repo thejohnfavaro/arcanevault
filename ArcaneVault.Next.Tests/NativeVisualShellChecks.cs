@@ -80,6 +80,13 @@ internal static class NativeVisualShellChecks
                      "OnOpenNativeClicked", "OnOpenSetProgressClicked",
                      "OnOpenDeckLibraryClicked", "OnEdhLabClicked", "OnShowDataSyncClicked" })
             Must(mainShell.Contains(command), "Unified navigation must preserve " + command);
+        string aiReviewCode = File.ReadAllText(Path.Combine(dir,
+            "NativeDeckEditorView.AiReview.cs"));
+        Must(aiReviewCode.Contains("Hypothetical paper Commander bracket") &&
+             aiReviewCode.Contains("Arena format unchanged; no bracket saved.") &&
+             aiReviewCode.Contains("CommanderBracketAssessment.Evaluate(") &&
+             !aiReviewCode.Contains("Commander Brackets apply to tabletop Commander, not Arena Brawl."),
+             "Arena decks must support read-only paper bracket estimation without conversion.");
         string savedEditor = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorWindow.xaml"));
         string savedEditorCode = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorWindow.xaml.cs"));
         string draftEditorPreviewCode = File.ReadAllText(Path.Combine(dir, "NativeDeckEditorView.xaml.cs"));
