@@ -1550,7 +1550,7 @@
                                     Padding="11,8" Margin="0,0,8,5"
                                     Background="{DynamicResource VaultPanelRaised}"
                                     Foreground="{DynamicResource VaultText}"
-                                    ToolTip="Read-only Game Changer check and minimum Commander bracket; does not send an AI request."/>
+                                    ToolTip="Offline paper Commander estimate for any deck, including Arena. Does not change its format, save a bracket, or send an AI request."/>
                             <Button x:Name="AiAnalyzeButton" Content="Analyze current deck"
                                     Click="OnAiAnalyzeClicked" Padding="11,8" Margin="0,0,8,5"
                                     Background="{DynamicResource VaultAccentMuted}"
