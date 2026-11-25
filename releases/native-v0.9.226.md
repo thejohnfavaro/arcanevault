@@ -16,3 +16,4 @@
 ## Verification
 - Verify native compilation, regressions, package and installer via GitHub Actions.
 - Check owned, unowned, Arena, and proxy quantities from AI review card links.
+- Publish as a tagged `native-v0.9.226` release on main, allowing the application's existing update checker to discover the production-channel preview release; PR artifacts are not the update channel.
