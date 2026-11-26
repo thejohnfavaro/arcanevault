@@ -154,9 +154,23 @@ public static class NativeDeckOwnedPicker
     /// and proxy quantities never become owned quantities.
     /// The CSV escapes spreadsheet formulas and punctuation in card names.
     /// </summary>
-    public static string CompletionShoppingListCsv(DraftSummary summary, Pool pool)
+    public sealed record OwnedSubstitution(string MissingName, string ReplacementName, int Copies);
+
+    public static string CompletionShoppingListCsv(DraftSummary summary, Pool pool,
+        IReadOnlyList<OwnedSubstitution>? potentialSubstitutions = null)
     {
         ArgumentNullException.ThrowIfNull(summary);
+        var alternatives = (potentialSubstitutions ?? [])
+            .Where(x => x.Copies > 0)
+            .GroupBy(x => x.MissingName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key,
+                x => string.Join("; ", x.GroupBy(y => y.ReplacementName,
+                        StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(y => y.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(y => y.Sum(z => z.Copies).ToString(
+                        System.Globalization.CultureInfo.InvariantCulture) +
+                        "x " + y.Key)),
+                StringComparer.OrdinalIgnoreCase);
         static string Cell(string text)
         {
             // Prevent spreadsheet formula execution for untrusted card names.
@@ -166,7 +180,7 @@ public static class NativeDeckOwnedPicker
         }
         var lines = new List<string>
         {
-            "Card,Missing Copies,Required Copies,Owned Copies,Proxy Copies,Inventory"
+            "Card,Missing Copies,Required Copies,Owned Copies,Proxy Copies,Inventory,Potential Owned Substitutions (Not Applied)"
         };
         foreach (var row in summary.Shortages.Where(x => x.Missing > 0))
         {
@@ -175,7 +189,8 @@ public static class NativeDeckOwnedPicker
                 row.Required.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 row.Owned.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 (pool == Pool.Physical ? row.Proxy : 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
-                Cell(pool == Pool.Physical ? "Physical" : "Arena")));
+                Cell(pool == Pool.Physical ? "Physical" : "Arena"),
+                Cell(alternatives.GetValueOrDefault(row.Name) ?? "")));
         }
         return string.Join("\r\n", lines) + "\r\n";
     }
