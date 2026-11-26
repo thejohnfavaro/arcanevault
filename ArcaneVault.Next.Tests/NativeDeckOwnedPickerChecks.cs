@@ -211,6 +211,27 @@ internal static class NativeDeckOwnedPickerChecks
                 NativeDeckOwnedPicker.Pool.Physical, "invalid", "", "60-card");
         } catch (InvalidDataException) { malformed = true; }
         Must(malformed, "Invalid draft text must not yield misleading shortage totals.");
+        // Complete My Deck is strictly read-only; proxy coverage must not
+        // become a missing purchase or a claimed owned printing.
+        var completion = NativeDeckOwnedPicker.Review(owned,
+            NativeDeckOwnedPicker.Pool.Physical,
+            "8 Sol Ring\n2 Forest\n1 =Untrusted Sample", "", "60-card",
+            new[] { new NativeProxyEditing.ProxyRow("Sol Ring", 1) });
+        var csv = NativeDeckOwnedPicker.CompletionShoppingListCsv(
+            completion, NativeDeckOwnedPicker.Pool.Physical);
+        Must(completion.MissingCopies == 3 &&
+             csv.Contains("\"Sol Ring\",2,8,5,1,\"Physical\"") &&
+             csv.Contains("\"'=Untrusted Sample\",1,1,0,0,\"Physical\"") &&
+             !csv.Contains("\"Forest\",") &&
+             !csv.Contains("price", StringComparison.OrdinalIgnoreCase),
+             "Shopping list must count real missing copies, avoid covered cards and spreadsheet formulas, and not invent prices.");
+        var arenaPlan = NativeDeckOwnedPicker.CompletionShoppingListCsv(
+            NativeDeckOwnedPicker.Review(owned,
+                NativeDeckOwnedPicker.Pool.Arena,
+                "2 Sol Ring", "", "60-card"),
+            NativeDeckOwnedPicker.Pool.Arena);
+        Must(arenaPlan.Contains("\"Sol Ring\",1,2,1,0,\"Arena\""),
+             "Arena inventory must stay isolated from physical ownership and proxies.");
         Console.WriteLine("PASS: native deck owned-card picker (pool isolation, aggregates, safe add)");
     }
 }

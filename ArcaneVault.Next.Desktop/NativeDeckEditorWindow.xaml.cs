@@ -1507,6 +1507,44 @@ public partial class NativeDeckEditorWindow : Window
             "Select a card for its preview; adding or replacing cards remains manual.";
     }
 
+    private void OnExportCompletionPlanClicked(object sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        try
+        {
+            var pool = OwnedPoolBox.SelectedIndex == 1
+                ? NativeDeckOwnedPicker.Pool.Arena : NativeDeckOwnedPicker.Pool.Physical;
+            // Recalculate from the unsaved editor contents, not from a cached
+            // summary or a previously persisted deck.
+            var summary = NativeDeckOwnedPicker.Review(ownership, pool,
+                MainboardBox.Text, CommanderBox.Text, FormatBox.Text, proxyLedger);
+            if (summary.Shortages.Count == 0)
+            {
+                StatusText.Text = "Complete My Deck: no missing copies in this inventory pool.";
+                return;
+            }
+            var picker = new SaveFileDialog
+            {
+                Title = "Export Complete My Deck shopping list",
+                Filter = "CSV files (*.csv)|*.csv",
+                FileName = "ArcaneVault-CompleteMyDeck.csv",
+                DefaultExt = ".csv",
+                AddExtension = true,
+                OverwritePrompt = true
+            };
+            if (picker.ShowDialog(this) != true) return;
+            var csv = NativeDeckOwnedPicker.CompletionShoppingListCsv(summary, pool);
+            File.WriteAllText(picker.FileName, csv, new UTF8Encoding(true));
+            StatusText.Text = $"Exported {summary.Shortages.Count:N0} missing card names " +
+                $"({summary.MissingCopies:N0} copies). No deck or ownership changes.";
+        }
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentException or
+            IOException or UnauthorizedAccessException or OverflowException)
+        {
+            StatusText.Text = "Complete My Deck export failed: " + ex.Message;
+        }
+    }
+
     private void RefreshDraftSummary()
     {
         // Explicit refreshes (strategy/format/land-target changes) replace

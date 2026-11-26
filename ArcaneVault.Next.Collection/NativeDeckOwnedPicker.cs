@@ -149,6 +149,38 @@ public static class NativeDeckOwnedPicker
     }
 
     /// <summary>
+    /// Export a read-only missing-card purchase plan from the exact same
+    /// ownership accounting used by the deck editor. No prices are invented,
+    /// and proxy quantities never become owned quantities.
+    /// The CSV escapes spreadsheet formulas and punctuation in card names.
+    /// </summary>
+    public static string CompletionShoppingListCsv(DraftSummary summary, Pool pool)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
+        static string Cell(string text)
+        {
+            // Prevent spreadsheet formula execution for untrusted card names.
+            if (text.Length > 0 && "=+-@".Contains(text[0]))
+                text = "'" + text;
+            return "\"" + text.Replace("\"", "\"\"") + "\"";
+        }
+        var lines = new List<string>
+        {
+            "Card,Missing Copies,Required Copies,Owned Copies,Proxy Copies,Inventory"
+        };
+        foreach (var row in summary.Shortages.Where(x => x.Missing > 0))
+        {
+            lines.Add(string.Join(",", Cell(row.Name),
+                row.Missing.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                row.Required.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                row.Owned.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                (pool == Pool.Physical ? row.Proxy : 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Cell(pool == Pool.Physical ? "Physical" : "Arena")));
+        }
+        return string.Join("\r\n", lines) + "\r\n";
+    }
+
+    /// <summary>
     /// Add a single selected owned card without discarding or rewriting other
     /// entries. Invalid draft text is rejected instead of silently repaired.
     /// </summary>
