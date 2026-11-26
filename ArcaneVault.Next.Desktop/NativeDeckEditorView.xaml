@@ -600,6 +600,13 @@
                              BorderThickness="0" Padding="0,2,6,2"
                              Focusable="True"
                              ToolTip="Scroll to review all shortages. Only the selected ownership pool is counted; missing copies are not auto-added."/>
+                    <Button Content="Complete My Deck · Export shopping list"
+                            Click="OnExportCompletionPlanClicked"
+                            ToolTip="Export the missing copies in this unsaved draft. No purchases, ownership changes, or prices."
+                            HorizontalAlignment="Left" Margin="0,6,0,0"
+                            Padding="10,5"
+                            Background="{DynamicResource VaultPanelRaised}"
+                            Foreground="{DynamicResource VaultText}"/>
                     <TextBlock x:Name="EdhLegalityText"
                                TextWrapping="Wrap" FontSize="11" Margin="0,7,0,0"
                                Foreground="{DynamicResource VaultWarning}"/>
