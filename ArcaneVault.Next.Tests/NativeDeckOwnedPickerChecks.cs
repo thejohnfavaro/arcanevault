@@ -215,7 +215,7 @@ internal static class NativeDeckOwnedPickerChecks
         // become a missing purchase or a claimed owned printing.
         var completion = NativeDeckOwnedPicker.Review(owned,
             NativeDeckOwnedPicker.Pool.Physical,
-            "8 Sol Ring\\n2 Forest\\n1 =Untrusted Sample", "", "60-card",
+            "8 Sol Ring\n2 Forest\n1 =Untrusted Sample", "", "60-card",
             new[] { new NativeProxyEditing.ProxyRow("Sol Ring", 1) });
         var csv = NativeDeckOwnedPicker.CompletionShoppingListCsv(
             completion, NativeDeckOwnedPicker.Pool.Physical);
