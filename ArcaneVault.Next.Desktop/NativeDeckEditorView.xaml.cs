@@ -1547,10 +1547,58 @@ public partial class NativeDeckEditorView : UserControl
                 OverwritePrompt = true
             };
             if (picker.ShowDialog(Window.GetWindow(this)) != true) return;
-            var csv = NativeDeckOwnedPicker.CompletionShoppingListCsv(summary, pool);
+            // Reuse EDH Lab's deterministic, locally eligible role-matching
+            // planner, but only when its loaded catalog matches this pool.
+            // Recommendations are annotations, never automatic edits or
+            // a reduction in the recorded purchase shortage.
+            var suggestions = new List<NativeDeckOwnedPicker.OwnedSubstitution>();
+            bool matchingEdhPool = edhCatalog is not null &&
+                (pool == NativeDeckOwnedPicker.Pool.Physical &&
+                 edhLabFormat == EdhLabFormat.PaperCommander ||
+                 pool == NativeDeckOwnedPicker.Pool.Arena &&
+                 edhLabFormat == EdhLabFormat.ArenaBrawl);
+            if (matchingEdhPool)
+            {
+                try
+                {
+                    var entries = NativeDeckEditing.ParseMainboard(MainboardBox.Text);
+                    var names = entries.Select(x => ArenaDeckCardName.Identity(x.Name))
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var shortages = summary.Shortages
+                        .Where(x => names.Contains(ArenaDeckCardName.Identity(x.Name)))
+                        .Select(x => new EdhLabAutomaticSubstitutions.Shortage(x.Name, x.Missing));
+                    var plan = EdhLabAutomaticSubstitutions.Analyze(edhCatalog!,
+                        entries.Select(x => (x.Name, x.Quantity)), shortages,
+                        focus: SelectedStrategyFocus);
+                    // Do not claim an alternative is owned when the currently
+                    // selected inventory does not have enough unused copies.
+                    var proposed = plan.Swaps.GroupBy(x => x.ReplacementName,
+                        StringComparer.OrdinalIgnoreCase);
+                    if (proposed.All(x =>
+                        NativeDeckOwnedPicker.CountOwned(ownership, pool, x.Key) -
+                        entries.Where(y => ArenaDeckCardName.Identity(y.Name).Equals(
+                            ArenaDeckCardName.Identity(x.Key),
+                            StringComparison.OrdinalIgnoreCase)).Sum(y => y.Quantity) >= x.Count()))
+                    {
+                        suggestions.AddRange(plan.Swaps.Select(x =>
+                            new NativeDeckOwnedPicker.OwnedSubstitution(
+                                x.MissingName, x.ReplacementName, 1)));
+                    }
+                }
+                catch (Exception ex) when (ex is InvalidDataException or
+                    ArgumentException or OverflowException)
+                {
+                    // The shopping list remains usable even if strategy
+                    // metadata is incomplete; omit uncertain suggestions.
+                    StatusText.Text = "Owned alternatives unavailable: " + ex.Message;
+                }
+            }
+            var csv = NativeDeckOwnedPicker.CompletionShoppingListCsv(
+                summary, pool, suggestions);
             File.WriteAllText(picker.FileName, csv, new UTF8Encoding(true));
             StatusText.Text = $"Exported {summary.Shortages.Count:N0} missing card names " +
-                $"({summary.MissingCopies:N0} copies). No deck or ownership changes.";
+                $"({summary.MissingCopies:N0} copies) with {suggestions.Count:N0} optional owned substitution(s). " +
+                "No deck or ownership changes.";
         }
         catch (Exception ex) when (ex is InvalidDataException or ArgumentException or
             IOException or UnauthorizedAccessException or OverflowException)
