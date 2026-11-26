@@ -225,6 +225,20 @@ internal static class NativeDeckOwnedPickerChecks
              !csv.Contains("\"Forest\",") &&
              !csv.Contains("price", StringComparison.OrdinalIgnoreCase),
              "Shopping list must count real missing copies, avoid covered cards and spreadsheet formulas, and not invent prices.");
+        var withSuggestions = NativeDeckOwnedPicker.CompletionShoppingListCsv(
+            completion, NativeDeckOwnedPicker.Pool.Physical,
+            new[]
+            {
+                new NativeDeckOwnedPicker.OwnedSubstitution("Sol Ring", "Arcane, Trial", 1),
+                new NativeDeckOwnedPicker.OwnedSubstitution("Sol Ring", "Arcane, Trial", 1),
+                new NativeDeckOwnedPicker.OwnedSubstitution("=Untrusted Sample", "@Do Not Run", 1)
+            });
+        Must(withSuggestions.Contains("Potential Owned Substitutions (Not Applied)") &&
+             withSuggestions.Contains("\"2x Arcane, Trial\"") &&
+             withSuggestions.Contains("\"'1x @Do Not Run\"") == false &&
+             withSuggestions.Contains("\"1x @Do Not Run\"") &&
+             withSuggestions.Contains("\"Sol Ring\",2,8,5,1,\"Physical\""),
+             "Potential owned substitutions must be clearly optional, grouped and CSV escaped, without changing missing quantities.");
         var arenaPlan = NativeDeckOwnedPicker.CompletionShoppingListCsv(
             NativeDeckOwnedPicker.Review(owned,
                 NativeDeckOwnedPicker.Pool.Arena,
