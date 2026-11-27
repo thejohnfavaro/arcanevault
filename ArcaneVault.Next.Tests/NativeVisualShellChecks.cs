@@ -117,6 +117,14 @@ internal static class NativeVisualShellChecks
                  !code.Contains("more card names."),
                  "All ownership shortages must be individually listed in both deck editors.");
         foreach (var layout in new[] { savedEditor, deckStudio })
+            Must(layout.Contains("Recommendations only · changes require confirmation") &&
+                 layout.Contains("Deck improvements") &&
+                 layout.Contains("Export missing cards and available alternatives as CSV") &&
+                 !layout.Contains("Opt-in, heuristic swaps only.") &&
+                 !layout.Contains("Every successful save retains the complete previous native collection"),
+                 "Both editors should use concise interface copy while retaining actionable labels.");
+
+        foreach (var layout in new[] { savedEditor, deckStudio })
             Must(layout.Contains("OnCollapseMainboardGroupsClicked") &&
                  layout.Contains("OnExpandMainboardGroupsClicked") &&
                  layout.Contains("Select to collapse or expand this card-type group"),
