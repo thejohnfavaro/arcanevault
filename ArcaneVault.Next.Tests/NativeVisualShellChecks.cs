@@ -911,7 +911,7 @@ internal static class NativeVisualShellChecks
              deckEditorXaml.Contains("DataContextChanged=\"OnMainboardThumbnailContextChanged\"") &&
              deckEditorXaml.Contains("VirtualizingStackPanel.VirtualizationMode=\"Recycling\"") &&
              deckEditorXaml.Contains("DecodePixelWidth", StringComparison.Ordinal) == false &&
-             deckEditorXaml.Contains("ToolTip=\"Illustrative official card artwork; not proof of an owned printing\"") &&
+             deckEditorXaml.Contains("ToolTip=\"Card artwork preview\"") &&
              mainboardArtworkCode.Contains("new SemaphoreSlim(3, 3)") &&
              mainboardArtworkCode.Contains("MainboardArtMemoryLimit = 128") &&
              mainboardArtworkCode.Contains("MainboardThumbDecodeWidth = 64") &&
