@@ -76,7 +76,7 @@ public partial class NativeDeckEditorView
         EdhMissingComparisonPanel.Visibility = Visibility.Collapsed;
         EdhMissingImpactPanel.Visibility = Visibility.Collapsed;
         EdhMissingAlternativeDetails.Text =
-            "Select an alternative to read why it was listed. No automatic substitutions.";
+            "Select an alternative to compare cards.";
         if (EdhMissingShortagesList.SelectedItem is not MissingDeckRow shortage)
         {
             EdhMissingAlternativesStatus.Text = "Choose a missing card name.";
@@ -85,9 +85,7 @@ public partial class NativeDeckEditorView
         if (!shortage.IsMainboard)
         {
             EdhMissingAlternativesStatus.Text =
-                "This shortage is only the separate commander slot. The commander " +
-                "cannot be replaced by a mainboard swap; obtain it or deliberately " +
-                "edit/change the commander in a separate validated workflow.";
+                "The commander must be changed separately.";
             return;
         }
         if (edhCatalog is null)
@@ -264,9 +262,7 @@ public partial class NativeDeckEditorView
                 $"{alternative.Name}?\n\n{alternative.Explanation}\n\n" +
                 "Projected whole-deck impact:\n" +
                 freshImpact.Summary + "\n\n" +
-                "This edits only the current draft. It does not purchase cards, " +
-                "change the collection, verify printings or save the deck. " +
-                "Review and save remains a separate action.",
+                "This updates the draft only. Save the deck when ready.",
                 "Review recorded-card replacement",
                 MessageBoxButton.YesNo, MessageBoxImage.Question,
                 MessageBoxResult.No) != MessageBoxResult.Yes)
@@ -279,10 +275,7 @@ public partial class NativeDeckEditorView
             if (NativeDeckEditing.ParseMainboard(after).Sum(x => x.Quantity) != before)
                 throw new InvalidDataException("Replacement changed the number of mainboard copies.");
             MainboardBox.Text = after;
-            StatusText.Text = $"Replaced one UNSAVED mainboard copy: " +
-                $"-1 {shortage.Name}, +1 {alternative.Name}. " +
-                "Other shortages may remain. No inventory, saved decks or " +
-                "revision history changed; Review and save is still required.";
+            StatusText.Text = $"Draft updated: -1 {shortage.Name}, +1 {alternative.Name}. Save when ready.";
         }
         catch (Exception ex) when (ex is InvalidDataException or
             ArgumentException or OverflowException)
