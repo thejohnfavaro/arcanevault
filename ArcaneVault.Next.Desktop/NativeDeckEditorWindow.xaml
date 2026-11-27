@@ -172,7 +172,7 @@
           </Grid>
           <TextBlock x:Name="DeckCoverStatus" FontSize="11" Margin="0,5,0,0"
                      Foreground="{DynamicResource VaultMuted}" TextWrapping="Wrap"
-                     Text="Auto uses commander artwork, or a mainboard card when no commander exists."/>
+                     Text="Uses commander art, or another card if no commander is set."/>
         </StackPanel>
         <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
@@ -193,11 +193,11 @@
                             Padding="9,3" Margin="8,0,0,0"
                             Background="#202737" Foreground="White"
                             BorderBrush="#514276"
-                            ToolTip="Sort the unsaved mainboard; rejects invalid lines rather than dropping them"/>
+                            ToolTip="Sort cards in this draft"/>
                     <TextBlock Text="Mainboard — manage cards or edit text"
                                VerticalAlignment="Center" Foreground="#E5BF79"
                                TextTrimming="CharacterEllipsis"
-                               ToolTip="EDH Lab: select a card in Manage to preview and adjust its unsaved count. Text remains the authoritative deck list."/>
+                               ToolTip="Select a card to view details or adjust its count"/>
                 </DockPanel>
                 <TabControl Grid.Row="1" x:Name="MainboardModes"
                             Background="{DynamicResource VaultPanel}"
@@ -254,7 +254,7 @@
                                      MaxLength="255"
                                      TextChanged="OnMainboardManagerSearchChanged"
                                      PreviewKeyDown="OnMainboardManagerSearchKeyDown"
-                                     ToolTip="Filter the unsaved mainboard by card name, type or role; never modifies deck contents"
+                                     ToolTip="Find cards by name, type, or role"
                                      Background="#202737" Foreground="White"
                                      BorderBrush="#514276"/>
                             <WrapPanel Margin="0,7,0,0">
@@ -269,10 +269,10 @@
                                         ToolTip="Move to the next visible mainboard card"/>
                                 <Button Content="Collapse All" Padding="9,4" Margin="0,0,7,0"
                                         Click="OnCollapseMainboardGroupsClicked"
-                                        ToolTip="Collapse card-type groups without changing the saved or unsaved deck"/>
+                                        ToolTip="Collapse all card groups"/>
                                 <Button Content="Expand All" Padding="9,4"
                                         Click="OnExpandMainboardGroupsClicked"
-                                        ToolTip="Show all card-type groups without changing the saved or unsaved deck"/>
+                                        ToolTip="Expand all card groups"/>
                             </WrapPanel>
                             </StackPanel>
                             <StackPanel Grid.Row="1" Margin="0,0,0,7">
@@ -352,7 +352,7 @@
                                                            DataContextChanged="OnMainboardThumbnailContextChanged"
                                                            Stretch="UniformToFill"
                                                            RenderOptions.BitmapScalingMode="HighQuality"
-                                                           ToolTip="Illustrative official card artwork; not proof of an owned printing"/>
+                                                           ToolTip="Card artwork preview"/>
                                                 </Grid>
                                             </Border>
                                             <TextBlock Grid.Row="0" Grid.Column="1"
@@ -405,7 +405,7 @@
                                         Margin="0,0,0,4" Padding="9,6"
                                         Background="#202737" Foreground="White"
                                         BorderBrush="#514276"
-                                        ToolTip="Remove every copy of the selected mainboard card (unsaved; does not remove owned copies)"/>
+                                        ToolTip="Remove this card from the deck"/>
                             </WrapPanel>
                             <StackPanel Grid.Row="5" Margin="0,7,0,0">
                                 <TextBlock Text="Deck-specific artwork printing"
@@ -471,7 +471,7 @@
                                       IsChecked="False" FontWeight="SemiBold"
                                       Checked="OnEdhSuggestionsChanged"
                                       Unchecked="OnEdhSuggestionsChanged"
-                                      ToolTip="Read-only, locally legal land matches. Owned and Proxy inventories stay separate."/>
+                                      ToolTip="Find eligible lands in your collection"/>
                             <DockPanel Margin="0,5,0,0" LastChildFill="True">
                                 <TextBlock Text="Land availability" Margin="0,0,8,0"
                                            VerticalAlignment="Center"/>
@@ -580,7 +580,7 @@
                     <Button Content="Remove (−1)" Click="OnRemoveOwnedClicked"
                             Padding="10,7"
                             Background="#202737" Foreground="White" BorderBrush="#514276"
-                            ToolTip="Decrease the selected card's count in the unsaved deck; does not change ownership"/>
+                            ToolTip="Remove one copy from this deck"/>
                 </StackPanel>
                 <TextBlock Grid.Row="5" x:Name="DeckSummaryText" Margin="0,12,0,5"
                            TextWrapping="Wrap" Foreground="#E5BF79"
@@ -594,10 +594,10 @@
                              Background="Transparent" Foreground="#C9A9A9"
                              BorderThickness="0" Padding="0,2,6,2"
                              Focusable="True"
-                             ToolTip="Scroll to review all shortages. Only the selected ownership pool is counted; missing copies are not auto-added."/>
+                             ToolTip="Scroll through cards missing from the selected inventory"/>
                     <Button Content="Complete My Deck · Export shopping list"
                             Click="OnExportCompletionPlanClicked"
-                            ToolTip="Export the missing copies in this unsaved draft. No purchases, ownership changes, or prices."
+                            ToolTip="Export missing cards and available alternatives as CSV"
                             HorizontalAlignment="Left" Margin="0,6,0,0"
                             Padding="10,5"
                             Background="{DynamicResource VaultPanelRaised}"
@@ -636,7 +636,7 @@
                                         Foreground="{DynamicResource VaultText}"
                                         Background="{DynamicResource VaultAccentMuted}"
                                         BorderBrush="{DynamicResource VaultAccentBorder}"
-                                        ToolTip="Browse collection-owned eligible cards for the largest relative role gap; does not add or save cards"/>
+                                        ToolTip="Find owned cards to fill your biggest deck gap"/>
                             </StackPanel>
                         </Border>
                         <TextBlock x:Name="EdhManaHeadline" Margin="0,8,0,3"
@@ -650,7 +650,7 @@
                             <StackPanel Margin="0,5,0,3">
                                 <TextBlock TextWrapping="Wrap" FontSize="11"
                                            Foreground="{DynamicResource VaultMuted}"
-                                           Text="Auto mode changes only regular basic-land counts in this unsaved draft. New EDH drafts start with auto mode enabled; saved decks are opt-in. Existing nonbasic and snow lands are preserved."/>
+                                           Text="Auto-balance basics for your mana needs. Nonbasic and snow lands stay as they are."/>
                                 <WrapPanel Margin="0,8,0,5" Orientation="Horizontal">
                                     <CheckBox x:Name="EdhAutoBalanceLands"
                                               Content="Auto-balance basics"
@@ -693,7 +693,7 @@
                                   BorderBrush="{DynamicResource VaultLine}"
                                   BorderThickness="1" Padding="7">
                             <StackPanel Margin="0,5,0,4">
-                                <TextBlock Text="Suggests locally eligible lands from your recorded physical/Arena collection. Paper proxies are marked separately and never valued. Mana-production icons reflect printed abilities or basic types, not color identity; fetchlands depend on their targets."
+                                <TextBlock Text="Explore eligible lands from your collection. Mana colors reflect available production, including fetchland targets."
                                            TextWrapping="Wrap" FontSize="11"
                                            Foreground="{DynamicResource VaultMuted}"
                                            Margin="0,0,0,7"/>
@@ -712,7 +712,7 @@
                                                  Background="{DynamicResource VaultPanel}"
                                                  Foreground="{DynamicResource VaultText}"
                                                  TextChanged="OnLandDiscoveryFilterChanged"
-                                                 ToolTip="Search by name, land type (Shock, Tap, Fetch, etc.), or mana access. No collection changes."/>
+                                                 ToolTip="Search land names, types, or mana colors"/>
                                     </StackPanel>
                                     <StackPanel Margin="0,0,9,5">
                                         <TextBlock Text="AVAILABILITY" Style="{StaticResource VaultEyebrow}"
@@ -792,7 +792,7 @@
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                                 <TextBlock x:Name="EdhLandSelectedNotes"
-                                           Text="Single-click a land to inspect its exact card text; double-click to add one eligible copy to the unsaved deck."
+                                           Text="Select a land for details; double-click to add"
                                            TextWrapping="Wrap" FontSize="11"
                                            Foreground="{DynamicResource VaultMuted}"
                                            Margin="0,0,0,6"/>
@@ -804,7 +804,7 @@
                                         Background="{DynamicResource VaultAccentMuted}"
                                         Foreground="{DynamicResource VaultText}"
                                         BorderBrush="{DynamicResource VaultAccentBorder}"
-                                        ToolTip="Explicitly add the selected locally legal land once. Existing land copies and ownership stay unchanged."/>
+                                        ToolTip="Add one eligible land to the draft"/>
                                 <Border Margin="0,12,0,0" Padding="10" CornerRadius="6"
                                         Background="{DynamicResource VaultPanelRaised}"
                                         BorderBrush="{DynamicResource VaultLine}"
@@ -813,7 +813,7 @@
                                         <TextBlock Text="REVIEWABLE MANA BASE"
                                                    Foreground="{DynamicResource VaultAccent}"
                                                    FontWeight="SemiBold" FontSize="11"/>
-                                        <TextBlock Text="Propose land changes for the current target and verified collection. Nonbasic lands and spells are never automatically removed. Review the exact changes before applying them to the unsaved draft."
+                                        <TextBlock Text="Review suggested land changes for your current target before applying them."
                                                    TextWrapping="Wrap" Margin="0,5,0,8"
                                                    Foreground="{DynamicResource VaultMuted}"
                                                    FontSize="11"/>
@@ -830,7 +830,7 @@
                                                 Background="{DynamicResource VaultAccentMuted}"
                                                 Foreground="{DynamicResource VaultText}"
                                                 BorderBrush="{DynamicResource VaultAccentBorder}"
-                                                ToolTip="One click: optimize the UNSAVED mainboard using real owned shock lands, then untapped sources, then conditional/tapped lands as needed. Existing nonbasics and spells are kept."/>
+                                                ToolTip="Use owned lands to improve mana access while preserving existing nonbasics"/>
                                         <Button x:Name="EdhManaBaseBuildButton"
                                                 Content="Build proposed mana base"
                                                 Click="OnEdhManaBaseBuildClicked"
@@ -882,7 +882,7 @@
                                 <TextBlock TextWrapping="Wrap" FontSize="11"
                                            Foreground="{DynamicResource VaultMuted}"
                                            Margin="0,0,0,6"
-                                           Text="Read-only estimates: natural land drops from a 7-card opener with no mulligans; colored-source warnings are separate, approximate signals, not complete casting probabilities."/>
+                                           Text="Land-drop estimates assume seven opening cards and no mulligans. Color requirements are approximate."/>
                                 <TextBlock x:Name="EdhCurveDetails"
                                            FontFamily="Consolas" FontSize="11"
                                            TextWrapping="Wrap"
@@ -900,7 +900,7 @@
                                   HorizontalScrollBarVisibility="Disabled"
                                   CanContentScroll="False" PanningMode="VerticalOnly">
                         <StackPanel Margin="10,8,10,12">
-                            <TextBlock Text="Collection-aware improvements" FontSize="15"
+                            <TextBlock Text="Deck improvements" FontSize="15"
                                        FontWeight="SemiBold" Margin="0,0,0,8"
                                        Foreground="{DynamicResource VaultAccent}"/>
                             <Border Background="{DynamicResource VaultPanelRaised}"
@@ -916,7 +916,7 @@
                                               SelectionChanged="OnEdhStrategyFocusChanged"
                                               Background="{DynamicResource VaultPanel}"
                                               Foreground="{DynamicResource VaultText}"
-                                              ToolTip="Choose which strategy matters most for card recommendations. This is an unsaved analysis preference; it will not modify your deck.">
+                                              ToolTip="Choose what to prioritize in recommendations">
                                         <ComboBoxItem Content="Balanced" Tag="Balanced"/>
                                         <ComboBoxItem Content="Faster starts" Tag="FastStart"/>
                                         <ComboBoxItem Content="Card advantage" Tag="CardAdvantage"/>
@@ -928,7 +928,7 @@
                                                Margin="0,6,0,0"
                                                Foreground="{DynamicResource VaultMuted}"
                                                Text="Balance curve, scarce roles, and recognized commander mechanics."/>
-                                    <TextBlock Text="Analysis only · not saved as a deck attribute · no automatic swaps"
+                                    <TextBlock Text="Recommendations only · changes require confirmation"
                                                TextWrapping="Wrap" FontSize="10"
                                                Margin="0,5,0,0"
                                                Foreground="{DynamicResource VaultMuted}"/>
@@ -992,7 +992,7 @@
                                            TextWrapping="Wrap" FontSize="11"
                                            Foreground="{DynamicResource VaultMuted}"
                                            Margin="0,0,0,7"
-                                           Text="Nothing will change until you explicitly confirm a swap."/>
+                                           Text="Review a swap before applying it."/>
                                 <!-- Wrap to one column on narrow Deck Studio panes; do not
                                      stretch or clip the app's scrollable Improve tab. -->
                                 <StackPanel x:Name="EdhMissingComparisonPanel"
@@ -1088,7 +1088,7 @@
                                     <TextBlock x:Name="EdhMissingRankingRationale"
                                                TextWrapping="Wrap" FontSize="11"
                                                Foreground="{DynamicResource VaultText}"/>
-                                    <TextBlock Text="Heuristic role matching is not a rules-equivalence, legality or deck-power guarantee."
+                                    <TextBlock Text="Suggested matches may play differently. Review card text."
                                                TextWrapping="Wrap" FontSize="10"
                                                Foreground="{DynamicResource VaultMuted}"
                                                Margin="0,5,0,0"/>
@@ -1109,14 +1109,14 @@
                                                    FontSize="11" TextWrapping="Wrap"
                                                    Margin="0,7,0,0"
                                                    Foreground="{DynamicResource VaultAccent}"/>
-                                        <TextBlock Text="Simulation only: text-derived role targets, available copies and commander signals are not a full rules engine."
+                                        <TextBlock Text="Estimates only; review interactions before applying."
                                                    FontSize="10" TextWrapping="Wrap"
                                                    Margin="0,6,0,0"
                                                    Foreground="{DynamicResource VaultMuted}"/>
                                     </StackPanel>
                                 </Expander>
                                 <Button x:Name="EdhApplyMissingSwapButton"
-                                        Content="Replace one copy in unsaved draft"
+                                        Content="Replace one copy"
                                         Click="OnEdhApplyMissingSwapClicked"
                                         IsEnabled="False"
                                         HorizontalAlignment="Left"
@@ -1124,7 +1124,7 @@
                                         Background="{DynamicResource VaultAccentMuted}"
                                         Foreground="{DynamicResource VaultText}"
                                         BorderBrush="{DynamicResource VaultAccentBorder}"
-                                        ToolTip="Review an eligible recorded replacement, then confirm a one-for-one unsaved draft change. Review and save remains separate."/>
+                                        ToolTip="Review and confirm a one-for-one swap"/>
                             </StackPanel>
                         </Expander>
                         <Expander Header="Deck health — strategy and coverage review"
@@ -1165,7 +1165,7 @@
                                         Background="{DynamicResource VaultAccentMuted}"
                                         Foreground="{DynamicResource VaultText}"
                                         BorderBrush="{DynamicResource VaultAccentBorder}"
-                                        ToolTip="Open the existing manual deck-building search; this does not change your deck, collection or saved data."/>
+                                        ToolTip="Browse cards for manual changes"/>
                             </StackPanel>
                         </Expander>
                         <TextBlock x:Name="EdhOptimizationHeadline"
@@ -1181,7 +1181,7 @@
                                 <TextBlock TextWrapping="Wrap" FontSize="11"
                                            Margin="0,0,0,7"
                                            Foreground="{DynamicResource VaultMuted}"
-                                           Text="Advisory curve thresholds, never automatic cuts. Suggestions come only from locally eligible, unused recorded cards for this deck's format and color identity."/>
+                                           Text="Curve suggestions based on eligible cards you own"/>
                                 <TextBlock x:Name="EdhOptimizationDetails"
                                            TextWrapping="Wrap" FontSize="11"
                                            Foreground="{DynamicResource VaultText}"
@@ -1195,7 +1195,7 @@
                                         Background="{DynamicResource VaultAccentMuted}"
                                         Foreground="{DynamicResource VaultText}"
                                         BorderBrush="{DynamicResource VaultAccentBorder}"
-                                        ToolTip="Filter the existing EDH Lab card browser to owned, format-eligible early-play options; does not swap, remove, add, craft or save anything"/>
+                                        ToolTip="Browse owned early-game options"/>
                             </StackPanel>
                         </Expander>
                         <Expander Header="Commander synergy packages — inspect or add"
@@ -1236,12 +1236,12 @@
                                         Background="{DynamicResource VaultAccentMuted}"
                                         Foreground="{DynamicResource VaultText}"
                                         BorderBrush="{DynamicResource VaultAccentBorder}"
-                                        ToolTip="Add one locally eligible card to the UNSAVED mainboard. In-deck and invalid candidates are disabled; ownership is never changed."/>
+                                        ToolTip="Add an eligible card to this draft"/>
                                 <TextBlock x:Name="EdhPackagePreviewText"
                                            TextWrapping="Wrap" FontSize="11"
                                            Margin="0,7,0,0"
                                            Foreground="{DynamicResource VaultMuted}"
-                                           Text="Select a package card to inspect exact text and artwork. Only a deliberate double-click or Add action changes the unsaved deck."/>
+                                           Text="Select for details; double-click to add"/>
                             </StackPanel>
                         </Expander>
                         <Expander Header="Synergy chains — possible two-card links"
@@ -1315,11 +1315,11 @@
                                         Padding="7,5" Margin="0,0,0,7"
                                         Background="{DynamicResource VaultPanel}"
                                         Foreground="{DynamicResource VaultText}"
-                                        ToolTip="Browse the highlighted missing link with the usual manual deck editing flow; does not add a card."/>
+                                        ToolTip="Find cards for this missing link"/>
                                 <TextBlock x:Name="EdhChainDetails" TextWrapping="Wrap"
                                            FontSize="11" Margin="0,7,0,0"
                                            Foreground="{DynamicResource VaultMuted}"
-                                           Text="Select a possible chain to inspect the suggested card. These are text cues, not verified combos."/>
+                                           Text="Explore a possible card interaction"/>
                             </StackPanel>
                         </Expander>
                         <Expander Header="Three-card engines — inspect possible pathways"
@@ -1342,7 +1342,7 @@
                                 <TextBlock x:Name="EdhEngineDetails" TextWrapping="Wrap"
                                            Margin="0,8,0,6" FontSize="11"
                                            Foreground="{DynamicResource VaultMuted}"
-                                           Text="Select a pathway to inspect all three cards. This is not a verified combo."/>
+                                           Text="Review the three-card interaction"/>
                                 <WrapPanel>
                                     <Button x:Name="EdhEngineProducerButton"
                                             Content="Inspect producer" IsEnabled="False"
@@ -1370,7 +1370,7 @@
                                         Padding="7,5"
                                         Background="{DynamicResource VaultPanel}"
                                         Foreground="{DynamicResource VaultText}"
-                                        ToolTip="Open existing manual card picker; this does not add, purchase or save anything."/>
+                                        ToolTip="Open card picker"/>
                             </StackPanel>
                         </Expander>
                         <TextBlock x:Name="EdhSwapHeadline" Margin="0,10,0,3"
@@ -1386,7 +1386,7 @@
                                 <TextBlock TextWrapping="Wrap" FontSize="11"
                                            Foreground="{DynamicResource VaultMuted}"
                                            Margin="0,0,0,7"
-                                           Text="Opt-in, heuristic swaps only. Suggestions use unused owned cards, keep locally tracked critical roles and identified commander synergy, and never edit the saved deck or collection."/>
+                                           Text="Suggested swaps use available owned cards. Review before applying."/>
                                 <TextBlock x:Name="EdhSwapStatus" TextWrapping="Wrap"
                                            FontSize="11"
                                            Foreground="{DynamicResource VaultText}"
@@ -1404,7 +1404,7 @@
                                            Foreground="{DynamicResource VaultMuted}"
                                            Text="Select a proposed cut and replacement to inspect the tradeoff."/>
                                 <Button x:Name="EdhApplySwapButton"
-                                        Content="Apply selected swap to unsaved draft…"
+                                        Content="Apply selected swap…"
                                         Click="OnEdhApplySwapClicked"
                                         IsEnabled="False"
                                         HorizontalAlignment="Left" Padding="9,6"
@@ -1495,7 +1495,7 @@
                                AutomationProperties.AutomationId="AV.Preview.Status" Grid.Row="4"
                                Margin="0,8,0,0" FontSize="10"
                                Foreground="#9DA9BD" TextWrapping="Wrap"
-                               Text="Preview is read-only. Artwork is illustrative, not proof of an owned printing."/>
+                               Text="Card preview · printing may differ"/>
                 </Grid>
             </Border>
         </Grid>
@@ -1577,7 +1577,7 @@
             </Expander>
             <TextBlock x:Name="StatusText" Grid.Row="1" Margin="0,6,0,0"
                        Foreground="#9DA9BD" TextWrapping="Wrap"
-                       Text="Every successful save retains the complete previous native collection as a recovery file."/>
+                       Text="A backup is created when you save."/>
         </Grid>
         <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Cancel" Click="OnCancelEditorClicked"
