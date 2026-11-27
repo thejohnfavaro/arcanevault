@@ -1520,7 +1520,7 @@ public partial class NativeDeckEditorWindow : Window
                 MainboardBox.Text, CommanderBox.Text, FormatBox.Text, proxyLedger);
             if (summary.Shortages.Count == 0)
             {
-                StatusText.Text = "Complete My Deck: no missing copies in this inventory pool.";
+                StatusText.Text = "No missing cards in the selected collection.";
                 return;
             }
             var picker = new SaveFileDialog
@@ -1583,8 +1583,8 @@ public partial class NativeDeckEditorWindow : Window
                 summary, pool, suggestions);
             File.WriteAllText(picker.FileName, csv, new UTF8Encoding(true));
             StatusText.Text = $"Exported {summary.Shortages.Count:N0} missing card names " +
-                $"({summary.MissingCopies:N0} copies) with {suggestions.Count:N0} optional owned substitution(s). " +
-                "No deck or ownership changes.";
+                $"({summary.MissingCopies:N0} copies, {suggestions.Count:N0} suggested substitutes). " +
+                "Deck and collection unchanged.";
         }
         catch (Exception ex) when (ex is InvalidDataException or ArgumentException or
             IOException or UnauthorizedAccessException or OverflowException)
@@ -1625,9 +1625,9 @@ public partial class NativeDeckEditorWindow : Window
                     ? $", Proxy {x.Proxy}" : "") +
                 $" (still missing {x.Missing})");
             DeckShortageText.Text = summary.Shortages.Count == 0
-                ? $"All draft copies covered by {poolName} inventory" +
+                ? $"No {poolName.ToLowerInvariant()} shortages" +
                   (summary.ProxyCoveredCopies > 0
-                      ? $" + {summary.ProxyCoveredCopies:N0} Proxy copies (not owned or valued)."
+                      ? $" · {summary.ProxyCoveredCopies:N0} proxy copies covered."
                       : ".")
                 : $"{poolName} shortages ({summary.Shortages.Count} cards):\n" +
                   string.Join("\n", lines);
@@ -1671,7 +1671,7 @@ public partial class NativeDeckEditorWindow : Window
                 EdhHealthAreasList.ItemsSource = null;
                 EdhHealthHeadline.Text = "Deck health: correct the decklist";
                 EdhHealthOverview.Text = "Role review and suggestions are paused until all draft lines are valid.";
-                EdhHealthNextStep.Text = "No deck or collection changes were made.";
+                EdhHealthNextStep.Text = "Fix the decklist to continue.";
                 EdhHealthAreaDetails.Text = "Fix the decklist first.";
                 EdhHealthBrowseButton.IsEnabled = false;
                 EdhOptimizationHeadline.Text = "Optimization: correct the decklist";
@@ -1841,7 +1841,7 @@ public partial class NativeDeckEditorWindow : Window
             EdhPrioritizeSynergy.IsEnabled = false;
             EdhFindGapButton.IsEnabled = false;
             EdhManaHeadline.Text = "Mana base: catalog unavailable";
-            EdhManaDetails.Text = "No automatic land changes were made.";
+            EdhManaDetails.Text = "Sync your catalog to review land options.";
             EdhCurveHeadline.Text = "Curve: catalog unavailable";
             EdhCurveDetails.Text = "Refresh Scryfall metadata to evaluate your draft.";
             ResetOptimizationBrowsing();
@@ -2468,7 +2468,7 @@ public partial class NativeDeckEditorWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = "Review or save did not finish. No automatic reset was performed. " +
+            StatusText.Text = "Could not save deck: " +
                 ex.Message;
             NativeInAppDialog.Show(this, StatusText.Text,
                 "Deck action stopped", MessageBoxButton.OK, MessageBoxImage.Warning);
